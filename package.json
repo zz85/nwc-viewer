@@ -11,6 +11,8 @@
     "url": "https://github.com/zz85/nwc-viewer/issues"
   },
   "homepage": "https://github.com/zz85/nwc-viewer",
-  "author": "",
-  "license": "GNU"
+  "license": "GNU",
+  "devDependencies": {
+    "vexflow": "^1.2.27"
+  }
 }
