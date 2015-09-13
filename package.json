@@ -1,0 +1,16 @@
+{
+  "name": "nwc-viewer",
+  "version": "1.0.0",
+  "description": "Viewer for Noteworthy Composer files",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Joshua Koo",
+  "bugs": {
+    "url": "https://github.com/zz85/nwc-viewer/issues"
+  },
+  "homepage": "https://github.com/zz85/nwc-viewer",
+  "author": "",
+  "license": "GNU"
+}
