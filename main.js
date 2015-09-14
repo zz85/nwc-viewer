@@ -81,15 +81,27 @@ function shortArrayToString(array) {
 	return String.fromCharCode.apply(null, array);
 }
 
-function process(array) {
-	b = array;
+var STYLES = [
+	'Regular',
+	'Italic',
+	'Bold',
+	'Bold Italic'
+];
 
+var ENDINGS = [
+	'SectionClose',
+	'MasterRepeatClose',
+	'Single',
+	'Double',
+	'Open hidden'
+];
+
+function process(array) {
+	a = array;
 
 	var lex = new Lex(array);
-
 	Header(lex);
 	Info(lex);
-
 	PageSetup(lex);
 	Staff(lex);
 }
@@ -130,8 +142,8 @@ function Info(lex) {
 
 function PageSetup(lex) {
 	lex.descend('page_setup');
-	margins = Margins(lex)
-	staffSize = Fonts(lex)
+	margins = Margins(lex);
+	staffSize = Fonts(lex);
 }
 
 function Margins(lex) {
@@ -153,7 +165,7 @@ function Fonts(lex) {
 	var fonts = [], font, style, size, typeface;
 	for (var i = 0; i < 12; i++) {
 		font = lex.readLineString();
-		style = lex.readByte();
+		style = STYLES[lex.readByte() & 3];
 		size = lex.readByte();
 		lex.skip(1);
 		typeface = lex.readByte();
@@ -170,16 +182,118 @@ function Fonts(lex) {
 
 function Staff(lex) {
 	lex.descend('staff');
-	// dump(lex.array, lex.start);
-	lex.readUntil(255);
+	lex.readUntil(0xff);
 
-	lex.readBytes(2)
+	lex.readBytes(2);
 	lex.emit('layering', lex.readByte(1));
-	lex.emit('staves', lex.readByte(1));
-	lex.skip(1)
+	var staves = lex.readByte(1);
+	lex.emit('staves', staves);
+	lex.skip(1);
+
+	for (var i = 1; i <= staves; i++) {
+		StaffInfo(lex, i);
+	}
+
 }
 
+function StaffInfo(lex, staff) {
+	lex.descend('staff-' + staff);
+	lex.emit('staff_name', lex.readLineString());
+	lex.emit('group_name', lex.readLineString());
+	lex.emit('end_bar', lex.readByte() & 7);
+	lex.emit('muted', !!(lex.readByte() & 1));
+	lex.skip(1);
+	lex.emit('channel', lex.readByte());
+	lex.skip(9);
+	lex.emit('staff_type', lex.readByte() & 3);
+	lex.skip(1);
 
+	lex.emit('uppersize', 256 - lex.readByte());
+	lex.readUntil(0xff);
+	lex.emit('lowersize', lex.readByte());
+	lex.skip(1);
+	lex.emit('lines', lex.readByte());
+	lex.emit('layer', !!(lex.readByte() & 1));
+	lex.emit('part_volume', lex.readByte());
+	lex.skip(1);
+	lex.emit('stero_pan', lex.readByte());
+	if (lex.data.header.version === 1.7) {
+		lex.skip(2);
+	} else {
+		lex.skip(3);
+	}
+
+	lex.skip(2);
+	var lyrics = lex.readShort();
+	var noLyrics = lex.readShort();
+
+	console.log('noLyrics' ,noLyrics);
+
+	if (lyrics) {
+		var lyricsOption = lex.readShort();
+		lex.skip(3);
+
+		for (var i = 0; i < noLyrics; i++) {
+			var lyrics = [];
+			lyrics.push(Lyrics(lex));
+			lex.emit('lyrics', lyrics);
+		}
+		lex.skip(1);
+	}
+
+	lex.skip();
+	lex.emit('color', lex.readByte() & 3);
+
+	var tokens = lex.readShort();
+	lex.emit('tokens', tokens);
+
+	while (token--) {
+		if (lex.data.header.version === 1.7) {
+			lex.skip(2);
+		}
+		var token = lex.readByte();
+	}
+}
+
+var TOKENS = {
+	0: 'Clef',
+	1: 'KeySignature',
+	2: 'Barline',
+	3: 'Repeat',
+	4: 'InstrumentPath',
+	5: ''
+};
+
+function Lyrics(lex) {
+	var data = lex.readByte();
+	if (!data) return;
+
+	var blocks;
+	switch (lex.readByte()) {
+		case 4:
+			blocks = 1;
+			break;
+		case 8:
+			blocks = 1;
+			break;
+		default:
+			return;
+	}
+
+	dump(lex.array, lex.start);
+
+	var lyricsLen = lex.readShort();
+	lex.skip(1);
+
+	var chunk = lex.readBytes(1024 * blocks);
+	var cs = shortArrayToString(chunk);
+	console.log('cs', cs, cs.toString(16));
+	var lyrics = chunk.subarray(0, lyricsLen);
+	return shortArrayToString(lyrics);
+}
+
+// processStaff
+// findStaffInfo
 
 function Lex(array) {
 	this.array = array;
@@ -190,8 +304,17 @@ function Lex(array) {
 	this.pointer = this.data;
 }
 
-Lex.prototype.descend = function(name) {
-	this.pointer = this.data[name] = {};
+Lex.prototype.descend = function(path) {
+	var node = this.data;
+	var self = this;
+	path.split('.').forEach(function(p) {
+		if (!(p in node)) {
+			node[p] = {};
+		}
+		node = node[p];
+		self.pointer = node;
+	});
+	// this.pointer = this.data[name] = {};
 };
 
 Lex.prototype.emit = function(name, value) {
@@ -223,6 +346,11 @@ Lex.prototype.readByte = function() {
 	return slice;
 };
 
+Lex.prototype.readShort = function() {
+	var num = this.readBytes(2);
+	return num[0] + num[1] * 256;
+};
+
 Lex.prototype.readBytes = function(k) {
 	this.pos += k;
 	var slice = this.array.subarray(this.start, this.pos);
@@ -231,6 +359,6 @@ Lex.prototype.readBytes = function(k) {
 };
 
 Lex.prototype.skip = function(k) {
-	this.pos += k;
+	this.pos += k || 1;
 	this.start = this.pos;
 };
