@@ -97,13 +97,14 @@ var ENDINGS = [
 ];
 
 function process(array) {
-	a = array;
-
 	var lex = new Lex(array);
 	Header(lex);
 	Info(lex);
 	PageSetup(lex);
-	Staff(lex);
+	Score(lex);
+
+	window.data = lex.data;
+	vex();
 }
 
 function Header(lex) {
@@ -180,24 +181,24 @@ function Fonts(lex) {
 	lex.emit('fonts', fonts);
 }
 
-function Staff(lex) {
-	lex.descend('staff');
+function Score(lex) {
+	lex.descend('score');
 	lex.readUntil(0xff);
 
 	lex.readBytes(2);
 	lex.emit('layering', lex.readByte(1));
 	var staves = lex.readByte(1);
-	lex.emit('staves', staves);
+	lex.emit('staves', new Array(staves));
 	lex.skip(1);
 
-	for (var i = 1; i <= staves; i++) {
+	for (var i = 0; i < staves; i++) {
 		StaffInfo(lex, i);
 	}
 
 }
 
 function StaffInfo(lex, staff) {
-	lex.descend('staff-' + staff);
+	lex.descend('score.staves.' + staff);
 	lex.emit('staff_name', lex.readLineString());
 	lex.emit('group_name', lex.readLineString());
 	lex.emit('end_bar', lex.readByte() & 7);
@@ -254,7 +255,7 @@ function StaffInfo(lex, staff) {
 		}
 		var token = lex.readByte();
 
-		lex.descend('staff-' + staff + '.tokens.' + i);
+		lex.descend('score.staves.' + staff + '.tokens.' + i);
 		var func = TOKENS[token];
 		if (!func) console.log('Warning, token not recongnized', token);
 		func(lex);
@@ -460,7 +461,7 @@ function Lyrics(lex) {
 			return;
 	}
 
-	dump(lex.array, lex.start);
+	// dump(lex.array, lex.start);
 
 	var lyricsLen = lex.readShort();
 	lex.skip(1);
@@ -471,9 +472,6 @@ function Lyrics(lex) {
 	var lyrics = chunk.subarray(0, lyricsLen);
 	return shortArrayToString(lyrics);
 }
-
-// processStaff
-// findStaffInfo
 
 function Lex(array) {
 	this.array = array;

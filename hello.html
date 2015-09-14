@@ -1,9 +1,37 @@
 <html>
 <body>
 	<h3>Hello Test</h3>
+
+	<canvas id="canvas" width="900" height="400"></canvas>
+
 	<!-- dependencies -->
 	<script src="vendor/inflate.min.js"></script>
 	<script src="node_modules/vexflow/releases/vexflow-min.js"></script>
 
 	<script src="main.js"></script>
+
+	<script>
+	function vex() {
+		var canvas = document.getElementById('canvas');
+		var renderer = new Vex.Flow.Renderer(canvas,
+			Vex.Flow.Renderer.Backends.CANVAS);
+
+		var LEFT_PADDING = 50;
+		var WIDTH = canvas.width;
+		var STAFF_HEIGHT = 100;
+
+		var ctx = renderer.getContext();
+
+		var staves = data.score.staves;
+
+		canvas.height = staves.length * STAFF_HEIGHT;
+		for (var s = 0; s < staves.length; s++) {
+			console.log(s);
+			var stave = new Vex.Flow.Stave(LEFT_PADDING, STAFF_HEIGHT * s, WIDTH);
+			stave.setContext(ctx);
+			stave.addClef("treble");
+			stave.draw();
+		}
+	}
+	</script>
 </body>
