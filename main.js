@@ -64,7 +64,7 @@ function dump(byteArray, start) {
 
 function received(arrayBuffer) {
 	var byteArray = new Uint8Array(arrayBuffer);
-	var firstBytes = smallArrayToString(byteArray.subarray(0, 5));
+	var firstBytes = shortArrayToString(byteArray.subarray(0, 5));
 	if ('[NWZ]' === firstBytes) {
 		var nwz = byteArray.subarray(6);
 		var inflate = new Zlib.Inflate(nwz);
@@ -77,7 +77,7 @@ function received(arrayBuffer) {
 	}
 }
 
-function smallArrayToString(array) {
+function shortArrayToString(array) {
 	return String.fromCharCode.apply(null, array);
 }
 
@@ -91,85 +91,92 @@ function process(array) {
 	Info(lex);
 
 	PageSetup(lex);
-	findNoOfStaff(lex);
+	Staff(lex);
 }
 
 function Header(lex) {
-	var company = smallArrayToString(lex.readLine());
-	var skip = smallArrayToString(lex.readLine());
-	skip = smallArrayToString(lex.readLine());
-	var product = smallArrayToString(lex.readLine());
+	lex.descend('header');
+	lex.emit('company', lex.readLineString());
+	var skip = shortArrayToString(lex.readLine());
+	skip = shortArrayToString(lex.readLine());
+	lex.emit('product', lex.readLineString());
 
-	v = lex.readLine();
+	var v = lex.readLine();
+
 	lex.skip(2);
-	console.log('name1', smallArrayToString(lex.readLine()))
-	console.log('name2', smallArrayToString(lex.readLine()))
+	lex.emit('name1', lex.readLineString());
+	lex.emit('name2', lex.readLineString());
 	lex.skip(8);
 	lex.skip(2);
 
 	var version_minor = v[0];
 	var version_major = v[1];
 	version = version_major + version_minor * 0.01;
-
-	console.log(company, product, version);
+	lex.emit('version', version);
 }
 
 function Info(lex) {
-	title = smallArrayToString(lex.readLine());
-	author = smallArrayToString(lex.readLine());
-	copyright1 = smallArrayToString(lex.readLine());
-	copyright2 = smallArrayToString(lex.readLine());
+	lex.descend('info');
+	lex.emit('title', lex.readLineString());
+	lex.emit('author', lex.readLineString());
+	lex.emit('copyright1', lex.readLineString());
+	lex.emit('copyright2', lex.readLineString());
 	if (version >= 2) {
-		something = smallArrayToString(lex.readLine());
+		lex.emit('something', lex.readLineString());
 	}
-	comments = smallArrayToString(lex.readLine());
-	console.log(title,
-			author, copyright1, copyright2, comments)
+	lex.emit('comments', lex.readLineString());
+	console.log(lex.data);
 }
 
 function PageSetup(lex) {
-	margins = getMargins(lex)
-	staffSize = getFonts(lex)
+	lex.descend('page_setup');
+	margins = Margins(lex)
+	staffSize = Fonts(lex)
 }
 
-function getMargins(lex) {
+function Margins(lex) {
 	lex.skip(9);
-	measureStart = lex.readByte();
-	console.log('measureStart', measureStart);
+	lex.emit('measureStart', lex.readByte());
 	lex.skip(1); // likely 0
-	margins = lex.readLine();
-	console.log('margins', smallArrayToString(margins));
+	margins = lex.readLineString();
+	margins = margins.split(' ').map(function(x) {
+		return +x;
+	});
+	lex.emit('margins', margins);
 }
 
-function getFonts(lex) {
+function Fonts(lex) {
 	lex.skip(36);
-	// staff font size
-	staff = lex.readByte();
+	lex.emit('staff_size', lex.readByte());
 	lex.skip(1);
 
-	console.log('Staff size: ', staff);
+	var fonts = [], font, style, size, typeface;
 	for (var i = 0; i < 12; i++) {
-		font = lex.readLine();
+		font = lex.readLineString();
 		style = lex.readByte();
 		size = lex.readByte();
-
-		console.log('font', smallArrayToString(font), style, size);;
-
 		lex.skip(1);
 		typeface = lex.readByte();
+
+		fonts.push({
+			font: font,
+			style: style,
+			size: size,
+			typeface: typeface
+		});
 	}
+	lex.emit('fonts', fonts);
 }
 
-function findNoOfStaff(lex) {
-	dump(lex.array, lex.start);
+function Staff(lex) {
+	lex.descend('staff');
+	// dump(lex.array, lex.start);
 	lex.readUntil(255);
 
 	lex.readBytes(2)
-	layering = lex.readByte(1)
-	noOfStaffs = lex.readByte(1)
+	lex.emit('layering', lex.readByte(1));
+	lex.emit('staves', lex.readByte(1));
 	lex.skip(1)
-	console.log('noOfStaffs', noOfStaffs, layering);
-
 }
 
 
@@ -178,7 +185,18 @@ function Lex(array) {
 	this.array = array;
 	this.start = 0;
 	this.pos   = 0; // cursor
+
+	this.data = {};
+	this.pointer = this.data;
 }
+
+Lex.prototype.descend = function(name) {
+	this.pointer = this.data[name] = {};
+};
+
+Lex.prototype.emit = function(name, value) {
+	this.pointer[name] = value;
+};
 
 Lex.prototype.readUntil = function(x) {
 	while (this.array[this.pos] !== x) {
@@ -193,6 +211,10 @@ Lex.prototype.readUntil = function(x) {
 
 Lex.prototype.readLine = function() {
 	return this.readUntil(0);
+};
+
+Lex.prototype.readLineString = function() {
+	return shortArrayToString(this.readLine());
 };
 
 Lex.prototype.readByte = function() {
@@ -211,8 +233,4 @@ Lex.prototype.readBytes = function(k) {
 Lex.prototype.skip = function(k) {
 	this.pos += k;
 	this.start = this.pos;
-}
-
-function LexLine(l) {
-
-}
+};
