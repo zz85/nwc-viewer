@@ -1,3 +1,77 @@
+/**********************
+ *
+ *   Constants
+ *
+ **********************/
+
+var TOKENS = {
+	0: Clef,
+	1: KeySignature,
+	2: Barline,
+	3: Repeat,
+	4: InstrumentPatch,
+	5: TimeSignature,
+	6: Tempo,
+	7: Dynamic,
+	8: Note,
+	9: Rest, // 0x09
+	10: Chord, // 0x0a
+	11: Pedal, // 0x0b
+	13: MidiInstruction, // 0x0d
+	14: Fermata, // 0x0e
+	15: DynamicVariance, // 0x0f
+	16: PerformanceStyle, // 0x10
+	17: Text, // 0x11
+	18: RestChord, // 0x12
+};
+
+var CLEF_NAMES = {
+	0: 'treble',
+	1: 'bass',
+	2: 'alto',
+	3: 'tenor',
+};
+
+var STYLES = [
+	'Regular',
+	'Italic',
+	'Bold',
+	'Bold Italic'
+];
+
+var ENDINGS = [
+	'SectionClose',
+	'MasterRepeatClose',
+	'Single',
+	'Double',
+	'Open hidden'
+];
+
+var DURATIONS = [
+	'1',
+	'2',
+	'4',
+	'8',
+	'16',
+	'32',
+	'64',
+];
+
+var ACCIDENTALS = [
+	'#',
+	'b',
+	'', // neutral
+	'##',
+	'bb',
+	'', //'auto'
+];
+
+/**********************
+ *
+ *   Helpers
+ *
+ **********************/
+
 function ajax(url, callback) {
 	var oReq = new XMLHttpRequest();
 	oReq.open('GET', url, true);
@@ -81,20 +155,12 @@ function shortArrayToString(array) {
 	return String.fromCharCode.apply(null, array);
 }
 
-var STYLES = [
-	'Regular',
-	'Italic',
-	'Bold',
-	'Bold Italic'
-];
+/**********************
+ *
+ *   Start Data Process
+ *
+ **********************/
 
-var ENDINGS = [
-	'SectionClose',
-	'MasterRepeatClose',
-	'Single',
-	'Double',
-	'Open hidden'
-];
 
 function process(array) {
 	var lex = new Lex(array);
@@ -106,6 +172,20 @@ function process(array) {
 	window.data = lex.data;
 	vex();
 }
+
+/**********************
+ *
+ *   Do Some Parsing?
+ *
+ **********************/
+
+
+/**********************
+ *
+ *   Parse Modes
+ *
+ **********************/
+
 
 function Header(lex) {
 	lex.descend('header');
@@ -248,7 +328,7 @@ function StaffInfo(lex, staff) {
 	var tokens = lex.readShort();
 	lex.emit('tokens', []);
 
-	console.log('Tokens', tokens);
+	// console.log('Tokens', tokens);
 	for (var i = 0; i < tokens - 2; i++) {
 		if (lex.data.header.version === 1.7) {
 			lex.skip(2);
@@ -264,32 +344,16 @@ function StaffInfo(lex, staff) {
 		}
 	}
 }
-
-var TOKENS = {
-	0: Clef,
-	1: KeySignature,
-	2: Barline,
-	3: Repeat,
-	4: InstrumentPatch,
-	5: TimeSignature,
-	6: Tempo,
-	7: Dynamic,
-	8: Note,
-	9: Rest, // 0x09
-	10: Chord, // 0x0a
-	11: Pedal, // 0x0b
-	13: MidiInstruction, // 0x0d
-	14: Fermata, // 0x0e
-	15: DynamicVariance, // 0x0f
-	16: PerformanceStyle, // 0x10
-	17: Text, // 0x11
-	18: RestChord, // 0x12
-};
+/**********************
+ *
+ *   Token Modes
+ *
+ **********************/
 
 function Clef(lex) {
 	lex.emit('type', 'Clef');
 	var data = lex.readBytes(6);
-	lex.emit('key', data[2] & 3);
+	lex.emit('clef', CLEF_NAMES[data[2] & 3]);
 	lex.emit('octave', data[4] & 3);
 }
 
@@ -323,6 +387,8 @@ function TimeSignature(lex) {
 
 	lex.emit('group', data[2]);
 	lex.emit('beat', data[4]);
+	lex.emit('signature', data[2] + '/' + data[4]);
+
 }
 
 function Tempo(lex) {
@@ -353,13 +419,18 @@ function NoteValue(lex, data) {
 	lex.emit('location', location);
 
 	var accidental = data[9] & 7;
-	lex.emit('accidental', accidental);
+	lex.emit('accidental', ACCIDENTALS[accidental]);
+	var durationBit = data[2] & 7;
 
-	lex.emit('durationBit', data[2] & 7);
-	lex.emit('durationDotBit', data[6]);
-	// . = durationDotBit & 1 << 2
-	// .. = durationDotBit & 1
+	lex.emit('duration', DURATIONS[durationBit]);
 
+	var durationDotBit = data[6];
+
+	var dots = durationDotBit & 1 << 2 ? 1 :
+		durationDotBit & 1 ? 2 :
+			0;
+
+	lex.emit('dots', dots);
 	lex.emit('stem', data[4] >> 4 & 3);
 	lex.emit('triplet', data[4] >> 2 & 3);
 	lex.emit('tie', data[6] >> 4 & 1);
@@ -472,6 +543,12 @@ function Lyrics(lex) {
 	var lyrics = chunk.subarray(0, lyricsLen);
 	return shortArrayToString(lyrics);
 }
+
+/**********************
+ *
+ *   Data Access
+ *
+ **********************/
 
 function Lex(array) {
 	this.array = array;
