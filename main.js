@@ -245,24 +245,204 @@ function StaffInfo(lex, staff) {
 	lex.emit('color', lex.readByte() & 3);
 
 	var tokens = lex.readShort();
-	lex.emit('tokens', tokens);
+	lex.emit('tokens', []);
 
-	while (token--) {
+	console.log('Tokens', tokens);
+	for (var i = 0; i < tokens - 2; i++) {
 		if (lex.data.header.version === 1.7) {
 			lex.skip(2);
 		}
 		var token = lex.readByte();
+
+		lex.descend('staff-' + staff + '.tokens.' + i);
+		var func = TOKENS[token];
+		if (!func) console.log('Warning, token not recongnized', token);
+		func(lex);
+		if (RestChord === func) {
+			i--;
+		}
 	}
 }
 
 var TOKENS = {
-	0: 'Clef',
-	1: 'KeySignature',
-	2: 'Barline',
-	3: 'Repeat',
-	4: 'InstrumentPath',
-	5: ''
+	0: Clef,
+	1: KeySignature,
+	2: Barline,
+	3: Repeat,
+	4: InstrumentPatch,
+	5: TimeSignature,
+	6: Tempo,
+	7: Dynamic,
+	8: Note,
+	9: Rest, // 0x09
+	10: Chord, // 0x0a
+	11: Pedal, // 0x0b
+	13: MidiInstruction, // 0x0d
+	14: Fermata, // 0x0e
+	15: DynamicVariance, // 0x0f
+	16: PerformanceStyle, // 0x10
+	17: Text, // 0x11
+	18: RestChord, // 0x12
 };
+
+function Clef(lex) {
+	lex.emit('type', 'Clef');
+	var data = lex.readBytes(6);
+	lex.emit('key', data[2] & 3);
+	lex.emit('octave', data[4] & 3);
+}
+
+function KeySignature(lex) {
+	lex.emit('type', 'KeySignature');
+	var data = lex.readBytes(12);
+	lex.emit('flats', data[2]);
+	lex.emit('sharps', data[4]);
+}
+
+function Barline(lex) {
+	lex.emit('type', 'Barline');
+	var data = lex.readBytes(4);
+	lex.emit('barline', data[2] & 15);
+}
+
+function Repeat(lex) {
+	lex.emit('type', 'Repeat');
+	var data = lex.readBytes(4);
+	lex.emit('repeat', data[2]);
+}
+
+function InstrumentPatch(lex) {
+	lex.emit('type', 'InstrumentPatch');
+	var data = lex.readBytes(10);
+}
+
+function TimeSignature(lex) {
+	lex.emit('type', 'TimeSignature');
+	var data = lex.readBytes(8);
+
+	lex.emit('group', data[2]);
+	lex.emit('beat', data[4]);
+}
+
+function Tempo(lex) {
+	lex.emit('type', 'Tempo');
+	var data = lex.readBytes(7);
+	lex.readLine(); // ?
+
+	lex.emit('note', data[6]);
+	lex.emit('duration', data[4]);
+}
+
+function Dynamic(lex) {
+	lex.emit('type', 'Dynamic');
+	var data = lex.readBytes(9);
+	lex.emit('dynamic', data[4] & 7);
+}
+
+
+function Note(lex) {
+	lex.emit('type', 'Note');
+	var data = lex.readBytes(10);
+	NoteValue(lex, data);
+}
+
+function NoteValue(lex, data) {
+	var location = data[8];
+	location = location > 127 ? 256 - location : -location;
+	lex.emit('location', location);
+
+	var accidental = data[9] & 7;
+	lex.emit('accidental', accidental);
+
+	lex.emit('durationBit', data[2] & 7);
+	lex.emit('durationDotBit', data[6]);
+	// . = durationDotBit & 1 << 2
+	// .. = durationDotBit & 1
+
+	lex.emit('stem', data[4] >> 4 & 3);
+	lex.emit('triplet', data[4] >> 2 & 3);
+	lex.emit('tie', data[6] >> 4 & 1);
+
+	lex.emit('staccato', data[6] >> 1 & 1);
+	lex.emit('accent', data[6] >> 5 & 1);
+	lex.emit('tenuto', data[7] >> 2 & 1);
+	lex.emit('grace', data[7] >> 5 & 1);
+	lex.emit('slur', data[7] & 3);
+}
+
+
+function Rest(lex) {
+	lex.emit('type', 'Rest');
+	var data = lex.readBytes(10);
+	NoteValue(lex, data);
+}
+
+function Chord(lex) {
+	lex.emit('type', 'Chord');
+	var data = lex.readBytes(12);
+
+	var chords = data[10];
+	// NoteValue(lex, data);
+
+	for (var i = 0; i < chords; i++) {
+		lex.skip();
+		data = lex.readBytes(10);
+		NoteValue(lex, data)
+	}
+}
+
+function RestChord(lex) {
+	lex.emit('type', 'RestChord');
+	var data = lex.readBytes(12);
+	NoteValue(lex, data);
+}
+
+function Pedal(lex) {
+	lex.emit('type', 'Pedal');
+	var data = lex.readBytes(5);
+	lex.emit('sustain', data[4]);
+}
+
+function MidiInstruction(lex) {
+	lex.emit('type', 'MidiInstruction');
+	var data = lex.readBytes(36);
+}
+
+function Fermata(lex) {
+	lex.emit('type', 'Fermata');
+	var data = lex.readBytes(6);
+	// TODO
+	lex.emit('sustain', data[4]);
+}
+
+function DynamicVariance(lex) {
+	lex.emit('type', 'DynamicVariance');
+	var data = lex.readBytes(5);
+	lex.emit('sustain', data[4]);
+	// TODO
+}
+
+function PerformanceStyle(lex) {
+	lex.emit('type', 'PerformanceStyle');
+	var data = lex.readBytes(5);
+	lex.emit('style', data[4]);
+	// TODO
+}
+
+function Text(lex) {
+	lex.emit('type', 'Text');
+	lex.skip(2);
+	lex.emit('position', lex.readByte());
+	lex.skip(2);
+	lex.emit('text', lex.readLineString());
+}
+
+
+// TODO
+// Clef.type = 'Clef'
+// Clef.token = 0
+// Clef.load(stream);
+// Clef.write();
 
 function Lyrics(lex) {
 	var data = lex.readByte();
@@ -319,6 +499,10 @@ Lex.prototype.descend = function(path) {
 
 Lex.prototype.emit = function(name, value) {
 	this.pointer[name] = value;
+};
+
+Lex.prototype.push = function(value) {
+	this.pointer.push(value);
 };
 
 Lex.prototype.readUntil = function(x) {
