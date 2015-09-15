@@ -635,7 +635,7 @@ function Lyrics(reader) {
 			blocks = 1;
 			break;
 		case 8:
-			blocks = 1;
+			blocks = 2;
 			break;
 		default:
 			return;
