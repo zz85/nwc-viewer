@@ -32,6 +32,13 @@ var CLEF_NAMES = {
 	3: 'tenor',
 };
 
+var CLEF_OFFSETS = {
+	'treble': 0,
+	'bass': 7,
+	'alto': -7,
+	'tenor': 4,
+};
+
 var STYLES = [
 	'Regular',
 	'Italic',
@@ -65,6 +72,8 @@ var ACCIDENTALS = [
 	'bb',
 	'', //'auto'
 ];
+
+var NAMES = 'C D E F G A B'.split(' ');
 
 /**********************
  *
@@ -170,14 +179,114 @@ function process(array) {
 	Score(lex);
 
 	window.data = lex.data;
+	parse(data);
 	vex();
 }
 
 /**********************
  *
- *   Do Some Parsing?
+ *  Do Some Parsing,
+ *	that understands
  *
  **********************/
+function parse(data) {
+	var staves = data.score.staves;
+
+	/*
+	State
+
+	- clef
+	- key signature
+	- notes (with accidentals)
+	- barlines
+	*/
+
+	var reader = new SightReader();
+
+	staves.forEach(function(staff) {
+		staff.tokens.forEach(function(token) {
+			var type = token.type;
+			if (type in reader) {
+				reader[type](token);
+			}
+		});
+	});
+};
+
+function SightReader() {
+	// Note Streamer
+	this.setClef('treble');
+}
+
+SightReader.prototype.setClef = function(clef) {
+	this.clef = clef;
+	this.offset = CLEF_OFFSETS[clef];
+	this.pitches = {};
+}
+
+SightReader.prototype.Clef = function(token) {
+	this.setClef(token.clef);
+};
+
+SightReader.prototype.Barline = function() {
+	// reset
+	this.pitches = {};
+};
+
+SightReader.prototype.KeySignature = function(token) {
+	// reset
+	// this.key =
+	console.log(token);
+};
+
+function circularIndex(n) {
+	var m = 7;
+	return n < 0 ? m - (n % m) : n % m;
+	/*
+	[ -2 -1 0 1 2 3 4 5 ]
+	[  5  6 0 1 2 3 ]
+	[  2  1 ]
+	n < 0 ? m - (n % m) : n % m
+	*/
+}
+
+SightReader.prototype.Note = function(token) {
+	var pos = token.position
+	var OCTAVE_START = 4;
+	var pitch = pos + this.offset;
+	// console.log(token.position, this.offset, pitch)
+	pitch += 7 * OCTAVE_START;
+
+	if (pitch < 0) {
+		console.log('Pitch should not be negative!!!');
+	}
+
+	var note_name = NAMES[circularIndex(pitch)];
+	var octave = pitch / 7 | 0;
+
+	token.name = note_name;
+	token.octave = octave;
+
+	// rule - note, previous note in bar, octave note, keysignature
+	var accidental = token.accidental;
+
+	// Override
+	if (accidental < 5) {
+		this.pitches[pitch] = accidental;
+	}
+	else if (this.pitches[pitch] !== undefined) {
+		accidental = this.pitches[pitch];
+	}
+	else {
+		// key signature
+	}
+
+	accidental = ACCIDENTALS[accidental];
+	token.accidental = accidental;
+	// console.log(accidental);
+};
+
+
 
 
 /**********************
@@ -414,12 +523,12 @@ function Note(lex) {
 }
 
 function NoteValue(lex, data) {
-	var location = data[8];
-	location = location > 127 ? 256 - location : -location;
-	lex.emit('location', location);
+	var position = data[8];
+	position = position > 127 ? 256 - position : - position;
+	lex.emit('position', position);
 
 	var accidental = data[9] & 7;
-	lex.emit('accidental', ACCIDENTALS[accidental]);
+	lex.emit('accidental', accidental);
 	var durationBit = data[2] & 7;
 
 	lex.emit('duration', DURATIONS[durationBit]);

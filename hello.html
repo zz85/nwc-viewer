@@ -27,8 +27,8 @@
 
 
 		canvas.height = staves.length * STAFF_HEIGHT;
-		for (var s = 0; s < 1; s++) {
-			// staves.length
+		for (var s = 0; s < staves.length; s++) {
+			//
 			var tokens = staves[s].tokens;
 			// console.log(tokens);
 
@@ -65,18 +65,28 @@
 			var voice;
 			var limit = 0;
 			tokens.forEach(function(token) {
-				if (token.type == 'Note' || token.type == 'Rest') {
+				if (token.type == 'Note'
+					// || token.type == 'Rest'
+					) {
 					limit++;
-					if (limit > 10) return;
-					console.log(token);
+					// if (limit > 10) return;
+					// console.log(token);;
 					notes.push(new Vex.Flow.StaveNote({
-						keys: ["C" + token.accidental + "/4"],
-						duration: token.duration + '',
-						dots: token.dots,
+						keys: [
+							// "C" + token.accidental + "/4"
+							token.name + token.accidental + '/' + token.octave
+						],
+						duration: token.duration + '' +
+						(token.dots ? 'ddd'.slice(-token.dots) : ''),
+						// dots: token.dots,
 						// clef: "bass"
 					}));
+				}
 
-
+				if (token.type == 'Barline') {
+					notes.push(
+						new Vex.Flow.BarNote()
+					);
 				}
 				if (token.type == 'TimeSignature') {
 					console.log(token);
@@ -99,7 +109,7 @@
 
 			// Format and justify the notes to 500 pixels
 			var formatter = new Vex.Flow.Formatter().
-				joinVoices([voice]).format([voice], WIDTH);
+				joinVoices([voice]).format([voice], WIDTH * 10);
 
 			// Render voice
 			voice.draw(ctx, stave);
