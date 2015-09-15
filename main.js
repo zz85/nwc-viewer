@@ -172,13 +172,13 @@ function shortArrayToString(array) {
 
 
 function process(array) {
-	var lex = new Lex(array);
-	Header(lex);
-	Info(lex);
-	PageSetup(lex);
-	Score(lex);
+	var reader = new DataReader(array);
+	Header(reader);
+	Info(reader);
+	PageSetup(reader);
+	Score(reader);
 
-	window.data = lex.data;
+	window.data = reader.data;
 	parse(data);
 	vex();
 }
@@ -296,69 +296,69 @@ SightReader.prototype.Note = function(token) {
  **********************/
 
 
-function Header(lex) {
-	lex.descend('header');
-	lex.emit('company', lex.readLineString());
-	var skip = shortArrayToString(lex.readLine());
-	skip = shortArrayToString(lex.readLine());
-	lex.emit('product', lex.readLineString());
+function Header(reader) {
+	reader.descend('header');
+	reader.emit('company', reader.readString());
+	var skip = shortArrayToString(reader.readLine());
+	skip = shortArrayToString(reader.readLine());
+	reader.emit('product', reader.readString());
 
-	var v = lex.readLine();
+	var v = reader.readLine();
 
-	lex.skip(2);
-	lex.emit('name1', lex.readLineString());
-	lex.emit('name2', lex.readLineString());
-	lex.skip(8);
-	lex.skip(2);
+	reader.skip(2);
+	reader.emit('name1', reader.readString());
+	reader.emit('name2', reader.readString());
+	reader.skip(8);
+	reader.skip(2);
 
 	var version_minor = v[0];
 	var version_major = v[1];
 	version = version_major + version_minor * 0.01;
-	lex.emit('version', version);
+	reader.emit('version', version);
 }
 
-function Info(lex) {
-	lex.descend('info');
-	lex.emit('title', lex.readLineString());
-	lex.emit('author', lex.readLineString());
-	lex.emit('copyright1', lex.readLineString());
-	lex.emit('copyright2', lex.readLineString());
+function Info(reader) {
+	reader.descend('info');
+	reader.emit('title', reader.readString());
+	reader.emit('author', reader.readString());
+	reader.emit('copyright1', reader.readString());
+	reader.emit('copyright2', reader.readString());
 	if (version >= 2) {
-		lex.emit('something', lex.readLineString());
+		reader.emit('something', reader.readString());
 	}
-	lex.emit('comments', lex.readLineString());
-	console.log(lex.data);
+	reader.emit('comments', reader.readString());
+	console.log(reader.data);
 }
 
-function PageSetup(lex) {
-	lex.descend('page_setup');
-	margins = Margins(lex);
-	staffSize = Fonts(lex);
+function PageSetup(reader) {
+	reader.descend('page_setup');
+	margins = Margins(reader);
+	staffSize = Fonts(reader);
 }
 
-function Margins(lex) {
-	lex.skip(9);
-	lex.emit('measureStart', lex.readByte());
-	lex.skip(1); // likely 0
-	margins = lex.readLineString();
+function Margins(reader) {
+	reader.skip(9);
+	reader.emit('measureStart', reader.readByte());
+	reader.skip(1); // likely 0
+	margins = reader.readString();
 	margins = margins.split(' ').map(function(x) {
 		return +x;
 	});
-	lex.emit('margins', margins);
+	reader.emit('margins', margins);
 }
 
-function Fonts(lex) {
-	lex.skip(36);
-	lex.emit('staff_size', lex.readByte());
-	lex.skip(1);
+function Fonts(reader) {
+	reader.skip(36);
+	reader.emit('staff_size', reader.readByte());
+	reader.skip(1);
 
 	var fonts = [], font, style, size, typeface;
 	for (var i = 0; i < 12; i++) {
-		font = lex.readLineString();
-		style = STYLES[lex.readByte() & 3];
-		size = lex.readByte();
-		lex.skip(1);
-		typeface = lex.readByte();
+		font = reader.readString();
+		style = STYLES[reader.readByte() & 3];
+		size = reader.readByte();
+		reader.skip(1);
+		typeface = reader.readByte();
 
 		fonts.push({
 			font: font,
@@ -367,87 +367,87 @@ function Fonts(lex) {
 			typeface: typeface
 		});
 	}
-	lex.emit('fonts', fonts);
+	reader.emit('fonts', fonts);
 }
 
-function Score(lex) {
-	lex.descend('score');
-	lex.readUntil(0xff);
+function Score(reader) {
+	reader.descend('score');
+	reader.readUntil(0xff);
 
-	lex.readBytes(2);
-	lex.emit('layering', lex.readByte(1));
-	var staves = lex.readByte(1);
-	lex.emit('staves', new Array(staves));
-	lex.skip(1);
+	reader.readBytes(2);
+	reader.emit('layering', reader.readByte(1));
+	var staves = reader.readByte(1);
+	reader.emit('staves', new Array(staves));
+	reader.skip(1);
 
 	for (var i = 0; i < staves; i++) {
-		StaffInfo(lex, i);
+		StaffInfo(reader, i);
 	}
 
 }
 
-function StaffInfo(lex, staff) {
-	lex.descend('score.staves.' + staff);
-	lex.emit('staff_name', lex.readLineString());
-	lex.emit('group_name', lex.readLineString());
-	lex.emit('end_bar', lex.readByte() & 7);
-	lex.emit('muted', !!(lex.readByte() & 1));
-	lex.skip(1);
-	lex.emit('channel', lex.readByte());
-	lex.skip(9);
-	lex.emit('staff_type', lex.readByte() & 3);
-	lex.skip(1);
+function StaffInfo(reader, staff) {
+	reader.descend('score.staves.' + staff);
+	reader.emit('staff_name', reader.readString());
+	reader.emit('group_name', reader.readString());
+	reader.emit('end_bar', reader.readByte() & 7);
+	reader.emit('muted', !!(reader.readByte() & 1));
+	reader.skip(1);
+	reader.emit('channel', reader.readByte());
+	reader.skip(9);
+	reader.emit('staff_type', reader.readByte() & 3);
+	reader.skip(1);
 
-	lex.emit('uppersize', 256 - lex.readByte());
-	lex.readUntil(0xff);
-	lex.emit('lowersize', lex.readByte());
-	lex.skip(1);
-	lex.emit('lines', lex.readByte());
-	lex.emit('layer', !!(lex.readByte() & 1));
-	lex.emit('part_volume', lex.readByte());
-	lex.skip(1);
-	lex.emit('stero_pan', lex.readByte());
-	if (lex.data.header.version === 1.7) {
-		lex.skip(2);
+	reader.emit('uppersize', 256 - reader.readByte());
+	reader.readUntil(0xff);
+	reader.emit('lowersize', reader.readByte());
+	reader.skip(1);
+	reader.emit('lines', reader.readByte());
+	reader.emit('layer', !!(reader.readByte() & 1));
+	reader.emit('part_volume', reader.readByte());
+	reader.skip(1);
+	reader.emit('stero_pan', reader.readByte());
+	if (reader.data.header.version === 1.7) {
+		reader.skip(2);
 	} else {
-		lex.skip(3);
+		reader.skip(3);
 	}
 
-	lex.skip(2);
-	var lyrics = lex.readShort();
-	var noLyrics = lex.readShort();
+	reader.skip(2);
+	var lyrics = reader.readShort();
+	var noLyrics = reader.readShort();
 
 	console.log('noLyrics' ,noLyrics);
 
 	if (lyrics) {
-		var lyricsOption = lex.readShort();
-		lex.skip(3);
+		var lyricsOption = reader.readShort();
+		reader.skip(3);
 
 		for (var i = 0; i < noLyrics; i++) {
 			var lyrics = [];
-			lyrics.push(Lyrics(lex));
-			lex.emit('lyrics', lyrics);
+			lyrics.push(Lyrics(reader));
+			reader.emit('lyrics', lyrics);
 		}
-		lex.skip(1);
+		reader.skip(1);
 	}
 
-	lex.skip();
-	lex.emit('color', lex.readByte() & 3);
+	reader.skip();
+	reader.emit('color', reader.readByte() & 3);
 
-	var tokens = lex.readShort();
-	lex.emit('tokens', []);
+	var tokens = reader.readShort();
+	reader.emit('tokens', []);
 
 	// console.log('Tokens', tokens);
 	for (var i = 0; i < tokens - 2; i++) {
-		if (lex.data.header.version === 1.7) {
-			lex.skip(2);
+		if (reader.data.header.version === 1.7) {
+			reader.skip(2);
 		}
-		var token = lex.readByte();
+		var token = reader.readByte();
 
-		lex.descend('score.staves.' + staff + '.tokens.' + i);
+		reader.descend('score.staves.' + staff + '.tokens.' + i);
 		var func = TOKENS[token];
 		if (!func) console.log('Warning, token not recongnized', token);
-		func(lex);
+		func(reader);
 		if (RestChord === func) {
 			i--;
 		}
@@ -459,79 +459,79 @@ function StaffInfo(lex, staff) {
  *
  **********************/
 
-function Clef(lex) {
-	lex.emit('type', 'Clef');
-	var data = lex.readBytes(6);
-	lex.emit('clef', CLEF_NAMES[data[2] & 3]);
-	lex.emit('octave', data[4] & 3);
+function Clef(reader) {
+	reader.emit('type', 'Clef');
+	var data = reader.readBytes(6);
+	reader.emit('clef', CLEF_NAMES[data[2] & 3]);
+	reader.emit('octave', data[4] & 3);
 }
 
-function KeySignature(lex) {
-	lex.emit('type', 'KeySignature');
-	var data = lex.readBytes(12);
-	lex.emit('flats', data[2]);
-	lex.emit('sharps', data[4]);
+function KeySignature(reader) {
+	reader.emit('type', 'KeySignature');
+	var data = reader.readBytes(12);
+	reader.emit('flats', data[2]);
+	reader.emit('sharps', data[4]);
 }
 
-function Barline(lex) {
-	lex.emit('type', 'Barline');
-	var data = lex.readBytes(4);
-	lex.emit('barline', data[2] & 15);
+function Barline(reader) {
+	reader.emit('type', 'Barline');
+	var data = reader.readBytes(4);
+	reader.emit('barline', data[2] & 15);
 }
 
-function Repeat(lex) {
-	lex.emit('type', 'Repeat');
-	var data = lex.readBytes(4);
-	lex.emit('repeat', data[2]);
+function Repeat(reader) {
+	reader.emit('type', 'Repeat');
+	var data = reader.readBytes(4);
+	reader.emit('repeat', data[2]);
 }
 
-function InstrumentPatch(lex) {
-	lex.emit('type', 'InstrumentPatch');
-	var data = lex.readBytes(10);
+function InstrumentPatch(reader) {
+	reader.emit('type', 'InstrumentPatch');
+	var data = reader.readBytes(10);
 }
 
-function TimeSignature(lex) {
-	lex.emit('type', 'TimeSignature');
-	var data = lex.readBytes(8);
+function TimeSignature(reader) {
+	reader.emit('type', 'TimeSignature');
+	var data = reader.readBytes(8);
 
-	lex.emit('group', data[2]);
-	lex.emit('beat', data[4]);
-	lex.emit('signature', data[2] + '/' + data[4]);
+	reader.emit('group', data[2]);
+	reader.emit('beat', data[4]);
+	reader.emit('signature', data[2] + '/' + data[4]);
 
 }
 
-function Tempo(lex) {
-	lex.emit('type', 'Tempo');
-	var data = lex.readBytes(7);
-	lex.readLine(); // ?
+function Tempo(reader) {
+	reader.emit('type', 'Tempo');
+	var data = reader.readBytes(7);
+	reader.readLine(); // ?
 
-	lex.emit('note', data[6]);
-	lex.emit('duration', data[4]);
+	reader.emit('note', data[6]);
+	reader.emit('duration', data[4]);
 }
 
-function Dynamic(lex) {
-	lex.emit('type', 'Dynamic');
-	var data = lex.readBytes(9);
-	lex.emit('dynamic', data[4] & 7);
+function Dynamic(reader) {
+	reader.emit('type', 'Dynamic');
+	var data = reader.readBytes(9);
+	reader.emit('dynamic', data[4] & 7);
 }
 
 
-function Note(lex) {
-	lex.emit('type', 'Note');
-	var data = lex.readBytes(10);
-	NoteValue(lex, data);
+function Note(reader) {
+	reader.emit('type', 'Note');
+	var data = reader.readBytes(10);
+	NoteValue(reader, data);
 }
 
-function NoteValue(lex, data) {
+function NoteValue(reader, data) {
 	var position = data[8];
 	position = position > 127 ? 256 - position : - position;
-	lex.emit('position', position);
+	reader.emit('position', position);
 
 	var accidental = data[9] & 7;
-	lex.emit('accidental', accidental);
+	reader.emit('accidental', accidental);
 	var durationBit = data[2] & 7;
 
-	lex.emit('duration', DURATIONS[durationBit]);
+	reader.emit('duration', DURATIONS[durationBit]);
 
 	var durationDotBit = data[6];
 
@@ -539,83 +539,83 @@ function NoteValue(lex, data) {
 		durationDotBit & 1 ? 2 :
 			0;
 
-	lex.emit('dots', dots);
-	lex.emit('stem', data[4] >> 4 & 3);
-	lex.emit('triplet', data[4] >> 2 & 3);
-	lex.emit('tie', data[6] >> 4 & 1);
+	reader.emit('dots', dots);
+	reader.emit('stem', data[4] >> 4 & 3);
+	reader.emit('triplet', data[4] >> 2 & 3);
+	reader.emit('tie', data[6] >> 4 & 1);
 
-	lex.emit('staccato', data[6] >> 1 & 1);
-	lex.emit('accent', data[6] >> 5 & 1);
-	lex.emit('tenuto', data[7] >> 2 & 1);
-	lex.emit('grace', data[7] >> 5 & 1);
-	lex.emit('slur', data[7] & 3);
+	reader.emit('staccato', data[6] >> 1 & 1);
+	reader.emit('accent', data[6] >> 5 & 1);
+	reader.emit('tenuto', data[7] >> 2 & 1);
+	reader.emit('grace', data[7] >> 5 & 1);
+	reader.emit('slur', data[7] & 3);
 }
 
 
-function Rest(lex) {
-	lex.emit('type', 'Rest');
-	var data = lex.readBytes(10);
-	NoteValue(lex, data);
+function Rest(reader) {
+	reader.emit('type', 'Rest');
+	var data = reader.readBytes(10);
+	NoteValue(reader, data);
 }
 
-function Chord(lex) {
-	lex.emit('type', 'Chord');
-	var data = lex.readBytes(12);
+function Chord(reader) {
+	reader.emit('type', 'Chord');
+	var data = reader.readBytes(12);
 
 	var chords = data[10];
-	// NoteValue(lex, data);
+	// NoteValue(reader, data);
 
 	for (var i = 0; i < chords; i++) {
-		lex.skip();
-		data = lex.readBytes(10);
-		NoteValue(lex, data)
+		reader.skip();
+		data = reader.readBytes(10);
+		NoteValue(reader, data)
 	}
 }
 
-function RestChord(lex) {
-	lex.emit('type', 'RestChord');
-	var data = lex.readBytes(12);
-	NoteValue(lex, data);
+function RestChord(reader) {
+	reader.emit('type', 'RestChord');
+	var data = reader.readBytes(12);
+	NoteValue(reader, data);
 }
 
-function Pedal(lex) {
-	lex.emit('type', 'Pedal');
-	var data = lex.readBytes(5);
-	lex.emit('sustain', data[4]);
+function Pedal(reader) {
+	reader.emit('type', 'Pedal');
+	var data = reader.readBytes(5);
+	reader.emit('sustain', data[4]);
 }
 
-function MidiInstruction(lex) {
-	lex.emit('type', 'MidiInstruction');
-	var data = lex.readBytes(36);
+function MidiInstruction(reader) {
+	reader.emit('type', 'MidiInstruction');
+	var data = reader.readBytes(36);
 }
 
-function Fermata(lex) {
-	lex.emit('type', 'Fermata');
-	var data = lex.readBytes(6);
+function Fermata(reader) {
+	reader.emit('type', 'Fermata');
+	var data = reader.readBytes(6);
 	// TODO
-	lex.emit('sustain', data[4]);
+	reader.emit('sustain', data[4]);
 }
 
-function DynamicVariance(lex) {
-	lex.emit('type', 'DynamicVariance');
-	var data = lex.readBytes(5);
-	lex.emit('sustain', data[4]);
-	// TODO
-}
-
-function PerformanceStyle(lex) {
-	lex.emit('type', 'PerformanceStyle');
-	var data = lex.readBytes(5);
-	lex.emit('style', data[4]);
+function DynamicVariance(reader) {
+	reader.emit('type', 'DynamicVariance');
+	var data = reader.readBytes(5);
+	reader.emit('sustain', data[4]);
 	// TODO
 }
 
-function Text(lex) {
-	lex.emit('type', 'Text');
-	lex.skip(2);
-	lex.emit('position', lex.readByte());
-	lex.skip(2);
-	lex.emit('text', lex.readLineString());
+function PerformanceStyle(reader) {
+	reader.emit('type', 'PerformanceStyle');
+	var data = reader.readBytes(5);
+	reader.emit('style', data[4]);
+	// TODO
+}
+
+function Text(reader) {
+	reader.emit('type', 'Text');
+	reader.skip(2);
+	reader.emit('position', reader.readByte());
+	reader.skip(2);
+	reader.emit('text', reader.readString());
 }
 
 
@@ -625,12 +625,12 @@ function Text(lex) {
 // Clef.load(stream);
 // Clef.write();
 
-function Lyrics(lex) {
-	var data = lex.readByte();
+function Lyrics(reader) {
+	var data = reader.readByte();
 	if (!data) return;
 
 	var blocks;
-	switch (lex.readByte()) {
+	switch (reader.readByte()) {
 		case 4:
 			blocks = 1;
 			break;
@@ -641,12 +641,12 @@ function Lyrics(lex) {
 			return;
 	}
 
-	// dump(lex.array, lex.start);
+	// dump(reader.array, reader.start);
 
-	var lyricsLen = lex.readShort();
-	lex.skip(1);
+	var lyricsLen = reader.readShort();
+	reader.skip(1);
 
-	var chunk = lex.readBytes(1024 * blocks);
+	var chunk = reader.readBytes(1024 * blocks);
 	var cs = shortArrayToString(chunk);
 	console.log('cs', cs, cs.toString(16));
 	var lyrics = chunk.subarray(0, lyricsLen);
@@ -659,7 +659,7 @@ function Lyrics(lex) {
  *
  **********************/
 
-function Lex(array) {
+function DataReader(array) {
 	this.array = array;
 	this.start = 0;
 	this.pos   = 0; // cursor
@@ -668,7 +668,7 @@ function Lex(array) {
 	this.pointer = this.data;
 }
 
-Lex.prototype.descend = function(path) {
+DataReader.prototype.descend = function(path) {
 	var node = this.data;
 	var self = this;
 	path.split('.').forEach(function(p) {
@@ -681,15 +681,15 @@ Lex.prototype.descend = function(path) {
 	// this.pointer = this.data[name] = {};
 };
 
-Lex.prototype.emit = function(name, value) {
+DataReader.prototype.emit = function(name, value) {
 	this.pointer[name] = value;
 };
 
-Lex.prototype.push = function(value) {
+DataReader.prototype.push = function(value) {
 	this.pointer.push(value);
 };
 
-Lex.prototype.readUntil = function(x) {
+DataReader.prototype.readUntil = function(x) {
 	while (this.array[this.pos] !== x) {
 		this.pos++;
 	}
@@ -700,33 +700,33 @@ Lex.prototype.readUntil = function(x) {
 	return slice;
 };
 
-Lex.prototype.readLine = function() {
+DataReader.prototype.readLine = function() {
 	return this.readUntil(0);
 };
 
-Lex.prototype.readLineString = function() {
+DataReader.prototype.readString = function() {
 	return shortArrayToString(this.readLine());
 };
 
-Lex.prototype.readByte = function() {
+DataReader.prototype.readByte = function() {
 	var slice = this.array[this.pos++];
 	this.start = this.pos;
 	return slice;
 };
 
-Lex.prototype.readShort = function() {
+DataReader.prototype.readShort = function() {
 	var num = this.readBytes(2);
 	return num[0] + num[1] * 256;
 };
 
-Lex.prototype.readBytes = function(k) {
+DataReader.prototype.readBytes = function(k) {
 	this.pos += k;
 	var slice = this.array.subarray(this.start, this.pos);
 	this.start = this.pos;
 	return slice;
 };
 
-Lex.prototype.skip = function(k) {
+DataReader.prototype.skip = function(k) {
 	this.pos += k || 1;
 	this.start = this.pos;
 };
