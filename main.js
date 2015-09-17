@@ -75,6 +75,37 @@ var ACCIDENTALS = [
 
 var NAMES = 'C D E F G A B'.split(' ');
 
+clefs = {
+	0: "b'",
+	1: 'd',
+	2: "c'",
+	3: "a'",
+}
+
+TIME_SIG_VALUES = {
+	'4/4': '1',
+	'3/4': '2.',
+	'2/4': '2',
+	'1/4': '1',
+	'6/4': '2.',
+	'5/4': 1,
+	'1/8': '8',
+	'2/8': '4',
+	'3/8': '4.',
+	'6/8': '2.',
+	'4/8': '2',
+	'9/8': '12',
+	'12/8': '1',
+	'2/2': '1',
+	'4/2': '0',
+	'1/2': '2',
+}
+
+
+CLEF_OCTAVE = ('', '^8', '_8', '')
+CLEF_SHIFT = (0, 7, -7, 0)
+
+
 /**********************
  *
  *   Helpers
@@ -271,7 +302,7 @@ SightReader.prototype.Note = function(token) {
 	var accidental = token.accidental;
 
 	// Override
-	if (accidental < 5) {
+	if (accidental < 6) {
 		this.pitches[pitch] = accidental;
 	}
 	else if (this.pitches[pitch] !== undefined) {
@@ -494,9 +525,11 @@ function TimeSignature(reader) {
 	reader.emit('type', 'TimeSignature');
 	var data = reader.readBytes(8);
 
+	var beats = Math.pow(2, data[4]);
+
 	reader.emit('group', data[2]);
-	reader.emit('beat', data[4]);
-	reader.emit('signature', data[2] + '/' + data[4]);
+	reader.emit('beat', beats);
+	reader.emit('signature', data[2] + '/' + beats);
 
 }
 

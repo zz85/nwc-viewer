@@ -2,7 +2,7 @@
 <body>
 	<h3>Hello Test</h3>
 
-	<canvas id="canvas" width="900" height="400"></canvas>
+	<canvas id="canvas" width="4900" height="400"></canvas>
 
 	<!-- dependencies -->
 	<script src="vendor/inflate.min.js"></script>
@@ -66,21 +66,39 @@
 			var limit = 0;
 			tokens.forEach(function(token) {
 				if (token.type == 'Note'
-					// || token.type == 'Rest'
+					|| token.type == 'Rest'
 					) {
 					limit++;
 					// if (limit > 10) return;
-					// console.log(token);;
-					notes.push(new Vex.Flow.StaveNote({
+					// console.log(token);
+
+					var pos = token.name + token.accidental + '/' + token.octave;
+
+
+
+					var dur = token.duration + '';
+					var dots = (token.dots ? 'ddd'.slice(-token.dots) : '');
+
+					var key =  token.type == 'Rest' ? 'R/5' : pos;
+
+					console.log(key, dur, dots);
+					var note = new Vex.Flow.StaveNote({
 						keys: [
 							// "C" + token.accidental + "/4"
-							token.name + token.accidental + '/' + token.octave
+								key
 						],
-						duration: token.duration + '' +
-						(token.dots ? 'ddd'.slice(-token.dots) : ''),
+						duration: dur + dots,
 						// dots: token.dots,
 						// clef: "bass"
-					}));
+					});
+
+					var d = token.dots;
+					while (d--) {
+						note.addDotToAll();
+					}
+
+
+					notes.push(note);
 				}
 
 				if (token.type == 'Barline') {
@@ -103,13 +121,14 @@
 			stave.draw();
 			voice.setStrict(false);
 			// voice.mode = Vex.Flow.Voice.Mode.SOFT;
+			// voice.mode = Vex.Flow.Voice.Mode.FULL;
 
 			// Add notes to voice
 			voice.addTickables(notes);
 
 			// Format and justify the notes to 500 pixels
 			var formatter = new Vex.Flow.Formatter().
-				joinVoices([voice]).format([voice], WIDTH * 10);
+				joinVoices([voice]).format([voice], WIDTH);
 
 			// Render voice
 			voice.draw(ctx, stave);
