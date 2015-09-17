@@ -62,6 +62,15 @@
 				// new Vex.Flow.StaveNote({ keys: ["c/4", "e/4", "g/4"], duration: "q" })
 			];
 
+			ACCIDENTALS_VEX = {
+				'': '',
+				'#': '#',
+				'##': '##',
+				'b': 'b',
+				'bb': 'bb',
+				'n': 'n'
+			}
+
 			var voice;
 			var limit = 0;
 			tokens.forEach(function(token) {
@@ -72,7 +81,8 @@
 					// if (limit > 10) return;
 					// console.log(token);
 
-					var pos = token.name + token.accidental + '/' + token.octave;
+					var accidental = ACCIDENTALS_VEX[token.accidental];
+					var pos = token.name + '/' + token.octave;
 
 
 
@@ -81,7 +91,7 @@
 
 					var key =  token.type == 'Rest' ? 'R/5' : pos;
 
-					console.log(key, dur, dots);
+					console.log(key, dur, dots, token.accidental);
 					var note = new Vex.Flow.StaveNote({
 						keys: [
 							// "C" + token.accidental + "/4"
@@ -92,10 +102,15 @@
 						// clef: "bass"
 					});
 
+					if (token.type === 'Note' && accidental)
+					note.addAccidental(0, new Vex.Flow.Accidental(accidental));
+
 					var d = token.dots;
 					while (d--) {
 						note.addDotToAll();
 					}
+
+
 
 
 					notes.push(note);

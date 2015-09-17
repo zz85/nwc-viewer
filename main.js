@@ -67,7 +67,7 @@ var DURATIONS = [
 var ACCIDENTALS = [
 	'#',
 	'b',
-	'', // neutral
+	'n', // neutral
 	'##',
 	'bb',
 	'', //'auto'
@@ -477,8 +477,12 @@ function StaffInfo(reader, staff) {
 
 		reader.descend('score.staves.' + staff + '.tokens.' + i);
 		var func = TOKENS[token];
-		if (!func) console.log('Warning, token not recongnized', token);
-		func(reader);
+		if (func) {
+			func(reader);
+		} else {
+			console.log('Warning, token not recongnized', token);
+		}
+
 		if (RestChord === func) {
 			i--;
 		}
