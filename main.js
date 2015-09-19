@@ -411,11 +411,12 @@ function Score(reader) {
 
 	reader.readBytes(2);
 	reader.emit('layering', reader.readByte(1));
-	var staves = reader.readByte(1);
+	var staves = reader.readShort();
+	// console.log('Staves', staves);
 	reader.emit('staves', new Array(staves));
-	reader.skip(1);
 
 	for (var i = 0; i < staves; i++) {
+		console.log('STAFFF', i);
 		StaffInfo(reader, i);
 	}
 
@@ -472,8 +473,8 @@ function StaffInfo(reader, staff) {
 	var tokens = reader.readShort();
 	reader.emit('tokens', []);
 
-	// console.log('Tokens', tokens);
-	for (var i = 0; i < tokens; i++) {
+
+	for (var i = 0; i < tokens - 2; i++) {
 		if (reader.data.header.version === 1.7) {
 			reader.skip(2);
 		}
@@ -482,19 +483,17 @@ function StaffInfo(reader, staff) {
 		reader.descend('score.staves.' + staff + '.tokens.' + i);
 		var func = TOKENS[token];
 
-		for (var w in window) if (window[w] === func) {
-			console.log(w);
-		}
+		// console.log('processing token', i, tokens);
+		// for (var w in window) if (window[w] === func) {
+		// 	console.log(w);
+		// }
+
 		if (func) {
 			func(reader);
 		} else {
 			reader.dump();
 			console.log('Warning, token not recongnized', token);
 			return;
-		}
-
-		if (RestChord === func) {
-			i--;
 		}
 	}
 }
@@ -636,7 +635,7 @@ function Unknown(reader) {
 		reader.dump();
 	var data = reader.readBytes(6);
 	// 4 5 6* 11*
-	// reader.emit('sustain', data[4]);
+	// reader.emit('Unknown', data[4]);
 }
 
 function MidiInstruction(reader) {
