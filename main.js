@@ -17,6 +17,7 @@ var TOKENS = {
 	9: Rest, // 0x09
 	10: Chord, // 0x0a
 	11: Pedal, // 0x0b
+	12: Unknown,
 	13: MidiInstruction, // 0x0d
 	14: Fermata, // 0x0e
 	15: DynamicVariance, // 0x0f
@@ -126,7 +127,8 @@ function ajax(url, callback) {
 	oReq.send();
 }
 
-ajax('samples/anongs.nwc', received);
+// ajax('samples/anongs.nwc', received);
+ajax('samples/adohn.nwc', received);
 
 function hex(number) {
 	return ('00' + (number || 0).toString(16)).slice(-2);
@@ -173,7 +175,6 @@ function dump(byteArray, start) {
 			num(byteArray[i + 3])
 		);
 	}
-
 }
 
 function received(arrayBuffer) {
@@ -313,6 +314,7 @@ SightReader.prototype.Note = function(token) {
 	}
 
 	accidental = ACCIDENTALS[accidental];
+	console.log('accidental', accidental);
 	token.accidental = accidental;
 	// console.log(accidental);
 };
@@ -363,8 +365,10 @@ function Info(reader) {
 
 function PageSetup(reader) {
 	reader.descend('page_setup');
-	margins = Margins(reader);
-	staffSize = Fonts(reader);
+	// margins =
+	Margins(reader);
+	// staffSize =
+	Fonts(reader);
 }
 
 function Margins(reader) {
@@ -448,7 +452,7 @@ function StaffInfo(reader, staff) {
 	var lyrics = reader.readShort();
 	var noLyrics = reader.readShort();
 
-	console.log('noLyrics' ,noLyrics);
+	console.log('noLyrics', noLyrics);
 
 	if (lyrics) {
 		var lyricsOption = reader.readShort();
@@ -469,7 +473,7 @@ function StaffInfo(reader, staff) {
 	reader.emit('tokens', []);
 
 	// console.log('Tokens', tokens);
-	for (var i = 0; i < tokens - 2; i++) {
+	for (var i = 0; i < tokens; i++) {
 		if (reader.data.header.version === 1.7) {
 			reader.skip(2);
 		}
@@ -477,10 +481,16 @@ function StaffInfo(reader, staff) {
 
 		reader.descend('score.staves.' + staff + '.tokens.' + i);
 		var func = TOKENS[token];
+
+		for (var w in window) if (window[w] === func) {
+			console.log(w);
+		}
 		if (func) {
 			func(reader);
 		} else {
+			reader.dump();
 			console.log('Warning, token not recongnized', token);
+			return;
 		}
 
 		if (RestChord === func) {
@@ -621,6 +631,14 @@ function Pedal(reader) {
 	reader.emit('sustain', data[4]);
 }
 
+function Unknown(reader) {
+	reader.emit('type', 'Unknown');
+		reader.dump();
+	var data = reader.readBytes(6);
+	// 4 5 6* 11*
+	// reader.emit('sustain', data[4]);
+}
+
 function MidiInstruction(reader) {
 	reader.emit('type', 'MidiInstruction');
 	var data = reader.readBytes(36);
@@ -667,7 +685,7 @@ function Lyrics(reader) {
 	if (!data) return;
 
 	var blocks;
-	switch (reader.readByte()) {
+	switch (data) {
 		case 4:
 			blocks = 1;
 			break;
@@ -677,8 +695,6 @@ function Lyrics(reader) {
 		default:
 			return;
 	}
-
-	// dump(reader.array, reader.start);
 
 	var lyricsLen = reader.readShort();
 	reader.skip(1);
@@ -727,7 +743,7 @@ DataReader.prototype.push = function(value) {
 };
 
 DataReader.prototype.readUntil = function(x) {
-	while (this.array[this.pos] !== x) {
+	while (this.array[this.pos] !== x && this.pos < this.array.length) {
 		this.pos++;
 	}
 
@@ -766,4 +782,8 @@ DataReader.prototype.readBytes = function(k) {
 DataReader.prototype.skip = function(k) {
 	this.pos += k || 1;
 	this.start = this.pos;
+};
+
+DataReader.prototype.dump = function() {
+	dump(this.array, this.start);
 };
