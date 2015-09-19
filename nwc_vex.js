@@ -74,17 +74,19 @@ function vex() {
 
 
 				var dur = token.duration + '';
-				var dots = (token.dots ? 'ddd'.slice(-token.dots) : '');
-
+				var dots = '';
+				//(token.dots ? 'ddd'.slice(-token.dots) : '');
 				var key =  token.type == 'Rest' ? 'R/5' : pos;
+				var rest = token.type == 'Rest' ? 'r' : '';
+				// rest = '';
 
-				console.log(key, dur, dots, token.accidental);
+				// console.log(key, dur, dots, token.accidental);
 				var note = new Vex.Flow.StaveNote({
 					keys: [
 						// "C" + token.accidental + "/4"
 							key
 					],
-					duration: dur + dots,
+					duration: dur + dots + rest,
 					// dots: token.dots,
 					// clef: "bass"
 				});

@@ -127,8 +127,8 @@ function ajax(url, callback) {
 	oReq.send();
 }
 
-// ajax('samples/anongs.nwc', received);
-ajax('samples/adohn.nwc', received);
+ajax('samples/anongs.nwc', received);
+// ajax('samples/adohn.nwc', received);
 
 function hex(number) {
 	return ('00' + (number || 0).toString(16)).slice(-2);
@@ -314,9 +314,8 @@ SightReader.prototype.Note = function(token) {
 	}
 
 	accidental = ACCIDENTALS[accidental];
-	console.log('accidental', accidental);
 	token.accidental = accidental;
-	// console.log(accidental);
+	// console.log('accidental', accidental);
 };
 
 
@@ -495,6 +494,8 @@ function StaffInfo(reader, staff) {
 			console.log('Warning, token not recongnized', token);
 			return;
 		}
+
+		// if (func == Rest) i--;
 	}
 }
 /**********************
@@ -610,7 +611,7 @@ function Chord(reader) {
 
 	var chords = data[10];
 	// NoteValue(reader, data);
-
+	// BIG TODO here
 	for (var i = 0; i < chords; i++) {
 		reader.skip();
 		data = reader.readBytes(10);
