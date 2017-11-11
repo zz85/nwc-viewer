@@ -49,7 +49,7 @@ function vex() {
 			// new Vex.Flow.StaveNote({ keys: ["c/4", "e/4", "g/4"], duration: "q" })
 		];
 
-		ACCIDENTALS_VEX = {
+		var ACCIDENTALS_VEX = {
 			'': '',
 			'#': '#',
 			'##': '##',
@@ -66,12 +66,10 @@ function vex() {
 				) {
 				limit++;
 				// if (limit > 10) return;
-				// console.log(token);
+				if (token.accidental) console.log(token.accidental);
 
 				var accidental = ACCIDENTALS_VEX[token.accidental];
 				var pos = token.name + '/' + token.octave;
-
-
 
 				var dur = token.duration + '';
 				var dots = '';
@@ -92,15 +90,12 @@ function vex() {
 				});
 
 				if (token.type === 'Note' && accidental)
-				note.addAccidental(0, new Vex.Flow.Accidental(accidental));
+					note.addAccidental(0, new Vex.Flow.Accidental(accidental));
 
 				var d = token.dots;
 				while (d--) {
 					note.addDotToAll();
 				}
-
-
-
 
 				notes.push(note);
 			}
@@ -110,6 +105,7 @@ function vex() {
 					new Vex.Flow.BarNote()
 				);
 			}
+
 			if (token.type == 'TimeSignature') {
 				console.log(token);
 				stave.addTimeSignature(token.signature);
