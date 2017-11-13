@@ -1,0 +1,154 @@
+<html>
+	<head>
+			<meta charset="UTF-8">
+	</head>
+
+<body>
+	<style>
+	@font-face {
+		font-family: "Bravura";
+
+ 		src:
+			url("vendor/bravura-1.211/otf/Bravura.otf") format("opentype"),
+			url("vendor/bravura-1.211/woff/Bravura.woff2") format("woff2"),
+			url("vendor/bravura-1.211/woff/Bravura.woff") format("woff");
+	}
+    </style>
+
+
+
+<script>
+
+    class Draw {
+        draw() {
+            console.log('implement me .draw()')
+        }
+
+        outline() {
+        }
+
+        debug() {
+
+        }
+
+        moveTo(x, y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    class Stave extends Draw {
+        constructor() {
+            super()
+            this.size = 40
+            this.x = 0
+            this.y = 0
+            this.width = 100
+        }
+
+        draw(ctx) {
+            const {x, y, width, size} = this
+
+            ctx.save()
+            ctx.translate(x, y)
+            ctx.strokeStyle = '#000'
+            ctx.lineWidth = 1.4
+            
+            // 5 lines
+            const spaces = 4;
+            for (let i = 0; i <= spaces; i++) {
+                const ty = -i / spaces * size
+                ctx.beginPath()
+                ctx.moveTo(0, ty)
+                ctx.lineTo(width, ty);
+                ctx.stroke()
+            }
+            ctx.restore()
+        }
+    }
+
+    class Drawing {
+        constructor() {
+            this.set = new Set()
+        }
+
+        add(el) {
+            this.set.add(el)
+        }
+
+        remove(el) {
+            this.set.delete(el)
+        }
+
+        draw(ctx) {
+            for (const el of this.set) {
+                if (el instanceof Draw) {
+                    el.draw(ctx)
+                }
+                else {
+                    console.log('Element', el, 'not a draw element')
+                }
+            }
+        }
+    }
+
+
+
+
+    canvas = document.createElement('canvas');
+    canvas.style = 'font-family: Bravura'
+	canvas.width = 800
+	canvas.height = 400
+	document.body.appendChild(canvas)
+	ctx = canvas.getContext('2d')
+	coddes = {
+		e014: 'ledger',
+		e050: 'treble',
+		e05c: 'alto',
+		e062: 'base',
+    }
+    
+
+
+	render = () => {
+		ctx.font = '40px Bravura'
+		x = '\ue050 \ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014'
+		// y = String.fromCharCode(0xe050)
+		// console.log(x == y)
+
+        baseline = 50
+		ctx.textBaseline = 'alphabetic' // alphabetic  bottom top
+		ctx.fillText(x, 0, baseline)
+
+		ctx.rect(20, baseline - 40, 20, 40)
+        ctx.stroke();
+        
+
+        drawing = new Drawing()
+
+        s = new Stave()
+        s.moveTo(300, baseline)
+
+        s = new Stave()
+        s.moveTo(40, 160)
+
+
+        drawing.add(s)
+
+        drawing.draw(ctx)
+        
+	}
+
+	// Trick from https://stackoverflow.com/questions/2635814/
+	var image = new Image;
+	image.src = 'vendor/bravura-1.211/otf/Bravura.otf';
+	image.onerror = function() {
+		setTimeout(render, 100)
+	};
+
+
+
+
+</script>
+
+</body>

@@ -27,6 +27,11 @@
 		border: 1px solid #999;
 		padding: 0.5em;
 	}
+
+	canvas {
+		position: absolute;
+		top: 0px;
+	}
 	</style>
 
 
@@ -97,29 +102,29 @@
 		div.innerText = `${char} ${code.toString(16)}`
 		document.body.appendChild(div);
 	}
-	/*
-	// Trick from https://stackoverflow.com/questions/2635814/
-	var image = new Image;
-	image.src = link.href;
-	image.onerror = function() {
-		ctx.font = '50px "Vast Shadow"';
-		ctx.textBaseline = 'top';
-		ctx.fillText('Hello!', 20, 10);
-	};
-	*/
 
-	setTimeout(() => {
+
+	render = () => {
 		ctx.font = '40px Bravura'
 		x = '\ue050 \ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014'
 		// y = String.fromCharCode(0xe050)
 		// console.log(x == y)
 
-		ctx.textBaseLine = 'alphabetic' // alphabetic  bottom
+		ctx.textBaseline = 'top' // alphabetic  bottom top
 		ctx.fillText(x, 0, 50)
 
 		ctx.rect(20, 10, 20, 40)
 		ctx.stroke();
-	}, 100)
+	}
+
+	// Trick from https://stackoverflow.com/questions/2635814/
+	var image = new Image;
+	image.src = 'vendor/bravura-1.211/otf/Bravura.otf';
+	image.onerror = function() {
+		setTimeout(render, 100)
+	};
+
+
 
 
 </script>
