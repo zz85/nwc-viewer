@@ -33,40 +33,71 @@
 		e05c: 'alto',
 		e062: 'base',
     }
-    
+
 
 
 	render = () => {
-		ctx.font = '40px Bravura'
-		x = '\ue050 \ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014'
-		// y = String.fromCharCode(0xe050)
-		// console.log(x == y)
+		drawing = new Drawing(ctx)
 
-        baseline = 50
-		ctx.textBaseline = 'alphabetic' // alphabetic  bottom top
-		ctx.fillText(x, 0, baseline)
+        // baseline = 50
 
-		ctx.rect(20, baseline - 40, 20, 40)
-        ctx.stroke();
-        
+        // s = new Stave()
+        // s.moveTo(300, baseline)
 
-        drawing = new Drawing()
+        stave2y = 160
+        stave2x = 40
 
-        s = new Stave()
-        s.moveTo(300, baseline)
-
-        s = new Stave()
-        s.moveTo(40, 160)
+        s = new Stave(600)
+        s.moveTo(stave2x, stave2y)
         drawing.add(s)
 
+        t = new TrebleClef()
+        t.moveTo(stave2x, stave2y)
+        drawing.add(t)
+        stave2x += t.width * 2
 
-        t = new Treble()
-        t.moveTo(40, 160)
-        t.positionY(2)
+        t = new BassClef()
+        t.moveTo(stave2x, stave2y)
+        drawing.add(t)
+        stave2x += t.width * 2
+
+        t = new AltoClef()
+        t.moveTo(stave2x, stave2y)
+        drawing.add(t)
+        stave2x += t.width * 2
+
+        t = new TimeSignature(4, 2)
+        t.moveTo(stave2x, stave2y)
         drawing.add(t)
 
+        t = new TimeSignature(2, 6)
+        t.moveTo(stave2x, stave2y)
+        drawing.add(t)
+
+        stave2x += t.width * 2
+
+        s = new Glyph('noteheadWhole', 4)
+        s.moveTo(stave2x, stave2y)
+        drawing.add(s)
+        stave2x += t.width * 2
+
+        s = new Glyph('noteheadHalf', 4)
+        s.moveTo(stave2x, stave2y)
+        drawing.add(s)
+        stave2x += t.width * 2
+
+        s = new Glyph('noteheadBlack', 4)
+        s.moveTo(stave2x, stave2y)
+        drawing.add(s)
+        stave2x += t.width * 2
+
+        s = new Glyph('flag8thUp', 4)
+        s.moveTo(stave2x, stave2y)
+        drawing.add(s)
+        stave2x += t.width * 2
+
         drawing.draw(ctx)
-        
+
 	}
 
 	// Trick from https://stackoverflow.com/questions/2635814/
