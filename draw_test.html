@@ -16,83 +16,9 @@
     </style>
 
 
+<script src="src/drawing.js"></script>
 
 <script>
-
-    class Draw {
-        draw() {
-            console.log('implement me .draw()')
-        }
-
-        outline() {
-        }
-
-        debug() {
-
-        }
-
-        moveTo(x, y) {
-            this.x = x;
-            this.y = y;
-        }
-    }
-
-    class Stave extends Draw {
-        constructor() {
-            super()
-            this.size = 40
-            this.x = 0
-            this.y = 0
-            this.width = 100
-        }
-
-        draw(ctx) {
-            const {x, y, width, size} = this
-
-            ctx.save()
-            ctx.translate(x, y)
-            ctx.strokeStyle = '#000'
-            ctx.lineWidth = 1.4
-            
-            // 5 lines
-            const spaces = 4;
-            for (let i = 0; i <= spaces; i++) {
-                const ty = -i / spaces * size
-                ctx.beginPath()
-                ctx.moveTo(0, ty)
-                ctx.lineTo(width, ty);
-                ctx.stroke()
-            }
-            ctx.restore()
-        }
-    }
-
-    class Drawing {
-        constructor() {
-            this.set = new Set()
-        }
-
-        add(el) {
-            this.set.add(el)
-        }
-
-        remove(el) {
-            this.set.delete(el)
-        }
-
-        draw(ctx) {
-            for (const el of this.set) {
-                if (el instanceof Draw) {
-                    el.draw(ctx)
-                }
-                else {
-                    console.log('Element', el, 'not a draw element')
-                }
-            }
-        }
-    }
-
-
 
 
     canvas = document.createElement('canvas');
@@ -131,9 +57,13 @@
 
         s = new Stave()
         s.moveTo(40, 160)
-
-
         drawing.add(s)
+
+
+        t = new Treble()
+        t.moveTo(40, 160)
+        t.positionY(2)
+        drawing.add(t)
 
         drawing.draw(ctx)
         
