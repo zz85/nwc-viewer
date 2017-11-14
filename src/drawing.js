@@ -27,6 +27,17 @@ fontMap = {
 
 	// stemUpSE
 
+	// Rests
+	restDoubleWhole: 'E4E2',
+	restWhole: 'E4E3',
+	restHalf: 'E4E4',
+	restQuarter: 'E4E5',
+	rest8th: 'E4E6',
+	rest16th: 'E4E7',
+	rest32nd: 'E4E8',
+	rest64th: 'E4E9',
+	rest128th: 'E4EA',
+
 	// Noteheads
 	noteheadDoubleWhole: 'E0A0',
 	noteheadWhole: 'E0A2',
@@ -36,9 +47,7 @@ fontMap = {
 	noteWhole: 'E1D2', // 1D15D
 	noteHalfUp: 'E1D3', // 1D15E
 
-	// noteheadHalfFilled: ''
-	// 1D15E = 157 165
-	// 	U+1D165
+	stem: 'E210',
 
 	flag8thUp: 'E240',
 	flag8thDown: 'E241',
@@ -46,6 +55,12 @@ fontMap = {
 	flag16thDown: 'E243',
 	flagInternalUp: 'E250',
 	flagInternalDown: 'E251',
+	restHBar: 'E4EE	',
+
+	// Repeats
+	repeat1Bar: 'E500',
+	repeat2Bars: 'E501',
+	repeat4Bars: 'E502',
 
 	// Standard accidentals (12-EDO) (U+E260–U+E26F)
 
@@ -57,6 +72,16 @@ fontMap = {
 	textBlackNoteShortStem: 'E1F0',
 	textAugmentationDot: 'E1FC',
 	textTuplet3ShortStem: 'E1FF',
+
+	// Dynamics (U+E520–U+E54F)
+	dynamicPiano: 'E520',
+	dynamicMezzo: 'E521',
+	dynamicForte: 'E522',
+	dynamicRinforzando: 'E523',
+	dynamicSforzando: 'E524',
+
+	// Common ornaments (U+E560–U+E56F)
+
 }
 
 getCode = (name) => String.fromCharCode
@@ -126,7 +151,11 @@ class Draw {
 	}
 
 	positionY(semitones) {
-		this.offsetY = -semitones / 2 / 4 * 40
+		this.offsetY = this.unitsToY(semitones)
+	}
+
+	unitsToY(units) {
+		return -units / 2 / 4 * 40
 	}
 }
 
@@ -212,6 +241,22 @@ class TimeSignature extends Glyph {
 	}
 }
 
+class Stem extends Draw {
+	constructor(start, len) {
+		super();
+		// this.name = 'stem';
+		this.positionY(start);
+		this.len = len || 7;
+	}
+
+	draw(ctx) {
+		ctx.beginPath()
+		ctx.lineWidth = 1.2
+		ctx.moveTo(0, 0)
+		ctx.lineTo(0, this.unitsToY(this.len));
+		ctx.stroke();
+	}
+}
 
 class Drawing {
 	constructor(ctx) {
@@ -238,6 +283,15 @@ class Drawing {
 				ctx.translate(el.x, el.y)
 				ctx.translate(el.offsetX || 0, el.offsetY || 0)
 				el.draw(ctx)
+
+				if (el.text) {
+					ctx.font =  '8px arial'
+					ctx.fillText(el.text, 0, 50)
+				}
+
+				if (el._debug) {
+					el.debug(ctx);
+				}
 				ctx.restore()
 			}
 			else {
@@ -251,7 +305,11 @@ class Drawing {
 // TODO find namespace
 
 Claire = {
-	Draw, Stave, Glyph, TrebleClef, BassClef, AltoClef, TimeSignature, Drawing
+	Draw,
+	Stave, Glyph,
+	TrebleClef, BassClef, AltoClef, TimeSignature,
+	Stem,
+	Drawing
 }
 
 Object.assign(window, { Drawing, setup, Stave, Claire }, Claire)

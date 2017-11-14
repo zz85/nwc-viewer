@@ -53,17 +53,31 @@
         drawing.add(s)
         stave2x += s.width * 2
 
+        stem = () => {
+            // var stem = new Glyph('stem', 4)
+            var stem = new Stem(4)
+            stem.moveTo(stave2x, stave2y)
+            drawing.add(stem)
+        }
+
         s = new Glyph('noteheadHalf', 4)
         s.moveTo(stave2x, stave2y)
         drawing.add(s)
         stave2x += s.width * 2
+        stem();
 
         s = new Glyph('noteheadBlack', 4)
         s.moveTo(stave2x, stave2y)
         drawing.add(s)
         stave2x += s.width * 2
+        stem()
 
         s = new Glyph('flag8thUp', 4)
+        s.moveTo(stave2x, stave2y)
+        drawing.add(s)
+        stave2x += s.width * 2
+
+        s = new Glyph('flag8thDown', 4)
         s.moveTo(stave2x, stave2y)
         drawing.add(s)
         stave2x += s.width * 2
