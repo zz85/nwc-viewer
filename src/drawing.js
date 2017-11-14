@@ -33,10 +33,10 @@ fontMap = {
 
 	noteWhole: 'E1D2', // 1D15D
 	noteHalfUp: 'E1D3', // 1D15E
-	
+
 	// noteheadHalfFilled: ''
 	// 1D15E = 157 165
-	// 	U+1D165 
+	// 	U+1D165
 
 	flag8thUp: 'E240',
 	flag8thDown: 'E241',
@@ -46,7 +46,7 @@ fontMap = {
 	flagInternalDown: 'E251',
 
 	// Standard accidentals (12-EDO) (U+E260–U+E26F)
-	
+
 	accidentalFlat: 'e260',
 	accidentalNatural: 'e261',
 	accidentalSharp: 'e262',
@@ -55,7 +55,6 @@ fontMap = {
 	textBlackNoteShortStem: 'E1F0',
 	textAugmentationDot: 'E1FC',
 	textTuplet3ShortStem: 'E1FF',
-	
 }
 
 getCode = (name) => String.fromCharCode
@@ -63,6 +62,45 @@ getCode = (name) => String.fromCharCode
 	parseInt(fontMap[name], 16)
 )
 
+function insertFont() {
+	var fontStyle = document.createElement('style');
+	fontStyle.appendChild(document.createTextNode(`
+	@font-face {
+			font-family: "Bravura";
+
+			src:
+				url("vendor/bravura-1.211/otf/Bravura.otf") format("opentype"),
+				url("vendor/bravura-1.211/woff/Bravura.woff2") format("woff2"),
+				url("vendor/bravura-1.211/woff/Bravura.woff") format("woff");
+		}
+	`));
+
+	document.head.appendChild(fontStyle);
+}
+
+function setupCanvas() {
+	canvas = document.createElement('canvas');
+	canvas.style = 'font-family: Bravura'
+	canvas.width = 800
+	canvas.height = 400
+	document.body.appendChild(canvas)
+	ctx = canvas.getContext('2d')
+}
+
+function onReady(callback) {
+	// Trick from https://stackoverflow.com/questions/2635814/
+	var image = new Image;
+	image.src = 'vendor/bravura-1.211/otf/Bravura.otf';
+	image.onerror = function() {
+		setTimeout(callback, 100)
+	};
+}
+
+function setup(render) {
+	insertFont()
+	setupCanvas()
+	onReady(render)
+}
 
 class Draw {
 	draw() {

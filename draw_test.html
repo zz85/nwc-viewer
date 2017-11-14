@@ -4,35 +4,11 @@
 	</head>
 
 <body>
-	<style>
-	@font-face {
-		font-family: "Bravura";
 
- 		src:
-			url("vendor/bravura-1.211/otf/Bravura.otf") format("opentype"),
-			url("vendor/bravura-1.211/woff/Bravura.woff2") format("woff2"),
-			url("vendor/bravura-1.211/woff/Bravura.woff") format("woff");
-	}
-    </style>
-
-
-<script src="src/drawing.js"></script>
+    <script src="src/drawing.js"></script>
 
 <script>
 
-
-    canvas = document.createElement('canvas');
-    canvas.style = 'font-family: Bravura'
-	canvas.width = 800
-	canvas.height = 400
-	document.body.appendChild(canvas)
-	ctx = canvas.getContext('2d')
-	coddes = {
-		e014: 'ledger',
-		e050: 'treble',
-		e05c: 'alto',
-		e062: 'base',
-    }
 
 
 
@@ -79,36 +55,28 @@
         s = new Glyph('noteheadWhole', 4)
         s.moveTo(stave2x, stave2y)
         drawing.add(s)
-        stave2x += t.width * 2
+        stave2x += s.width * 2
 
         s = new Glyph('noteheadHalf', 4)
         s.moveTo(stave2x, stave2y)
         drawing.add(s)
-        stave2x += t.width * 2
+        stave2x += s.width * 2
 
         s = new Glyph('noteheadBlack', 4)
         s.moveTo(stave2x, stave2y)
         drawing.add(s)
-        stave2x += t.width * 2
+        stave2x += s.width * 2
 
         s = new Glyph('flag8thUp', 4)
         s.moveTo(stave2x, stave2y)
         drawing.add(s)
-        stave2x += t.width * 2
+        stave2x += s.width * 2
 
         drawing.draw(ctx)
 
-	}
+    }
 
-	// Trick from https://stackoverflow.com/questions/2635814/
-	var image = new Image;
-	image.src = 'vendor/bravura-1.211/otf/Bravura.otf';
-	image.onerror = function() {
-		setTimeout(render, 100)
-	};
-
-
-
+    setup(render)
 
 </script>
 
