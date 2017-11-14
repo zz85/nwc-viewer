@@ -1,3 +1,5 @@
+(() => {
+
 fontMap = {
 	// barlines
 
@@ -246,3 +248,12 @@ class Drawing {
 	}
 }
 
+// TODO find namespace
+
+Claire = {
+	Draw, Stave, Glyph, TrebleClef, BassClef, AltoClef, TimeSignature, Drawing
+}
+
+Object.assign(window, { Drawing, setup, Stave, Claire }, Claire)
+
+})()
