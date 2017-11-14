@@ -196,7 +196,7 @@ class Glyph extends Draw {
 		this.char = getCode(char)
 		// TODO remove ctx hardcoding
 		this.width = ctx.measureText(this.char).width
-		this.offsetX = this.width;
+		// this.padLeft = this.width;
 		if (adjustY) this.positionY(adjustY)
 	}
 
@@ -241,12 +241,28 @@ class TimeSignature extends Glyph {
 	}
 }
 
+// TODO generalized as vertical lines?
 class Stem extends Draw {
 	constructor(start, len) {
 		super();
 		// this.name = 'stem';
 		this.positionY(start);
 		this.len = len || 7;
+	}
+
+	draw(ctx) {
+		ctx.beginPath()
+		ctx.lineWidth = 1.2
+		ctx.moveTo(0, 0)
+		ctx.lineTo(0, this.unitsToY(this.len));
+		ctx.stroke();
+	}
+}
+
+class Barline extends Draw {
+	constructor(start, len) {
+		super();
+		this.len = len || 8;
 	}
 
 	draw(ctx) {
@@ -284,9 +300,9 @@ class Drawing {
 				ctx.translate(el.offsetX || 0, el.offsetY || 0)
 				el.draw(ctx)
 
-				if (el.text) {
+				if (el._text) {
 					ctx.font =  '8px arial'
-					ctx.fillText(el.text, 0, 50)
+					ctx.fillText(el._text, 0, 50)
 				}
 
 				if (el._debug) {
@@ -309,6 +325,7 @@ Claire = {
 	Stave, Glyph,
 	TrebleClef, BassClef, AltoClef, TimeSignature,
 	Stem,
+	Barline,
 	Drawing
 }
 
