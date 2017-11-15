@@ -82,13 +82,18 @@
         drawing.add(s)
         stave2x += s.width * 2
 
-        ;['restDoubleWhole', 'restWhole', 'restHalf', 'restQuarter', 'rest8th'].forEach(item => {
+        ;['restDoubleWhole', 'restWhole', 'restHalf', 'restQuarter', 'rest8th',
+        'textAugmentationDot'].forEach(item => {
             s = new Glyph(item, 4)
             s.moveTo(stave2x, stave2y)
             drawing.add(s)
             stave2x += s.width * 2
         })
 
+        s = new Ledger(-6, 0)
+        s.moveTo(stave2x, stave2y)
+        drawing.add(s)
+        stave2x += s.width * 2
 
         drawing.draw(ctx)
 

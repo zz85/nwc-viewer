@@ -106,9 +106,14 @@ function insertFont() {
 }
 
 function setupCanvas() {
+	div = document.createElement('div')
+	div.style = 'font-family: Bravura'
+	div.innerText=  '123'
+	document.body.appendChild(div)
+
 	canvas = document.createElement('canvas');
 	canvas.style = 'font-family: Bravura'
-	canvas.width = 800
+	canvas.width = 4000
 	canvas.height = 400
 	document.body.appendChild(canvas)
 	ctx = canvas.getContext('2d')
@@ -119,7 +124,7 @@ function onReady(callback) {
 	var image = new Image;
 	image.src = 'vendor/bravura-1.211/otf/Bravura.otf';
 	image.onerror = function() {
-		setTimeout(callback, 100)
+		setTimeout(callback, 500)
 	};
 }
 
@@ -241,6 +246,26 @@ class TimeSignature extends Glyph {
 	}
 }
 
+class Ledger extends Draw {
+	constructor(start, end) {
+		super()
+		const from = Math.min(start, end)
+		const to = Math.max(start, end)
+		this.positionY(from)
+		this.to = to - from;
+		this.width = 18
+	}
+
+	draw(ctx) {
+		for (let i = 0; i < this.to; i+=2) {
+			ctx.beginPath()
+			ctx.moveTo(-4, this.unitsToY(i))
+			ctx.lineTo(this.width, this.unitsToY(i))
+			ctx.stroke()
+		}
+	}
+}
+
 // TODO generalized as vertical lines?
 class Stem extends Draw {
 	constructor(start, len) {
@@ -271,6 +296,13 @@ class Barline extends Draw {
 		ctx.moveTo(0, 0)
 		ctx.lineTo(0, this.unitsToY(this.len));
 		ctx.stroke();
+	}
+}
+
+class Dot extends Glyph {
+	constructor(pos) {
+		super('textAugmentationDot', pos)
+		this.offsetX = 5
 	}
 }
 
@@ -321,12 +353,14 @@ class Drawing {
 // TODO find namespace
 
 Claire = {
+	Drawing,
 	Draw,
 	Stave, Glyph,
 	TrebleClef, BassClef, AltoClef, TimeSignature,
 	Stem,
 	Barline,
-	Drawing
+	Dot,
+	Ledger,	
 }
 
 Object.assign(window, { Drawing, setup, Stave, Claire }, Claire)

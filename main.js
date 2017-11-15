@@ -39,19 +39,21 @@ function score(data) {
 	staveY = 160
 	staveX = 40
 
-	s = new Stave(600)
+	s = new Stave(2000)
 	s.moveTo(staveX, staveY)
 	drawing.add(s)
+
+	console.log(tokens)
 
 	tokens.forEach((token, i) => {
 		const type = token.type;
 		const info = i
-
-		console.log(token)
+		// console.log(token)
 
 		switch (type) {
 			default:
 				console.log(type)
+
 				break;
 
 			case 'Clef':
@@ -91,6 +93,8 @@ function score(data) {
 					8: 'rest8th',
 					16: 'rest16th'
 				}[duration]
+				
+				if (!sym) console.log('FAIL REST', duration)
 
 				s = new Glyph(sym, token.position + 3) // + 4
 				s.moveTo(staveX, staveY)
@@ -114,17 +118,25 @@ function score(data) {
 				sym = duration < 2 ? 'noteheadWhole' :
 					duration < 4 ? 'noteheadHalf' :
 					'noteheadBlack'
+
+				const relativePos = token.position - 2;
 				
-				s = new Glyph(sym, token.position - 2)
+				s = new Glyph(sym, relativePos)
 				s.moveTo(staveX, staveY)
 				s._text = info + ':' + token.name;
 				drawing.add(s)
+
+				if (relativePos < 0) {
+					ledger = new Ledger((relativePos / 2 | 0) * 2, 0)
+					ledger.moveTo(staveX, staveY)
+					drawing.add(ledger)
+				}
 
 				staveX += s.width
 
 				// Flags
 				if (duration >= 8) {
-					stem = new Glyph(`flag${duration}thUp`, token.position - 2 + 7)
+					stem = new Glyph(`flag${duration}thUp`, relativePos + 7)
 					stem.moveTo(staveX, staveY)
 					stem._text = info;
 					drawing.add(stem)
@@ -134,9 +146,17 @@ function score(data) {
 
 				// Stem
 				if (duration >= 2) {
-					stem = new Stem(token.position - 2)
+					stem = new Stem(relativePos)
 					stem.moveTo(staveX, staveY)
 					drawing.add(stem)
+				}
+
+				for (let i = 0; i < token.dots; i++) {
+					console.log('dot')
+					const dot = new Dot(relativePos)
+					dot.moveTo(staveX, staveY)
+					drawing.add(dot)
+					staveX += dot.width
 				}
 
 				staveX += s.width * 1
