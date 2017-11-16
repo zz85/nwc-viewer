@@ -107,14 +107,14 @@ function insertFont() {
 
 function setupCanvas() {
 	div = document.createElement('div')
-	div.style = 'font-family: Bravura'
+	div.style = 'font-family: Bravura; display: none;'
 	div.innerText=  '123'
 	document.body.appendChild(div)
 
 	canvas = document.createElement('canvas');
 	canvas.style = 'font-family: Bravura'
 	canvas.width = 4000
-	canvas.height = 400
+	canvas.height = 1600
 	document.body.appendChild(canvas)
 	ctx = canvas.getContext('2d')
 }

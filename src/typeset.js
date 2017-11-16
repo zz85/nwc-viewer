@@ -4,14 +4,29 @@
 
 // music json -> draw symbols. interpretation? translation? engrave? typeset? layout? drawing?
 
+/**
+ * TODOs
+ * - accidentals
+ * - key signatures
+ * - triplets
+ * - dynamics
+ */
+
 function score(data) {
-    let info
+	let info
 
 	drawing = new Drawing(ctx)
 
-	tokens = data.score.staves[0].tokens
+	// eachStave(data.score.staves[0], 0)
+	data.score.staves.forEach(eachStave)
 
-	staveY = 160
+	drawing.draw(ctx)
+}
+
+function eachStave(stave, i) {
+	tokens = stave.tokens
+
+	staveY = 120 * (i + 1)
 	staveX = 40
 
 	s = new Stave(2000)
@@ -89,7 +104,6 @@ function score(data) {
 				break;
 
 			case 'Chord':
-				console.log('chord', token);
 				let tmp = staveX
 				token.notes.forEach(note => {
 					staveX = tmp
@@ -151,6 +165,6 @@ function score(data) {
 
 		staveX += s.width * 1
 	}
-
-	drawing.draw(ctx)
 }
+
+
