@@ -76,14 +76,15 @@ var ACCIDENTALS = [
 
 var NAMES = 'C D E F G A B'.split(' ');
 
-clefs = {
+/*
+var clefs = {
 	0: "b'",
 	1: 'd',
 	2: "c'",
 	3: "a'",
 }
 
-TIME_SIG_VALUES = {
+var TIME_SIG_VALUES = {
 	'4/4': '1',
 	'3/4': '2.',
 	'2/4': '2',
@@ -103,8 +104,9 @@ TIME_SIG_VALUES = {
 }
 
 
-CLEF_OCTAVE = ('', '^8', '_8', '')
-CLEF_SHIFT = (0, 7, -7, 0)
+var CLEF_OCTAVE = ('', '^8', '_8', '')
+var CLEF_SHIFT = (0, 7, -7, 0)
+*/
 
 
 function decodeNwcArrayBuffer(arrayBuffer) {
@@ -140,12 +142,12 @@ function processNwc(array) {
 	PageSetup(reader);
 	Score(reader);
 
-    // start parsing
-    var data = reader.data;
+	// start parsing
+	var data = reader.data;
 	parse(data);
 	window.reader = reader;
 
-    return data;
+	return data;
 }
 
 /**********************
@@ -551,7 +553,6 @@ function Chord(reader) {
 	var pointer = reader.pointer;
 	// TODO make better pointer management
 
-	// BIG TODO here
 	for (var i = 0; i < chords; i++) {
 		pointer.notes[i] = {}
 		reader.pointer = pointer.notes[i]
@@ -720,6 +721,12 @@ function DataReader(array) {
 	this.pointer = this.data; // what emits operates on
 }
 
+/**
+ * descend takes a dot delimited path,
+ * traverse down the structure,
+ * creating an object if it does not exist
+ * @param {*} path
+ */
 DataReader.prototype.descend = function(path) {
 	var node = this.data;
 	var self = this;
@@ -730,7 +737,6 @@ DataReader.prototype.descend = function(path) {
 		node = node[p];
 		self.pointer = node;
 	});
-	// this.pointer = this.data[name] = {};
 };
 
 DataReader.prototype.emit = function(name, value) {
