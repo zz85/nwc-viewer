@@ -112,6 +112,10 @@ function score(data) {
 
 				staveX += 10
 				break;
+			
+			case 'Chord':
+				console.log('chord', token);
+				break;
 
 			case 'Note':
 				duration = token.duration
@@ -152,7 +156,6 @@ function score(data) {
 				}
 
 				for (let i = 0; i < token.dots; i++) {
-					console.log('dot')
 					const dot = new Dot(relativePos)
 					dot.moveTo(staveX, staveY)
 					drawing.add(dot)

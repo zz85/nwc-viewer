@@ -142,8 +142,9 @@ function processNwc(array) {
 
     // start parsing
     var data = reader.data;
-    parse(data);
-    
+	parse(data);
+	window.reader = reader;
+
     return data;
 }
 
@@ -538,17 +539,28 @@ function Rest(reader) {
 }
 
 function Chord(reader) {
+	////
 	reader.emit('type', 'Chord');
 	var data = reader.readBytes(12);
 
 	var chords = data[10];
 	// NoteValue(reader, data);
+	reader.emit('chords', chords);
+	reader.emit('notes', new Array(chords));
+
+	var pointer = reader.pointer;
+	// TODO make better pointer management
+
 	// BIG TODO here
 	for (var i = 0; i < chords; i++) {
+		pointer.notes[i] = {}
+		reader.pointer = pointer.notes[i]
 		reader.skip();
 		data = reader.readBytes(10);
 		NoteValue(reader, data)
 	}
+
+	reader.pointer = pointer;
 }
 
 function RestChord(reader) {
@@ -700,12 +712,12 @@ function dump(byteArray, start) {
  **********************/
 
 function DataReader(array) {
-	this.array = array;
+	this.array = array; // the binary source
 	this.start = 0;
 	this.pos   = 0; // cursor
 
-	this.data = {};
-	this.pointer = this.data;
+	this.data = {}; // single root of data
+	this.pointer = this.data; // what emits operates on
 }
 
 DataReader.prototype.descend = function(path) {
