@@ -47,15 +47,20 @@ function eachStave(stave, i) {
 				break;
 
 			case 'Clef':
-				// switch (token.clef) {
-				// 	case 'treble':
-				// 		clef = new Claire.TrebleClef()
-				// 	default:
-				// 		console.log('ERR unknown clef', token.clef)
-				// }
-				clef = new {
-					treble: Claire.TrebleClef,
-				}[token.clef]()
+				console.log('clef', token);
+				switch (token.clef) {
+					case 'treble':
+						clef = new Claire.TrebleClef()
+						break;
+					case 'bass':
+						clef = new Claire.BassClef()
+						break;
+					default:
+						console.log('ERR unknown clef', token.clef)
+				}
+				// clef = new {
+				// 	treble: Claire.TrebleClef,
+				// }[token.clef]()
 
 				clef.moveTo(staveX, staveY)
 				drawing.add(clef)
@@ -124,7 +129,7 @@ function eachStave(stave, i) {
 			duration < 4 ? 'noteheadHalf' :
 			'noteheadBlack'
 
-		const relativePos = token.position - 2;
+		const relativePos = token.position + 4
 
 		s = new Glyph(sym, relativePos)
 		s.moveTo(staveX, staveY)

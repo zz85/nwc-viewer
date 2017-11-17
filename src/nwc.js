@@ -137,7 +137,21 @@ function shortArrayToString(array) {
 
 function processNwc(array) {
 	var reader = new DataReader(array);
+	window.reader = reader;
+	/*
+	// dump
+	for (;reader.pos < reader.array.length;) {
+		reader.dump();
+		reader.skip(80)
+	}*/
+
 	Header(reader);
+	if (reader.data.header.version >= 2.7) {
+		console.log('done', reader.data)
+		var nwctext = console.log(String.fromCharCode(...reader.readLine()));
+		// TODO parse this
+		return reader.data;
+	}
 	Info(reader);
 	PageSetup(reader);
 	Score(reader);
@@ -145,7 +159,6 @@ function processNwc(array) {
 	// start parsing
 	var data = reader.data;
 	parse(data);
-	window.reader = reader;
 
 	return data;
 }
@@ -281,6 +294,7 @@ function Header(reader) {
 	var version_minor = v[0];
 	var version_major = v[1];
 	version = version_major + version_minor * 0.01;
+	console.log('Detected NWC version', version);
 	reader.emit('version', version);
 }
 
@@ -341,12 +355,30 @@ function Fonts(reader) {
 
 function Score(reader) {
 	reader.descend('score');
-	reader.readUntil(0xff);
+	/*
+	console.log('aaa', reader.pos)
+	reader.dump();
+	reader.skip(80);
+	console.log('>>>', reader.pos)
+	reader.dump();
+	reader.skip(80);
+	console.log('>>>', reader.pos)
+	reader.dump();
+	reader.skip(80);
+	console.log('>>>', reader.pos)
+	reader.dump();
+	reader.skip(80);
+	console.log('>>>', reader.pos)
+	reader.dump();
+	*/
 
+	reader.readUntil(0xff);
 	reader.readBytes(2);
 	reader.emit('layering', reader.readByte(1));
+
 	var staves = reader.readShort();
-	// console.log('Staves', staves);
+	console.log('Detected Staves', staves);
+
 	reader.emit('staves', new Array(staves));
 
 	for (var i = 0; i < staves; i++) {
@@ -354,6 +386,7 @@ function Score(reader) {
 		StaffInfo(reader, i);
 	}
 
+	console.log(reader.pos, '/', reader.array.length);
 }
 
 function StaffInfo(reader, staff) {
@@ -417,16 +450,11 @@ function StaffInfo(reader, staff) {
 		reader.descend('score.staves.' + staff + '.tokens.' + i);
 		var func = TOKENS[token];
 
-		// console.log('processing token', i, tokens);
-		// for (var w in window) if (window[w] === func) {
-		// 	console.log(w);
-		// }
-
 		if (func) {
 			func(reader);
 		} else {
 			reader.dump();
-			console.log('Warning, token not recongnized', token);
+			console.log('Warning, token not recongnized', token, reader.pos);
 			return;
 		}
 
@@ -450,7 +478,17 @@ function KeySignature(reader) {
 	reader.emit('type', 'KeySignature');
 	var data = reader.readBytes(12);
 	reader.emit('flats', data[2]);
-	reader.emit('sharps', data[4]);
+
+	var sharps = data[4];
+	const AG = 'ABCDEFG';
+	var names = [];
+	// bit map
+	for (let i = 0; i < AG.length; i++) {
+		if ((sharps >> i) & 1) {
+			names.push(AG.charAt(i));
+		}
+	}
+	reader.emit('sharps', names);
 }
 
 function Barline(reader) {
