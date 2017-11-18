@@ -164,6 +164,7 @@ function processNwc(array) {
 		// console.log(nwctext);
 		// TODO parse this
 		reader.emit('nwctext', nwctext);
+		parseNwc275(reader, nwctext);
 		return reader.data;
 	}
 	Info(reader);
@@ -172,18 +173,52 @@ function processNwc(array) {
 
 	// start parsing
 	var data = reader.data;
-	parse(data);
+	interpret(data);
 
 	return data;
+}
+
+function parseNwc275(reader, nwctext) {
+	var lines = nwctext.split('\r\n');
+
+	var first = lines.shift();
+
+	if (!(first.match(/\!NoteWorthyComposer/))) {
+		console.log('bad start format');
+	}
+
+	var new_tokens = [];
+
+	for (var i = 0; i < lines.length; i++) {
+		var line = lines[i];
+
+		if (line === '!NoteWorthyComposer-End') break;
+
+		var parts = line.split('|');
+		var type = parts[1];
+		var obj = { type };
+
+		for (var j = 2; j < parts.length; j++) {
+			var kv = parts[j].split(':');
+			obj[kv[0]] = kv[1];
+		}
+
+		new_tokens.push(obj)
+
+		// console.log(i, parts);
+	}
+
+	console.log('new tokens', new_tokens);
 }
 
 /**********************
  *
  *  Do Some Parsing,
  *	that understands
+ *  music
  *
  **********************/
-function parse(data) {
+function interpret(data) {
 	var staves = data.score.staves;
 
 	/*
@@ -195,13 +230,13 @@ function parse(data) {
 	- barlines
 	*/
 
-	var reader = new SightReader();
+	var reading = new SightReader();
 
 	staves.forEach(function(staff) {
 		staff.tokens.forEach(function(token) {
 			var type = token.type;
-			if (type in reader) {
-				reader[type](token);
+			if (type in reading) {
+				reading[type](token);
 			}
 		});
 	});
@@ -281,16 +316,21 @@ SightReader.prototype.Note = function(token) {
 };
 
 
-
-
 /**********************
  *
  *   Parse Modes
  *
  **********************/
 
-
+// version 4
+// 3 7 8
 function Header(reader) {
+	// for (var i = 0; i < 25; i ++) {
+	// 	var line = reader.readLine();
+	// 	console.log(i, 'line', line, shortArrayToString(line), reader.pos);
+	// }
+	// return
+
 	reader.descend('header');
 	reader.emit('company', reader.readString());
 	var skip = shortArrayToString(reader.readLine());
@@ -298,6 +338,7 @@ function Header(reader) {
 	reader.emit('product', reader.readString());
 
 	var v = reader.readLine();
+	// var v = reader.readBytes(2);
 
 	reader.skip(2);
 	reader.emit('name1', reader.readString());

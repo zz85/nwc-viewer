@@ -3,8 +3,15 @@ var fs = require('fs');
 var assert = require('assert');
 
 var files = [
+    // 1.7
     'anongs.nwc',
     'adohn.nwc',
+    'bwv140-2.nwc',
+    'carenot.nwc',
+
+    // 2.75
+    'AveMariaArcadelt.nwc',
+    'WeThreeKingsOfOrientAre.nwc',
 ];
 
 var tests = {
@@ -22,10 +29,12 @@ var tests = {
 
 
 files.forEach(file => {
-    var contents = fs.readFileSync(`../samples/${file}`);
+    var contents = fs.readFileSync(`samples/${file}`);
     var nwcdata = nwc.decodeNwcArrayBuffer(contents);
 
     var test = tests[file];
+
+    return assert(!!nwcdata, 'parsed');
 
     notEqual(nwcdata, null, 'returns nwcdata');
     equal(nwcdata.header.version, test.version, 'decodes version number');
