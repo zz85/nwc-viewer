@@ -4,6 +4,9 @@
  *
  **********************/
 
+var NODE = typeof module !== 'undefined';
+var BROWSER = typeof window !== 'undefined';
+
 var TOKENS = {
 	0: Clef,
 	1: KeySignature,
@@ -114,8 +117,14 @@ function decodeNwcArrayBuffer(arrayBuffer) {
 	var firstBytes = shortArrayToString(byteArray.subarray(0, 5));
 	if ('[NWZ]' === firstBytes) {
 		var nwz = byteArray.subarray(6);
-		var inflate = new Zlib.Inflate(nwz);
-		var plain = inflate.decompress();
+		if (BROWSER) {
+			var inflate = new Zlib.Inflate(nwz);
+			var plain = inflate.decompress();
+		}
+		if (NODE) {
+			var plain = require('zlib').inflateSync(new Buffer(nwz));
+		}
+
 		return processNwc(plain);
 	} else if ('[Note' === firstBytes) {
 		return processNwc(byteArray);
@@ -137,19 +146,24 @@ function shortArrayToString(array) {
 
 function processNwc(array) {
 	var reader = new DataReader(array);
-	window.reader = reader;
+	if (BROWSER) window.reader = reader;
+
 	/*
 	// dump
 	for (;reader.pos < reader.array.length;) {
 		reader.dump();
 		reader.skip(80)
-	}*/
+	}
+	return
+	*/
 
 	Header(reader);
 	if (reader.data.header.version >= 2.7) {
 		console.log('done', reader.data)
-		var nwctext = console.log(String.fromCharCode(...reader.readLine()));
+		var nwctext = String.fromCharCode(...reader.readLine());
+		// console.log(nwctext);
 		// TODO parse this
+		reader.emit('nwctext', nwctext);
 		return reader.data;
 	}
 	Info(reader);
@@ -355,22 +369,6 @@ function Fonts(reader) {
 
 function Score(reader) {
 	reader.descend('score');
-	/*
-	console.log('aaa', reader.pos)
-	reader.dump();
-	reader.skip(80);
-	console.log('>>>', reader.pos)
-	reader.dump();
-	reader.skip(80);
-	console.log('>>>', reader.pos)
-	reader.dump();
-	reader.skip(80);
-	console.log('>>>', reader.pos)
-	reader.dump();
-	reader.skip(80);
-	console.log('>>>', reader.pos)
-	reader.dump();
-	*/
 
 	reader.readUntil(0xff);
 	reader.readBytes(2);
@@ -616,7 +614,9 @@ function Pedal(reader) {
 
 function Unknown(reader) {
 	reader.emit('type', 'Unknown');
-		reader.dump();
+	// TODO
+	// console.log('Unknown');
+	// reader.dump();
 	var data = reader.readBytes(6);
 	// 4 5 6* 11*
 	// reader.emit('Unknown', data[4]);
@@ -830,3 +830,9 @@ DataReader.prototype.skip = function(k) {
 DataReader.prototype.dump = function() {
 	dump(this.array, this.start);
 };
+
+if (NODE) {
+	Object.assign(module.exports, {
+		decodeNwcArrayBuffer
+	});
+}
