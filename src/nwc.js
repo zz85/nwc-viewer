@@ -163,7 +163,7 @@ function processNwc(array) {
 		var nwctext = String.fromCharCode(...reader.readLine());
 		// console.log(nwctext);
 		// TODO parse this
-		reader.emit('nwctext', nwctext);
+		reader.set('nwctext', nwctext);
 		parseNwc275(reader, nwctext);
 		return reader.data;
 	}
@@ -187,10 +187,15 @@ function parseNwc275(reader, nwctext) {
 		console.log('bad start format');
 	}
 
+	reader.descend('score');
+	reader.set('fonts', []);
+	reader.set('staves', []);
+
 	var new_tokens = [];
 
 	for (var i = 0; i < lines.length; i++) {
 		var line = lines[i];
+		console.log(line)
 
 		if (line === '!NoteWorthyComposer-End') break;
 
@@ -198,13 +203,16 @@ function parseNwc275(reader, nwctext) {
 		var type = parts[1];
 		var obj = { type };
 
+		reader.token('type', type);
+
 		for (var j = 2; j < parts.length; j++) {
 			var kv = parts[j].split(':');
 			obj[kv[0]] = kv[1];
+			reader.token(kv[0], kv[1]);
 		}
 
-		new_tokens.push(obj)
-
+		reader.token('next');
+		new_tokens.push(obj);
 		// console.log(i, parts);
 	}
 
@@ -332,17 +340,17 @@ function Header(reader) {
 	// return
 
 	reader.descend('header');
-	reader.emit('company', reader.readString());
+	reader.set('company', reader.readString());
 	var skip = shortArrayToString(reader.readLine());
 	skip = shortArrayToString(reader.readLine());
-	reader.emit('product', reader.readString());
+	reader.set('product', reader.readString());
 
 	var v = reader.readLine();
 	// var v = reader.readBytes(2);
 
 	reader.skip(2);
-	reader.emit('name1', reader.readString());
-	reader.emit('name2', reader.readString());
+	reader.set('name1', reader.readString());
+	reader.set('name2', reader.readString());
 	reader.skip(8);
 	reader.skip(2);
 
@@ -350,19 +358,19 @@ function Header(reader) {
 	var version_major = v[1];
 	version = version_major + version_minor * 0.01;
 	console.log('Detected NWC version', version);
-	reader.emit('version', version);
+	reader.set('version', version);
 }
 
 function Info(reader) {
 	reader.descend('info');
-	reader.emit('title', reader.readString());
-	reader.emit('author', reader.readString());
-	reader.emit('copyright1', reader.readString());
-	reader.emit('copyright2', reader.readString());
+	reader.set('title', reader.readString());
+	reader.set('author', reader.readString());
+	reader.set('copyright1', reader.readString());
+	reader.set('copyright2', reader.readString());
 	if (version >= 2) {
-		reader.emit('something', reader.readString());
+		reader.set('something', reader.readString());
 	}
-	reader.emit('comments', reader.readString());
+	reader.set('comments', reader.readString());
 	console.log(reader.data);
 }
 
@@ -376,18 +384,18 @@ function PageSetup(reader) {
 
 function Margins(reader) {
 	reader.skip(9);
-	reader.emit('measureStart', reader.readByte());
+	reader.set('measureStart', reader.readByte());
 	reader.skip(1); // likely 0
 	margins = reader.readString();
 	margins = margins.split(' ').map(function(x) {
 		return +x;
 	});
-	reader.emit('margins', margins);
+	reader.set('margins', margins);
 }
 
 function Fonts(reader) {
 	reader.skip(36);
-	reader.emit('staff_size', reader.readByte());
+	reader.set('staff_size', reader.readByte());
 	reader.skip(1);
 
 	var fonts = [], font, style, size, typeface;
@@ -405,7 +413,7 @@ function Fonts(reader) {
 			typeface: typeface
 		});
 	}
-	reader.emit('fonts', fonts);
+	reader.set('fonts', fonts);
 }
 
 function Score(reader) {
@@ -413,12 +421,12 @@ function Score(reader) {
 
 	reader.readUntil(0xff);
 	reader.readBytes(2);
-	reader.emit('layering', reader.readByte(1));
+	reader.set('layering', reader.readByte(1));
 
 	var staves = reader.readShort();
 	console.log('Detected Staves', staves);
 
-	reader.emit('staves', new Array(staves));
+	reader.set('staves', new Array(staves));
 
 	for (var i = 0; i < staves; i++) {
 		console.log('STAFFF', i);
@@ -430,25 +438,25 @@ function Score(reader) {
 
 function StaffInfo(reader, staff) {
 	reader.descend('score.staves.' + staff);
-	reader.emit('staff_name', reader.readString());
-	reader.emit('group_name', reader.readString());
-	reader.emit('end_bar', reader.readByte() & 7);
-	reader.emit('muted', !!(reader.readByte() & 1));
+	reader.set('staff_name', reader.readString());
+	reader.set('group_name', reader.readString());
+	reader.set('end_bar', reader.readByte() & 7);
+	reader.set('muted', !!(reader.readByte() & 1));
 	reader.skip(1);
-	reader.emit('channel', reader.readByte());
+	reader.set('channel', reader.readByte());
 	reader.skip(9);
-	reader.emit('staff_type', reader.readByte() & 3);
+	reader.set('staff_type', reader.readByte() & 3);
 	reader.skip(1);
 
-	reader.emit('uppersize', 256 - reader.readByte());
+	reader.set('uppersize', 256 - reader.readByte());
 	reader.readUntil(0xff);
-	reader.emit('lowersize', reader.readByte());
+	reader.set('lowersize', reader.readByte());
 	reader.skip(1);
-	reader.emit('lines', reader.readByte());
-	reader.emit('layer', !!(reader.readByte() & 1));
-	reader.emit('part_volume', reader.readByte());
+	reader.set('lines', reader.readByte());
+	reader.set('layer', !!(reader.readByte() & 1));
+	reader.set('part_volume', reader.readByte());
 	reader.skip(1);
-	reader.emit('stero_pan', reader.readByte());
+	reader.set('stero_pan', reader.readByte());
 	if (reader.data.header.version === 1.7) {
 		reader.skip(2);
 	} else {
@@ -468,16 +476,16 @@ function StaffInfo(reader, staff) {
 		for (var i = 0; i < noLyrics; i++) {
 			var lyrics = [];
 			lyrics.push(Lyrics(reader));
-			reader.emit('lyrics', lyrics);
+			reader.set('lyrics', lyrics);
 		}
 		reader.skip(1);
 	}
 
 	reader.skip();
-	reader.emit('color', reader.readByte() & 3);
+	reader.set('color', reader.readByte() & 3);
 
 	var tokens = reader.readShort();
-	reader.emit('tokens', []);
+	reader.set('tokens', []);
 
 
 	for (var i = 0; i < tokens - 2; i++) {
@@ -507,16 +515,16 @@ function StaffInfo(reader, staff) {
  **********************/
 
 function Clef(reader) {
-	reader.emit('type', 'Clef');
+	reader.set('type', 'Clef');
 	var data = reader.readBytes(6);
-	reader.emit('clef', CLEF_NAMES[data[2] & 3]);
-	reader.emit('octave', data[4] & 3);
+	reader.set('clef', CLEF_NAMES[data[2] & 3]);
+	reader.set('octave', data[4] & 3);
 }
 
 function KeySignature(reader) {
-	reader.emit('type', 'KeySignature');
+	reader.set('type', 'KeySignature');
 	var data = reader.readBytes(12);
-	reader.emit('flats', data[2]);
+	reader.set('flats', data[2]);
 
 	var sharps = data[4];
 	const AG = 'ABCDEFG';
@@ -527,56 +535,56 @@ function KeySignature(reader) {
 			names.push(AG.charAt(i));
 		}
 	}
-	reader.emit('sharps', names);
+	reader.set('sharps', names);
 }
 
 function Barline(reader) {
-	reader.emit('type', 'Barline');
+	reader.set('type', 'Barline');
 	var data = reader.readBytes(4);
-	reader.emit('barline', data[2] & 15);
+	reader.set('barline', data[2] & 15);
 }
 
 function Repeat(reader) {
-	reader.emit('type', 'Repeat');
+	reader.set('type', 'Repeat');
 	var data = reader.readBytes(4);
-	reader.emit('repeat', data[2]);
+	reader.set('repeat', data[2]);
 }
 
 function InstrumentPatch(reader) {
-	reader.emit('type', 'InstrumentPatch');
+	reader.set('type', 'InstrumentPatch');
 	var data = reader.readBytes(10);
 }
 
 function TimeSignature(reader) {
-	reader.emit('type', 'TimeSignature');
+	reader.set('type', 'TimeSignature');
 	var data = reader.readBytes(8);
 
 	var beats = Math.pow(2, data[4]);
 
-	reader.emit('group', data[2]);
-	reader.emit('beat', beats);
-	reader.emit('signature', data[2] + '/' + beats);
+	reader.set('group', data[2]);
+	reader.set('beat', beats);
+	reader.set('signature', data[2] + '/' + beats);
 
 }
 
 function Tempo(reader) {
-	reader.emit('type', 'Tempo');
+	reader.set('type', 'Tempo');
 	var data = reader.readBytes(7);
 	reader.readLine(); // ?
 
-	reader.emit('note', data[6]);
-	reader.emit('duration', data[4]);
+	reader.set('note', data[6]);
+	reader.set('duration', data[4]);
 }
 
 function Dynamic(reader) {
-	reader.emit('type', 'Dynamic');
+	reader.set('type', 'Dynamic');
 	var data = reader.readBytes(9);
-	reader.emit('dynamic', data[4] & 7);
+	reader.set('dynamic', data[4] & 7);
 }
 
 
 function Note(reader) {
-	reader.emit('type', 'Note');
+	reader.set('type', 'Note');
 	var data = reader.readBytes(10);
 	NoteValue(reader, data);
 }
@@ -584,13 +592,13 @@ function Note(reader) {
 function NoteValue(reader, data) {
 	var position = data[8];
 	position = position > 127 ? 256 - position : - position;
-	reader.emit('position', position);
+	reader.set('position', position);
 
 	var accidental = data[9] & 7;
-	reader.emit('accidental', accidental);
+	reader.set('accidental', accidental);
 	var durationBit = data[2] & 7;
 
-	reader.emit('duration', DURATIONS[durationBit]);
+	reader.set('duration', DURATIONS[durationBit]);
 
 	var durationDotBit = data[6];
 
@@ -598,34 +606,34 @@ function NoteValue(reader, data) {
 		durationDotBit & 1 ? 2 :
 			0;
 
-	reader.emit('dots', dots);
-	reader.emit('stem', data[4] >> 4 & 3);
-	reader.emit('triplet', data[4] >> 2 & 3);
-	reader.emit('tie', data[6] >> 4 & 1);
+	reader.set('dots', dots);
+	reader.set('stem', data[4] >> 4 & 3);
+	reader.set('triplet', data[4] >> 2 & 3);
+	reader.set('tie', data[6] >> 4 & 1);
 
-	reader.emit('staccato', data[6] >> 1 & 1);
-	reader.emit('accent', data[6] >> 5 & 1);
-	reader.emit('tenuto', data[7] >> 2 & 1);
-	reader.emit('grace', data[7] >> 5 & 1);
-	reader.emit('slur', data[7] & 3);
+	reader.set('staccato', data[6] >> 1 & 1);
+	reader.set('accent', data[6] >> 5 & 1);
+	reader.set('tenuto', data[7] >> 2 & 1);
+	reader.set('grace', data[7] >> 5 & 1);
+	reader.set('slur', data[7] & 3);
 }
 
 
 function Rest(reader) {
-	reader.emit('type', 'Rest');
+	reader.set('type', 'Rest');
 	var data = reader.readBytes(10);
 	NoteValue(reader, data);
 }
 
 function Chord(reader) {
 	////
-	reader.emit('type', 'Chord');
+	reader.set('type', 'Chord');
 	var data = reader.readBytes(12);
 
 	var chords = data[10];
 	// NoteValue(reader, data);
-	reader.emit('chords', chords);
-	reader.emit('notes', new Array(chords));
+	reader.set('chords', chords);
+	reader.set('notes', new Array(chords));
 
 	var pointer = reader.pointer;
 	// TODO make better pointer management
@@ -642,59 +650,59 @@ function Chord(reader) {
 }
 
 function RestChord(reader) {
-	reader.emit('type', 'RestChord');
+	reader.set('type', 'RestChord');
 	var data = reader.readBytes(12);
 	NoteValue(reader, data);
 }
 
 function Pedal(reader) {
-	reader.emit('type', 'Pedal');
+	reader.set('type', 'Pedal');
 	var data = reader.readBytes(5);
-	reader.emit('sustain', data[4]);
+	reader.set('sustain', data[4]);
 }
 
 function Unknown(reader) {
-	reader.emit('type', 'Unknown');
+	reader.set('type', 'Unknown');
 	// TODO
 	// console.log('Unknown');
 	// reader.dump();
 	var data = reader.readBytes(6);
 	// 4 5 6* 11*
-	// reader.emit('Unknown', data[4]);
+	// reader.set('Unknown', data[4]);
 }
 
 function MidiInstruction(reader) {
-	reader.emit('type', 'MidiInstruction');
+	reader.set('type', 'MidiInstruction');
 	var data = reader.readBytes(36);
 }
 
 function Fermata(reader) {
-	reader.emit('type', 'Fermata');
+	reader.set('type', 'Fermata');
 	var data = reader.readBytes(6);
 	// TODO
-	reader.emit('sustain', data[4]);
+	reader.set('sustain', data[4]);
 }
 
 function DynamicVariance(reader) {
-	reader.emit('type', 'DynamicVariance');
+	reader.set('type', 'DynamicVariance');
 	var data = reader.readBytes(5);
-	reader.emit('sustain', data[4]);
+	reader.set('sustain', data[4]);
 	// TODO
 }
 
 function PerformanceStyle(reader) {
-	reader.emit('type', 'PerformanceStyle');
+	reader.set('type', 'PerformanceStyle');
 	var data = reader.readBytes(5);
-	reader.emit('style', data[4]);
+	reader.set('style', data[4]);
 	// TODO
 }
 
 function Text(reader) {
-	reader.emit('type', 'Text');
+	reader.set('type', 'Text');
 	reader.skip(2);
-	reader.emit('position', reader.readByte());
+	reader.set('position', reader.readByte());
 	reader.skip(2);
-	reader.emit('text', reader.readString());
+	reader.set('text', reader.readString());
 }
 
 
@@ -798,6 +806,7 @@ function DataReader(array) {
 
 	this.data = {}; // single root of data
 	this.pointer = this.data; // what emits operates on
+	this.descendPath = [];
 }
 
 /**
@@ -807,23 +816,111 @@ function DataReader(array) {
  * @param {*} path
  */
 DataReader.prototype.descend = function(path) {
-	var node = this.data;
+	this.pointer = this.data;
+	this.descendPath = [];
+	this.enter(path);
+};
+
+// Relative descend
+DataReader.prototype.enter = function(path) {
+	var node = this.pointer;
 	var self = this;
+	if (typeof path !== 'string') path = '' + path;
 	path.split('.').forEach(function(p) {
 		if (!(p in node)) {
 			node[p] = {};
 		}
 		node = node[p];
 		self.pointer = node;
+		self.descendPath.push(p);
 	});
 };
 
-DataReader.prototype.emit = function(name, value) {
+DataReader.prototype.exit = function() {
+	this.descend(this.descendPath.slice(0, -1).join('.'));
+};
+
+/**
+ * set property to value at current path
+ * @param {*} name
+ * @param {*} value
+ */
+DataReader.prototype.set = function(name, value) {
 	this.pointer[name] = value;
 };
 
 DataReader.prototype.push = function(value) {
 	this.pointer.push(value);
+	return this.pointer.length - 1;
+};
+
+
+// https://github.com/nwsw/nwcplugin-api/blob/master/examples/xyAnalyzer.demo.nwctxt
+TokenMode = {
+	'EnterExit': (reader, key, value) => {
+		if (key === 'next') {
+			reader.exit();
+			tokenMode = TokenMode.JustSet;
+			return;
+		}
+
+		reader.set(key, value);
+	},
+
+	'JustSet': (reader, key, value) => {
+		if (key === 'next') {
+			return;
+		}
+		if (key === 'type') {
+			if (/Lyric/.exec(value)) { // Lyrics, Lyric1, Lyric2...
+				reader.enter(value);
+				tokenMode = TokenMode.EnterExit;
+				return;
+			}
+			switch (value) {
+				case 'Editor':
+					reader.descend('score.editor')
+					break;
+				case 'Font':
+					reader.descend('score.fonts')
+					var i = reader.push({ type: value });
+					reader.enter(i);
+					tokenMode = TokenMode.EnterExit;
+					return;
+				case 'SongInfo':
+				case 'PgSetup':
+				case 'PgMargins':
+					reader.descend('score.' + value)
+					// reader.set('key', value);
+					break;
+				case 'AddStaff':
+				// tokenMode(reader, key, value);
+					reader.descend('score.staves');
+					var i = reader.push({ tokens: [] });
+					reader.descend(`score.staves.${i}.tokens`);
+					return;
+				default:
+				case 'StaffProperties':
+				case 'StaffInstrument':
+					var i = reader.push({ type: value });
+					reader.enter(i);
+					tokenMode = TokenMode.EnterExit;
+					return;
+			}
+		}
+
+		reader.set(key, value);
+	}
+}
+
+var tokenMode = TokenMode.JustSet;
+
+// aka "emits"
+DataReader.prototype.token = function(key, value) {
+	// if (key === 'next') {
+
+	// }
+	tokenMode(reader, key, value);
 };
 
 DataReader.prototype.readUntil = function(x) {
