@@ -12,7 +12,5 @@
   },
   "homepage": "https://github.com/zz85/nwc-viewer",
   "license": "GNU",
-  "devDependencies": {
-    "vexflow": "^1.2.84"
-  }
+  "devDependencies": {}
 }
