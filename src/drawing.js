@@ -20,6 +20,7 @@ fontMap = {
 	timeSig8: 'e088',
 	timeSig9: 'e089',
 	timeSigCommon: 'e08a',
+	timeSigCutCommon: 'E08B',
 
 	// text based only
 	// timeSigCombNumerator timeSig8Numerator
@@ -360,7 +361,7 @@ Claire = {
 	Stem,
 	Barline,
 	Dot,
-	Ledger,	
+	Ledger,
 }
 
 Object.assign(window, { Drawing, setup, Stave, Claire }, Claire)

@@ -1,0 +1,51 @@
+nwcTypes = new Map()
+
+function get(type) {
+	if (!nwcTypes.has(type)) {
+		nwcTypes.set(type, new Set())
+	}
+
+	return nwcTypes.get(type);
+}
+
+data.score.staves.forEach(stave => {
+	tokens = stave.tokens
+	
+	tokens.forEach(t => {
+		set = get(t.type)
+		Object.keys(t).forEach(k => set.add(k))
+	})
+})
+
+for ([type, set] of nwcTypes) {
+	set.delete('type')
+	console.log(`[${type}] ${[...set]}`);
+}
+
+1.75
+[Clef] clef,octave
+[TimeSignature] group,beat,signature
+[Tempo] note,duration
+[Rest] position,accidental,duration,dots,stem,triplet,tie,staccato,accent,tenuto,grace,slur
+[Note] position,accidental,duration,dots,stem,triplet,tie,staccato,accent,tenuto,grace,slur,name,octave
+[Barline] barline
+[Chord] chords,notes
+[MidiInstruction] 
+[Dynamic] dynamic
+
+2.75
+[StaffProperties] EndingBar,Visible,BoundaryTop,BoundaryBottom,Lines,WithNextStaff,Color,Muted,Volume,StereoPan,Device,Channel
+[StaffInstrument] Patch,Trans,DynVel
+[Clef] Type,OctaveShift
+[Key] Signature,Tonic
+[TimeSig] Signature
+[Rest] Dur
+[PerformanceStyle] Style,Pos,Justify,Visibility
+[Dynamic] Style,Pos,Justify,Visibility,Placement,Opts
+[Note] Dur,Pos,Opts
+[Bar] Style,SysBreak
+[Spacer] Width
+[Tempo] Tempo,Pos,Visibility
+[Boundary] Style,Lower
+[Text] Text,Font,Pos,Justify
+

@@ -46,6 +46,11 @@ function eachStave(stave, i) {
 
 				break;
 
+			case 'StaffProperties':
+			case 'StaffInstrument':
+				// TODO infomational purposes
+				break;
+
 			case 'Clef':
 				console.log('clef', token);
 				switch (token.clef) {
@@ -68,15 +73,26 @@ function eachStave(stave, i) {
 				break;
 
 			case 'TimeSignature':
-				t = new TimeSignature(token.group, 6)
-				t.moveTo(staveX, staveY)
-				drawing.add(t)
+				const sig = token.signature;
+				if (token.group && token.beat) {
+					t = new TimeSignature(token.group, 6)
+					t.moveTo(staveX, staveY)
+					drawing.add(t)
 
-				t = new TimeSignature(token.beat, 2)
-				t.moveTo(staveX, staveY)
-				drawing.add(t)
+					t = new TimeSignature(token.beat, 2)
+					t.moveTo(staveX, staveY)
+					drawing.add(t)
 
-				staveX += t.width * 2
+					staveX += t.width * 2
+				} else {
+					// if (sig === 'AllaBreve')
+					t = new TimeSignature('CutCommon', 4)
+					t.moveTo(staveX, staveY)
+					drawing.add(t)
+
+					staveX += t.width * 2
+				}
+
 				break;
 
 			case 'Rest':
@@ -91,12 +107,12 @@ function eachStave(stave, i) {
 
 				if (!sym) console.log('FAIL REST', duration)
 
-				s = new Glyph(sym, token.position + 3) // + 4
+				s = new Glyph(sym, token.position + 4) // + 4
 				s.moveTo(staveX, staveY)
 				s._text = info;
 				drawing.add(s)
 
-				staveX += s.width
+				staveX += s.width * 2
 				break;
 
 			case 'Barline':

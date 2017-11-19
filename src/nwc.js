@@ -162,9 +162,12 @@ function processNwc(array) {
 		console.log('done', reader.data)
 		var nwctext = String.fromCharCode(...reader.readLine());
 		// console.log(nwctext);
-		// TODO parse this
 		reader.set('nwctext', nwctext);
 		parseNwc275(reader, nwctext);
+		convert275Tokens(reader);
+
+		interpret(reader.data);
+
 		return reader.data;
 	}
 	Info(reader);
@@ -191,13 +194,13 @@ function parseNwc275(reader, nwctext) {
 	reader.set('fonts', []);
 	reader.set('staves', []);
 
-	var new_tokens = [];
-
 	for (var i = 0; i < lines.length; i++) {
 		var line = lines[i];
-		console.log(line)
 
-		if (line === '!NoteWorthyComposer-End') break;
+		if (line === '!NoteWorthyComposer-End') {
+			console.log('Processed', i, 'nwctext lines');
+			break;
+		}
 
 		var parts = line.split('|');
 		var type = parts[1];
@@ -212,11 +215,87 @@ function parseNwc275(reader, nwctext) {
 		}
 
 		reader.token('next');
-		new_tokens.push(obj);
 		// console.log(i, parts);
 	}
+}
 
-	console.log('new tokens', new_tokens);
+function convert275Tokens(reader) {
+	var data = reader.data;
+
+	data.score.staves.forEach(stave => {
+		stave.tokens = stave.tokens.map(mapTokens);
+	});
+}
+
+var durs = {
+	Whole: 1,
+	Half: 2,
+	'4th': 4,
+	'8th': 8,
+	'16th': 16
+};
+
+function parseDur(dur) {
+	var parts = dur.split(',');
+
+	var duration = durs[parts[0]];
+	var dots = 0;
+	if (parts[1]) {
+		if (parts[1] === 'dotted') {
+			dots++;
+		}
+	}
+
+	if (!duration) console.log('!!', token.Dur);
+
+	return {
+		duration, dots
+	}
+}
+
+function mapTokens(token) {
+	var type = token.type;
+	switch (type) {
+		case 'Clef':
+			token = {
+				type,
+				clef: token.Type.toLowerCase(),
+				octave: token.OctaveShift || 0
+			}
+			// Octave Down
+			break;
+		case 'TimeSig':
+			var parts = token.Signature.split('/')
+			// console.log('parts', parts);
+			// AllaBreve
+			token = {
+				type: 'TimeSignature',
+				signature: token.Signature
+			};
+
+			if (parts.length === 2) {
+				token.group = parts[0];
+				token.beat = parts[1];
+			}
+
+			break;
+		case 'Note':
+			token.position = +token.Pos;
+			Object.assign(token, parseDur(token.Dur));
+			// console.log(token.Opts);
+			// slur lyric beam stem
+
+			break;
+		case 'Bar':
+			token.type = 'Barline';
+			break;
+		case 'Rest':
+			return Object.assign({
+				type,
+				position: 0
+			}, parseDur(token.Dur));
+	}
+	return token;
 }
 
 /**********************
@@ -856,7 +935,7 @@ DataReader.prototype.push = function(value) {
 
 
 // https://github.com/nwsw/nwcplugin-api/blob/master/examples/xyAnalyzer.demo.nwctxt
-TokenMode = {
+var TokenMode = {
 	'EnterExit': (reader, key, value) => {
 		if (key === 'next') {
 			reader.exit();
