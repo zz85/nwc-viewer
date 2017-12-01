@@ -294,6 +294,12 @@ function mapTokens(token) {
 				type,
 				position: 0
 			}, parseDur(token.Dur));
+		case 'Key':
+			return {
+				type: 'KeySignature',
+				signature: token.Signature
+			};
+			console.log('KEY', token);
 	}
 	return token;
 }

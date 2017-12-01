@@ -247,6 +247,44 @@ class TimeSignature extends Glyph {
 	}
 }
 
+const sharps = {
+	'C': [],
+	'G': ['f#'],
+	'D': ['f#', 'c#'],
+	'A': ['f#', 'c#', 'g#'],
+	'E': ['f#', 'c#', 'g#', 'd#'],
+	'B': ['f#', 'c#', 'g#', 'd#', 'a#'],
+	'F#': ['f#', 'c#', 'g#', 'd#', 'a#', 'e#']
+}
+
+const flats = {
+	'C': [],
+	'F': ['Bb'],
+	'Bb': ['Bb', 'Eb'],
+	'Eb': ['Bb', 'Eb', 'Ab'],
+	'Ab': ['Bb', 'Eb', 'Ab', 'Db'],
+	'Db': ['Bb', 'Eb', 'Ab', 'Db', 'Gb'],
+	'Gb': ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'],
+	'Cb': ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb'],
+}
+
+/**
+ * Key Signature
+ */
+class KeySignature extends Draw {
+	constructor(name, x=0, y) {
+		// TODO
+		this.accidentals = sharps[name] || flats[name];
+	}
+}
+
+class Accidental extends Glyph {
+	constructor(name, pos) {
+		// super('accidentalSharp', pos)
+		super('accidentalSharp', pos)
+	}
+}
+
 class Ledger extends Draw {
 	constructor(start, end) {
 		super()
@@ -358,6 +396,7 @@ Claire = {
 	Draw,
 	Stave, Glyph,
 	TrebleClef, BassClef, AltoClef, TimeSignature,
+	Accidental,
 	Stem,
 	Barline,
 	Dot,
