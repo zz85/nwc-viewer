@@ -42,8 +42,7 @@ function eachStave(stave, i) {
 
 		switch (type) {
 			default:
-				console.log(type)
-
+				console.log('Typeset: Unhandled type - ', type);
 				break;
 
 			case 'StaffProperties':
@@ -94,6 +93,12 @@ function eachStave(stave, i) {
 				}
 
 				break;
+			case 'KeySignature':
+				const key = new KeySignature(token.signature, token.clef);
+				key.moveTo(staveX, staveY)
+				drawing.add(key)
+
+				staveX += key.width * 2
 
 			case 'Rest':
 				duration = token.duration

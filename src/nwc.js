@@ -357,8 +357,9 @@ SightReader.prototype.Barline = function() {
 
 SightReader.prototype.KeySignature = function(token) {
 	// reset
-	// this.key =
-	console.log(token);
+	this.key = token.signature;
+	token.clef = this.clef;
+	token.clefOffset = this.offset;
 };
 
 function circularIndex(n) {

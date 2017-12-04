@@ -269,19 +269,44 @@ const flats = {
 	'Cb': ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb'],
 }
 
+
+function noteToPosition(note, clefOffset) {
+	// TODO fix this!
+	let y = rotate(note, clefOffset);
+	if (y + 7 < 9) return y + 7;
+	return y;
+}
+
+const AG = 'abcdefg';
+function rotate(note, offset) {
+	const pos = (AG.indexOf(note) + 3 + (offset || 0)) % AG.length
+	return pos;
+}
+
+// e => 0, f => 1, g => 2, a => 3, b => 4, c => 5, d => 6
+// 1| 2 3| 4 5| 6 7| 8 9|
+
+// gClef = 'e' // line 0 = e // 0
+// fClef = 'g' // line 0 = g // 5 -2 
+// // alto 6 -1
+var clefOffsetMap = {
+	treble: 0,
+	bass: -2
+}
 /**
  * Key Signature
  */
 class KeySignature extends Draw {
-	constructor(name, x=0, y) {
-		// TODO
+	constructor(name, clef) {
 		super()
+		const isSharp = name in sharps
 		this.accidentals = sharps[name] || flats[name];
 
 		this.sharps = this.accidentals.map((v, l) => {
-			const pos = noteToPosition(v.charAt(0))
+			const pos = noteToPosition(v.charAt(0).toLowerCase(), clefOffsetMap[clef] || 0)
 
-			const sharp = new Accidental('#', pos);
+			const sharp = new Accidental(isSharp
+				? '#' : 'b', pos);
 			sharp.moveTo(l * sharp.width, 0);
 			// sharp._debug = true;
 			return sharp;
@@ -296,10 +321,40 @@ class KeySignature extends Draw {
 	}
 }
 
+class Sharp extends Glyph {
+	constructor(name, pos) {
+		super('accidentalSharp', pos)
+	}
+}
+
+class Flat extends Glyph {
+	constructor(name, pos) {
+		super('accidentalFlat', pos)
+	}
+}
+
+class Natural extends Glyph {
+	constructor(name, pos) {
+		super('accidentalNatural', pos)
+	}
+}
+
+class DoubleSharp extends Glyph {
+	constructor(name, pos) {
+		super('accidentalDoubleSharp', pos)
+	}
+}
+
 class Accidental extends Glyph {
 	constructor(name, pos) {
-		// super('accidentalSharp', pos)
-		super('accidentalSharp', pos)
+		super(
+		name === '#' ? 'accidentalSharp' :
+		name === 'b' ? 'accidentalFlat' :
+		name === '' ? 'accidentalNatural' :
+		name === '##' ? 'DoubleSharp' : ''
+			, pos);
+
+		// super('accidental' + name[0].toUpperCase() + , pos)
 	}
 }
 
