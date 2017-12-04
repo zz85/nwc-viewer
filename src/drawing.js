@@ -254,7 +254,8 @@ const sharps = {
 	'A': ['f#', 'c#', 'g#'],
 	'E': ['f#', 'c#', 'g#', 'd#'],
 	'B': ['f#', 'c#', 'g#', 'd#', 'a#'],
-	'F#': ['f#', 'c#', 'g#', 'd#', 'a#', 'e#']
+	'F#': ['f#', 'c#', 'g#', 'd#', 'a#', 'e#'],
+	'C#': ['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#'],
 }
 
 const flats = {
@@ -274,7 +275,24 @@ const flats = {
 class KeySignature extends Draw {
 	constructor(name, x=0, y) {
 		// TODO
+		super()
 		this.accidentals = sharps[name] || flats[name];
+
+		this.sharps = this.accidentals.map((v, l) => {
+			const pos = noteToPosition(v.charAt(0))
+
+			const sharp = new Accidental('#', pos);
+			sharp.moveTo(l * sharp.width, 0);
+			// sharp._debug = true;
+			return sharp;
+		});
+
+		if (this.sharps.length)
+			this.width = this.sharps.length * this.sharps[0].width;
+	}
+
+	draw(ctx) {
+		this.sharps.forEach(s => Drawing._draw(ctx, s));
 	}
 }
 
@@ -362,28 +380,32 @@ class Drawing {
 		this.set.delete(el)
 	}
 
+	static _draw(ctx, el) {
+		if (el instanceof Draw) {
+			ctx.save()
+			ctx.translate(el.x, el.y)
+			ctx.translate(el.offsetX || 0, el.offsetY || 0)
+			el.draw(ctx)
+
+			if (el._text) {
+				ctx.font = '8px arial'
+				ctx.fillText(el._text, 0, 50)
+			}
+
+			if (el._debug) {
+				el.debug(ctx);
+			}
+			ctx.restore()
+		}
+		else {
+			console.log('Element', el, 'not a draw element')
+		}
+	}
+
 	draw(ctx) {
 		ctx.save()
 		for (const el of this.set) {
-			if (el instanceof Draw) {
-				ctx.save()
-				ctx.translate(el.x, el.y)
-				ctx.translate(el.offsetX || 0, el.offsetY || 0)
-				el.draw(ctx)
-
-				if (el._text) {
-					ctx.font =  '8px arial'
-					ctx.fillText(el._text, 0, 50)
-				}
-
-				if (el._debug) {
-					el.debug(ctx);
-				}
-				ctx.restore()
-			}
-			else {
-				console.log('Element', el, 'not a draw element')
-			}
+			Drawing._draw(ctx, el);
 		}
 		ctx.restore()
 	}
@@ -396,6 +418,7 @@ Claire = {
 	Draw,
 	Stave, Glyph,
 	TrebleClef, BassClef, AltoClef, TimeSignature,
+	KeySignature,
 	Accidental,
 	Stem,
 	Barline,
