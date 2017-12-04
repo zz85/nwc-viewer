@@ -12,22 +12,62 @@
  * - dynamics
  */
 
-function score(data) {
-	let info
+class StaveCursor {
+	constructor() {
+		this.tokenIndex = -1;
+		this.staveX = 40;
+	}
+}
 
+function score(data) {
 	drawing = new Drawing(ctx)
 
-	// eachStave(data.score.staves[0], 0)
-	data.score.staves.forEach(eachStave)
+	const staves = data.score.staves;
+
+	staveX = 40
+	staves.forEach(eachStave)
+
+	const stavePointers = staves.map(() => new StaveCursor());
+
+	staves.forEach((stave, staveIndex) => {
+		staveX = 40
+		stave.tokens.forEach((token, tokenIndex) => {
+			handleToken(token, tokenIndex, staveIndex);
+		});
+	});
+
+	// while (true) {
+	// 	for (let s = 0; s < staves.length; s++) {
+
+	// 	}
+	// }
 
 	drawing.draw(ctx)
 }
 
-// function handleToken()
+function getStaffY(staffIndex) {
+	return 120 * (staffIndex + 1)
+}
 
-handleToken = (token, i) => {
+function eachStave(stave, staveIndex) {
+	tokens = stave.tokens
+
+	staveY = getStaffY(staveIndex)
+
+	// TODO staff width computation should be done last
+	s = new Stave(2000)
+	s.moveTo(staveX, staveY)
+	drawing.add(s)
+
+	console.log('staveIndex', staveIndex, tokens)
+}
+
+function handleToken(token, tokenIndex,staveIndex) {
+	info = tokenIndex
+	staveY = getStaffY(staveIndex)
+
 	const type = token.type;
-	info = i
+	
 	// console.log(token)
 
 	switch (type) {
@@ -133,21 +173,6 @@ handleToken = (token, i) => {
 			break;
 
 	}
-}
-
-function eachStave(stave, i) {
-	tokens = stave.tokens
-
-	staveY = 120 * (i + 1)
-	staveX = 40
-
-	s = new Stave(2000)
-	s.moveTo(staveX, staveY)
-	drawing.add(s)
-
-	console.log(tokens)
-
-	tokens.forEach(handleToken)
 }
 
 function drawForNote(token) {
