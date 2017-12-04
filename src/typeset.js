@@ -13,9 +13,28 @@
  */
 
 class StaveCursor {
-	constructor() {
+	constructor(stave, staveIndex) {
 		this.tokenIndex = -1;
+		this.staveIndex = staveIndex;
 		this.staveX = 40;
+		this.stave = stave;
+		this.tokens = stave.tokens;
+	}
+
+	peek() {
+		return this.tokens[this.tokenIndex + 1];
+	}
+
+	hasNext() {
+		return this.tokens.length > this.tokenIndex + 1;
+	}
+
+	incStaveX(inc) {
+		this.staveX += inc;
+	}
+
+	posGlyph(glyph) {
+		glyph.moveTo(this.staveX, getStaffY(this.staveIndex));
 	}
 }
 
@@ -25,14 +44,16 @@ function score(data) {
 	const staves = data.score.staves;
 
 	staveX = 40
-	staves.forEach(eachStave)
+	const stavePointers = staves.map((stave, staveIndex) => new StaveCursor(stave, staveIndex));
 
-	const stavePointers = staves.map(() => new StaveCursor());
+	stavePointers.forEach((cursor, staveIndex) => {
+		eachStave(cursor, staveIndex);
+	});
 
-	staves.forEach((stave, staveIndex) => {
+	stavePointers.forEach((cursor, staveIndex) => {
 		staveX = 40
-		stave.tokens.forEach((token, tokenIndex) => {
-			handleToken(token, tokenIndex, staveIndex);
+		cursor.tokens.forEach((token, tokenIndex) => {
+			handleToken(token, tokenIndex, staveIndex, cursor);
 		});
 	});
 
@@ -49,25 +70,21 @@ function getStaffY(staffIndex) {
 	return 120 * (staffIndex + 1)
 }
 
-function eachStave(stave, staveIndex) {
-	tokens = stave.tokens
-
-	staveY = getStaffY(staveIndex)
-
+function eachStave(cursor, staveIndex) {
 	// TODO staff width computation should be done last
 	s = new Stave(2000)
-	s.moveTo(staveX, staveY)
+	cursor.posGlyph(s)
 	drawing.add(s)
 
-	console.log('staveIndex', staveIndex, tokens)
+	console.log('staveIndex', staveIndex, cursor.tokens)
 }
 
-function handleToken(token, tokenIndex,staveIndex) {
+function handleToken(token, tokenIndex, staveIndex, cursor) {
 	info = tokenIndex
 	staveY = getStaffY(staveIndex)
 
 	const type = token.type;
-	
+
 	// console.log(token)
 
 	switch (type) {
@@ -97,39 +114,39 @@ function handleToken(token, tokenIndex,staveIndex) {
 			// 	treble: Claire.TrebleClef,
 			// }[token.clef]()
 
-			clef.moveTo(staveX, staveY)
+			cursor.posGlyph(clef)
 			drawing.add(clef)
-			staveX += clef.width * 2
+			cursor.incStaveX(clef.width * 2);
 			break;
 
 		case 'TimeSignature':
 			const sig = token.signature;
 			if (token.group && token.beat) {
 				t = new TimeSignature(token.group, 6)
-				t.moveTo(staveX, staveY)
+				cursor.posGlyph(t)
 				drawing.add(t)
 
 				t = new TimeSignature(token.beat, 2)
-				t.moveTo(staveX, staveY)
+				cursor.posGlyph(t)
 				drawing.add(t)
 
-				staveX += t.width * 2
+				cursor.incStaveX(t.width * 2);
 			} else {
 				// if (sig === 'AllaBreve')
 				t = new TimeSignature('CutCommon', 4)
-				t.moveTo(staveX, staveY)
+				cursor.posGlyph(t)
 				drawing.add(t)
 
-				staveX += t.width * 2
+				cursor.incStaveX(t.width * 2);
 			}
 
 			break;
 		case 'KeySignature':
 			const key = new KeySignature(token.signature, token.clef);
-			key.moveTo(staveX, staveY)
+			cursor.posGlyph(key)
 			drawing.add(key)
 
-			staveX += key.width * 2
+			cursor.incStaveX(key.width * 2);
 
 		case 'Rest':
 			duration = token.duration
@@ -144,20 +161,20 @@ function handleToken(token, tokenIndex,staveIndex) {
 			if (!sym) console.log('FAIL REST', duration)
 
 			s = new Glyph(sym, token.position + 4) // + 4
-			s.moveTo(staveX, staveY)
+			cursor.posGlyph(s)
 			s._text = info;
 			drawing.add(s)
 
-			staveX += s.width * 2
+			cursor.incStaveX(s.width * 2);
 			break;
 
 		case 'Barline':
 			s = new Barline()
-			s.moveTo(staveX, staveY)
+			cursor.posGlyph(s)
 			s._text = info;
 			drawing.add(s)
 
-			staveX += 10
+			cursor.incStaveX(10);
 			break;
 
 		case 'Chord':
@@ -169,13 +186,13 @@ function handleToken(token, tokenIndex,staveIndex) {
 			break;
 
 		case 'Note':
-			drawForNote(token)
+			drawForNote(token, cursor);
 			break;
 
 	}
 }
 
-function drawForNote(token) {
+function drawForNote(token, cursor) {
 	duration = token.duration
 	sym = duration < 2 ? 'noteheadWhole' :
 		duration < 4 ? 'noteheadHalf' :
@@ -184,41 +201,41 @@ function drawForNote(token) {
 	const relativePos = token.position + 4
 
 	s = new Glyph(sym, relativePos)
-	s.moveTo(staveX, staveY)
+	cursor.posGlyph(s)
 	s._text = info + ':' + token.name;
 	drawing.add(s)
 
 	if (relativePos < 0) {
 		ledger = new Ledger((relativePos / 2 | 0) * 2, 0)
-		ledger.moveTo(staveX, staveY)
+		cursor.posGlyph(ledger)
 		drawing.add(ledger)
 	}
 
-	staveX += s.width
+	cursor.incStaveX(s.width);
 
 	// Flags
 	if (duration >= 8) {
 		stem = new Glyph(`flag${duration}thUp`, relativePos + 7)
-		stem.moveTo(staveX, staveY)
+		cursor.posGlyph(stem)
 		stem._text = info;
 		drawing.add(stem)
 	}
 
-	// staveX += s.width
+	// cursor.incStaveX(s.width);
 
 	// Stem
 	if (duration >= 2) {
 		stem = new Stem(relativePos)
-		stem.moveTo(staveX, staveY)
+		cursor.posGlyph(stem)
 		drawing.add(stem)
 	}
 
 	for (let i = 0; i < token.dots; i++) {
 		const dot = new Dot(relativePos)
-		dot.moveTo(staveX, staveY)
+		cursor.posGlyph(dot)
 		drawing.add(dot)
-		staveX += dot.width
+		cursor.incStaveX(dot.width);
 	}
 
-	staveX += s.width * 1
+	cursor.incStaveX(s.width * 1);
 }
