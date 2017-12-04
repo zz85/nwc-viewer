@@ -326,6 +326,7 @@ function interpret(data) {
 	var reading = new SightReader();
 
 	staves.forEach(function(staff) {
+		reading.reset();
 		staff.tokens.forEach(function(token) {
 			var type = token.type;
 			if (type in reading) {
@@ -337,7 +338,13 @@ function interpret(data) {
 
 function SightReader() {
 	// Note Streamer
+	this.commutativeDuration = new Fraction(0, 1);
+	this.reset();
+}
+
+SightReader.prototype.reset = function() {
 	this.setClef('treble');
+	this.commutativeDuration.set(0, 1);
 }
 
 SightReader.prototype.setClef = function(clef) {
@@ -407,6 +414,18 @@ SightReader.prototype.Note = function(token) {
 	accidental = ACCIDENTALS[accidental];
 	token.accidental = accidental;
 	// console.log('accidental', accidental);
+
+	// duration of this note
+	token.durValue = new Fraction(1, token.duration);
+	for (var i = 0; i < token.dots; i++) {
+		token.durValue.multiply(3, 2);
+	}
+
+	// computes cumumutative value duration
+	this.commutativeDuration.add(token.durValue).simplify()
+
+	// absolute time value when note should be played	
+	token.tickValue = this.commutativeDuration.value();
 };
 
 
