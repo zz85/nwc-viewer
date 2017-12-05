@@ -26,7 +26,14 @@ class StaveCursor {
 	}
 
 	hasNext() {
-		return this.tokens.length > this.tokenIndex + 1;
+		return this.tokenIndex + 1 < this.tokens.length;
+	}
+
+	next(func) {
+		const tokenIndex = this.incTokenIndex();
+		const token = this.tokens[tokenIndex];
+
+		func(token, tokenIndex, this.staveIndex, this);
 	}
 
 	incStaveX(inc) {
@@ -36,32 +43,59 @@ class StaveCursor {
 	posGlyph(glyph) {
 		glyph.moveTo(this.staveX, getStaffY(this.staveIndex));
 	}
+
+	incTokenIndex() {
+		return ++this.tokenIndex;
+	}
 }
+
+maxTicks = {}
 
 function score(data) {
 	drawing = new Drawing(ctx)
 
 	const staves = data.score.staves;
 
-	staveX = 40
 	const stavePointers = staves.map((stave, staveIndex) => new StaveCursor(stave, staveIndex));
 
+	/*
 	stavePointers.forEach((cursor, staveIndex) => {
-		eachStave(cursor, staveIndex);
-	});
-
-	stavePointers.forEach((cursor, staveIndex) => {
-		staveX = 40
 		cursor.tokens.forEach((token, tokenIndex) => {
 			handleToken(token, tokenIndex, staveIndex, cursor);
 		});
 	});
+	*/
 
-	// while (true) {
-	// 	for (let s = 0; s < staves.length; s++) {
+	while (true) {
+	// for (var i = 0; i < 50; i++) {
+		if (!stavePointers.some(s => s.hasNext())) {
+			console.log('nothing left');
+			break;
+		}
 
-	// 	}
-	// }
+		var smallestTick = Infinity, smallestIndex = -1;
+		stavePointers.forEach(cursor => {
+			const token = cursor.peek();
+			if (!token) return;
+			const tick = token.tickValue || 0;
+
+			if (tick < smallestTick) {
+				smallestTick = tick;
+				smallestIndex = cursor.staveIndex;
+			}
+		});
+
+		if (smallestIndex > -1) {
+			stavePointers[smallestIndex].next(handleToken)
+		}
+		else {
+			console.log('no candidate!!');
+		}
+	}
+
+	stavePointers.forEach((cursor, staveIndex) => {
+		drawStave(cursor, staveIndex);
+	});
 
 	drawing.draw(ctx)
 }
@@ -70,10 +104,11 @@ function getStaffY(staffIndex) {
 	return 120 * (staffIndex + 1)
 }
 
-function eachStave(cursor, staveIndex) {
-	// TODO staff width computation should be done last
-	s = new Stave(2000)
-	cursor.posGlyph(s)
+function drawStave(cursor, staveIndex) {
+	s = new Stave(cursor.staveX + 40)
+	s.moveTo(40, getStaffY(staveIndex))
+	// s = new Stave(2000)
+	// cursor.posGlyph(s)
 	drawing.add(s)
 
 	console.log('staveIndex', staveIndex, cursor.tokens)

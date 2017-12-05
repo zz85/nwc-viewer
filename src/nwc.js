@@ -330,6 +330,8 @@ function interpret(data) {
 		staff.tokens.forEach(function(token) {
 			var type = token.type;
 			if (type in reading) {
+				// absolute time value when note should be played
+				token.tickValue = reading.commutativeDuration.value();
 				reading[type](token);
 			}
 		});
@@ -423,9 +425,6 @@ SightReader.prototype.Note = function(token) {
 
 	// computes cumumutative value duration
 	this.commutativeDuration.add(token.durValue).simplify()
-
-	// absolute time value when note should be played	
-	token.tickValue = this.commutativeDuration.value();
 };
 
 
