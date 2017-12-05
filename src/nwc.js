@@ -425,6 +425,7 @@ SightReader.prototype.Note = function(token) {
 
 	// computes cumumutative value duration
 	this.commutativeDuration.add(token.durValue).simplify()
+	token.tickUntilValue = this.commutativeDuration.value();
 };
 
 

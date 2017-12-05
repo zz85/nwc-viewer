@@ -225,9 +225,18 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break;
 
 	}
+
+	const refValue = token.tickUntilValue || token.tickValue;
+	maxTicks[refValue] = Math.max(maxTicks[refValue] || 0,
+		cursor.staveX);
+
 }
 
 function drawForNote(token, cursor) {
+	if (token.tickValue in maxTicks) {
+		cursor.staveX = maxTicks[token.tickValue];
+	}
+
 	duration = token.duration
 	sym = duration < 2 ? 'noteheadWhole' :
 		duration < 4 ? 'noteheadHalf' :
