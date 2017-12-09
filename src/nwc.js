@@ -382,6 +382,10 @@ function circularIndex(n) {
 	*/
 }
 
+SightReader.prototype.Rest = function(token) {
+	this._handle_duration(token)
+}
+
 SightReader.prototype.Note = function(token) {
 	var pos = token.position
 	var OCTAVE_START = 4;
@@ -418,6 +422,10 @@ SightReader.prototype.Note = function(token) {
 	// console.log('accidental', accidental);
 
 	// duration of this note
+	this._handle_duration(token);	
+};
+
+SightReader.prototype._handle_duration = function(token) {
 	token.durValue = new Fraction(1, token.duration);
 	for (var i = 0; i < token.dots; i++) {
 		token.durValue.multiply(3, 2);
@@ -426,7 +434,7 @@ SightReader.prototype.Note = function(token) {
 	// computes cumumutative value duration
 	this.commutativeDuration.add(token.durValue).simplify()
 	token.tickUntilValue = this.commutativeDuration.value();
-};
+}
 
 
 /**********************
@@ -962,7 +970,7 @@ DataReader.prototype.push = function(value) {
 
 // https://github.com/nwsw/nwcplugin-api/blob/master/examples/xyAnalyzer.demo.nwctxt
 var TokenMode = {
-	'EnterExit': (reader, key, value) => {
+	EnterExit: (reader, key, value) => {
 		if (key === 'next') {
 			reader.exit();
 			tokenMode = TokenMode.JustSet;
@@ -972,7 +980,7 @@ var TokenMode = {
 		reader.set(key, value);
 	},
 
-	'JustSet': (reader, key, value) => {
+	JustSet: (reader, key, value) => {
 		if (key === 'next') {
 			return;
 		}
