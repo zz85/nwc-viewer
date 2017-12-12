@@ -32,11 +32,12 @@ ajax('samples/AveMariaArcadelt.nwc', processData);
 // broken
 // ajax('samples/WhatChildIsThis.nwc', processData);
 
-setup(() => {
-	score(data)
-})
-
 function processData(payload) {
 	data = decodeNwcArrayBuffer(payload);
-	// vex2(data);
+
+	interpret(data)
+
+	setup(() => {
+		score(data)
+	})	
 }

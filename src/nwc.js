@@ -166,8 +166,6 @@ function processNwc(array) {
 		parseNwc275(reader, nwctext);
 		convert275Tokens(reader);
 
-		interpret(reader.data);
-
 		return reader.data;
 	}
 	Info(reader);
@@ -176,7 +174,6 @@ function processNwc(array) {
 
 	// start parsing
 	var data = reader.data;
-	interpret(data);
 
 	return data;
 }
