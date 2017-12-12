@@ -40,6 +40,11 @@ class StaveCursor {
 		this.staveX += inc;
 	}
 
+	tokenPadRight(pad) {
+		this.lastPadRight = pad;
+		// this.incStaveX(pad);
+	}
+
 	posGlyph(glyph) {
 		glyph.moveTo(this.staveX, getStaffY(this.staveIndex));
 	}
@@ -49,7 +54,45 @@ class StaveCursor {
 	}
 }
 
-maxTicks = {}
+class TickTracker {
+	constructor() {
+		this.maxTicks = {}
+	}
+
+	add(token, cursor) {
+		const refValue = token.tickUntilValue || token.tickValue;
+		const which = this.maxTicks[refValue];
+
+		if (which) {
+			if (cursor.staveX > which.staveX) {
+				which.staveX = cursor.staveX
+				// + cursor.lastPadRight || 0;
+				which.cursor = cursor;
+			}
+		}
+		else {
+			this.maxTicks[refValue] = { cursor, staveX: cursor.staveX };
+		}
+	}
+
+	alignWithMax(token, cursor) {
+		if (token.tickValue && token.tickValue in this.maxTicks) {
+			const which = this.maxTicks[token.tickValue];
+
+			cursor.staveX = which.staveX + which.cursor.lastPadRight || 0;
+			return true
+		}
+		else {
+			if (cursor.lastPadRight)
+				cursor.staveX += cursor.lastPadRight;
+		}
+
+		return false
+	}
+}
+
+tickTracker = new TickTracker();
+absCounter = 0
 
 function score(data) {
 	drawing = new Drawing(ctx)
@@ -116,11 +159,13 @@ function drawStave(cursor, staveIndex) {
 
 function handleToken(token, tokenIndex, staveIndex, cursor) {
 	info = tokenIndex
+	info = absCounter++
 	staveY = getStaffY(staveIndex)
 
 	const type = token.type;
 
 	// console.log(token)
+	tickTracker.alignWithMax(token, cursor);
 
 	switch (type) {
 		default:
@@ -184,6 +229,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			cursor.incStaveX(key.width * 2);
 
 		case 'Rest':
+			tickTracker.alignWithMax(token, cursor);
 			duration = token.duration
 			sym = {
 				1: 'restWhole',
@@ -200,7 +246,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s._text = info;
 			drawing.add(s)
 
-			cursor.incStaveX(s.width * 2);
+			cursor.tokenPadRight(s.width * 2);
 			break;
 
 		case 'Barline':
@@ -209,7 +255,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s._text = info;
 			drawing.add(s)
 
-			cursor.incStaveX(10);
+			if (!tickTracker.alignWithMax(token, cursor))
+				cursor.tokenPadRight(10);
 			break;
 
 		case 'Chord':
@@ -221,22 +268,16 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break;
 
 		case 'Note':
+			tickTracker.alignWithMax(token, cursor);
 			drawForNote(token, cursor);
 			break;
 
 	}
 
-	const refValue = token.tickUntilValue || token.tickValue;
-	maxTicks[refValue] = Math.max(maxTicks[refValue] || 0,
-		cursor.staveX);
-
+	tickTracker.add(token, cursor);
 }
 
 function drawForNote(token, cursor) {
-	if (token.tickValue in maxTicks) {
-		cursor.staveX = maxTicks[token.tickValue];
-	}
-
 	duration = token.duration
 	sym = duration < 2 ? 'noteheadWhole' :
 		duration < 4 ? 'noteheadHalf' :
@@ -246,7 +287,7 @@ function drawForNote(token, cursor) {
 
 	s = new Glyph(sym, relativePos)
 	cursor.posGlyph(s)
-	s._text = info + ':' + token.name;
+	s._text = info + '.' // + ':' + token.name;
 	drawing.add(s)
 
 	if (relativePos < 0) {
@@ -281,5 +322,5 @@ function drawForNote(token, cursor) {
 		cursor.incStaveX(dot.width);
 	}
 
-	cursor.incStaveX(s.width * 1);
+	cursor.tokenPadRight(s.width * 1);
 }
