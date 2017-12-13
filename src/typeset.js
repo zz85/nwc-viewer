@@ -60,18 +60,19 @@ class TickTracker {
 	}
 
 	add(token, cursor) {
-		const refValue = token.tickUntilValue || token.tickValue;
+		const refValue =
+			// token.tickUntilValue
+			token.tickValue;
 		const which = this.maxTicks[refValue];
 
-		if (which) {
-			if (cursor.staveX > which.staveX) {
-				which.staveX = cursor.staveX
-				// + cursor.lastPadRight || 0;
-				which.cursor = cursor;
-			}
-		}
-		else {
-			this.maxTicks[refValue] = { cursor, staveX: cursor.staveX };
+		if (!which || cursor.staveX > which.staveX) {
+			this.maxTicks[refValue] = {
+				cursor,
+				staveX: cursor.staveX,
+				token: token,
+				tickValue: refValue,
+				// tickUntilValue: refValue + token.tick
+			};
 		}
 	}
 
@@ -79,7 +80,8 @@ class TickTracker {
 		if (token.tickValue && token.tickValue in this.maxTicks) {
 			const which = this.maxTicks[token.tickValue];
 
-			cursor.staveX = which.staveX + which.cursor.lastPadRight || 0;
+			cursor.staveX = which.staveX 
+			+ which.cursor.lastPadRight || 0;
 			return true
 		}
 		else {

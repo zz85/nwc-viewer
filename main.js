@@ -32,8 +32,80 @@ ajax('samples/AveMariaArcadelt.nwc', processData);
 // broken
 // ajax('samples/WhatChildIsThis.nwc', processData);
 
+
+test_data = {
+	score: {
+		staves: [
+			{ tokens: [
+				{type: "Clef", clef: "treble", octave: 0},
+				{type: "KeySignature", signature: "Bb"},
+				{type: "TimeSignature", signature: "AllaBreve"},
+				{type: "Rest", position: 0, duration: 4, dots: 0},
+				{type: "Note", Dur: "4th", Pos: "-1", position: -1, duration: 4, dots: 0},
+				{ "type": "Note", "Dur": "4th", "Pos": "-2", "position": -2, "duration": 4, "dots": 0 },
+				{
+				  "type": "Note",
+				  "Dur": "4th",
+				  "Pos": "-1",
+				  "position": -1,
+				  "duration": 4,
+				  "dots": 0
+				},
+				{
+				  "type": "Barline"
+				},
+				{
+				  "type": "Note",
+				  "Dur": "4th",
+				  "Pos": "-3",
+				  "Opts": "Slur=Downward",
+				  "position": -3,
+				  "duration": 4,
+				  "dots": 0
+				},
+				{
+				  "type": "Note",
+				  "Dur": "4th",
+				  "Pos": "-2",
+				  "Opts": "Slur=Downward,Lyric=Never",
+				  "position": -2,
+				  "duration": 4,
+				  "dots": 0
+				},
+				{
+				  "type": "Note",
+				  "Dur": "Half",
+				  "Pos": "-1",
+				  "position": -1,
+				  "duration": 2,
+				  "dots": 0
+				},
+				{
+				  "type": "Barline"
+				},
+				{
+				  "type": "Note",
+				  "Dur": "4th",
+				  "Pos": "-1",
+				  "position": -1,
+				  "duration": 4,
+				  "dots": 0
+				},
+			] },
+			{ tokens: [
+				{type: "Clef", clef: "bass", octave: 0},
+				{type: "KeySignature", signature: "Bb"},
+				{"type":"Note","Dur":"4th","Pos":"-3","position":-3,"duration":4,"dots":0},{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},{"type":"Note","Dur":"4th","Pos":"-6","position":-6,"duration":4,"dots":0},{"type":"Barline"},{"type":"Note","Dur":"4th","Pos":"-5","Opts":"Slur=Downward","position":-5,"duration":4,"dots":0},{"type":"Note","Dur":"4th","Pos":"-4","Opts":"Lyric=Never","position":-4,"duration":4,"dots":0},{"type":"Note","Dur":"Half","Pos":"-3","position":-3,"duration":2,"dots":0},{"type":"Barline"},{"type":"Note","Dur":"4th","Pos":"-3","position":-3,"duration":4,"dots":0},{"type":"Note","Dur":"4th","Pos":"-3","position":-3,"duration":4,"dots":0},{"type":"Note","Dur":"Half","Pos":"-3","position":-3,"duration":2,"dots":0}
+			] },
+		]
+	}
+}
+
 function processData(payload) {
 	data = decodeNwcArrayBuffer(payload);
+	console.log(JSON.stringify(data.score.staves[1].tokens.slice(0, 20), 0, 0));
+
+	data = test_data;
 
 	interpret(data)
 
