@@ -64,8 +64,7 @@ class TickTracker {
 		if (token.Visibility === 'hidden') return;
 
 		const refValue = token.tabUntilValue
-			// token.tickUntilValue
-			// token.tickValue;
+			// tickValue tickUntilValue tabValue
 		const which = this.maxTicks[refValue];
 
 		const x = cursor.staveX + cursor.lastPadRight || 0;
@@ -74,8 +73,6 @@ class TickTracker {
 				cursor,
 				staveX: x,
 				token: token,
-				tickValue: refValue,
-				// tickUntilValue: refValue + token.tick
 			};
 		}
 	}
@@ -176,17 +173,17 @@ function drawStave(cursor, staveIndex) {
 
 function handleToken(token, tokenIndex, staveIndex, cursor) {
 	info = tokenIndex
-	info = absCounter++
+	info = absCounter++ + ' : ' + tokenIndex
 	staveY = getStaffY(staveIndex)
 
 	const type = token.type;
 
-	// console.log(token)
+	// console.log('handleToken', token)
 	tickTracker.alignWithMax(token, cursor);
 
 	switch (type) {
 		default:
-			console.log('Typeset: Unhandled type - ', type, token);
+			console.log('Typeset: Unhandled type - ', type); // , token
 			break;
 
 		case 'StaffProperties':
@@ -247,7 +244,6 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break;
 
 		case 'Rest':
-			// tickTracker.alignWithMax(token, cursor);
 			duration = token.duration
 			sym = {
 				1: 'restWhole',
@@ -273,8 +269,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s._text = info;
 			drawing.add(s)
 
-			// if (!tickTracker.alignWithMax(token, cursor))
-				cursor.tokenPadRight(10);
+			cursor.tokenPadRight(10);
 			break;
 
 		case 'Chord':
@@ -286,7 +281,6 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break;
 
 		case 'Note':
-			// tickTracker.alignWithMax(token, cursor);
 			drawForNote(token, cursor);
 			break;
 

@@ -308,6 +308,16 @@ function mapTokens(token) {
  *  music
  *
  **********************/
+
+var tabableTypes = new Set([
+	'Clef', 'KeySignature', 'TimeSignature', 'Barline', 
+])
+
+var untabableTypes = new Set([
+	'StaffProperties', 'StaffInstrument', 'PerformanceStyle', 'Dynamic', 'Spacer', 'Tempo',
+	'Boundary', 'Text',
+])
+
 function interpret(data) {
 	var staves = data.score.staves;
 
@@ -329,6 +339,7 @@ function interpret(data) {
 
 	var reading = new SightReader();
 
+	staves.splice(2, 1);
 	// TODO move this into reader itself
 	staves.forEach(function(staff) {
 		reading.reset();
@@ -338,12 +349,13 @@ function interpret(data) {
 			// absolute time value when note should be played
 			token.tickValue = reading.tickCounter.value();
 			token.tabValue = reading.tabCounter.value();
-			
-			if (type in reading) {
 
+			if (type in reading) {
 				// calls corresponding token function
 				reading[type](token);
 			}
+
+			if (token.type === 'Boundary') console.log('$$$', token);
 
 			if (token.durValue) {
 				// computes cumumutative value duration
@@ -352,15 +364,19 @@ function interpret(data) {
 			}
 			else {
 				// type dynamic
-				if (token.Visibility !== 'Never') {
+				// if (token.Visibility !== 'Never' && token.type !== 'Text' && token.type !== 'Spacer') {
+				if (token.Visibility !== 'Never' && tabableTypes.has(token.type)) {
 					reading.tmpFraction.set(1, 4);
 					reading.tabCounter.add(reading.tmpFraction).simplify()
+				}
+				else {
+					if (!untabableTypes.has(token.type)) console.log('NOT TABING', token.type);
+					// return
 				}
 			}
 
 			token.tickUntilValue = reading.tickCounter.value();
 			token.tabUntilValue = reading.tabCounter.value();
-
 		});
 	});
 };
