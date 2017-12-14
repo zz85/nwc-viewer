@@ -33,6 +33,7 @@ class StaveCursor {
 		const tokenIndex = this.incTokenIndex();
 		const token = this.tokens[tokenIndex];
 
+		this.lastPadRight = 0;
 		func(token, tokenIndex, this.staveIndex, this);
 	}
 
@@ -60,15 +61,18 @@ class TickTracker {
 	}
 
 	add(token, cursor) {
-		const refValue =
+		if (token.Visibility === 'hidden') return;
+
+		const refValue = token.tabUntilValue
 			// token.tickUntilValue
-			token.tickValue;
+			// token.tickValue;
 		const which = this.maxTicks[refValue];
 
-		if (!which || cursor.staveX > which.staveX) {
+		const x = cursor.staveX + cursor.lastPadRight || 0;
+		if (!which || x > which.staveX) {
 			this.maxTicks[refValue] = {
 				cursor,
-				staveX: cursor.staveX,
+				staveX: x,
 				token: token,
 				tickValue: refValue,
 				// tickUntilValue: refValue + token.tick
@@ -77,18 +81,29 @@ class TickTracker {
 	}
 
 	alignWithMax(token, cursor) {
-		if (token.tickValue && token.tickValue in this.maxTicks) {
-			const which = this.maxTicks[token.tickValue];
+		// console.log('alignWithMax', token, cursor);
 
-			cursor.staveX = which.staveX 
-			+ which.cursor.lastPadRight || 0;
-			return true
-		}
-		else {
-			if (cursor.lastPadRight)
-				cursor.staveX += cursor.lastPadRight;
+		let moveX = cursor.staveX;
+
+		if (cursor.lastPadRight) {
+			moveX += cursor.lastPadRight;
 		}
 
+		// increments staveX or align with item which already contains staveX for tabValue
+		const key = token.tabValue;
+		if (key && key in this.maxTicks) {
+			const which = this.maxTicks[key];
+
+			moveX = which.staveX;
+			// if (which.staveX >= moveX) {
+			// 	// + which.cursor.lastPadRight || 0;
+			// 	console.log('xxxx')
+			// 	// return true
+			// } else {
+			// 	console.log('yyyyy')
+			// }
+		}
+		cursor.staveX = moveX;
 		return false
 	}
 }
@@ -122,7 +137,7 @@ function score(data) {
 		stavePointers.forEach(cursor => {
 			const token = cursor.peek();
 			if (!token) return;
-			const tick = token.tickValue || 0;
+			const tick = token.tabValue || 0;
 
 			if (tick < smallestTick) {
 				smallestTick = tick;
@@ -171,7 +186,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 	switch (type) {
 		default:
-			console.log('Typeset: Unhandled type - ', type);
+			console.log('Typeset: Unhandled type - ', type, token);
 			break;
 
 		case 'StaffProperties':
@@ -229,9 +244,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			drawing.add(key)
 
 			cursor.incStaveX(key.width * 2);
+			break;
 
 		case 'Rest':
-			tickTracker.alignWithMax(token, cursor);
+			// tickTracker.alignWithMax(token, cursor);
 			duration = token.duration
 			sym = {
 				1: 'restWhole',
@@ -241,7 +257,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				16: 'rest16th'
 			}[duration]
 
-			if (!sym) console.log('FAIL REST', duration)
+			if (!sym) console.log('FAIL REST', token, duration)
 
 			s = new Glyph(sym, token.position + 4) // + 4
 			cursor.posGlyph(s)
@@ -257,7 +273,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s._text = info;
 			drawing.add(s)
 
-			if (!tickTracker.alignWithMax(token, cursor))
+			// if (!tickTracker.alignWithMax(token, cursor))
 				cursor.tokenPadRight(10);
 			break;
 
@@ -270,7 +286,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break;
 
 		case 'Note':
-			tickTracker.alignWithMax(token, cursor);
+			// tickTracker.alignWithMax(token, cursor);
 			drawForNote(token, cursor);
 			break;
 

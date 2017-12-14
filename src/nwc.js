@@ -318,32 +318,66 @@ function interpret(data) {
 	- key signature
 	- notes (with accidentals)
 	- barlines
+
+	Tokens are tagged with following attributes
+	- tickValue. abs musical time value when it should be played
+	- durValue. music time value note should be played for
+	- tickUntilValue. abs musical timevalue music stops playing
+	- tabValue
+	- tabUntilValue
 	*/
 
 	var reading = new SightReader();
 
+	// TODO move this into reader itself
 	staves.forEach(function(staff) {
 		reading.reset();
 		staff.tokens.forEach(function(token) {
 			var type = token.type;
+
+			// absolute time value when note should be played
+			token.tickValue = reading.tickCounter.value();
+			token.tabValue = reading.tabCounter.value();
+			
 			if (type in reading) {
-				// absolute time value when note should be played
-				token.tickValue = reading.commutativeDuration.value();
+
+				// calls corresponding token function
 				reading[type](token);
 			}
+
+			if (token.durValue) {
+				// computes cumumutative value duration
+				reading.tickCounter.add(token.durValue).simplify()
+				reading.tabCounter.add(token.durValue).simplify()
+			}
+			else {
+				// type dynamic
+				if (token.Visibility !== 'Never') {
+					reading.tmpFraction.set(1, 4);
+					reading.tabCounter.add(reading.tmpFraction).simplify()
+				}
+			}
+
+			token.tickUntilValue = reading.tickCounter.value();
+			token.tabUntilValue = reading.tabCounter.value();
+
 		});
 	});
 };
 
 function SightReader() {
 	// Note Streamer
-	this.commutativeDuration = new Fraction(0, 1);
+	this.tickCounter = new Fraction(0, 1); // commutativeTickDuration
+	this.tabCounter = new Fraction(0, 1); // commutativeTabDuration
+	this.tmpFraction = new Fraction(0, 1);
+
 	this.reset();
 }
 
 SightReader.prototype.reset = function() {
 	this.setClef('treble');
-	this.commutativeDuration.set(0, 1);
+	this.tickCounter.set(0, 1);
+	this.tabCounter.set(0, 1);
 }
 
 SightReader.prototype.setClef = function(clef) {
@@ -427,10 +461,6 @@ SightReader.prototype._handle_duration = function(token) {
 	for (var i = 0; i < token.dots; i++) {
 		token.durValue.multiply(3, 2);
 	}
-
-	// computes cumumutative value duration
-	this.commutativeDuration.add(token.durValue).simplify()
-	token.tickUntilValue = this.commutativeDuration.value();
 }
 
 
