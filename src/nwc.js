@@ -238,7 +238,7 @@ function parseDur(dur) {
 	var duration = durs[parts[0]];
 	var dots = 0;
 	if (parts[1]) {
-		if (parts[1] === 'dotted') {
+		if (parts[1] === 'Dotted') {
 			dots++;
 		}
 	}
@@ -309,14 +309,24 @@ function mapTokens(token) {
  *
  **********************/
 
-var tabableTypes = new Set([
+var tabbableTypes = new Set([
 	'Clef', 'KeySignature', 'TimeSignature', 'Barline', 
 ])
 
-var untabableTypes = new Set([
+var untabbableTypes = new Set([
 	'StaffProperties', 'StaffInstrument', 'PerformanceStyle', 'Dynamic', 'Spacer', 'Tempo',
 	'Boundary', 'Text',
 ])
+
+function isTabbable(token) {
+	if (token.Visibility !== 'Never' && tabbableTypes.has(token.type)) {
+		return true
+	}
+	else {
+		if (!untabbableTypes.has(token.type)) console.log('NOT TABING', token.type);
+		return false;
+	}
+}
 
 function interpret(data) {
 	var staves = data.score.staves;
@@ -339,7 +349,6 @@ function interpret(data) {
 
 	var reading = new SightReader();
 
-	staves.splice(2, 1);
 	// TODO move this into reader itself
 	staves.forEach(function(staff) {
 		reading.reset();
@@ -355,7 +364,7 @@ function interpret(data) {
 				reading[type](token);
 			}
 
-			if (token.type === 'Boundary') console.log('$$$', token);
+			// if (token.type === 'Boundary') console.log('$$$', token);
 
 			if (token.durValue) {
 				// computes cumumutative value duration
@@ -363,15 +372,9 @@ function interpret(data) {
 				reading.tabCounter.add(token.durValue).simplify()
 			}
 			else {
-				// type dynamic
-				// if (token.Visibility !== 'Never' && token.type !== 'Text' && token.type !== 'Spacer') {
-				if (token.Visibility !== 'Never' && tabableTypes.has(token.type)) {
+				if (isTabbable(token)) {
 					reading.tmpFraction.set(1, 4);
 					reading.tabCounter.add(reading.tmpFraction).simplify()
-				}
-				else {
-					if (!untabableTypes.has(token.type)) console.log('NOT TABING', token.type);
-					// return
 				}
 			}
 
