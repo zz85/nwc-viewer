@@ -273,10 +273,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break;
 
 		case 'Chord':
-			let tmp = staveX
+			let tmp = cursor.staveX
 			token.notes.forEach(note => {
-				staveX = tmp
-				drawForNote(note)
+				cursor.staveX = tmp
+				drawForNote(note, cursor)
 			})
 			break;
 

@@ -279,6 +279,9 @@ function mapTokens(token) {
 		case 'Note':
 			token.position = +token.Pos;
 			Object.assign(token, parseDur(token.Dur));
+
+			// TODO parse POS.
+			// eg '4^', "#-5,-3"
 			// console.log(token.Opts);
 			// slur lyric beam stem
 
@@ -310,20 +313,23 @@ function mapTokens(token) {
  **********************/
 
 var tabbableTypes = new Set([
-	'Clef', 'KeySignature', 'TimeSignature', 'Barline', 
+	'Clef', 'KeySignature', 'TimeSignature', 'Barline',
+	'Chord',
 ])
 
 var untabbableTypes = new Set([
 	'StaffProperties', 'StaffInstrument', 'PerformanceStyle', 'Dynamic', 'Spacer', 'Tempo',
-	'Boundary', 'Text',
+	'Boundary', 'Text', 'Instrument', 'DynamicVariance', 'TempoVariance'
+	
 ])
 
 function isTabbable(token) {
-	if (token.Visibility !== 'Never' && tabbableTypes.has(token.type)) {
+	const visible = token.Visibility !== 'Never'
+	if (visible && tabbableTypes.has(token.type)) {
 		return true
 	}
 	else {
-		if (!untabbableTypes.has(token.type)) console.log('NOT TABING', token.type);
+		if (!untabbableTypes.has(token.type) && visible) console.log('NOT TABING', token.type);
 		return false;
 	}
 }
@@ -389,7 +395,6 @@ function SightReader() {
 	this.tickCounter = new Fraction(0, 1); // commutativeTickDuration
 	this.tabCounter = new Fraction(0, 1); // commutativeTabDuration
 	this.tmpFraction = new Fraction(0, 1);
-
 	this.reset();
 }
 
@@ -397,6 +402,7 @@ SightReader.prototype.reset = function() {
 	this.setClef('treble');
 	this.tickCounter.set(0, 1);
 	this.tabCounter.set(0, 1);
+	this.lastTimeSignature = null;
 }
 
 SightReader.prototype.setClef = function(clef) {
@@ -408,6 +414,10 @@ SightReader.prototype.setClef = function(clef) {
 SightReader.prototype.Clef = function(token) {
 	this.setClef(token.clef);
 };
+
+SightReader.prototype.TimeSignature = function(token) {
+	this.lastTimeSignature = token;
+}
 
 SightReader.prototype.Barline = function() {
 	// reset
@@ -433,7 +443,15 @@ function circularIndex(n) {
 }
 
 SightReader.prototype.Rest = function(token) {
+	// TODO take into account rest value
 	this._handle_duration(token)
+}
+
+SightReader.prototype.Chord = function(token) {
+	console.log('chord', token);
+	token.duration = token.notes[0].duration;
+	token.dots = token.notes[0].dots;
+	this._handle_duration(token);
 }
 
 SightReader.prototype.Note = function(token) {
@@ -472,7 +490,7 @@ SightReader.prototype.Note = function(token) {
 	// console.log('accidental', accidental);
 
 	// duration of this note
-	this._handle_duration(token);	
+	this._handle_duration(token);
 };
 
 SightReader.prototype._handle_duration = function(token) {
@@ -680,21 +698,39 @@ function Clef(reader) {
 	reader.set('octave', data[4] & 3);
 }
 
-function KeySignature(reader) {
-	reader.set('type', 'KeySignature');
-	var data = reader.readBytes(12);
-	reader.set('flats', data[2]);
-
-	var sharps = data[4];
+function bitmapKeySignature(bitmap) {
 	const AG = 'ABCDEFG';
 	var names = [];
 	// bit map
 	for (let i = 0; i < AG.length; i++) {
-		if ((sharps >> i) & 1) {
+		if ((bitmap >> i) & 1) {
 			names.push(AG.charAt(i));
 		}
 	}
-	reader.set('sharps', names);
+
+	return names;
+}
+
+function KeySignature(reader) {
+	reader.set('type', 'KeySignature');
+	var data = reader.readBytes(12);
+	var flats = bitmapKeySignature(data[2]);
+	var sharps = bitmapKeySignature(data[4]);
+	reader.set('flats', flats);
+	reader.set('sharps', sharps);
+
+	var flatKeys = ['C', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb']
+	var sharpKeys = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#']
+
+	if (flats.length) {
+		reader.set('signature', flatKeys[flats.length]);
+	}
+	else if (sharps.length) {
+		reader.set('signature', sharpKeys[sharps.length]);
+	}
+	else {
+		reader.set('signature', 'C');
+	}
 }
 
 function Barline(reader) {
