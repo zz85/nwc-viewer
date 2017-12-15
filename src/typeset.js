@@ -55,6 +55,8 @@ class StaveCursor {
 	}
 }
 
+const X_STRETCH = 1;
+
 class TickTracker {
 	constructor() {
 		this.maxTicks = {}
@@ -67,7 +69,7 @@ class TickTracker {
 			// tickValue tickUntilValue tabValue
 		const which = this.maxTicks[refValue];
 
-		const x = cursor.staveX + cursor.lastPadRight || 0;
+		const x = cursor.staveX + cursor.lastPadRight * X_STRETCH || 0;
 		if (!which || x > which.staveX) {
 			this.maxTicks[refValue] = {
 				cursor,
@@ -83,7 +85,7 @@ class TickTracker {
 		let moveX = cursor.staveX;
 
 		if (cursor.lastPadRight) {
-			moveX += cursor.lastPadRight;
+			moveX += cursor.lastPadRight * 4;
 		}
 
 		// increments staveX or align with item which already contains staveX for tabValue
@@ -92,14 +94,8 @@ class TickTracker {
 			const which = this.maxTicks[key];
 
 			moveX = which.staveX;
-			// if (which.staveX >= moveX) {
-			// 	// + which.cursor.lastPadRight || 0;
-			// 	console.log('xxxx')
-			// 	// return true
-			// } else {
-			// 	console.log('yyyyy')
-			// }
 		}
+
 		cursor.staveX = moveX;
 		return false
 	}
@@ -260,7 +256,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s._text = info;
 			drawing.add(s)
 
-			cursor.tokenPadRight(s.width * 2);
+			cursor.incStaveX(s.width * 1);
+			cursor.tokenPadRight(s.width * 1);
 			break;
 
 		case 'Barline':
