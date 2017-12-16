@@ -1,5 +1,7 @@
 # nwc-viewer
-NoteworthyComposer file viewer that renders music notation in js and html. Do get in touch if you are interested with this.
+This NoteworthyComposer file viewer attempts to renders music notation from nwc files without any installation required, using only the browser technologies like js and html.
+
+If you are interested with this project, feel free to chat me up [@blurspline](https://twitter.com/blurspline) on twitter.
 
 This project contains
 - a binary file reader / parser
@@ -8,6 +10,9 @@ This project contains
 
 ## NWC File Format
 I wrote a nwc parser/converter back in 2005 [nwc2ly.py](https://github.com/zz85/nwc2ly.py) using the "french cafe approach". The decoder used here was initially a port of the python version with additions to support versions 2.7 and nwctext.
+
+## Music Notation Rendering
+Although the purpose of this project is not solely music notation, my intention is to build a simple, basic but functional renderer for my own education purposes. Perhaps parts of it can be repurpose if there are intentions to extend the functionality of it.
 
 ## Progress
 
