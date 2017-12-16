@@ -104,7 +104,7 @@ function processData(payload) {
 	// console.log(JSON.stringify(data.score.staves[1].tokens.slice(0, 20), 0, 0));
 	
 	// data = test_data;
-	data = test_dot_quaver;
+	// data = test_dot_quaver;
 
 	interpret(data)
 

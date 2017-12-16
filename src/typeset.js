@@ -55,7 +55,7 @@ class StaveCursor {
 	}
 }
 
-const X_STRETCH = 1;
+const X_STRETCH = 0.25;
 
 class TickTracker {
 	constructor() {
@@ -257,7 +257,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			drawing.add(s)
 
 			cursor.incStaveX(s.width * 1);
-			cursor.tokenPadRight(s.width * 1);
+			cursor.tokenPadRight(s.width * calculatePadding(token.durValue));
 			break;
 
 		case 'Barline':
@@ -298,6 +298,7 @@ function drawForNote(token, cursor) {
 	cursor.posGlyph(s)
 	s._text = info + '.' // + ':' + token.name;
 	drawing.add(s)
+	const noteHeadWidth = s.width
 
 	if (relativePos < 0) {
 		ledger = new Ledger((relativePos / 2 | 0) * 2, 0)
@@ -305,10 +306,29 @@ function drawForNote(token, cursor) {
 		drawing.add(ledger)
 	}
 
-	cursor.incStaveX(s.width);
+	const requireStem = duration >= 2;
+	const stemUp = token.position < 0;
+	const requireFlag = duration >= 8;
+
+
+	if (requireStem && !stemUp) {
+		// stem down
+		stem = new Stem(relativePos - 7)
+		cursor.posGlyph(stem)
+		drawing.add(stem)
+
+		if (requireFlag) {
+			stem = new Glyph(`flag${duration}thDown`, relativePos - 7)
+			cursor.posGlyph(stem)
+			stem._text = info;
+			drawing.add(stem)
+		}
+	}
+
+	cursor.incStaveX(noteHeadWidth);
 
 	// Flags
-	if (duration >= 8) {
+	if (requireFlag && stemUp) {
 		stem = new Glyph(`flag${duration}thUp`, relativePos + 7)
 		cursor.posGlyph(stem)
 		stem._text = info;
@@ -318,7 +338,8 @@ function drawForNote(token, cursor) {
 	// cursor.incStaveX(s.width);
 
 	// Stem
-	if (duration >= 2) {
+	if (requireStem && stemUp) {
+		// stem up
 		stem = new Stem(relativePos)
 		cursor.posGlyph(stem)
 		drawing.add(stem)
@@ -331,10 +352,15 @@ function drawForNote(token, cursor) {
 		cursor.incStaveX(dot.width);
 	}
 
+	var spaceMultiplier = calculatePadding(token.durValue)
+	cursor.tokenPadRight(s.width * 1 * spaceMultiplier);
+}
+
+function calculatePadding(durValue) {
 	// TODO tweak this
-	var spaceMultiplier = Math.min(Math.max(token.durValue.value() * 8, 1),  8)
+	var spaceMultiplier = Math.min(Math.max(durValue.value() * 8, 1),  8);
 	// use 1/8 as units
 	console.log(spaceMultiplier);
 
-	cursor.tokenPadRight(s.width * 1 * spaceMultiplier);
+	return spaceMultiplier;
 }
