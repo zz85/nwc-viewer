@@ -331,5 +331,10 @@ function drawForNote(token, cursor) {
 		cursor.incStaveX(dot.width);
 	}
 
-	cursor.tokenPadRight(s.width * 1);
+	// TODO tweak this
+	var spaceMultiplier = Math.min(Math.max(token.durValue.value() * 8, 1),  8)
+	// use 1/8 as units
+	console.log(spaceMultiplier);
+
+	cursor.tokenPadRight(s.width * 1 * spaceMultiplier);
 }

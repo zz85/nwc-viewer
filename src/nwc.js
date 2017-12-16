@@ -229,7 +229,8 @@ var durs = {
 	Half: 2,
 	'4th': 4,
 	'8th': 8,
-	'16th': 16
+	'16th': 16,
+	'32th': 32,
 };
 
 function parseDur(dur) {

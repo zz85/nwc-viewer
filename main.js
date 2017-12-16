@@ -72,10 +72,39 @@ test_data = {
 	}
 }
 
+test_dot_quaver = {
+	score: {
+		staves: [
+			{
+				tokens: [
+					{"type":"Barline"},
+					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
+					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
+					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
+					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
+					{"type":"Barline"},
+				]
+			},
+			{
+				tokens: [
+					{"type":"Barline"},
+					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":1},
+					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":8,"dots":0},
+					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
+					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
+					{"type":"Barline"},
+				]
+			},
+		]
+	}
+}
+
 function processData(payload) {
 	data = decodeNwcArrayBuffer(payload);
 	// console.log(JSON.stringify(data.score.staves[1].tokens.slice(0, 20), 0, 0));
+	
 	// data = test_data;
+	data = test_dot_quaver;
 
 	interpret(data)
 

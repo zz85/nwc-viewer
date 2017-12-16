@@ -29,7 +29,7 @@ Although the purpose of this project is not solely music notation, my intention 
 ### Drawing
 - [x] Clefs
 - [x] Time Signatures
-- [ ] Key Signatures
+- [x] Key Signatures
 - [x] Noteheads
 - [x] Staves
 - [ ] Accidentals
@@ -40,4 +40,17 @@ Although the purpose of this project is not solely music notation, my intention 
 - [ ] Text Dynamics
 - [ ] Harpins
 - [ ] Slurs
+
+### Technical Road Map
+- [ ] Audio Playback
+- [ ] Note Editing
+- [ ] Font loader
+
+## Current API
+1. NWC file format parsing
+2. Musical intepretation of tokens
+3. Notation representation of data
+4. Rendering
+
+
 
