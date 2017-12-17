@@ -287,62 +287,69 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 }
 
 function drawForNote(token, cursor) {
-	duration = token.duration
-	sym = duration < 2 ? 'noteheadWhole' :
+	const duration = token.duration
+	const sym = duration < 2 ? 'noteheadWhole' :
 		duration < 4 ? 'noteheadHalf' :
 		'noteheadBlack'
 
 	const relativePos = token.position + 4
-
-	s = new Glyph(sym, relativePos)
-	cursor.posGlyph(s)
-	s._text = info + '.' // + ':' + token.name;
-	drawing.add(s)
-	const noteHeadWidth = s.width
-
-	if (relativePos < 0) {
-		ledger = new Ledger((relativePos / 2 | 0) * 2, 0)
-		cursor.posGlyph(ledger)
-		drawing.add(ledger)
-	}
-
 	const requireStem = duration >= 2;
 	const stemUp = token.position < 0;
 	const requireFlag = duration >= 8;
 
+	// note head
+	const noteHead = new Glyph(sym, relativePos)
+	cursor.posGlyph(noteHead)
+	noteHead._text = info + '.' // + ':' + token.name;
+	drawing.add(noteHead)
+	const noteHeadWidth = noteHead.width
+	let space = noteHeadWidth
+
+	// ledger lines
+	if (relativePos < 0) {
+		const ledger = new Ledger((relativePos / 2 | 0) * 2, 0)
+		cursor.posGlyph(ledger)
+		drawing.add(ledger)
+	}
 
 	if (requireStem && !stemUp) {
 		// stem down
-		stem = new Stem(relativePos - 7)
+		const stem = new Stem(relativePos - 7)
 		cursor.posGlyph(stem)
 		drawing.add(stem)
 
+		let flag;
 		if (requireFlag) {
-			stem = new Glyph(`flag${duration}thDown`, relativePos - 7)
-			cursor.posGlyph(stem)
-			stem._text = info;
-			drawing.add(stem)
+			flag = new Glyph(`flag${duration}thDown`, relativePos - 7)
+			cursor.posGlyph(flag)
+			flag._text = info;
+			drawing.add(flag)
+			space = Math.max(space, flag.width || 0)
 		}
+
+		cursor.incStaveX(space);
 	}
+	else if (requireStem && stemUp) {
+		cursor.incStaveX(noteHeadWidth);
 
-	cursor.incStaveX(noteHeadWidth);
-
-	// Flags
-	if (requireFlag && stemUp) {
-		stem = new Glyph(`flag${duration}thUp`, relativePos + 7)
-		cursor.posGlyph(stem)
-		stem._text = info;
-		drawing.add(stem)
-	}
-
-	// cursor.incStaveX(s.width);
-
-	// Stem
-	if (requireStem && stemUp) {
 		// stem up
-		stem = new Stem(relativePos)
+		const stem = new Stem(relativePos)
 		cursor.posGlyph(stem)
 		drawing.add(stem)
+		// cursor.incStaveX(stem.width);
+
+		// Flags
+		if (requireFlag) {
+			flag = new Glyph(`flag${duration}thUp`, relativePos + 7)
+			cursor.posGlyph(flag)
+			flag._text = info;
+			drawing.add(flag)
+			cursor.incStaveX(flag.width);
+		}
+
+	}
+	else {
+		cursor.incStaveX(noteHeadWidth);
 	}
 
 	for (let i = 0; i < token.dots; i++) {
@@ -353,7 +360,7 @@ function drawForNote(token, cursor) {
 	}
 
 	var spaceMultiplier = calculatePadding(token.durValue)
-	cursor.tokenPadRight(s.width * 1 * spaceMultiplier);
+	cursor.tokenPadRight(noteHead.width * 1 * spaceMultiplier);
 }
 
 function calculatePadding(durValue) {

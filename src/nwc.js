@@ -278,11 +278,12 @@ function mapTokens(token) {
 
 			break;
 		case 'Note':
-			token.position = +token.Pos;
+			const m = /([-\d]+)/.exec(token.Pos);
+			token.position = +m[1];
 			Object.assign(token, parseDur(token.Dur));
 
 			// TODO parse POS.
-			// eg '4^', "#-5,-3"
+			// eg '4^', "#-5,-3" ??
 			// console.log(token.Opts);
 			// slur lyric beam stem
 
@@ -321,7 +322,7 @@ var tabbableTypes = new Set([
 var untabbableTypes = new Set([
 	'StaffProperties', 'StaffInstrument', 'PerformanceStyle', 'Dynamic', 'Spacer', 'Tempo',
 	'Boundary', 'Text', 'Instrument', 'DynamicVariance', 'TempoVariance'
-	
+
 ])
 
 function isTabbable(token) {

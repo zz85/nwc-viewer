@@ -33,9 +33,9 @@ Although the purpose of this project is not solely music notation, my intention 
 - [x] Noteheads
 - [x] Staves
 - [ ] Accidentals
-- [ ] Stems
+- [x] Stems & Flags
 - [ ] Barlines
-- [ ] Dots
+- [x] Dots
 - [ ] Beams
 - [ ] Text Dynamics
 - [ ] Harpins
