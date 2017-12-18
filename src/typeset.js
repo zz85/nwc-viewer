@@ -55,7 +55,7 @@ class StaveCursor {
 	}
 }
 
-const X_STRETCH = 0.25;
+const X_STRETCH = 0.5;
 
 class TickTracker {
 	constructor() {
@@ -294,8 +294,12 @@ function drawForNote(token, cursor) {
 
 	const relativePos = token.position + 4
 	const requireStem = duration >= 2;
-	const stemUp = token.position < 0;
+	const stemUp = token.Stem === 'Up' ? true :
+		token.Stem === 'Down' ? false :
+			token.position < 0;
 	const requireFlag = duration >= 8;
+
+	if (token.Beam) console.log('Beam', token);
 
 	// note head
 	const noteHead = new Glyph(sym, relativePos)
@@ -344,7 +348,7 @@ function drawForNote(token, cursor) {
 			cursor.posGlyph(flag)
 			flag._text = info;
 			drawing.add(flag)
-			cursor.incStaveX(flag.width);
+			// cursor.incStaveX(flag.width);
 		}
 
 	}
@@ -367,7 +371,7 @@ function calculatePadding(durValue) {
 	// TODO tweak this
 	var spaceMultiplier = Math.min(Math.max(durValue.value() * 8, 1),  8);
 	// use 1/8 as units
-	console.log(spaceMultiplier);
+	// console.log(spaceMultiplier);
 
 	return spaceMultiplier;
 }

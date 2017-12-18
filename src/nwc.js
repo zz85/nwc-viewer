@@ -224,6 +224,44 @@ function convert275Tokens(reader) {
 	});
 }
 
+function parseOpts(token) {
+	const { Opts } = token;
+	if (!Opts) return;
+
+	const opts = Opts.split(',');
+	opts.forEach(opt => {
+		const pairs = opt.split('=')
+		token[pairs[0]] = pairs[1];
+	});
+}
+
+function getPos(str) {
+	if (str.endsWith('^')) {
+		console.log('getPos ^', str);
+		str = str.substr(0, -1)
+	}
+
+	var pos = +str;
+	if (isNaN(pos)) {
+		console.log('fail getPos', str);
+		const m = /([-\d]+)/.exec(str);
+		return +m[1];
+	}
+
+	return pos;
+}
+
+function parsePos(str) {
+	// eg '4^', "#-5,-3", n1??
+
+	if (str.startsWith('#')) {
+		var positions = str.substring(1).split(',').map(getPos);
+		return positions;
+	}
+
+	return [getPos(str)]
+}
+
 var durs = {
 	Whole: 1,
 	Half: 2,
@@ -253,6 +291,8 @@ function parseDur(dur) {
 
 function mapTokens(token) {
 	var type = token.type;
+	parseOpts(token);
+
 	switch (type) {
 		case 'Clef':
 			token = {
@@ -278,15 +318,11 @@ function mapTokens(token) {
 
 			break;
 		case 'Note':
-			const m = /([-\d]+)/.exec(token.Pos);
-			token.position = +m[1];
+			const positions = parsePos(token.Pos);
+			token.position = positions[0];
+			if (positions.length > 1) console.log('moo chords', positions)
 			Object.assign(token, parseDur(token.Dur));
-
-			// TODO parse POS.
-			// eg '4^', "#-5,-3" ??
-			// console.log(token.Opts);
-			// slur lyric beam stem
-
+			// Slur(Upward) Lyric(Never) Beam(End/First) Stem(Up/Down) XNoteSpace
 			break;
 		case 'Bar':
 			token.type = 'Barline';
