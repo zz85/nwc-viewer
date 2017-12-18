@@ -994,33 +994,20 @@ function num(number) {
 	return ('  ' + number).slice(-3);
 }
 
-function dump(byteArray, start) {
-	var limit = 20;
+function dump(byteArray, start, limit) {
+	limit = limit || 20;
 	start = start || 0;
-	for (var i = start, lim = 0; i < byteArray.length, lim < limit; i+=4, lim++) {
+	var group = 32;
+	var keys = [...Array(group).keys()]
+	for (var i = start, lim = 0; i < byteArray.length, lim < limit; i+=group, lim++) {
 		console.log(
 			// '%c' + i, 'background: #222; color: #bada55',
-			('000' + i + ')').slice(-4),
+			('00000' + i + ')').slice(-6),
 
-			hex(byteArray[i]),
-			hex(byteArray[i + 1]),
-			hex(byteArray[i + 2]),
-			hex(byteArray[i + 3]),
-
-			binary(byteArray[i]),
-			binary(byteArray[i + 1]),
-			binary(byteArray[i + 2]),
-			binary(byteArray[i + 3]),
-
-			string(byteArray[i]),
-			string(byteArray[i + 1]),
-			string(byteArray[i + 2]),
-			string(byteArray[i + 3]),
-
-			num(byteArray[i]),
-			num(byteArray[i + 1]),
-			num(byteArray[i + 2]),
-			num(byteArray[i + 3])
+			...keys.map(k => hex(byteArray[i + k])),
+			// ...keys.map(k => binary(byteArray[i + k])),
+			...keys.map(k => string(byteArray[i + k])),
+			// ...keys.map(k => num(byteArray[i + k]))
 		);
 	}
 }
@@ -1198,8 +1185,8 @@ DataReader.prototype.skip = function(k) {
 	this.start = this.pos;
 };
 
-DataReader.prototype.dump = function() {
-	dump(this.array, this.start);
+DataReader.prototype.dump = function(limit) {
+	dump(this.array, this.start, limit);
 };
 
 if (NODE) {
