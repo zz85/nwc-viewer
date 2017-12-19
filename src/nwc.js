@@ -570,19 +570,24 @@ function Header(reader) {
 	reader.set('product', product);
 	reader.set('name1', name1);
 	reader.set('name2', name2);
-	
-	debugger;
-
-	skip = reader.readUntilNonZero();
-	// reader.skip(2);
-	// reader.skip(8);
-	// reader.skip(2);
 
 	var version_minor = v[0];
 	var version_major = v[1];
 	version = version_major + version_minor * 0.01;
 	console.log('Detected NWC version', version);
 	reader.set('version', version);
+
+	if (version >= 2.75) {
+		// reader.readBytes(4);
+		reader.readUntil(36);
+	}
+
+	debugger;
+
+	skip = reader.readUntilNonZero();
+	// reader.skip(2);
+	// reader.skip(8);
+	// reader.skip(2);
 }
 
 function Info(reader) {
