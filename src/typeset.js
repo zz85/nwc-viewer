@@ -273,7 +273,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			let tmp = cursor.staveX
 			token.notes.forEach(note => {
 				cursor.staveX = tmp
-				drawForNote(note, cursor)
+				drawForNote(note, cursor, token.durValue)
 			})
 			break;
 
@@ -286,7 +286,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 	tickTracker.add(token, cursor);
 }
 
-function drawForNote(token, cursor) {
+function drawForNote(token, cursor, durValue) {
 	const duration = token.duration
 	const sym = duration < 2 ? 'noteheadWhole' :
 		duration < 4 ? 'noteheadHalf' :
@@ -363,7 +363,7 @@ function drawForNote(token, cursor) {
 		cursor.incStaveX(dot.width);
 	}
 
-	var spaceMultiplier = calculatePadding(token.durValue)
+	var spaceMultiplier = calculatePadding(durValue || token.durValue)
 	cursor.tokenPadRight(noteHead.width * 1 * spaceMultiplier);
 }
 

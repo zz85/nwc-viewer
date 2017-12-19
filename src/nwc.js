@@ -1006,8 +1006,8 @@ function dump(byteArray, start, limit) {
 
 			...keys.map(k => hex(byteArray[i + k])),
 			// ...keys.map(k => binary(byteArray[i + k])),
-			...keys.map(k => string(byteArray[i + k])),
-			// ...keys.map(k => num(byteArray[i + k]))
+			...keys.map(k => string(byteArray[i + k]) || ' '),
+			...keys.map(k => num(byteArray[i + k]))
 		);
 	}
 }
@@ -1021,7 +1021,7 @@ function dump(byteArray, start, limit) {
 
 function DataReader(array) {
 	this.array = array; // the binary source
-	this.start = 0;
+	this.start = 0; /// what is this?!?!?!?!
 	this.pos   = 0; // cursor
 
 	this.data = {}; // single root of data
