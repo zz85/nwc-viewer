@@ -554,20 +554,29 @@ function Header(reader) {
 	// }
 	// return
 
+	var company = reader.readString();
+	var skip = reader.readUntilNonZero();
+	var product = reader.readString();
+	skip = reader.readUntilNonZero();
+	var v = reader.readBytes(2);
+	skip = reader.readBytes(1);
+	skip = reader.readUntilNonZero();
+	var name1 = reader.readString();
+	skip = reader.readUntilNonZero();
+	var name2 = reader.readString();
+
 	reader.descend('header');
-	reader.set('company', reader.readString());
-	var skip = shortArrayToString(reader.readLine());
-	skip = shortArrayToString(reader.readLine());
-	reader.set('product', reader.readString());
+	reader.set('company', company);
+	reader.set('product', product);
+	reader.set('name1', name1);
+	reader.set('name2', name2);
+	
+	debugger;
 
-	var v = reader.readLine();
-	// var v = reader.readBytes(2);
-
-	reader.skip(2);
-	reader.set('name1', reader.readString());
-	reader.set('name2', reader.readString());
-	reader.skip(8);
-	reader.skip(2);
+	skip = reader.readUntilNonZero();
+	// reader.skip(2);
+	// reader.skip(8);
+	// reader.skip(2);
 
 	var version_minor = v[0];
 	var version_major = v[1];
@@ -577,6 +586,7 @@ function Header(reader) {
 }
 
 function Info(reader) {
+	reader.readBytes(2);
 	reader.descend('info');
 	reader.set('title', reader.readString());
 	reader.set('author', reader.readString());
@@ -693,6 +703,7 @@ function StaffInfo(reader, staff) {
 			lyrics.push(Lyrics(reader));
 			reader.set('lyrics', lyrics);
 		}
+		
 		reader.skip(1);
 	}
 
@@ -997,7 +1008,7 @@ function num(number) {
 function dump(byteArray, start, limit) {
 	limit = limit || 20;
 	start = start || 0;
-	var group = 32;
+	var group = 16;
 	var keys = [...Array(group).keys()]
 	for (var i = start, lim = 0; i < byteArray.length, lim < limit; i+=group, lim++) {
 		console.log(
@@ -1151,6 +1162,21 @@ DataReader.prototype.readUntil = function(x) {
 	var slice = this.array.subarray(this.start, this.pos);
 	this.pos++;
 	this.start = this.pos;
+	return slice;
+};
+
+DataReader.prototype.readUntilNonZero = function() {
+	var x = this.pos;
+
+	if (this.array[x] !== 0) return;
+
+	while (++x < this.array.length && this.array[x] === 0);
+
+	console.log('non zero at', x, 'from', this.pos);
+
+	var slice = this.array.subarray(this.pos, x);
+	this.pos = x;
+	this.start = x;
 	return slice;
 };
 

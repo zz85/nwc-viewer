@@ -324,7 +324,7 @@ function drawForNote(token, cursor, durValue) {
 
 		let flag;
 		if (requireFlag) {
-			flag = new Glyph(`flag${duration}thDown`, relativePos - 7)
+			flag = new Glyph(`flag${duration}thDown`, relativePos - 7 - 0.5)
 			cursor.posGlyph(flag)
 			flag._text = info;
 			drawing.add(flag)
