@@ -26,11 +26,13 @@ function ajax(url, callback) {
 // ajax('samples/carenot.nwc', processData);
 
 // v2.75
-ajax('samples/AveMariaArcadelt.nwc', processData);
+// ajax('samples/AveMariaArcadelt.nwc', processData);
 // ajax('samples/WeThreeKingsOfOrientAre.nwc', processData)
 
-// broken
-// ajax('samples/WhatChildIsThis.nwc', processData);
+// v2.02?
+ajax('samples/WhatChildIsThis.nwc', processData);
+// ajax('samples/WakenChristianChildren.nwc', processData);
+// ajax('samples/AChildThisDayIsBorn.nwc', processData);
 
 
 test_data = {

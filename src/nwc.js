@@ -573,7 +573,7 @@ function Header(reader) {
 
 	var version_minor = v[0];
 	var version_major = v[1];
-	version = version_major + version_minor * 0.01;
+	var version = version_major + version_minor * 0.01;
 	console.log('Detected NWC version', version);
 	reader.set('version', version);
 
@@ -589,18 +589,33 @@ function Header(reader) {
 }
 
 function Info(reader) {
-	debugger;
-	reader.readBytes(2); // 2x18
-	reader.descend('info');
-	reader.set('title', reader.readString());
-	reader.set('author', reader.readString());
-	reader.readUntilNonZero();
-	reader.set('copyright1', reader.readString());
-	reader.set('copyright2', reader.readString());
-	if (version >= 2) {
-		reader.set('something', reader.readString());
+	var infoHeader = reader.readBytes(2); // 0x10 - nwc175 0x18 - nwc2
+	if (infoHeader[0] !== 0x10 && infoHeader[0] !== 0x18) {
+		console.log('info header not aligned!');
 	}
-	reader.set('comments', reader.readString());
+
+	var version = reader.data.header.version;
+
+	reader.descend('info');
+	var title = reader.readString();
+	var author = reader.readString();
+
+	// TODO version 2 move things around
+
+	var copyright1 = reader.readString();
+	var copyright2 = reader.readString();
+	if (version >= 2) {
+		var something = reader.readString();
+	}
+	var comments = reader.readString();
+	console.log(reader.data);
+
+	///
+	reader.descend('info');
+	reader.setObject({
+		title, author, copyright1, copyright2,
+		something, comments
+	})
 	console.log(reader.data);
 }
 
@@ -613,7 +628,15 @@ function PageSetup(reader) {
 }
 
 function Margins(reader) {
-	reader.skip(9);
+	// reader.skip(9);
+	// 4e 4e 5f  0 46 32  0 0 0
+	// 4e 59 5f  0 46 32  0 0 0
+	// 4e 4e 5f  0 46 32  0 1 0
+	// 59 59 5f  0 46 32  0 0 0
+	reader.readUntil(0x46);
+	reader.readUntil(0x32);
+	reader.skip(3);
+
 	reader.set('measureStart', reader.readByte());
 	reader.skip(1); // likely 0
 	margins = reader.readString();
@@ -624,15 +647,18 @@ function Margins(reader) {
 }
 
 function Fonts(reader) {
+	if (reader.data.header.version < 2) {
+		reader.skip(36);
+		reader.skip(1);
+		var staff_size = reader.readByte();
+	}
+	else {
+		reader.readUntil(0xff);
+		var pre = reader.readBytes(3); // 0 11 0
+		var staff_size = pre[1];
+	}
 	
-	// reader.skip(36);
-	// reader.skip(1);
-	// var staff_size = reader.readByte();
-	// reader.set('staff_size', staff_size);
-	
-	reader.readUntil(0xff);
-	reader.readUntil(0x10);
-	reader.readUntilNonZero();
+	reader.set('staff_size', staff_size);
 
 	var fonts = [], font, style, size, typeface;
 	for (var i = 0; i < 12; i++) {
@@ -653,20 +679,38 @@ function Fonts(reader) {
 }
 
 function Score(reader) {
-	reader.descend('score');
 	debugger;
+	reader.descend('score');
+	var version = reader.data.header.version;
 
 	reader.readUntil(0xff);
-	// if (reader.data.header.version === 2.02) {
-	// 	reader.readUntil(0xff);
-	// } else {
-		reader.readBytes(2);
-		reader.set('layering', reader.readByte(1));
-	// }
+	reader.readBytes(2);
+	reader.set('layering', reader.readByte(1));
 
-	var staves = reader.readShort();
+	if (version < 2) {
+		var staves = reader.readShort();
+		console.log('Detected Staves', staves);
+	}
+	else {
+		reader.readByte();
+		var staves = reader.readByte();
+
+		// if (version === 2.02) {
+		// reader.readUntilNonZero();
+		
+		
+		//  0 fc ff 50  1 4e  1  0  1
+		// make a loop, read until ff
+
+		// ff  4  0 73  0 73  0
+		// 83  1 61  0 61  0
+		// 5   5 74 0 74 0
+		// fe  5 62  0 62  0
+		// 43 68 6f
+	
+	}
+
 	console.log('Detected Staves', staves);
-	debugger;
 
 	reader.set('staves', new Array(staves));
 
@@ -679,7 +723,13 @@ function Score(reader) {
 }
 
 function StaffInfo(reader, staff) {
-	// debugger;
+	var version = reader.data.header.version;
+
+	if (version > 2) {
+		reader.readShort();
+		reader.readShort();
+	}
+
 
 	var staff_name = reader.readString();
 	var group_name = reader.readString();
@@ -744,10 +794,10 @@ function StaffInfo(reader, staff) {
 	console.log('tokens', tokens);
 	for (var i = 0; i < tokens - 2; i++) {
 
-		if (i === 90) {
-			reader.dump()
-			debugger
-		}
+		// if (i === 90) {
+		// 	reader.dump()
+		// 	debugger
+		// }
 		if (reader.data.header.version === 1.7) {
 			reader.skip(2);
 		}
@@ -990,7 +1040,6 @@ function Text(reader) {
 // Clef.write();
 
 function Lyrics(reader) {
-	debugger;
 	var data = reader.readByte();
 	if (!data) return;
 
