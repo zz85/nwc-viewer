@@ -582,8 +582,6 @@ function Header(reader) {
 		reader.readUntil(36);
 	}
 
-	debugger;
-
 	skip = reader.readUntilNonZero();
 	// reader.skip(2);
 	// reader.skip(8);
@@ -591,10 +589,12 @@ function Header(reader) {
 }
 
 function Info(reader) {
-	reader.readBytes(2);
+	debugger;
+	reader.readBytes(2); // 2x18
 	reader.descend('info');
 	reader.set('title', reader.readString());
 	reader.set('author', reader.readString());
+	reader.readUntilNonZero();
 	reader.set('copyright1', reader.readString());
 	reader.set('copyright2', reader.readString());
 	if (version >= 2) {
@@ -624,9 +624,15 @@ function Margins(reader) {
 }
 
 function Fonts(reader) {
-	reader.skip(36);
-	reader.set('staff_size', reader.readByte());
-	reader.skip(1);
+	
+	// reader.skip(36);
+	// reader.skip(1);
+	// var staff_size = reader.readByte();
+	// reader.set('staff_size', staff_size);
+	
+	reader.readUntil(0xff);
+	reader.readUntil(0x10);
+	reader.readUntilNonZero();
 
 	var fonts = [], font, style, size, typeface;
 	for (var i = 0; i < 12; i++) {
@@ -648,13 +654,19 @@ function Fonts(reader) {
 
 function Score(reader) {
 	reader.descend('score');
+	debugger;
 
 	reader.readUntil(0xff);
-	reader.readBytes(2);
-	reader.set('layering', reader.readByte(1));
+	// if (reader.data.header.version === 2.02) {
+	// 	reader.readUntil(0xff);
+	// } else {
+		reader.readBytes(2);
+		reader.set('layering', reader.readByte(1));
+	// }
 
 	var staves = reader.readShort();
 	console.log('Detected Staves', staves);
+	debugger;
 
 	reader.set('staves', new Array(staves));
 
@@ -667,26 +679,37 @@ function Score(reader) {
 }
 
 function StaffInfo(reader, staff) {
-	reader.descend('score.staves.' + staff);
-	reader.set('staff_name', reader.readString());
-	reader.set('group_name', reader.readString());
-	reader.set('end_bar', reader.readByte() & 7);
-	reader.set('muted', !!(reader.readByte() & 1));
+	// debugger;
+
+	var staff_name = reader.readString();
+	var group_name = reader.readString();
+	var end_bar = reader.readByte() & 7;
+	var muted = !!(reader.readByte() & 1);
 	reader.skip(1);
-	reader.set('channel', reader.readByte());
+	var channel = reader.readByte();
 	reader.skip(9);
-	reader.set('staff_type', reader.readByte() & 3);
+	var staff_type = reader.readByte() & 3;
 	reader.skip(1);
 
-	reader.set('uppersize', 256 - reader.readByte());
+	var uppersize = 256 - reader.readByte();
 	reader.readUntil(0xff);
-	reader.set('lowersize', reader.readByte());
+	var lowersize = reader.readByte();
 	reader.skip(1);
-	reader.set('lines', reader.readByte());
-	reader.set('layer', !!(reader.readByte() & 1));
-	reader.set('part_volume', reader.readByte());
+	var lines = reader.readByte();
+	var layer = !!(reader.readByte() & 1);
+	var part_volume = reader.readByte();
 	reader.skip(1);
-	reader.set('stero_pan', reader.readByte());
+	var stero_pan = reader.readByte();
+
+	var info = {
+		staff_name, group_name, end_bar,
+		muted, channel, staff_type, uppersize,
+		lowersize, lines, layer, part_volume	
+	};
+
+	reader.descend('score.staves.' + staff);
+	reader.setObject(info)
+	
 	if (reader.data.header.version === 1.7) {
 		reader.skip(2);
 	} else {
@@ -718,8 +741,13 @@ function StaffInfo(reader, staff) {
 	var tokens = reader.readShort();
 	reader.set('tokens', []);
 
-
+	console.log('tokens', tokens);
 	for (var i = 0; i < tokens - 2; i++) {
+
+		if (i === 90) {
+			reader.dump()
+			debugger
+		}
 		if (reader.data.header.version === 1.7) {
 			reader.skip(2);
 		}
@@ -962,6 +990,7 @@ function Text(reader) {
 // Clef.write();
 
 function Lyrics(reader) {
+	debugger;
 	var data = reader.readByte();
 	if (!data) return;
 
@@ -995,7 +1024,8 @@ function Lyrics(reader) {
  **********************/
 
 function hex(number) {
-	return ('00' + (number || 0).toString(16)).slice(-2);
+	// 00
+	return ('  ' + (number || 0).toString(16)).slice(-2);
 }
 
 function binary(number) {
@@ -1003,7 +1033,7 @@ function binary(number) {
 }
 
 function string(number) {
-	return (' ' + String.fromCharCode(number)).slice(-1);
+	return ('_' + String.fromCharCode(number)).slice(-1);
 }
 
 function num(number) {
@@ -1013,17 +1043,20 @@ function num(number) {
 function dump(byteArray, start, limit) {
 	limit = limit || 20;
 	start = start || 0;
-	var group = 16;
+	var group = 12;
 	var keys = [...Array(group).keys()]
+	var pad = '      ';
 	for (var i = start, lim = 0; i < byteArray.length, lim < limit; i+=group, lim++) {
 		console.log(
 			// '%c' + i, 'background: #222; color: #bada55',
-			('00000' + i + ')').slice(-6),
+			// '00000'
+			(pad + i + ')').slice(-pad.length),
 
 			...keys.map(k => hex(byteArray[i + k])),
 			// ...keys.map(k => binary(byteArray[i + k])),
-			...keys.map(k => string(byteArray[i + k]) || ' '),
-			...keys.map(k => num(byteArray[i + k]))
+			'|',
+			...keys.map(k => string(byteArray[i + k])),
+			// ...keys.map(k => num(byteArray[i + k]))
 		);
 	}
 }
@@ -1083,6 +1116,10 @@ DataReader.prototype.exit = function() {
  */
 DataReader.prototype.set = function(name, value) {
 	this.pointer[name] = value;
+};
+
+DataReader.prototype.setObject = function(object) {
+	Object.assign(this.pointer, object);
 };
 
 DataReader.prototype.push = function(value) {
