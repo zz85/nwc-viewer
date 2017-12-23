@@ -600,12 +600,14 @@ function Info(reader) {
 	var title = reader.readString();
 	var author = reader.readString();
 
-	// TODO version 2 move things around
-
-	var copyright1 = reader.readString();
-	var copyright2 = reader.readString();
 	if (version >= 2) {
-		var something = reader.readString();
+		var lyricist = reader.readString();
+		reader.set('lyricist', lyricist)
+		var copyright1 = reader.readString();
+		var copyright2 = reader.readString();
+	} else {
+		var copyright1 = reader.readString();
+		var copyright2 = reader.readString();
 	}
 	var comments = reader.readString();
 	console.log(reader.data);
@@ -613,8 +615,9 @@ function Info(reader) {
 	///
 	reader.descend('info');
 	reader.setObject({
-		title, author, copyright1, copyright2,
-		something, comments
+		title, author,
+		copyright1, copyright2,
+		comments
 	})
 	console.log(reader.data);
 }
@@ -1258,10 +1261,7 @@ var tokenMode = TokenMode.JustSet;
 
 // aka "emits"
 DataReader.prototype.token = function(key, value) {
-	// if (key === 'next') {
-
-	// }
-	tokenMode(reader, key, value);
+	tokenMode(this, key, value);
 };
 
 DataReader.prototype.readUntil = function(x) {
