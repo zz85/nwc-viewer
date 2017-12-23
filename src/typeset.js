@@ -197,6 +197,9 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				case 'bass':
 					clef = new Claire.BassClef()
 					break;
+				case 'alto':
+					clef = new Claire.AltoClef()
+					break;
 				default:
 					console.log('ERR unknown clef', token.clef)
 			}

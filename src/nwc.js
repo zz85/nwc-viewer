@@ -8,12 +8,12 @@ var NODE = typeof module !== 'undefined';
 var BROWSER = typeof window !== 'undefined';
 
 var TOKENS = {
-	0: Clef,
-	1: KeySignature,
+	0: Clef, // + 6
+	1: KeySignature, // + 12
 	2: Barline,
 	3: Repeat,
 	4: InstrumentPatch,
-	5: TimeSignature,
+	5: TimeSignature, // + 8 bytes
 	6: Tempo,
 	7: Dynamic,
 	8: Note,
@@ -679,7 +679,6 @@ function Fonts(reader) {
 }
 
 function Score(reader) {
-	debugger;
 	reader.descend('score');
 	var version = reader.data.header.version;
 
@@ -728,8 +727,8 @@ function StaffInfo(reader, staff) {
 	if (version > 2) {
 		reader.readShort();
 		reader.readShort();
+		reader.readUntilNonZero();
 	}
-
 
 	var staff_name = reader.readString();
 	var group_name = reader.readString();
@@ -772,14 +771,46 @@ function StaffInfo(reader, staff) {
 
 	console.log('noLyrics', noLyrics);
 
+	/*
+	var counting = 0;
+	while (!reader.ended()) {
+		counting++
+		var tmp = reader.readUntil(0xfb); //0xff
+		console.log(...[...tmp].map(hex), shortArrayToString(tmp)	)
+	}
+	console.log('counted', counting);
+	// 0x10 - 106, 1 - 116, 2 - 219, 0 - 2000
+	// 0x20 - 20
+	// 0x21 - 6
+	// 0xfd 23
+	// 0xfe - 16
+	// 0xff - 43
+	// return;
+
+	// debugger;
+	return;
+	*/
+
 	if (lyrics) {
 		var lyricsOption = reader.readShort();
 		reader.skip(3);
 
 		for (var i = 0; i < noLyrics; i++) {
 			var lyrics = [];
-			lyrics.push(Lyrics(reader));
+			l = Lyrics(reader)
+			lyrics.push(l);
+			console.log('lyrics', l);
 			reader.set('lyrics', lyrics);
+
+			  reader.dump();
+			  console.log('b4', reader.start);
+			//   reader.readUntil(0xff)
+			  console.log('after', reader.start);
+
+			// reader.readUntilNonZero();
+			// reader.readUntilNonZero();
+			// reader.readUntilNonZero();
+			// reader.readUntilNonZero();
 		}
 		
 		reader.skip(1);
@@ -809,8 +840,8 @@ function StaffInfo(reader, staff) {
 		if (func) {
 			func(reader);
 		} else {
-			reader.dump();
 			console.log('Warning, token not recongnized', token, reader.pos);
+			reader.dump();
 			return;
 		}
 
@@ -1040,25 +1071,32 @@ function Text(reader) {
 // Clef.write();
 
 function Lyrics(reader) {
-	var data = reader.readByte();
-	if (!data) return;
+	debugger;
+	var blockHeader = reader.readByte(); // 1 byte
+	// if (!blockHeader) return;
+
+	var lyricsLen = reader.readShort(); // 2 byte
+	reader.skip(1); // 1 byte
 
 	var blocks;
-	switch (data) {
+	switch (blockHeader) {
 		case 4:
 			blocks = 1;
 			break;
 		case 8:
 			blocks = 2;
 			break;
-		default:
-			return;
+		case 1:
+			// blocks = 1;
+			break;
+		// default:
+		// 	return;
 	}
 
-	var lyricsLen = reader.readShort();
-	reader.skip(1);
+	var lyricBlock = blocks ? 1024 * blocks : lyricsLen + 2;
+	console.log('lyricBlock', lyricBlock);
+	var chunk = reader.readBytes(lyricBlock); // rest of the block
 
-	var chunk = reader.readBytes(1024 * blocks);
 	var cs = shortArrayToString(chunk);
 	console.log('cs', cs, cs.toString(16));
 	var lyrics = chunk.subarray(0, lyricsLen);
@@ -1105,7 +1143,7 @@ function dump(byteArray, start, limit) {
 			// ...keys.map(k => binary(byteArray[i + k])),
 			'|',
 			...keys.map(k => string(byteArray[i + k])),
-			// ...keys.map(k => num(byteArray[i + k]))
+			...keys.map(k => num(byteArray[i + k]))
 		);
 	}
 }
@@ -1138,6 +1176,11 @@ DataReader.prototype.descend = function(path) {
 	this.descendPath = [];
 	this.enter(path);
 };
+
+DataReader.prototype.ended = function() {
+	var cursor = this.start;
+	return cursor >= this.array.length;
+}
 
 // Relative descend
 DataReader.prototype.enter = function(path) {

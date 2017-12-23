@@ -30,10 +30,10 @@ function ajax(url, callback) {
 // ajax('samples/WeThreeKingsOfOrientAre.nwc', processData)
 
 // v2.02?
-ajax('samples/WhatChildIsThis.nwc', processData);
-// ajax('samples/WakenChristianChildren.nwc', processData);
 // ajax('samples/AChildThisDayIsBorn.nwc', processData);
 
+// ajax('samples/WhatChildIsThis.nwc', processData);
+ajax('samples/WakenChristianChildren.nwc', processData);
 
 test_data = {
 	score: {
