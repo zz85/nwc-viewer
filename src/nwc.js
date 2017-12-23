@@ -68,14 +68,14 @@ var DURATIONS = [
 	64,
 ];
 
-var ACCIDENTALS = [
-	'#',
-	'b',
-	'n', // neutral
-	'##',
-	'bb',
-	'', //'auto'
-];
+var ACCIDENTALS = {
+	0: '#',
+	1: 'b',
+	2: 'n', // neutral
+	3: '##',
+	4: 'bb',
+	5: '', //'auto'
+};
 
 var NAMES = 'C D E F G A B'.split(' ');
 
@@ -110,6 +110,56 @@ var TIME_SIG_VALUES = {
 var CLEF_OCTAVE = ('', '^8', '_8', '')
 var CLEF_SHIFT = (0, 7, -7, 0)
 */
+
+// https://github.com/nwsw/nwcplugin-api/blob/6dfa771380e41c34e37d5d81b4b3bf8400985285/api/nwc.md
+const NwcConstants = {
+    AttachLyricSyllable: ['Default','Always','Never'],
+    BarLineType: ['Single','Double','BrokenSingle','BrokenDouble','SectionOpen','SectionClose','LocalRepeatOpen','LocalRepeatClose','MasterRepeatOpen','MasterRepeatClose','Transparent'],
+    BoundaryTypes: ['Reset','NewSize','Collapse','EndCollapse','Gap','NewSystem'],
+    ClefType: ['Treble','Bass','Alto','Tenor','Percussion'],
+    DrawFillStyle: ['fill','stroke','strokeandfill'],
+    DrawPenStyle: ['solid','dot','dash'],
+    DrawTextAlign: ['left','center','right'],
+    DrawTextVAlign: ['top','middle','baseline','bottom'],
+    DynamicLevels: ['ppp','pp','p','mp','mf','f','ff','fff'],
+    DynamicVariance: ['Crescendo','Decrescendo','Diminuendo','Rinforzando','Sforzando'],
+    ExpressionJustify: ['Left','Center','Right'],
+    ExpressionPlacement: ['BestFit','BestFitForward','AsStaffSignature','AtNextNote'],
+    FlowDirTypes: ['Coda','Segno','Fine','ToCoda','DaCapo','DCalCoda','DCalFine','DalSegno','DSalCoda','DSalFine'],
+    ItemColor: ['Default','Highlight 1','Highlight 2','Highlight 3','Highlight 4','Highlight 5','Highlight 6','Highlight 7'],
+    ItemVisibility: ['Default','Always','TopStaff','SingleStaff','MultiStaff','Never'],
+    Lyric2NoteAlignment: ['Start of Accidental/Note','Standard Rules'],
+    LyricAlignment: ['Bottom','Top'],
+    MPCControllers: ['tempo','vol','pan','bc','pitch','mod','foot','portamento','datamsb','bal','exp','fx1','fx2','reverb','tremolo','chorus','detune','phaser'],
+    MPCStyle: ['Absolute','Linear Sweep'],
+    MarkerTargets: ['Articulation','Slur','Triplet'],
+    MeasureNumStyles: ['None','Plain','Circled','Boxed'],
+    NoteConnectState: ['None','First','Middle','End'],
+    NoteDurBase: ['Whole','Half','4th','8th','16th','32nd','64th'],
+    NoteDuration: ['Whole','Half','Quarter','Eighth','Sixteenth','Thirtysecond','Sixtyfourth'],
+    NoteScale: ['A','B','C','D','E','F','G'],
+    ObjLabels: ['Clef','Key','Bar','Ending','Instrument','TimeSig','Tempo','Dynamic','Note','Rest','Chord','SustainPedal','Flow','MPC','TempoVariance','DynamicVariance','PerformanceStyle','Text','RestChord','User','Spacer','RestMultiBar','Boundary','Marker'],
+    OctaveShift: ['None','Octave Up','Octave Down'],
+    PageMarginFields: ['Left','Top','Right','Bottom','Mirror'],
+    PageSetupFields: ['TitlePage','JustifyVertically','PrintSystemSepMark','ExtendLastSystem','DurationPadding','PageNumbers','StaffLabels','BarNumbers','StartingBar','AllowLayering'],
+    PerformanceStyle: ['Ad Libitum','Animato','Cantabile','Con brio','Dolce','Espressivo','Grazioso','Legato','Maestoso','Marcato','Meno mosso','Poco a poco','Più mosso','Semplice','Simile','Solo','Sostenuto','Sotto Voce','Staccato','Subito','Tenuto','Tutti','Volta Subito'],
+    PlayMidiCmds: ['noteOff','noteOn','keyAftertouch','controller','patch','channelAftertouch','pitchBend'],
+    SongInfoFields: ['Title','Author','Lyricist','Copyright1','Copyright2','Comments'],
+    SpanTypes: ['notes','syllables','bars','ticks','items'],
+    SpecialSignatures: ['Standard','Common','AllaBreve'],
+    StaffEndBarLineType: ['Section Close','Master Repeat Close','Single','Double','Open (hidden)'],
+    StaffLabelStyles: ['None','First System','Top Systems','All Systems'],
+    StaffProperties: ['Name','Label','LabelAbbr','Group','EndingBar','BoundaryTop','BoundaryBottom','Lines','BracketWithNext','BraceWithNext','ConnectBarsWithNext','LayerWithNext','MultiPartDotPlacement','Color','Muted','Volume','StereoPan','Device','Channel'],
+    SustainPedalStatus: ['Down','Released'],
+    TempoBase: ['Eighth','Eighth Dotted','Quarter','Quarter Dotted','Half','Half Dotted'],
+    TempoVariance: ['Breath Mark','Caesura','Fermata','Accelerando','Allargando','Rallentando','Ritardando','Ritenuto','Rubato','Stringendo'],
+    TextExpressionFonts: ['StaffSymbols','StaffCueSymbols','StaffItalic','StaffBold','StaffLyric','PageTitleText','PageText','PageSmallText','User1','User2','User3','User4','User5','User6'],
+    TieDir: ['Default','Upward','Downward'],
+    UserObjClassTypes: ['Standard','StaffSig','Span'],
+	UserPropValueTypes: ['text','enum','bool','int','float'],
+
+	Accidentals: ['v','b','n','#','x'],
+};
 
 
 function decodeNwcArrayBuffer(arrayBuffer) {
@@ -236,30 +286,28 @@ function parseOpts(token) {
 }
 
 function getPos(str) {
-	if (str.endsWith('^')) {
-		console.log('getPos ^', str);
-		str = str.substr(0, -1)
+	// regex from https://github.com/nwsw/nwc2utsk/blob/91045bfab1e81ad328af4adeb2953412794df005/lib/obj_NWC2NotePitchPos.inc#L16
+	const NWC2NotePitchPos = /([\#bnxv]{0,1})(\-{0,1}[0-9]+)([oxXzyYabcdefghijklmnpqrstuvw]{0,1})([\^]{0,1})/;
+	const match = NWC2NotePitchPos.exec(str);
+
+	if (!match) {
+		console.log('cannot parse note!', str);
+		return;
 	}
 
-	var pos = +str;
-	if (isNaN(pos)) {
-		console.log('fail getPos', str);
-		const m = /([-\d]+)/.exec(str);
-		return +m[1];
-	}
+	const accidental = match[1];
+	const position = +match[2];
+	const notehead = match[3];
+	const tied = match[4];
 
-	return pos;
+	return {
+		accidental, position, notehead, tied
+	}
 }
 
-function parsePos(str) {
-	// eg '4^', "#-5,-3", n1??
-
-	if (str.startsWith('#')) {
-		var positions = str.substring(1).split(',').map(getPos);
-		return positions;
-	}
-
-	return [getPos(str)]
+function getChordPos(str) {
+	var positions = str.split(',').map(getPos);
+	return positions;
 }
 
 var durs = {
@@ -317,10 +365,12 @@ function mapTokens(token) {
 			}
 
 			break;
+		case 'Chord':
+			Object.assign(token, { notes: getChordPos(token.Pos) });
+			Object.assign(token, parseDur(token.Dur));
+			break;
 		case 'Note':
-			const positions = parsePos(token.Pos);
-			token.position = positions[0];
-			if (positions.length > 1) console.log('moo chords', positions)
+			Object.assign(token, getPos(token.Pos));
 			Object.assign(token, parseDur(token.Dur));
 			// Slur(Upward) Lyric(Never) Beam(End/First) Stem(Up/Down) XNoteSpace
 			break;
@@ -486,9 +536,6 @@ SightReader.prototype.Rest = function(token) {
 }
 
 SightReader.prototype.Chord = function(token) {
-	console.log('chord', token);
-	token.duration = token.notes[0].duration;
-	token.dots = token.notes[0].dots;
 	this._handle_duration(token);
 }
 
@@ -975,15 +1022,16 @@ function Chord(reader) {
 	var data = reader.readBytes(12);
 
 	var chords = data[10];
-	// NoteValue(reader, data);
+	var notes = new Array(chords);
+
 	reader.set('chords', chords);
-	reader.set('notes', new Array(chords));
+	reader.set('notes', notes);
 
 	var pointer = reader.pointer;
 	// TODO make better pointer management
 
 	for (var i = 0; i < chords; i++) {
-		pointer.notes[i] = {}
+		notes[i] = {}
 		reader.pointer = pointer.notes[i]
 		reader.skip();
 		data = reader.readBytes(10);
@@ -991,6 +1039,9 @@ function Chord(reader) {
 	}
 
 	reader.pointer = pointer;
+	reader.set('duration', notes[0].duration);
+	reader.set('dots', notes[0].dots);
+
 }
 
 function RestChord(reader) {
@@ -1034,15 +1085,11 @@ function DynamicVariance(reader) {
 	// TODO
 }
 
-// https://github.com/nwsw/nwcutlib/blob/c3d3ce0f62d2ae2d21ed628177af416cfb774e83/simulation.lua#L43
-// https://github.com/nwsw/nwcplugin-api/blob/6dfa771380e41c34e37d5d81b4b3bf8400985285/api/nwc.md
-const PerformanceStyles = ['Ad Libitum','Animato','Cantabile','Con brio','Dolce','Espressivo','Grazioso','Legato','Maestoso','Marcato','Meno mosso','Poco a poco','Più mosso','Semplice','Simile','Solo','Sostenuto','Sotto Voce','Staccato','Subito','Tenuto','Tutti','Volta Subito'];
-
 function PerformanceStyle(reader) {
 	reader.set('type', 'PerformanceStyle');
 	var data = reader.readBytes(5);
 	reader.set('style', data[4]);
-	reader.set('text', PerformanceStyles[data[4]]);
+	reader.set('text', NwcConstants.PerformanceStyle[data[4]]);
 }
 
 function Text(reader) {

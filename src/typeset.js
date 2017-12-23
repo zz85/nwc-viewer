@@ -276,12 +276,12 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			let tmp = cursor.staveX
 			token.notes.forEach(note => {
 				cursor.staveX = tmp
-				drawForNote(note, cursor, token.durValue)
+				drawForNote(note, cursor, token)
 			})
 			break;
 
 		case 'Note':
-			drawForNote(token, cursor);
+			drawForNote(token, cursor, token);
 			break;
 
 		case 'Text':
@@ -300,8 +300,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 	tickTracker.add(token, cursor);
 }
 
-function drawForNote(token, cursor, durValue) {
-	const duration = token.duration
+function drawForNote(token, cursor, durToken) {
+	const duration = durToken.duration
+	const durValue = durToken.durValue;
+
 	const sym = duration < 2 ? 'noteheadWhole' :
 		duration < 4 ? 'noteheadHalf' :
 		'noteheadBlack'
