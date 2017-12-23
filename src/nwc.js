@@ -1034,11 +1034,15 @@ function DynamicVariance(reader) {
 	// TODO
 }
 
+// https://github.com/nwsw/nwcutlib/blob/c3d3ce0f62d2ae2d21ed628177af416cfb774e83/simulation.lua#L43
+// https://github.com/nwsw/nwcplugin-api/blob/6dfa771380e41c34e37d5d81b4b3bf8400985285/api/nwc.md
+const PerformanceStyles = ['Ad Libitum','Animato','Cantabile','Con brio','Dolce','Espressivo','Grazioso','Legato','Maestoso','Marcato','Meno mosso','Poco a poco','Più mosso','Semplice','Simile','Solo','Sostenuto','Sotto Voce','Staccato','Subito','Tenuto','Tutti','Volta Subito'];
+
 function PerformanceStyle(reader) {
 	reader.set('type', 'PerformanceStyle');
 	var data = reader.readBytes(5);
 	reader.set('style', data[4]);
-	// TODO
+	reader.set('text', PerformanceStyles[data[4]]);
 }
 
 function Text(reader) {

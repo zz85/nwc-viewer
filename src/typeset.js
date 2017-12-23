@@ -285,10 +285,16 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break;
 
 		case 'Text':
-			const text = new Text(token.text, token.position)
+		case 'PerformanceStyle':
+			const text = new Text(token.text, token.position || -10)
 			cursor.posGlyph(text)
 			drawing.add(text);
 			break;
+
+		case 'moo':
+			console.log('as', token);
+			break;
+
 	}
 
 	tickTracker.add(token, cursor);
@@ -376,7 +382,7 @@ function drawForNote(token, cursor, durValue) {
 }
 
 function calculatePadding(durValue) {
-	// TODO tweak this
+	// TODO tweak this, consider exponential or constrains systems
 	var spaceMultiplier = Math.min(Math.max(durValue.value() * 8, 1),  8);
 	// use 1/8 as units
 	// console.log(spaceMultiplier);
