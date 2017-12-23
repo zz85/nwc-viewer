@@ -1134,7 +1134,6 @@ function dump(byteArray, start, limit) {
 
 function DataReader(array) {
 	this.array = array; // the binary source
-	this.start = 0; /// what is this?!?!?!?!
 	this.pos   = 0; // cursor
 
 	this.data = {}; // single root of data
@@ -1155,7 +1154,7 @@ DataReader.prototype.descend = function(path) {
 };
 
 DataReader.prototype.ended = function() {
-	var cursor = this.start;
+	var cursor = this.pos;
 	return cursor >= this.array.length;
 }
 
@@ -1266,13 +1265,14 @@ DataReader.prototype.token = function(key, value) {
 };
 
 DataReader.prototype.readUntil = function(x) {
-	while (this.array[this.pos] !== x && this.pos < this.array.length) {
-		this.pos++;
+	var pos = this.pos;
+	while (this.array[pos] !== x && pos < this.array.length) {
+		pos++;
 	}
 
-	var slice = this.array.subarray(this.start, this.pos);
-	this.pos++;
-	this.start = this.pos;
+	var slice = this.array.subarray(this.pos, pos);
+	pos++;
+	this.pos = pos;
 	return slice;
 };
 
@@ -1284,7 +1284,6 @@ DataReader.prototype.readUntilNonZero = function() {
 	while (++x < this.array.length && this.array[x] === 0);
 	var slice = this.array.subarray(this.pos, x);
 	this.pos = x;
-	this.start = x;
 	return slice;
 };
 
@@ -1298,7 +1297,6 @@ DataReader.prototype.readString = function() {
 
 DataReader.prototype.readByte = function() {
 	var slice = this.array[this.pos++];
-	this.start = this.pos;
 	return slice;
 };
 
@@ -1308,19 +1306,19 @@ DataReader.prototype.readShort = function() {
 };
 
 DataReader.prototype.readBytes = function(k) {
-	this.pos += k;
-	var slice = this.array.subarray(this.start, this.pos);
-	this.start = this.pos;
+	var pos = this.pos;
+	pos += k;
+	var slice = this.array.subarray(this.pos, pos);
+	this.pos = pos;
 	return slice;
 };
 
 DataReader.prototype.skip = function(k) {
 	this.pos += k || 1;
-	this.start = this.pos;
 };
 
 DataReader.prototype.dump = function(limit) {
-	dump(this.array, this.start, limit);
+	dump(this.array, this.pos, limit);
 };
 
 if (NODE) {
