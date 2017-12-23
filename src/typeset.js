@@ -284,6 +284,11 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			drawForNote(token, cursor);
 			break;
 
+		case 'Text':
+			const text = new Text(token.text, token.position)
+			cursor.posGlyph(text)
+			drawing.add(text);
+			break;
 	}
 
 	tickTracker.add(token, cursor);

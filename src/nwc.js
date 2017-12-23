@@ -1044,7 +1044,7 @@ function PerformanceStyle(reader) {
 function Text(reader) {
 	reader.set('type', 'Text');
 	reader.skip(2);
-	reader.set('position', reader.readByte());
+	reader.set('position', reader.readByte() & 127);
 	reader.skip(2);
 	reader.set('text', reader.readString());
 }

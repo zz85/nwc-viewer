@@ -418,6 +418,19 @@ class Dot extends Glyph {
 	}
 }
 
+class Text extends Glyph {
+	constructor(text, position) {
+		super();
+		this.text = text;
+		this.positionY(-position);
+	}
+
+	draw(ctx) {
+		ctx.font = 'italic bold 12px arial'
+		ctx.fillText(this.text, 0, 0)
+	}
+}
+
 class Drawing {
 	constructor(ctx) {
 		this.set = new Set()
@@ -479,6 +492,7 @@ Claire = {
 	Barline,
 	Dot,
 	Ledger,
+	Text
 }
 
 Object.assign(window, { Drawing, setup, Stave, Claire }, Claire)
