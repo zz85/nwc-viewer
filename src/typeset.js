@@ -351,7 +351,7 @@ function drawForNote(token, cursor, durValue) {
 			cursor.posGlyph(flag)
 			flag._text = info;
 			drawing.add(flag)
-			// cursor.incStaveX(flag.width);
+			cursor.incStaveX(flag.width);
 		}
 
 	}

@@ -697,7 +697,6 @@ function Score(reader) {
 		// if (version === 2.02) {
 		// reader.readUntilNonZero();
 		
-		
 		//  0 fc ff 50  1 4e  1  0  1
 		// make a loop, read until ff
 
@@ -769,7 +768,7 @@ function StaffInfo(reader, staff) {
 	var lyrics = reader.readShort();
 	var noLyrics = reader.readShort();
 
-	console.log('noLyrics', noLyrics);
+	if (noLyrics) console.log('noLyrics', noLyrics);
 
 	/*
 	var counting = 0;
@@ -785,7 +784,6 @@ function StaffInfo(reader, staff) {
 	// 0xfd 23
 	// 0xfe - 16
 	// 0xff - 43
-	// return;
 
 	// debugger;
 	return;
@@ -795,24 +793,14 @@ function StaffInfo(reader, staff) {
 		var lyricsOption = reader.readShort();
 		reader.skip(3);
 
+		var lyrics = [];
 		for (var i = 0; i < noLyrics; i++) {
-			var lyrics = [];
-			l = Lyrics(reader)
-			lyrics.push(l);
-			console.log('lyrics', l);
-			reader.set('lyrics', lyrics);
-
-			  reader.dump();
-			  console.log('b4', reader.start);
-			//   reader.readUntil(0xff)
-			  console.log('after', reader.start);
-
-			// reader.readUntilNonZero();
-			// reader.readUntilNonZero();
-			// reader.readUntilNonZero();
-			// reader.readUntilNonZero();
+			var text = Lyrics(reader)
+			// console.log('lyrics', text);
+			lyrics.push(text);
 		}
-		
+
+		reader.set('lyrics', lyrics);
 		reader.skip(1);
 	}
 
@@ -821,14 +809,9 @@ function StaffInfo(reader, staff) {
 
 	var tokens = reader.readShort();
 	reader.set('tokens', []);
-
 	console.log('tokens', tokens);
-	for (var i = 0; i < tokens - 2; i++) {
 
-		// if (i === 90) {
-		// 	reader.dump()
-		// 	debugger
-		// }
+	for (var i = 0; i < tokens - 2; i++) {
 		if (reader.data.header.version === 1.7) {
 			reader.skip(2);
 		}
@@ -1071,10 +1054,7 @@ function Text(reader) {
 // Clef.write();
 
 function Lyrics(reader) {
-	debugger;
 	var blockHeader = reader.readByte(); // 1 byte
-	// if (!blockHeader) return;
-
 	var lyricsLen = reader.readShort(); // 2 byte
 	reader.skip(1); // 1 byte
 
@@ -1086,11 +1066,8 @@ function Lyrics(reader) {
 		case 8:
 			blocks = 2;
 			break;
-		case 1:
-			// blocks = 1;
+		default:
 			break;
-		// default:
-		// 	return;
 	}
 
 	var lyricBlock = blocks ? 1024 * blocks : lyricsLen + 2;
@@ -1305,9 +1282,6 @@ DataReader.prototype.readUntilNonZero = function() {
 	if (this.array[x] !== 0) return;
 
 	while (++x < this.array.length && this.array[x] === 0);
-
-	console.log('non zero at', x, 'from', this.pos);
-
 	var slice = this.array.subarray(this.pos, x);
 	this.pos = x;
 	this.start = x;
