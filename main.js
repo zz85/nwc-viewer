@@ -59,7 +59,6 @@ exportLilypond = () => {
 			ly += '| '
 		}
 
-
 		if (token.type === 'KeySignature') {
 			console.log(token);
 			// ly += `\\key ${token.signature}`
@@ -94,7 +93,6 @@ exportAbc = () => {
 
 	//
 
-
 	data.score.staves[0].tokens
 		.filter(token => token.type === 'TimeSignature')
 		.some(token => {
@@ -118,11 +116,10 @@ exportAbc = () => {
 
 	const abc_accidentals = {b: '_', '#': '^', n: '='}
 
-
 	data.score.staves.forEach((stave, v) => {
 		var tmp = '';
 
-		tmp += `[V:V${v}] `;
+		tmp += `\n[V:${v}]\n`;
 		stave.tokens.forEach(token => {
 			if (token.type === 'Note') {
 				if (token.accidentalValue) {
@@ -139,8 +136,9 @@ exportAbc = () => {
 					tmp += Array(octave).fill('\'').join('')
 				}
 
-				tmp += '1/' + token.duration
-				tmp += Array(token.dots).fill('.').join('')
+				// tmp += '1/' + token.duration
+				// tmp += Array(token.dots).fill('.').join('')
+				tmp += token.durValue.toString();
 				tmp += ' '
 			}
 
@@ -195,12 +193,12 @@ setTimeout(() => {
 // ajax('samples/carenot.nwc', processData);
 
 // v2.75
-ajax('samples/AveMariaArcadelt.nwc', processData);
+// ajax('samples/AveMariaArcadelt.nwc', processData);
 // ajax('samples/WeThreeKingsOfOrientAre.nwc', processData)
 
 // v2.02?
 // ajax('samples/AChildThisDayIsBorn.nwc', processData);
-// ajax('samples/WhatChildIsThis.nwc', processData);
+ajax('samples/WhatChildIsThis.nwc', processData);
 // ajax('samples/WakenChristianChildren.nwc', processData);
 
 // ajax('samples/canon.nwc', processData);
@@ -395,7 +393,7 @@ window.addEventListener('keydown', (e) => {
 
 play = () => {
 	// Select a timbre that sounds like a piano.
-	var inst = new Instrument({wave: 'piano', detune: 0});
+	var inst = new Instrument({ wave: 'piano', detune: 0 });
 
 	// The song below is written in ABC notation.  More on abc
 	// notation can be found at http://abcnotation.com/.

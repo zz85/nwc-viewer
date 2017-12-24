@@ -491,9 +491,9 @@ SightReader.prototype.KeySignature = function(token) {
 	NOTE_NAMES.forEach(name => { this.keySig[name.toUpperCase()] = '' });
 	// set TO flats or sharps
 	console.log('TODO please insert key signature mapping here!!!');
-	// this.keySig['F'] = '#'
-	this.keySig['B'] = 'b'
-	this.keySig['E'] = 'b'
+	this.keySig['F'] = '#'
+	// this.keySig['B'] = 'b'
+	// this.keySig['E'] = 'b'
 	// ['F', 'C', 'G', 'D', 'A', 'E'].forEach(t => 
 	// 	this.keySig[t] = '#')
 
