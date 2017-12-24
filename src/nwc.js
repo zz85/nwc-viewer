@@ -11,7 +11,7 @@ var TOKENS = {
 	0: Clef, // + 6
 	1: KeySignature, // + 12
 	2: Barline,
-	3: Repeat, // ending
+	3: Ending, // repeat
 	4: InstrumentPatch, // instrument
 	5: TimeSignature, // + 8 bytes
 	6: Tempo,
@@ -19,14 +19,19 @@ var TOKENS = {
 	8: Note,
 	9: Rest, // 0x09
 	10: Chord, // 0x0a notechord
-	11: Pedal, // 0x0b
-	12: Unknown, // flow direction
+	11: Pedal, // 0x0b SustainPedal
+	12: Flow, // flow direction
 	13: MidiInstruction, // 0x0d // MPC
 	14: TempoVariance, // 0x0e // Fermata
 	15: DynamicVariance, // 0x0f 
 	16: PerformanceStyle, // 0x10 performance
 	17: Text, // 0x11 text object
 	18: RestChord, // 0x12
+	// 19: User,
+	// 20: Spacer,
+	// 21: RestMultiBar,
+	// 22: Boundary,
+	// 23: Marker
 };
 
 var CLEF_NAMES = {
@@ -69,31 +74,9 @@ var ACCIDENTALS = {
 	5: '', //'auto'
 };
 
-var NAMES = 'C D E F G A B'.split(' ');
+var NOTE_NAMES = 'C D E F G A B'.split(' ');
 
 /*
-
-
-var TIME_SIG_VALUES = {
-	'4/4': '1',
-	'3/4': '2.',
-	'2/4': '2',
-	'1/4': '1',
-	'6/4': '2.',
-	'5/4': 1,
-	'1/8': '8',
-	'2/8': '4',
-	'3/8': '4.',
-	'6/8': '2.',
-	'4/8': '2',
-	'9/8': '12',
-	'12/8': '1',
-	'2/2': '1',
-	'4/2': '0',
-	'1/2': '2',
-}
-
-
 var CLEF_OCTAVE = ('', '^8', '_8', '')
 var CLEF_SHIFT = (0, 7, -7, 0)
 */
@@ -179,7 +162,6 @@ function shortArrayToString(array) {
  *   Start Data Process
  *
  **********************/
-
 
 function processNwc(array) {
 	var reader = new DataReader(array);
@@ -477,13 +459,15 @@ SightReader.prototype.reset = function() {
 	this.tickCounter.set(0, 1);
 	this.tabCounter.set(0, 1);
 	this.lastTimeSignature = null;
+
+	this.pitches = {};
+	this.keySig = {};
+	NOTE_NAMES.forEach(name => { this.keySig[name.toUpperCase()] = '' });
 }
 
 SightReader.prototype.setClef = function(clef) {
 	this.clef = clef;
 	this.offset = CLEF_PITCH_OFFSETS[clef]
-
-	this.pitches = {};
 }
 
 SightReader.prototype.Clef = function(token) {
@@ -492,14 +476,19 @@ SightReader.prototype.Clef = function(token) {
 
 SightReader.prototype.TimeSignature = function(token) {
 	this.lastTimeSignature = token;
+	this.timeSigVal = new Fraction(token.group, token.beat).value()
 }
 
 SightReader.prototype.Barline = function() {
 	// reset
-	this.pitches = {};
+	this.pitches = {}; // should reset??
 };
 
 SightReader.prototype.KeySignature = function(token) {
+	NOTE_NAMES.forEach(name => { this.keySig[name.toUpperCase()] = '' });
+	// set TO flats or sharps
+	console.log('TODO please insert key signature mapping here!!!');
+
 	// reset
 	this.key = token.signature;
 	token.clef = this.clef;
@@ -536,6 +525,8 @@ function octaveIndex(pitch) {
 
 SightReader.prototype.Rest = function(token) {
 	// TODO take into account rest value
+	// this.timeSigVal
+
 	this._handle_duration(token)
 }
 
@@ -562,8 +553,7 @@ SightReader.prototype.Note = function(token) {
 		console.log('Warning: negative pitch?');
 	}
 
-	var note_name = NAMES[circularIndex(pitch)];
-	
+	var note_name = NOTE_NAMES[circularIndex(pitch)];
 	var octave = octaveIndex(pitch);
 
 	token.name = note_name;
@@ -572,11 +562,6 @@ SightReader.prototype.Note = function(token) {
 	// rule - note, previous note in bar, octave note, keysignature
 	var accidental = token.accidental;
 	var computedAccidental;
-
-	var moo = {
-		B: 'b',
-		E: 'b'
-	};
 
 	// Override
 	if (accidental) {
@@ -589,7 +574,7 @@ SightReader.prototype.Note = function(token) {
 		computedAccidental = this.pitches[pitch];
 	}
 	else {
-		changed = moo[note_name];
+		var changed = this.keySig[note_name];
 		if (changed) {
 			computedAccidental = changed
 		}
@@ -961,8 +946,8 @@ function Barline(reader) {
 	reader.set('barline', data[2] & 15);
 }
 
-function Repeat(reader) {
-	reader.set('type', 'Repeat');
+function Ending(reader) {
+	reader.set('type', 'Ending');
 	var data = reader.readBytes(4);
 	reader.set('repeat', data[2]);
 }
@@ -976,11 +961,12 @@ function TimeSignature(reader) {
 	reader.set('type', 'TimeSignature');
 	var data = reader.readBytes(8);
 
+	var top = data[2];
 	var beats = Math.pow(2, data[4]);
-
-	reader.set('group', data[2]);
+	
+	reader.set('group', top);
 	reader.set('beat', beats);
-	reader.set('signature', data[2] + '/' + beats);
+	reader.set('signature', top + '/' + beats);
 
 }
 
@@ -1090,14 +1076,14 @@ function Pedal(reader) {
 	reader.set('sustain', data[4]);
 }
 
-function Unknown(reader) {
-	reader.set('type', 'Unknown');
+function Flow(reader) {
+	reader.set('type', 'Flow');
 	// TODO
-	// console.log('Unknown');
+	// console.log('Flow');
 	// reader.dump();
 	var data = reader.readBytes(6);
 	// 4 5 6* 11*
-	// reader.set('Unknown', data[4]);
+	// reader.set('Flow', data[4]);
 }
 
 function MidiInstruction(reader) {

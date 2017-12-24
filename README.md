@@ -26,8 +26,8 @@ Although the purpose of this project is not solely music notation, my intention 
 - [x] Convert to JSON format
 
 ### Typesetting (Layout)
-- [x] Position by Note Value
 - [x] Interpret JSON format and map to drawing symbols
+- [x] Position by Note Value
 
 ### Drawing
 - [x] Clefs
@@ -35,7 +35,7 @@ Although the purpose of this project is not solely music notation, my intention 
 - [x] Key Signatures
 - [x] Noteheads
 - [x] Staves
-- [ ] Accidentals
+- [x] Accidentals
 - [x] Stems & Flags
 - [x] Barlines
 - [x] Dots

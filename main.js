@@ -86,11 +86,11 @@ exportLilypond = () => {
 
  // For testing purposes
 setTimeout(() => {
-	data = blank
+	// data = blank
 	// data = test_data;
 	// data = test_dot_quaver;
 
-	setup(rerender);
+	// setup(rerender);
 });
 
 // v1.7 nwc
@@ -105,7 +105,7 @@ setTimeout(() => {
 
 // v2.02?
 // ajax('samples/AChildThisDayIsBorn.nwc', processData);
-// ajax('samples/WhatChildIsThis.nwc', processData);
+ajax('samples/WhatChildIsThis.nwc', processData);
 // ajax('samples/WakenChristianChildren.nwc', processData);
 
 // ajax('samples/canon.nwc', processData);
@@ -190,11 +190,11 @@ selectedStave = {
 		// {"type":"TimeSignature","group":6, beat: 8},
 
 		{ type: 'Clef', clef: 'treble' },
-		{"type":"Note","position":0,"duration":4},
+		{"type":"Note","position":0,"duration":4, accidental: 'n'},
 		{ type: 'Clef', clef: 'bass' },
-		{"type":"Note","position":0,"duration":4},
+		{"type":"Note","position":0,"duration":4, accidental: 'b'},
 		{ type: 'Clef', clef: 'alto' },
-		{"type":"Note","position":0,"duration":4},
+		{"type":"Note","position":0,"duration":4, accidental: '#'},
 		// { type: 'Clef', clef: 'tenor' },
 		// {"type":"Note","position":0,"duration":4},
 
@@ -302,14 +302,12 @@ rerender = () => {
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	interpret(data)
 	score(data)
-	exportLilypond()
+	// exportLilypond()
 }
 
 function processData(payload) {
 	data = decodeNwcArrayBuffer(payload);
 	// console.log(JSON.stringify(data.score.staves[1].tokens.slice(0, 20), 0, 0));
-	
-	data = blank
 	setup(rerender);	
 }
 

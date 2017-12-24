@@ -308,10 +308,6 @@ function drawForNote(token, cursor, durToken) {
 	const duration = durToken.duration
 	const durValue = durToken.durValue;
 
-	if (token.accidental) {
-		console.log('NOTE ACCIDENTAL', token, token.accidental);
-	}
-
 	const sym = duration < 2 ? 'noteheadWhole' :
 		duration < 4 ? 'noteheadHalf' :
 		'noteheadBlack'
@@ -322,6 +318,17 @@ function drawForNote(token, cursor, durToken) {
 		token.Stem === 'Down' ? false :
 			token.position < 0;
 	const requireFlag = duration >= 8;
+
+	if (token.accidental) {
+		console.log('NOTE ACCIDENTAL', token, token.accidental);
+
+		var acc = new Accidental(token.accidental, relativePos)
+		cursor.posGlyph(acc)
+		acc.offsetX = -acc.width * 1.5;
+		console.log(acc);
+		drawing.add(acc)
+	}
+
 
 	if (token.Beam) console.log('Beam', token);
 

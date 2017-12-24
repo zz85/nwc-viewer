@@ -69,6 +69,11 @@ fontMap = {
 	accidentalNatural: 'e261',
 	accidentalSharp: 'e262',
 	accidentalDoubleSharp: 'e263',
+	accidentalDoubleFlat: 'e264',
+	accidentalNaturalFlat: 'e267',
+	accidentalNaturalSharp: 'e268',
+	accidentalParensLeft: 'e26a',
+	accidentalParensRight: 'e26b',
 
 	textBlackNoteShortStem: 'E1F0',
 	textAugmentationDot: 'E1FC',
@@ -112,12 +117,19 @@ function setupCanvas() {
 	div.innerText=  '123'
 	document.body.appendChild(div)
 
+	var dpr = window.devicePixelRatio;
+
 	canvas = document.createElement('canvas');
 	canvas.style = 'font-family: Bravura'
-	canvas.width = 4000
-	canvas.height = 1600
+	canvas.width = 4000 * dpr
+	canvas.height = 1600 * dpr
+	canvas.style.width = 4000
+	canvas.style.height = 1600
+
 	document.body.appendChild(canvas)
 	ctx = canvas.getContext('2d')
+	
+	ctx.scale(dpr, dpr);
 }
 
 function onReady(callback) {
@@ -350,8 +362,10 @@ class Accidental extends Glyph {
 		super(
 		name === '#' ? 'accidentalSharp' :
 		name === 'b' ? 'accidentalFlat' :
-		name === '' ? 'accidentalNatural' :
-		name === '##' ? 'DoubleSharp' : ''
+		name === 'n' || name === '' ? 'accidentalNatural' :
+		name === 'x' ? 'DoubleSharp' :
+		name === 'v' ? 'accidentalDoubleFlat' :
+			''
 			, pos);
 
 		// super('accidental' + name[0].toUpperCase() + , pos)
