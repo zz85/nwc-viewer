@@ -108,7 +108,6 @@ function score(data) {
 	drawing = new Drawing(ctx)
 
 	const staves = data.score.staves;
-
 	const stavePointers = staves.map((stave, staveIndex) => new StaveCursor(stave, staveIndex));
 
 	/*
@@ -179,9 +178,14 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 	switch (type) {
 		default:
+
 			console.log('Typeset: Unhandled type - ', type); // , token
 			break;
 
+		case 'Tempo':
+		case 'Dynamic':
+			console.log(token);
+			break;
 		case 'StaffProperties':
 		case 'StaffInstrument':
 			// TODO infomational purposes
@@ -303,6 +307,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 function drawForNote(token, cursor, durToken) {
 	const duration = durToken.duration
 	const durValue = durToken.durValue;
+
+	if (token.accidental) {
+		console.log('NOTE ACCIDENTAL', token, token.accidental);
+	}
 
 	const sym = duration < 2 ? 'noteheadWhole' :
 		duration < 4 ? 'noteheadHalf' :

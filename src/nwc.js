@@ -11,21 +11,21 @@ var TOKENS = {
 	0: Clef, // + 6
 	1: KeySignature, // + 12
 	2: Barline,
-	3: Repeat,
-	4: InstrumentPatch,
+	3: Repeat, // ending
+	4: InstrumentPatch, // instrument
 	5: TimeSignature, // + 8 bytes
 	6: Tempo,
 	7: Dynamic,
 	8: Note,
 	9: Rest, // 0x09
-	10: Chord, // 0x0a
+	10: Chord, // 0x0a notechord
 	11: Pedal, // 0x0b
-	12: Unknown,
-	13: MidiInstruction, // 0x0d
-	14: Fermata, // 0x0e
-	15: DynamicVariance, // 0x0f
-	16: PerformanceStyle, // 0x10
-	17: Text, // 0x11
+	12: Unknown, // flow direction
+	13: MidiInstruction, // 0x0d // MPC
+	14: TempoVariance, // 0x0e // Fermata
+	15: DynamicVariance, // 0x0f 
+	16: PerformanceStyle, // 0x10 performance
+	17: Text, // 0x11 text object
 	18: RestChord, // 0x12
 };
 
@@ -67,13 +67,12 @@ var DURATIONS = [
 	32,
 	64,
 ];
-
 var ACCIDENTALS = {
-	0: '#',
-	1: 'b',
+	0: '#', // sharp
+	1: 'b', // flat
 	2: 'n', // neutral
-	3: '##',
-	4: 'bb',
+	3: 'x', // double sharp ##
+	4: 'v', // double flat bb
 	5: '', //'auto'
 };
 
@@ -407,8 +406,7 @@ var tabbableTypes = new Set([
 
 var untabbableTypes = new Set([
 	'StaffProperties', 'StaffInstrument', 'PerformanceStyle', 'Dynamic', 'Spacer', 'Tempo',
-	'Boundary', 'Text', 'Instrument', 'DynamicVariance', 'TempoVariance'
-
+	'Boundary', 'Text', 'Instrument', 'DynamicVariance', 'TempoVariance', 'MidiInstruction'
 ])
 
 function isTabbable(token) {
@@ -558,20 +556,24 @@ SightReader.prototype.Note = function(token) {
 
 	// rule - note, previous note in bar, octave note, keysignature
 	var accidental = token.accidental;
+	var computedAccidental;
 
 	// Override
-	if (accidental < 6) {
+	if (accidental) {
+		computedAccidental = accidental;
+		// set running pitch to accidental
 		this.pitches[pitch] = accidental;
 	}
 	else if (this.pitches[pitch] !== undefined) {
-		accidental = this.pitches[pitch];
+		// takes the running value from pitch
+		computedAccidental = this.pitches[pitch];
 	}
 	else {
-		// key signature
+		note_name
+		// takes accidental value from key signature
 	}
 
-	accidental = ACCIDENTALS[accidental];
-	token.accidental = accidental;
+	token.accidentalValue = accidental;
 	// console.log('accidental', accidental);
 
 	// duration of this note
@@ -865,6 +867,8 @@ function StaffInfo(reader, staff) {
 		if (reader.data.header.version === 1.7) {
 			reader.skip(2);
 		}
+
+		// TODO convert to Short
 		var token = reader.readByte();
 
 		reader.descend('score.staves.' + staff + '.tokens.' + i);
@@ -970,7 +974,15 @@ function Tempo(reader) {
 function Dynamic(reader) {
 	reader.set('type', 'Dynamic');
 	var data = reader.readBytes(9);
-	reader.set('dynamic', data[4] & 7);
+	// var position = reader.readByte(); // 1
+	// var placement = reader.readByte(); // 2
+	// var style = reader.readByte(); // 3
+	// var velocity = reader.readShort(); // 4-5
+	// var volume = reader.readShort(); // 6-7
+
+
+	var dynamicRef = data[4] & 7; // style
+	reader.set('dynamic', NwcConstants.DynamicLevels[dynamicRef]);
 }
 
 
@@ -985,7 +997,7 @@ function NoteValue(reader, data) {
 	position = position > 127 ? 256 - position : - position;
 	reader.set('position', position);
 
-	var accidental = data[9] & 7;
+	var accidental = ACCIDENTALS[data[9] & 7];
 	reader.set('accidental', accidental);
 	var durationBit = data[2] & 7;
 
@@ -1071,8 +1083,8 @@ function MidiInstruction(reader) {
 	var data = reader.readBytes(36);
 }
 
-function Fermata(reader) {
-	reader.set('type', 'Fermata');
+function TempoVariance(reader) {
+	reader.set('type', 'TempoVariance');
 	var data = reader.readBytes(6);
 	// TODO
 	reader.set('sustain', data[4]);
@@ -1349,6 +1361,11 @@ DataReader.prototype.readString = function() {
 DataReader.prototype.readByte = function() {
 	var slice = this.array[this.pos++];
 	return slice;
+};
+
+DataReader.prototype.readSignedInt = function() {
+	var int = this.readByte();
+	return int > 127 ? int - 256 : int;
 };
 
 DataReader.prototype.readShort = function() {
