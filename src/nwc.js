@@ -36,13 +36,6 @@ var CLEF_NAMES = {
 	3: 'tenor',
 };
 
-var CLEF_OFFSETS = {
-	'treble': 0,
-	'bass': 7,
-	'alto': -7,
-	'tenor': 4,
-};
-
 var STYLES = [
 	'Regular',
 	'Italic',
@@ -79,12 +72,7 @@ var ACCIDENTALS = {
 var NAMES = 'C D E F G A B'.split(' ');
 
 /*
-var clefs = {
-	0: "b'",
-	1: 'd',
-	2: "c'",
-	3: "a'",
-}
+
 
 var TIME_SIG_VALUES = {
 	'4/4': '1',
@@ -493,7 +481,8 @@ SightReader.prototype.reset = function() {
 
 SightReader.prototype.setClef = function(clef) {
 	this.clef = clef;
-	this.offset = CLEF_OFFSETS[clef];
+	this.offset = CLEF_PITCH_OFFSETS[clef]
+
 	this.pitches = {};
 }
 
@@ -519,13 +508,30 @@ SightReader.prototype.KeySignature = function(token) {
 
 function circularIndex(n) {
 	var m = 7;
-	return n < 0 ? m - (n % m) : n % m;
+	return n < 0 ? (m - (-n % m)) % m : n % m;
 	/*
-	[ -2 -1 0 1 2 3 4 5 ]
-	[  5  6 0 1 2 3 ]
-	[  2  1 ]
-	n < 0 ? m - (n % m) : n % m
+	0   1   2   3   4   5   6
+	7   8   9   10  11  12  13
+	-7  -6  -5  -4  -3  -2  -1
+	-14 -13 -12 -11 -10 -9  -8
 	*/
+}
+
+function octaveIndex(pitch) {
+	if (pitch >= 0) return pitch / 7 | 0;
+
+	/*
+	0   1   2   3   4   5   6  => 0
+	7   8   9   10  11  12  13 => 1
+	-7  -6  -5  -4  -3  -2  -1 => -1
+	-14 -13 -12 -11 -10 -9  -8 => -2
+	*/
+	// -1 => -1
+	// -6 => -1
+	// -7 => -2
+	// -14 => -2
+	// -15 => -3
+	return -1 - ((-pitch - 1) / 7 | 0);
 }
 
 SightReader.prototype.Rest = function(token) {
@@ -537,19 +543,28 @@ SightReader.prototype.Chord = function(token) {
 	this._handle_duration(token);
 }
 
+var OCTAVE_START = 3;
+var OCTAVE_NOTES = 7;
+
+var CLEF_PITCH_OFFSETS = {
+	treble: (OCTAVE_START + 1) * OCTAVE_NOTES + 6, // b'
+	bass: (OCTAVE_START + 0) * OCTAVE_NOTES + 1, // d
+	alto: (OCTAVE_START + 1) * OCTAVE_NOTES, // c'
+	tenor: (OCTAVE_START + 0) * OCTAVE_NOTES + 5 // a'
+}
+
 SightReader.prototype.Note = function(token) {
 	var pos = token.position
-	var OCTAVE_START = 4;
-	var pitch = pos + this.offset - 1;
-	console.log(token.position, this.offset, pitch)
-	pitch += 7 * OCTAVE_START;
+	
+	var pitch = pos + this.offset;
 
 	if (pitch < 0) {
-		console.log('Pitch should not be negative!!!');
+		console.log('Warning: negative pitch?');
 	}
 
 	var note_name = NAMES[circularIndex(pitch)];
-	var octave = pitch / 7 | 0;
+	
+	var octave = octaveIndex(pitch);
 
 	token.name = note_name;
 	token.octave = octave;
@@ -582,7 +597,6 @@ SightReader.prototype.Note = function(token) {
 	}
 
 	token.accidentalValue = computedAccidental;
-	// console.log('accidental', computedAccidental);
 
 	// duration of this note
 	this._handle_duration(token);
