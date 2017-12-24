@@ -540,8 +540,8 @@ SightReader.prototype.Chord = function(token) {
 SightReader.prototype.Note = function(token) {
 	var pos = token.position
 	var OCTAVE_START = 4;
-	var pitch = pos + this.offset;
-	// console.log(token.position, this.offset, pitch)
+	var pitch = pos + this.offset - 1;
+	console.log(token.position, this.offset, pitch)
 	pitch += 7 * OCTAVE_START;
 
 	if (pitch < 0) {
@@ -558,6 +558,11 @@ SightReader.prototype.Note = function(token) {
 	var accidental = token.accidental;
 	var computedAccidental;
 
+	var moo = {
+		B: 'b',
+		E: 'b'
+	};
+
 	// Override
 	if (accidental) {
 		computedAccidental = accidental;
@@ -569,12 +574,15 @@ SightReader.prototype.Note = function(token) {
 		computedAccidental = this.pitches[pitch];
 	}
 	else {
-		note_name
+		changed = moo[note_name];
+		if (changed) {
+			computedAccidental = changed
+		}
 		// takes accidental value from key signature
 	}
 
-	token.accidentalValue = accidental;
-	// console.log('accidental', accidental);
+	token.accidentalValue = computedAccidental;
+	// console.log('accidental', computedAccidental);
 
 	// duration of this note
 	this._handle_duration(token);
