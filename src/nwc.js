@@ -491,6 +491,11 @@ SightReader.prototype.KeySignature = function(token) {
 	NOTE_NAMES.forEach(name => { this.keySig[name.toUpperCase()] = '' });
 	// set TO flats or sharps
 	console.log('TODO please insert key signature mapping here!!!');
+	// this.keySig['F'] = '#'
+	this.keySig['B'] = 'b'
+	this.keySig['E'] = 'b'
+	// ['F', 'C', 'G', 'D', 'A', 'E'].forEach(t => 
+	// 	this.keySig[t] = '#')
 
 	// reset
 	this.key = token.signature;
@@ -1005,7 +1010,6 @@ function Dynamic(reader) {
 	})
 }
 
-
 function Note(reader) {
 	reader.set('type', 'Note');
 	var data = reader.readBytes(10);
@@ -1040,7 +1044,6 @@ function NoteValue(reader, data) {
 	reader.set('grace', data[7] >> 5 & 1);
 	reader.set('slur', data[7] & 3);
 }
-
 
 function Rest(reader) {
 	reader.set('type', 'Rest');
