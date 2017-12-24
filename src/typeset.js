@@ -282,7 +282,6 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 		case 'Note':
 			drawForNote(token, cursor, token);
 			break;
-
 		case 'Text':
 			var pos = token.position !== undefined ? token.position : -11
 			var text = new Text(token.text, pos)
@@ -306,7 +305,6 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			var text = new Text(token.dynamic, pos)
 			cursor.posGlyph(text)
 			drawing.add(text);
-			console.log(token);
 			break;
 		case 'moo':
 			console.log('as', token);
