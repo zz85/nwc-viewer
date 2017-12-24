@@ -181,11 +181,6 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 			console.log('Typeset: Unhandled type - ', type); // , token
 			break;
-
-		case 'Tempo':
-		case 'Dynamic':
-			console.log(token);
-			break;
 		case 'StaffProperties':
 		case 'StaffInstrument':
 			// TODO infomational purposes
@@ -289,12 +284,30 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break;
 
 		case 'Text':
-		case 'PerformanceStyle':
-			const text = new Text(token.text, token.position || -10)
+			var pos = token.position !== undefined ? token.position : -11
+			var text = new Text(token.text, pos)
 			cursor.posGlyph(text)
 			drawing.add(text);
 			break;
-
+		case 'PerformanceStyle':
+			var pos = token.position !== undefined ? token.position : -11
+			var text = new Text(token.text, pos)
+			cursor.posGlyph(text)
+			drawing.add(text);
+			break;
+		case 'Tempo':
+			var pos = token.position !== undefined ? token.position : -15
+			var text = new Text(`${token.note} = ${token.duration}`, pos)
+			cursor.posGlyph(text)
+			drawing.add(text);
+			break;
+		case 'Dynamic':
+			var pos = token.position !== undefined ? token.position : 7
+			var text = new Text(token.dynamic, pos)
+			cursor.posGlyph(text)
+			drawing.add(text);
+			console.log(token);
+			break;
 		case 'moo':
 			console.log('as', token);
 			break;
@@ -320,15 +333,11 @@ function drawForNote(token, cursor, durToken) {
 	const requireFlag = duration >= 8;
 
 	if (token.accidental) {
-		console.log('NOTE ACCIDENTAL', token, token.accidental);
-
 		var acc = new Accidental(token.accidental, relativePos)
 		cursor.posGlyph(acc)
-		acc.offsetX = -acc.width * 1.5;
-		console.log(acc);
+		acc.offsetX = -acc.width * 1.2;
 		drawing.add(acc)
 	}
-
 
 	if (token.Beam) console.log('Beam', token);
 

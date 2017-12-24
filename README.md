@@ -39,10 +39,13 @@ Although the purpose of this project is not solely music notation, my intention 
 - [x] Stems & Flags
 - [x] Barlines
 - [x] Dots
+- [x] Text 
 - [ ] Beams
-- [ ] Text Dynamics
+- [ ] Dynamics
+- [ ] Tempo
 - [ ] Harpins
 - [ ] Slurs
+- [ ] Braces
 
 ### Technical Road Map
 - [ ] Audio Playback

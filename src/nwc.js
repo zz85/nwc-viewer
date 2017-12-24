@@ -297,6 +297,9 @@ function parseDur(dur) {
 		if (parts[1] === 'Dotted') {
 			dots++;
 		}
+		else if (parts[1] === 'DblDotted') {
+			dots += 2;
+		}
 	}
 
 	if (!duration) console.log('!!', token.Dur);
@@ -961,8 +964,8 @@ function TimeSignature(reader) {
 	reader.set('type', 'TimeSignature');
 	var data = reader.readBytes(8);
 
-	var top = data[2];
-	var beats = Math.pow(2, data[4]);
+	var top = data[2]; // numerator
+	var beats = Math.pow(2, data[4]); // denominator
 	
 	reader.set('group', top);
 	reader.set('beat', beats);
@@ -972,25 +975,34 @@ function TimeSignature(reader) {
 
 function Tempo(reader) {
 	reader.set('type', 'Tempo');
-	var data = reader.readBytes(7);
+	// 7 byes
+	var data = reader.skip(2)
+	var position = reader.readSignedInt(); // 2
+	var placement = reader.readSignedInt(); // 3
+	var duration = reader.readShort(); // 4-5 // value / duration
+	var note = reader.readByte(); // 6 // base / note
+	
 	reader.readLine(); // ?
 
-	reader.set('note', data[6]);
-	reader.set('duration', data[4]);
+	reader.setObject({
+		position, placement, duration, note
+	});
 }
 
 function Dynamic(reader) {
 	reader.set('type', 'Dynamic');
-	var data = reader.readBytes(9);
-	// var position = reader.readByte(); // 1
-	// var placement = reader.readByte(); // 2
-	// var style = reader.readByte(); // 3
-	// var velocity = reader.readShort(); // 4-5
-	// var volume = reader.readShort(); // 6-7
+	// 9 Bytes
+	reader.skip(2);
+	var position = reader.readSignedInt(); // 1
+	var placement = reader.readSignedInt(); // 2
+	var style = reader.readByte() & 7; // reader.readSignedInt(); // 3 dynamicRef
+	var velocity = reader.readShort(); // 4-5
+	var volume = reader.readShort(); // 6-7
+	var dynamic = NwcConstants.DynamicLevels[style];
 
-
-	var dynamicRef = data[4] & 7; // style
-	reader.set('dynamic', NwcConstants.DynamicLevels[dynamicRef]);
+	reader.setObject({
+		position, placement, style, velocity, volume, dynamic
+	})
 }
 
 
@@ -1115,9 +1127,14 @@ function PerformanceStyle(reader) {
 function Text(reader) {
 	reader.set('type', 'Text');
 	reader.skip(2);
-	reader.set('position', reader.readByte() & 127);
-	reader.skip(2);
-	reader.set('text', reader.readString());
+
+	var position = reader.readSignedInt();
+	var data = reader.readByte();
+	var font = reader.readByte();
+	var text = reader.readString();
+
+	reader.set('position', position);
+	reader.set('text', text);
 }
 
 
