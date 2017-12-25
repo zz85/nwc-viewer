@@ -395,6 +395,9 @@ play = () => {
 	// Select a timbre that sounds like a piano.
 	var inst = new Instrument({ wave: 'piano', detune: 0 });
 
+	inst.on('noteon', e => console.log('noteon', e))
+	inst.on('noteoff', e => console.log('noteoff', e))
+
 	// The song below is written in ABC notation.  More on abc
 	// notation can be found at http://abcnotation.com/.
 	var song = exportAbc()

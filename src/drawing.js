@@ -435,7 +435,8 @@ class Dot extends Glyph {
 class Text extends Glyph {
 	constructor(text, position) {
 		super();
-		this.text = text;
+		if (!text) { console.log('NO TEXT', text); debugger }
+		this.text = text || '';
 		this.positionY(-position);
 	}
 

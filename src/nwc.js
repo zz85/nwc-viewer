@@ -354,12 +354,23 @@ function mapTokens(token) {
 				type,
 				position: 0
 			}, parseDur(token.Dur));
+			break;
 		case 'Key':
 			return {
 				type: 'KeySignature',
 				signature: token.Signature
 			};
 			console.log('KEY', token);
+			break;
+		case 'PerformanceStyle':
+		case 'Dynamic':
+		case 'Text':
+			token.position = +token.Pos
+			token.text = token.Text
+			if (token.Style)
+			token.text = token.dynamic = token.Style
+			// Justify, Visibility Font
+			break;
 	}
 	return token;
 }
