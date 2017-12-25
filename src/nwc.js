@@ -362,6 +362,12 @@ function mapTokens(token) {
 			};
 			console.log('KEY', token);
 			break;
+		case 'Tempo':
+			token.duration = token.Tempo // note
+			token.note = 1
+			token.pos = token.Pos
+			// Visibility
+			break;
 		case 'PerformanceStyle':
 		case 'Dynamic':
 		case 'Text':
