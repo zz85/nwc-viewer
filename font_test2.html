@@ -1,0 +1,42 @@
+<html>
+	<head>
+			<meta charset="UTF-8">
+	</head>
+
+<body>
+    <h3>Font Test 2</h3>
+    
+    <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
+
+    <canvas id="canvas" width="800px" height="800px"></canvas>
+
+    <script>
+    
+    /*
+    	@font-face {
+		font-family: "Bravura";
+
+ 		src:
+			url("vendor/bravura-1.211/otf/Bravura.otf") format("opentype"),
+			url("vendor/bravura-1.211/woff/Bravura.woff2") format("woff2"),
+			url("vendor/bravura-1.211/woff/Bravura.woff") format("woff");
+    }
+    */
+
+    opentype.load('vendor/bravura-1.211/otf/Bravura.otf', function(err, font) {
+    if (err) {
+         alert('Font could not be loaded: ' + err);
+    } else {
+        var ctx = document.getElementById('canvas').getContext('2d');
+        // Construct a Path object containing the letter shapes of the given text.
+        // The other parameters are x, y and fontSize.
+        // Note that y is the position of the baseline.
+        var path = font.getPath('\ue050 \ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014\ue014Hello, World!', 0, 150, 72);
+        // If you just want to draw the text you can also use font.draw(ctx, text, x, y, fontSize).
+        path.draw(ctx);
+    }
+});
+    
+    </script>
+    
+</body>
