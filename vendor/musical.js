@@ -131,7 +131,7 @@ Instrument.prototype.silence = function() {
   // multiplexes through a single gain node with a master volume.
   this._atop = getAudioTop();
   this._out = this._atop.ac.createGain();
-  this._out.gain.value = initvolume;
+  this._out.gain.setTargetAtTime(initvolume, this._atop.ac.currentTime, 0);
   this._out.connect(this._atop.out);
 
   // As a last step, call all promised notifications.
@@ -244,9 +244,10 @@ Instrument.prototype._makeSound = function(record) {
     } else {
       // Apply the cutoff frequency adjusted using cutfollow.
       f = ac.createBiquadFilter();
-      f.frequency.value =
-          timbre.cutoff + record.frequency * timbre.cutfollow;
-      f.Q.value = timbre.resonance;
+      f.frequency.setTargetAtTime(
+        timbre.cutoff + record.frequency * timbre.cutfollow, ac.currentTime, 0);
+      f.Q.setTargetAtTime(
+        timbre.resonance, ac.currentTime, 0);
       f.connect(g);
     }
     // Hook up the main oscillator.
@@ -302,7 +303,9 @@ Instrument.prototype._truncateSound = function(record, truncatetime) {
       } else if (releasetime <= attacktime) {
         // Release before attack is done?  Interrupt ramp up.
         g.gain.linearRampToValueAtTime(
-          amp * (releasetime - starttime) / (attacktime - starttime));
+          amp * (releasetime - starttime) / (attacktime - starttime),
+          starttime
+        );
       } else {
         // Release during decay?  Interrupt decay down.
         g.gain.setValueAtTime(amp * (timbre.sustain + (1 - timbre.sustain) *
@@ -1614,7 +1617,9 @@ module.exports.makeOscillator = makeOscillator = function(atop, wavename, freq) 
     // TODO: support "noise" or other wave shapes.
     o.type = 'square';
   }
-  o.frequency.value = freq;
+  o.frequency.setTargetAtTime(
+    freq, atop.ac.currentTime, 0);
+
   return o;
 }
 
