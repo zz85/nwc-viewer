@@ -118,7 +118,6 @@ SightReader.prototype.TimeSignature = function(token) {
 	this.lastTimeSignature = token;
 	// TODO account for Common / Cuttime
 	this.timeSigVal.set(token.group, token.beat);
-	console.log(this.timeSigVal.toString())
 }
 
 SightReader.prototype.Barline = function() {

@@ -78,6 +78,9 @@ exportAbc = () => {
 			return true;
 		})
 
+	// harcode tempo first
+	abc.push('Q:1/4=100');
+
 	data.score.staves[0].tokens
 		.filter(token => token.type === 'Tempo')
 		.some(token => {
