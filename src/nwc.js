@@ -157,6 +157,24 @@ function shortArrayToString(array) {
 	return String.fromCharCode.apply(null, array);
 }
 
+function longArrayToString(array, chunk) {
+	/*
+	For way longer strings, better to use this
+	var enc = new TextDecoder();
+	var arr = new Uint8Array([84,104,105,...]);
+	console.log(enc.decode(arr));
+	*/
+
+	var buffer = [];
+
+	var chunk = 1024 || chunk;
+	for (var i = 0; i < array.length; i+= chunk) {
+		buffer.push(shortArrayToString(array.slice(i, i + chunk)));
+	}
+
+	return buffer.join('');
+}
+
 /**********************
  *
  *   Start Data Process
@@ -179,7 +197,7 @@ function processNwc(array) {
 	Header(reader);
 	if (reader.data.header.version >= 2.7) {
 		console.log('done', reader.data)
-		var nwctext = String.fromCharCode(...reader.readLine());
+		var nwctext = longArrayToString(reader.readLine())
 		// console.log(nwctext);
 		reader.set('nwctext', nwctext);
 		parseNwc275(reader, nwctext);
@@ -332,8 +350,8 @@ function mapTokens(token) {
 			};
 
 			if (parts.length === 2) {
-				token.group = parts[0];
-				token.beat = parts[1];
+				token.group = +parts[0];
+				token.beat = +parts[1];
 			}
 
 			break;
@@ -358,9 +376,9 @@ function mapTokens(token) {
 		case 'Key':
 			return {
 				type: 'KeySignature',
-				signature: token.Signature
+				key: token.Tonic
+				// Signature
 			};
-			console.log('KEY', token);
 			break;
 		case 'Tempo':
 			token.duration = token.Tempo // note
@@ -716,13 +734,13 @@ function KeySignature(reader) {
 	var sharpKeys = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#']
 
 	if (flats.length) {
-		reader.set('signature', flatKeys[flats.length]);
+		reader.set('key', flatKeys[flats.length]);
 	}
 	else if (sharps.length) {
-		reader.set('signature', sharpKeys[sharps.length]);
+		reader.set('key', sharpKeys[sharps.length]);
 	}
 	else {
-		reader.set('signature', 'C');
+		reader.set('key', 'C');
 	}
 }
 

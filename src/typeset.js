@@ -330,6 +330,8 @@ function drawForNote(token, cursor, durToken) {
 	const stemUp = token.Stem === 'Up' ? true :
 		token.Stem === 'Down' ? false :
 			token.position < 0;
+	
+	// TODO refactor flag drawing!!
 	const requireFlag = duration >= 8;
 
 	if (token.accidental) {
@@ -339,7 +341,7 @@ function drawForNote(token, cursor, durToken) {
 		drawing.add(acc)
 	}
 
-	if (token.Beam) console.log('Beam', token);
+	// if (token.Beam) console.log('Beam', token);
 
 	// note head
 	const noteHead = new Glyph(sym, relativePos)

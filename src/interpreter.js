@@ -20,7 +20,7 @@ var untabbableTypes = new Set([
 
 function isTabbable(token) {
 	const visible = token.Visibility !== 'Never'
-	if (visible && tabbableTypes.has(token.type)) {
+	if (tabbableTypes.has(token.type)) { // visible &&
 		return true
 	}
 	else {
@@ -90,6 +90,7 @@ function SightReader() {
 	this.tickCounter = new Fraction(0, 1); // commutativeTickDuration
 	this.tabCounter = new Fraction(0, 1); // commutativeTabDuration
 	this.tmpFraction = new Fraction(0, 1);
+	this.timeSigVal = new Fraction(4, 4);
 	this.reset();
 }
 
@@ -101,7 +102,7 @@ SightReader.prototype.reset = function() {
 
 	this.pitches = {};
 	this.keySig = {};
-	NOTE_NAMES.forEach(name => { this.keySig[name.toUpperCase()] = '' });
+	this.setKeySignature(['C']);
 }
 
 SightReader.prototype.setClef = function(clef) {
@@ -115,7 +116,9 @@ SightReader.prototype.Clef = function(token) {
 
 SightReader.prototype.TimeSignature = function(token) {
 	this.lastTimeSignature = token;
-	this.timeSigVal = new Fraction(token.group, token.beat).value()
+	// TODO account for Common / Cuttime
+	this.timeSigVal.set(token.group, token.beat);
+	console.log(this.timeSigVal.toString())
 }
 
 SightReader.prototype.Barline = function() {
@@ -146,28 +149,22 @@ const flats = {
 }
 
 SightReader.prototype.setKeySignature = function(accidentals) {
-    // Majors only!
-    NOTE_NAMES.forEach(name => { this.keySig[name.toUpperCase()] = '' });
+	// Majors only!
+	NOTE_NAMES.forEach(name => { this.keySig[name.toUpperCase()] = '' });
 
-    accidentals.forEach((accidental, l) => {
-        this.keySig[accidental.charAt(0).toUpperCase()] = accidental.charAt(1);
-    });
-
-    console.log(this.keySig);
+	if (!accidentals || !accidentals.length) return;
+	accidentals.forEach((accidental, l) => {
+		this.keySig[accidental.charAt(0).toUpperCase()] = accidental.charAt(1);
+	});
 };
 
 SightReader.prototype.KeySignature = function(token) {
-    var signature = token.signature
-    const accidentals = sharps[signature] || flats[signature];
-    this.setKeySignature(accidentals);
-
-	// set TO flats or sharps
-    // console.log('TODO please insert key signature mapping here!!!');
-    // console.log('KeySignature', token)
+	var signature = token.key
+	const accidentals = sharps[signature] || flats[signature];
+	this.setKeySignature(accidentals);
 
 	// reset
-    this.signature = token.signature;
-    token.accidentals = accidentals;
+	token.accidentals = accidentals;
 	token.clef = this.clef;
 	token.clefOffset = this.offset;
 };
@@ -201,9 +198,12 @@ function octaveIndex(pitch) {
 }
 
 SightReader.prototype.Rest = function(token) {
-	// TODO take into account rest value
-	// this.timeSigVal
+	if (token.duration === 1) {
+		// whole bar rest take into account time signature
 
+		token.durValue = this.timeSigVal.clone();
+		return;
+	}
 	this._handle_duration(token)
 }
 
@@ -223,7 +223,7 @@ var CLEF_PITCH_OFFSETS = {
 
 SightReader.prototype.Note = function(token) {
 	var pos = token.position
-	
+
 	var pitch = pos + this.offset;
 
 	if (pitch < 0) {
