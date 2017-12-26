@@ -124,6 +124,9 @@ exportAbc = () => {
 				tmp += '|\n'
 			}
 
+			if (token.type === 'Rest') {
+				tmp += `z${token.durValue.toString()} `;
+			}
 
 			// if (token.type === 'KeySignature') {
 			// 	console.log(token);

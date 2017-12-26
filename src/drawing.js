@@ -1,7 +1,8 @@
+// TODO remove HARDCODING
+const FONT_SIZE = 36;
+
 (() => {
 
-	// TODO remove HARDCODING
-	const FONT_SIZE = 40;
 
 fontMap = {
 	// barlines
@@ -294,29 +295,6 @@ class TimeSignature extends Glyph {
 	}
 }
 
-const sharps = {
-	'C': [],
-	'G': ['f#'],
-	'D': ['f#', 'c#'],
-	'A': ['f#', 'c#', 'g#'],
-	'E': ['f#', 'c#', 'g#', 'd#'],
-	'B': ['f#', 'c#', 'g#', 'd#', 'a#'],
-	'F#': ['f#', 'c#', 'g#', 'd#', 'a#', 'e#'],
-	'C#': ['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#'],
-}
-
-const flats = {
-	'C': [],
-	'F': ['Bb'],
-	'Bb': ['Bb', 'Eb'],
-	'Eb': ['Bb', 'Eb', 'Ab'],
-	'Ab': ['Bb', 'Eb', 'Ab', 'Db'],
-	'Db': ['Bb', 'Eb', 'Ab', 'Db', 'Gb'],
-	'Gb': ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'],
-	'Cb': ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb'],
-}
-
-
 function noteToPosition(note, clefOffset) {
 	// TODO fix this!
 	let y = rotate(note, clefOffset);
@@ -344,16 +322,16 @@ var clefOffsetMap = {
  * Key Signature
  */
 class KeySignature extends Draw {
-	constructor(name, clef) {
+	constructor(accidentals, clef) {
 		super()
-		const isSharp = name in sharps
-		this.accidentals = sharps[name] || flats[name];
+		// eg. ['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#'] ||
+		// ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb']
+		this.accidentals = accidentals;
 
 		this.sharps = this.accidentals.map((v, l) => {
 			const pos = noteToPosition(v.charAt(0).toLowerCase(), clefOffsetMap[clef] || 0)
 
-			const sharp = new Accidental(isSharp
-				? '#' : 'b', pos);
+			const sharp = new Accidental(v.charAt(1), pos);
 			sharp.moveTo(l * sharp.width, 0);
 			// sharp._debug = true;
 			return sharp;

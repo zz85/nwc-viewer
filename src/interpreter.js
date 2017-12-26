@@ -123,18 +123,51 @@ SightReader.prototype.Barline = function() {
 	this.pitches = {}; // should reset??
 };
 
+const sharps = {
+	'C': [],
+	'G': ['f#'],
+	'D': ['f#', 'c#'],
+	'A': ['f#', 'c#', 'g#'],
+	'E': ['f#', 'c#', 'g#', 'd#'],
+	'B': ['f#', 'c#', 'g#', 'd#', 'a#'],
+	'F#': ['f#', 'c#', 'g#', 'd#', 'a#', 'e#'],
+	'C#': ['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#'],
+}
+
+const flats = {
+	'C': [],
+	'F': ['Bb'],
+	'Bb': ['Bb', 'Eb'],
+	'Eb': ['Bb', 'Eb', 'Ab'],
+	'Ab': ['Bb', 'Eb', 'Ab', 'Db'],
+	'Db': ['Bb', 'Eb', 'Ab', 'Db', 'Gb'],
+	'Gb': ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'],
+	'Cb': ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb'],
+}
+
+SightReader.prototype.setKeySignature = function(accidentals) {
+    // Majors only!
+    NOTE_NAMES.forEach(name => { this.keySig[name.toUpperCase()] = '' });
+
+    accidentals.forEach((accidental, l) => {
+        this.keySig[accidental.charAt(0).toUpperCase()] = accidental.charAt(1);
+    });
+
+    console.log(this.keySig);
+};
+
 SightReader.prototype.KeySignature = function(token) {
-	NOTE_NAMES.forEach(name => { this.keySig[name.toUpperCase()] = '' });
+    var signature = token.signature
+    const accidentals = sharps[signature] || flats[signature];
+    this.setKeySignature(accidentals);
+
 	// set TO flats or sharps
-	console.log('TODO please insert key signature mapping here!!!');
-	this.keySig['F'] = '#'
-	// this.keySig['B'] = 'b'
-	// this.keySig['E'] = 'b'
-	// ['F', 'C', 'G', 'D', 'A', 'E'].forEach(t => 
-	// 	this.keySig[t] = '#')
+    // console.log('TODO please insert key signature mapping here!!!');
+    // console.log('KeySignature', token)
 
 	// reset
-	this.key = token.signature;
+    this.signature = token.signature;
+    token.accidentals = accidentals;
 	token.clef = this.clef;
 	token.clefOffset = this.offset;
 };

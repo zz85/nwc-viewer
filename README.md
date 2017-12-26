@@ -89,7 +89,7 @@ Finally, the drawing system runs through all graphical objects and renders them 
 #### v1
 - open more nwc files (1.75, 2, 2.75/nwctext)
 - musicial alignment
-- music playback via musical.js
+- music playback via musical.js with abc export
 - more accurate font loading via opentype.js
 
 #### v0

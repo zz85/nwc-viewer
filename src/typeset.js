@@ -16,7 +16,7 @@ class StaveCursor {
 	constructor(stave, staveIndex) {
 		this.tokenIndex = -1;
 		this.staveIndex = staveIndex;
-		this.staveX = 40;
+		this.staveX = 60;
 		this.stave = stave;
 		this.tokens = stave.tokens;
 	}
@@ -153,7 +153,8 @@ function score(data) {
 }
 
 function getStaffY(staffIndex) {
-	return 120 * (staffIndex + 1)
+	return FONT_SIZE * 2.6 * (staffIndex + 1)
+	// 120 100
 }
 
 function drawStave(cursor, staveIndex) {
@@ -167,8 +168,9 @@ function drawStave(cursor, staveIndex) {
 }
 
 function handleToken(token, tokenIndex, staveIndex, cursor) {
-	info = tokenIndex
-	info = absCounter++ + ' : ' + tokenIndex
+	// info = tokenIndex
+	// info = absCounter++ + ' : ' + tokenIndex
+	info = ''
 	staveY = getStaffY(staveIndex)
 
 	const type = token.type;
@@ -234,7 +236,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 			break;
 		case 'KeySignature':
-			const key = new KeySignature(token.signature, token.clef);
+			const key = new KeySignature(token.accidentals, token.clef);
 			cursor.posGlyph(key)
 			drawing.add(key)
 
@@ -342,7 +344,7 @@ function drawForNote(token, cursor, durToken) {
 	// note head
 	const noteHead = new Glyph(sym, relativePos)
 	cursor.posGlyph(noteHead)
-	noteHead._text = info + '.' // + ':' + token.name;
+	// noteHead._text = info + '.' // + ':' + token.name;
 	drawing.add(noteHead)
 	const noteHeadWidth = noteHead.width
 	let space = noteHeadWidth
