@@ -1,5 +1,8 @@
 (() => {
 
+	// TODO remove HARDCODING
+	const FONT_SIZE = 40;
+
 fontMap = {
 	// barlines
 
@@ -109,14 +112,14 @@ function insertFont() {
 	`));
 
 	document.head.appendChild(fontStyle);
-}
 
-function setupCanvas() {
 	div = document.createElement('div')
 	div.style = 'font-family: Bravura; display: none;'
 	div.innerText=  '123'
 	document.body.appendChild(div)
+}
 
+function setupCanvas() {
 	var dpr = window.devicePixelRatio;
 
 	canvas = document.createElement('canvas');
@@ -141,11 +144,29 @@ function onReady(callback) {
 	};
 }
 
+// TODO depreciate this!
 /* Hack for inserting OTF */
-function setup(render) {
+function oldSetup(render) {
 	insertFont()
 	setupCanvas()
 	onReady(render)
+}
+
+/* opentype.js loading */
+function newSetup(render) {
+	setupCanvas()
+	loadFont(render)
+}
+
+const setup = newSetup;
+
+function loadFont(cb) {
+	opentype.load('vendor/bravura-1.211/otf/Bravura.otf', (err, font) => {
+		if (err) return console.log('Error, font cannot be loaded', err);
+
+		window.smuflFont = font;
+		cb && cb();
+	})
 }
 
 class Draw {
@@ -174,14 +195,14 @@ class Draw {
 	}
 
 	unitsToY(units) {
-		return -units / 2 / 4 * 40
+		return -units / 2 / 4 * FONT_SIZE
 	}
 }
 
 class Stave extends Draw {
 	constructor(width) {
 		super()
-		this.size = 40  // TODO global
+		this.size = FONT_SIZE  // TODO global
 		this.x = 0
 		this.y = 0
 		this.width = width || 100
@@ -213,15 +234,28 @@ class Glyph extends Draw {
 
 		this.name = char
 		this.char = getCode(char)
+		this.fontSize = FONT_SIZE; // * (0.8 + Math.random() * 0.4);
 		// TODO remove ctx hardcoding
-		this.width = ctx.measureText(this.char).width
+		if (window.smuflFont) {
+			this.width = smuflFont.getAdvanceWidth(this.char, this.fontSize);
+		} else {
+			this.width = ctx.measureText(this.char).width
+		}
+		
 		// this.padLeft = this.width;
 		if (adjustY) this.positionY(adjustY)
 	}
 
 	draw(ctx) {
 		ctx.fillStyle = '#000'
-		ctx.fillText(this.char, 0, 0)
+
+		if (window.smuflFont) {
+			smuflFont.draw(ctx, this.char, 0, 0, this.fontSize)
+		}
+		else {
+			// Only if OTF font is embeded
+			ctx.fillText(this.char, 0, 0)
+		}
 
 		// this.debug(ctx);
 	}
@@ -451,7 +485,7 @@ class Drawing {
 	constructor(ctx) {
 		this.set = new Set()
 
-		ctx.font = '40px Bravura'
+		ctx.font = `${FONT_SIZE}px Bravura`
 		ctx.textBaseline = 'alphabetic' // alphabetic  bottom top
 
 	}

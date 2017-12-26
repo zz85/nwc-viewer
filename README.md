@@ -46,11 +46,12 @@ Although the purpose of this project is not solely music notation, my intention 
 - [ ] Harpins
 - [ ] Slurs
 - [ ] Braces
+- [ ] Ending Barlines
 
 ### Technical Road Map
 - [ ] Audio Playback
 - [ ] Note Editing
-- [ ] Font loader
+- [x] Font loader
 
 ## Current API
 1. NWC file format parsing
@@ -76,3 +77,22 @@ The tokens gets passed through a interpreter. These runs through the tokens and 
 Next, the scoring engine picks up the tokens and maps them to appropriate drawing symbols. It also lays them out and attach coordinates to the drawing objects.
 
 Finally, the drawing system runs through all graphical objects and renders them on screen.
+
+### External Libs
+- inflate.js - zlib inflating for nwc binary format
+- bravura font - smufl music font
+- musical.js - simple web audio wavetable audio library
+- opentype.js - font loading
+
+### Changelog
+
+#### v1
+- open more nwc files (1.75, 2, 2.75/nwctext)
+- musicial alignment
+- music playback via musical.js
+- more accurate font loading via opentype.js
+
+#### v0
+- basic smufl font tests
+- basic glyph renderings
+- basic nwc file parsing

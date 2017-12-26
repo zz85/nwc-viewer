@@ -51,7 +51,10 @@
         console.log(glyphs);
 
         var svg = path.toSVG();
-        console.log(svg);
+        // console.log(svg);
+
+        var width = font.getAdvanceWidth('\ue050', 40)
+        console.log(width);
     }
 });
 
