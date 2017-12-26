@@ -141,6 +141,7 @@ function onReady(callback) {
 	};
 }
 
+/* Hack for inserting OTF */
 function setup(render) {
 	insertFont()
 	setupCanvas()
