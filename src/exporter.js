@@ -57,7 +57,9 @@ exportLilypond = () => {
 }
 
 exportAbc = () => {
+	// ABC references
 	// http://trillian.mit.edu/~jc/music/abc/doc/ABCprimer.html
+	// http://abcnotation.com/wiki/abc:standard:v2.1#rests
 
 	var abc = [];
 	interpret(data)
@@ -78,7 +80,7 @@ exportAbc = () => {
 			return true;
 		})
 
-	// harcode tempo first
+	// hardcode tempo first
 	abc.push('Q:1/4=100');
 
 	data.score.staves[0].tokens
@@ -86,7 +88,7 @@ exportAbc = () => {
 		.some(token => {
 
 			// abc.push(`Q:1/${token.note}=${token.duration}`) // Tempo
-			abc.push('Q:1/8=200');
+			abc.push(`Q:1/4=${token.duration}`) // Tempo
 
 			return true;
 		})
@@ -136,14 +138,9 @@ exportAbc = () => {
 			// 	// ly += `\\key ${token.signature}`
 			// }
 
-			// if (token.type === 'TimeSignature') {
-			// 	console.log(token);
-			// 	ly += `\\key ${token.group}/${token.beat} `
-			// }
-
-			// if (token.type === 'Clef') {
-			// 	ly += `\\clef ${token.clef} `
-			// }
+			if (token.type === 'TimeSignature') {
+				tmp +=`M:${token.group}/${token.beat}\n` // Meter
+			}
 		});
 
 		abc.push(tmp);

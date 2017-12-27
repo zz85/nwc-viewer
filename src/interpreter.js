@@ -117,6 +117,17 @@ SightReader.prototype.Clef = function(token) {
 SightReader.prototype.TimeSignature = function(token) {
 	this.lastTimeSignature = token;
 	// TODO account for Common / Cuttime
+	if (!(token.group && token.beat)) {
+		if (token.signature === 'Common') {
+			token.group = 4;
+			token.beat = 4;
+		}
+		if (token.signature === 'AllaBreve') {
+			token.group = 2;
+			token.beat = 2;
+		}
+	}
+
 	this.timeSigVal.set(token.group, token.beat);
 }
 

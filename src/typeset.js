@@ -215,19 +215,22 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 		case 'TimeSignature':
 			const sig = token.signature;
-			if (token.group && token.beat) {
+
+			var name = sig === 'AllaBreve' ? 'CutCommon':
+					sig === 'Common' ? 'Common' : ''
+			
+			if (name) {
+				t = new TimeSignature('Common', 4)
+				cursor.posGlyph(t)
+				drawing.add(t)
+
+				cursor.incStaveX(t.width * 2);
+			} else if (token.group && token.beat) {
 				t = new TimeSignature(token.group, 6)
 				cursor.posGlyph(t)
 				drawing.add(t)
 
 				t = new TimeSignature(token.beat, 2)
-				cursor.posGlyph(t)
-				drawing.add(t)
-
-				cursor.incStaveX(t.width * 2);
-			} else {
-				// if (sig === 'AllaBreve')
-				t = new TimeSignature('CutCommon', 4)
 				cursor.posGlyph(t)
 				drawing.add(t)
 
@@ -298,7 +301,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break;
 		case 'Tempo':
 			var pos = token.position !== undefined ? token.position : -15
-			var text = new Text(`${token.note} = ${token.duration}`, pos)
+			var text = new Text(
+				// `${token.note} = ${token.duration}`
+				`(${token.duration})`
+				, pos)
 			cursor.posGlyph(text)
 			drawing.add(text);
 			break;
