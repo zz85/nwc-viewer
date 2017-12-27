@@ -782,7 +782,7 @@ function Tempo(reader) {
 	var placement = reader.readSignedInt(); // 3
 	var duration = reader.readShort(); // 4-5 // value / duration
 	var note = reader.readByte(); // 6 // base / note
-	
+
 	reader.readLine(); // ?
 
 	reader.setObject({
@@ -839,6 +839,11 @@ function NoteValue(reader, data) {
 	reader.set('tenuto', data[7] >> 2 & 1);
 	reader.set('grace', data[7] >> 5 & 1);
 	reader.set('slur', data[7] & 3);
+
+	if (data[9] & 0x40) {
+		console.log('more stemming info')
+		reader.readByte();
+	}
 }
 
 function Rest(reader) {
@@ -936,13 +941,6 @@ function Text(reader) {
 	reader.set('text', text);
 }
 
-
-// TODO
-// Clef.type = 'Clef'
-// Clef.token = 0
-// Clef.load(stream);
-// Clef.write();
-
 function Lyrics(reader) {
 	var blockHeader = reader.readByte(); // 1 byte
 	var lyricsLen = reader.readShort(); // 2 byte
@@ -961,7 +959,6 @@ function Lyrics(reader) {
 	}
 
 	var lyricBlock = blocks ? 1024 * blocks : lyricsLen + 2;
-	console.log('lyricBlock', lyricBlock);
 	var chunk = reader.readBytes(lyricBlock); // rest of the block
 
 	var cs = shortArrayToString(chunk);
