@@ -138,6 +138,10 @@ test_dot_quaver = {
 	}
 }
 
+/**
+ * Playback
+ */
+
 play = () => {
 	// Select a timbre that sounds like a piano.
 	inst = new Instrument({ wave: 'piano', detune: 0 });

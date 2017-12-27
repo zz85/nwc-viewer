@@ -145,21 +145,52 @@ function score(data) {
 		}
 	}
 
+	// draw staves
 	stavePointers.forEach((cursor, staveIndex) => {
 		drawStave(cursor, staveIndex);
 	});
+
+	// draw braces
+	drawing.add(new Line(20, getStaffY(-1), 20, getStaffY(stavePointers.length - 1)))
+
+	var { title, author, copyright1, copyright2 } = data.info;
+	if (title) {
+		var titleDrawing = new Claire.Text(title, 0, '20px arial') // italic bold
+		titleDrawing.moveTo(300, 40);
+		drawing.add(titleDrawing)
+	}
+
+	if (author) {
+		var authorDrawing = new Claire.Text(author, 0, 'italic 14px arial') // italic bold
+		authorDrawing.moveTo(350, 60);
+		drawing.add(authorDrawing)
+	}
+
+	if (copyright1) {
+		var authorDrawing = new Claire.Text(copyright1, 0, '10px arial') // italic bold
+		authorDrawing.moveTo(350, 600);
+		drawing.add(authorDrawing)
+	}
+
+	if (copyright2) {
+		var authorDrawing = new Claire.Text(copyright2, 0, '10px arial') // italic bold
+		authorDrawing.moveTo(350, 660);
+		drawing.add(authorDrawing)
+	}
 
 	drawing.draw(ctx)
 }
 
 function getStaffY(staffIndex) {
-	return FONT_SIZE * 2.6 * (staffIndex + 1)
+	return 50 + FONT_SIZE * 2.6 * (staffIndex + 1)
 	// 120 100
 }
 
 function drawStave(cursor, staveIndex) {
-	s = new Stave(cursor.staveX + 40)
-	s.moveTo(40, getStaffY(staveIndex))
+	const staveStart = 40;
+	s = new Stave(cursor.staveX + staveStart)
+	s.moveTo(staveStart, getStaffY(staveIndex))
+
 	// s = new Stave(2000)
 	// cursor.posGlyph(s)
 	drawing.add(s)
@@ -218,7 +249,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 			var name = sig === 'AllaBreve' ? 'CutCommon':
 					sig === 'Common' ? 'Common' : ''
-			
+
 			if (name) {
 				t = new TimeSignature('Common', 4)
 				cursor.posGlyph(t)
@@ -336,7 +367,7 @@ function drawForNote(token, cursor, durToken) {
 	const stemUp = token.Stem === 'Up' ? true :
 		token.Stem === 'Down' ? false :
 			token.position < 0;
-	
+
 	// TODO refactor flag drawing!!
 	const requireFlag = duration >= 8;
 

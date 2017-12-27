@@ -229,6 +229,23 @@ class Stave extends Draw {
 	}
 }
 
+class Line extends Draw {
+	constructor(x0, y0, x1, y1) {
+		super();
+		this.x = x0;
+		this.y = y0;
+		this.x1 = x1;
+		this.y1 = y1;
+	}
+
+	draw(ctx) {
+		ctx.beginPath();
+		ctx.moveTo(this.x, this.y);
+		ctx.lineTo(this.x1, this.y1);
+		ctx.stroke();
+	}
+}
+
 class Glyph extends Draw {
 	constructor(char, adjustY) {
 		super()
@@ -446,15 +463,16 @@ class Dot extends Glyph {
 }
 
 class Text extends Glyph {
-	constructor(text, position) {
+	constructor(text, position, font) {
 		super();
 		if (!text) { console.log('NO TEXT', text); debugger }
 		this.text = text || '';
-		this.positionY(-position);
+		this.positionY(-position || 0);
+		this.font = font || 'italic bold 12px arial'
 	}
 
 	draw(ctx) {
-		ctx.font = 'italic bold 12px arial'
+		ctx.font = this.font
 		ctx.fillText(this.text, 0, 0)
 	}
 }
@@ -520,7 +538,8 @@ Claire = {
 	Barline,
 	Dot,
 	Ledger,
-	Text
+	Text,
+	Line
 }
 
 Object.assign(window, { Drawing, setup, Stave, Claire }, Claire)
