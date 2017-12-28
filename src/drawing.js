@@ -155,16 +155,20 @@ function oldSetup(render) {
 
 /* opentype.js loading */
 function newSetup(render) {
+	if (notableLoaded) return render();
+
 	setupCanvas()
 	loadFont(render)
 }
 
 const setup = newSetup;
+var notableLoaded = false;
 
 function loadFont(cb) {
 	opentype.load('vendor/bravura-1.211/otf/Bravura.otf', (err, font) => {
 		if (err) return console.log('Error, font cannot be loaded', err);
 
+		notableLoaded = true;
 		window.smuflFont = font;
 		cb && cb();
 	})

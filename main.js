@@ -1,28 +1,6 @@
 
 /**********************
  *
- *   Loading Helpers
- *
- **********************/
-
-function ajax(url, callback) {
-	var oReq = new XMLHttpRequest();
-	oReq.open('GET', url, true);
-	oReq.responseType = 'arraybuffer';
-
-	oReq.onload = function(oEvent) {
-		console.log('ajax done for ', url);
-		var arrayBuffer = oReq.response;
-		callback(arrayBuffer);
-	};
-
-	oReq.send();
-}
-
-// TODO Drag and Drop, File Opener
-
-/**********************
- *
  *   Entry
  *
  **********************/
@@ -33,7 +11,7 @@ setTimeout(() => {
 	// data = test_data;
 	// data = test_dot_quaver;
 
-	// setup(rerender);
+	// rerender();
 });
 
 // v1.7 nwc
@@ -51,7 +29,6 @@ setTimeout(() => {
 ajax('samples/WhatChildIsThis.nwc', processData);
 // ajax('samples/WakenChristianChildren.nwc', processData);
 // ajax('samples/NoelNoel.nwc', processData);
-
 
 
 // Doesn't wokrk yet
@@ -160,16 +137,16 @@ play = () => {
 }
 
 rerender = () => {
-	ctx.clearRect(0, 0, canvas.width, canvas.height)
-	interpret(data)
-	score(data)
+	setup(() => {
+		ctx.clearRect(0, 0, canvas.width, canvas.height)
+		interpret(data)
+		score(data)
+	})
 	// exportLilypond()
 }
 
 function processData(payload) {
 	data = decodeNwcArrayBuffer(payload);
 	// console.log(JSON.stringify(data.score.staves[1].tokens.slice(0, 20), 0, 0));
-	setup(rerender);
+	rerender();
 }
-
-

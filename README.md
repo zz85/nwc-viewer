@@ -8,12 +8,14 @@ If you like this project, chat me up [@blurspline](https://twitter.com/blursplin
 ## Changelog
 
 ### v1 "MVP" 28 December 2017
+Basic opening of some nwc files
 - open more nwc files (1.75, 2, 2.75/nwctext)
 - musicial alignment
 - music playback via musical.js with abc export
 - more accurate font loading via opentype.js
 
-### v0 "POC"
+### v0 "POC" 20 Nov 2017
+Porting nwc2ly.py to js, basic notation rendering
 - basic smufl font tests
 - basic glyph renderings
 - basic nwc file parsing

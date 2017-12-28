@@ -1,9 +1,17 @@
 <html>
 <head>
-		<meta charset="UTF-8">
+		<meta charset="utf-8">
 </head>
 <body>
-	<h3>Notably - <h4 style="display: inline-block">A simple, lightweight music viewer + editor at reads nwc (noteworthy composer) files</h4></h3>
+	<h3>Notably<span style="font-size: 12px">- A simple, lightweight music viewer for nwc (noteworthy composer) files</span></h3>
+	<!-- <div id="score"></div> -->
+
+	<button onclick="opener.click()">Open</button>
+	<input type="file" id="opener" hidden/>
+	<button onclick="play()">Play</button>
+	<i style="font-size: 12px">
+	Source Code: <a href="https://github.com/zz85/nwc-viewer">github.com/zz85/nwc-viewer</a>
+	</i>
 
 	<!-- vendor dependencies -->
 	<script src="vendor/inflate.min.js"></script>
@@ -11,6 +19,7 @@
 	<script src="vendor/opentype.min.js"></script>
 
 	<!-- sources -->
+	<script src="src/loaders.js"></script>
 	<script src="src/nwc.js"></script>
 	<script src="src/interpreter.js"></script>
 	<script src="src/fraction.js"></script>
@@ -18,9 +27,6 @@
 	<script src="src/exporter.js"></script>
 	<script src="src/typeset.js"></script>
 	<script src="main.js"></script>
-
-	<div id="score"></div>
-
-	<button onclick="play()">Play</button>
+	
 </body>
 </html>

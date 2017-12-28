@@ -154,7 +154,7 @@ function score(data) {
 	var bottom = getStaffY(stavePointers.length - 1) - FONT_SIZE * 0.5;
 	drawing.add(new Line(20, getStaffY(-1), 20, bottom))
 
-	var { title, author, copyright1, copyright2 } = data.info;
+	var { title, author, copyright1, copyright2 } = data.info || {};
 	var middle = window.innerWidth / 2;
 	if (title) {
 		var titleDrawing = new Claire.Text(title, 0, { font: '20px arial', textAlign: 'center' }) // italic bold
