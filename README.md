@@ -5,14 +5,22 @@ It is pretty alpha quality, so if you encounter bugs, feel free to [submit an is
 
 If you like this project, chat me up [@blurspline](https://twitter.com/blurspline) on twitter.
 
+![screen shot](https://user-images.githubusercontent.com/314997/34420095-94df3818-ec42-11e7-9987-2d0bbe0cbdff.png)
+
 ## Changelog
 
 ### v1 "MVP" 28 December 2017
-Basic opening of some nwc files
+[Basic opening of some nwc files](https://github.com/zz85/nwc-viewer/releases/tag/v1)
 - open more nwc files (1.75, 2, 2.75/nwctext)
 - musicial alignment
 - music playback via musical.js with abc export
 - more accurate font loading via opentype.js
+
+#### Possible Upcoming
+- better scroll management
+- better playback controls (stop, seek, highlight notes)
+- simple exporting to lilypond and abc notation
+- better nwc compatibility?
 
 ### v0 "POC" 20 Nov 2017
 Porting nwc2ly.py to js, basic notation rendering
