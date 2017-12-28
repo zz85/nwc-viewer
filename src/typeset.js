@@ -151,30 +151,32 @@ function score(data) {
 	});
 
 	// draw braces
-	drawing.add(new Line(20, getStaffY(-1), 20, getStaffY(stavePointers.length - 1)))
+	var bottom = getStaffY(stavePointers.length - 1) - FONT_SIZE * 0.5;
+	drawing.add(new Line(20, getStaffY(-1), 20, bottom))
 
 	var { title, author, copyright1, copyright2 } = data.info;
+	var middle = window.innerWidth / 2;
 	if (title) {
-		var titleDrawing = new Claire.Text(title, 0, '20px arial') // italic bold
-		titleDrawing.moveTo(300, 40);
+		var titleDrawing = new Claire.Text(title, 0, { font: '20px arial', textAlign: 'center' }) // italic bold
+		titleDrawing.moveTo(middle, 40);
 		drawing.add(titleDrawing)
 	}
 
 	if (author) {
-		var authorDrawing = new Claire.Text(author, 0, 'italic 14px arial') // italic bold
-		authorDrawing.moveTo(350, 60);
+		var authorDrawing = new Claire.Text(author, 0, { font: 'italic 14px arial', textAlign: 'center' }) // italic bold
+		authorDrawing.moveTo(middle, 60);
 		drawing.add(authorDrawing)
 	}
 
 	if (copyright1) {
-		var authorDrawing = new Claire.Text(copyright1, 0, '10px arial') // italic bold
-		authorDrawing.moveTo(350, 600);
+		var authorDrawing = new Claire.Text(copyright1, 0, { font: '10px arial', textAlign: 'center' }) // italic bold
+		authorDrawing.moveTo(middle, bottom + 80);
 		drawing.add(authorDrawing)
 	}
 
 	if (copyright2) {
-		var authorDrawing = new Claire.Text(copyright2, 0, '10px arial') // italic bold
-		authorDrawing.moveTo(350, 660);
+		var authorDrawing = new Claire.Text(copyright2, 0, { font: '10px arial', textAlign: 'center' }) // italic bold
+		authorDrawing.moveTo(middle, bottom + 90);
 		drawing.add(authorDrawing)
 	}
 
@@ -182,7 +184,7 @@ function score(data) {
 }
 
 function getStaffY(staffIndex) {
-	return 50 + FONT_SIZE * 2.6 * (staffIndex + 1)
+	return FONT_SIZE * 4 + (FONT_SIZE * 2.6 * (staffIndex))
 	// 120 100
 }
 

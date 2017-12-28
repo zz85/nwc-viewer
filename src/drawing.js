@@ -240,6 +240,7 @@ class Line extends Draw {
 
 	draw(ctx) {
 		ctx.beginPath();
+		ctx.lineWidth = 1.4;
 		ctx.moveTo(this.x, this.y);
 		ctx.lineTo(this.x1, this.y1);
 		ctx.stroke();
@@ -463,16 +464,19 @@ class Dot extends Glyph {
 }
 
 class Text extends Glyph {
-	constructor(text, position, font) {
+	constructor(text, position, opts) {
 		super();
 		if (!text) { console.log('NO TEXT', text); debugger }
 		this.text = text || '';
 		this.positionY(-position || 0);
-		this.font = font || 'italic bold 12px arial'
+
+		// .font .textAlign
+		if (opts) Object.assign(this, opts)
 	}
 
 	draw(ctx) {
-		ctx.font = this.font
+		ctx.font = this.font || 'italic bold 12px arial'
+		if (this.textAlign) ctx.textAlign = this.textAlign
 		ctx.fillText(this.text, 0, 0)
 	}
 }
