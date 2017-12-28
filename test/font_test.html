@@ -11,9 +11,9 @@
 		font-family: "Bravura";
 
  		src:
-			url("vendor/bravura-1.211/otf/Bravura.otf") format("opentype"),
-			url("vendor/bravura-1.211/woff/Bravura.woff2") format("woff2"),
-			url("vendor/bravura-1.211/woff/Bravura.woff") format("woff");
+			url("../vendor/bravura-1.211/otf/Bravura.otf") format("opentype"),
+			url("../vendor/bravura-1.211/woff/Bravura.woff2") format("woff2"),
+			url("../vendor/bravura-1.211/woff/Bravura.woff") format("woff");
 	}
 
 	body {
@@ -65,7 +65,7 @@
 		oReq.send();
 	}
 
-	ajax('vendor/bravura-1.211/bravura_metadata.json', function(res) {
+	ajax('../vendor/bravura-1.211/bravura_metadata.json', function(res) {
 		metadata = res;
 		console.log(res);
 	});
@@ -119,7 +119,7 @@
 
 	// Trick from https://stackoverflow.com/questions/2635814/
 	var image = new Image;
-	image.src = 'vendor/bravura-1.211/otf/Bravura.otf';
+	image.src = '../vendor/bravura-1.211/otf/Bravura.otf';
 	image.onerror = function() {
 		setTimeout(render, 100)
 	};

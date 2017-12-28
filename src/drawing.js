@@ -99,16 +99,16 @@ getCode = (name) => String.fromCharCode
 	parseInt(fontMap[name], 16)
 )
 
-function insertFont() {
+function insertFont(path) {
 	var fontStyle = document.createElement('style');
 	fontStyle.appendChild(document.createTextNode(`
 	@font-face {
 			font-family: "Bravura";
 
 			src:
-				url("vendor/bravura-1.211/otf/Bravura.otf") format("opentype"),
-				url("vendor/bravura-1.211/woff/Bravura.woff2") format("woff2"),
-				url("vendor/bravura-1.211/woff/Bravura.woff") format("woff");
+				url("${path}otf/Bravura.otf") format("opentype"),
+				url("${path}woff/Bravura.woff2") format("woff2"),
+				url("${path}woff/Bravura.woff") format("woff");
 		}
 	`));
 
@@ -136,36 +136,43 @@ function setupCanvas() {
 	ctx.scale(dpr, dpr);
 }
 
-function onReady(callback) {
+function onReady(callback, path) {
 	// Trick from https://stackoverflow.com/questions/2635814/
 	var image = new Image;
-	image.src = 'vendor/bravura-1.211/otf/Bravura.otf';
+	image.src = `${path}otf/Bravura.otf`;
 	image.onerror = function() {
+		notableLoaded = true;
 		setTimeout(callback, 500)
 	};
 }
 
 // TODO depreciate this!
 /* Hack for inserting OTF */
-function oldSetup(render) {
-	insertFont()
+function oldSetup(render, insertFont, path) {
+	if (notableLoaded) return render();
+
+	path = path || 'vendor/bravura-1.211/'
+
+	insertFont(path)
 	setupCanvas()
-	onReady(render)
+	onReady(render, path)
 }
 
 /* opentype.js loading */
-function newSetup(render) {
+function newSetup(render, path) {
 	if (notableLoaded) return render();
 
+	path = path || 'vendor/bravura-1.211/'
+
 	setupCanvas()
-	loadFont(render)
+	loadFont(render, path)
 }
 
 const setup = newSetup;
 var notableLoaded = false;
 
-function loadFont(cb) {
-	opentype.load('vendor/bravura-1.211/otf/Bravura.otf', (err, font) => {
+function loadFont(cb, path) {
+	opentype.load(`${path}otf/Bravura.otf`, (err, font) => {
 		if (err) return console.log('Error, font cannot be loaded', err);
 
 		notableLoaded = true;
