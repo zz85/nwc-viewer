@@ -1,8 +1,22 @@
-# nwc-viewer
-This NoteworthyComposer file viewer attempts to renders music notation from nwc files without any installation required, using only the browser technologies like js and html.
+# Notably
+Notably is a musical viewer and player for NWC ([Noteworthy Composer](http://noteworthycomposer.com)) files. It attempts to parse multiple version of nwc files and renders music notation. It is cross-platform and doesn't require installation, using only browser based technologies like js, canvas and html.
 
-If you are interested with this project, feel free to chat me up [@blurspline](https://twitter.com/blurspline) on twitter.
+It is pretty alpha quality, so if you encounter bugs, feel free to [submit an issue](https://github.com/zz85/nwc-viewer/issues) or a pull request.
 
+If you like this project, chat me up [@blurspline](https://twitter.com/blurspline) on twitter.
+
+## Changelog
+
+### v1 "MVP" 28 December 2017
+- open more nwc files (1.75, 2, 2.75/nwctext)
+- musicial alignment
+- music playback via musical.js with abc export
+- more accurate font loading via opentype.js
+
+### v0 "POC"
+- basic smufl font tests
+- basic glyph renderings
+- basic nwc file parsing
 
 ## Components
 This project contains
@@ -10,12 +24,6 @@ This project contains
 - interpreter, that make sense of the notation objects
 - musical notation rendering, using canvas and smufl font
 - simple lilypond code exporter
-
-## NWC File Format
-I wrote a nwc parser/converter back in 2005 [nwc2ly.py](https://github.com/zz85/nwc2ly.py) using the "french cafe approach". The decoder used here was initially a port of the python version with additions to support versions 2.7 and nwctext.
-
-## Music Notation Rendering
-Although the purpose of this project is not solely music notation, my intention is to build a simple, basic but functional renderer for my own education purposes. Perhaps parts of it can be repurpose if there are intentions to extend the functionality of it.
 
 ## Progress
 
@@ -78,21 +86,15 @@ Next, the scoring engine picks up the tokens and maps them to appropriate drawin
 
 Finally, the drawing system runs through all graphical objects and renders them on screen.
 
+## NWC File Format
+I wrote a nwc parser/converter back in 2005 [nwc2ly.py](https://github.com/zz85/nwc2ly.py) using the "french cafe approach". The decoder used here was initially a port of the python version with additions to support versions 2.7 and nwctext.
+
+## Music Notation Rendering
+Although the purpose of this project is not solely music notation, my intention is to build a simple, basic but functional renderer for my own education purposes. Perhaps parts of it can be repurpose if there are intentions to extend the functionality of it.
+
+
 ### External Libs
 - inflate.js - zlib inflating for nwc binary format
 - bravura font - smufl music font
 - musical.js - simple web audio wavetable audio library
 - opentype.js - font loading
-
-### Changelog
-
-#### v1
-- open more nwc files (1.75, 2, 2.75/nwctext)
-- musicial alignment
-- music playback via musical.js with abc export
-- more accurate font loading via opentype.js
-
-#### v0
-- basic smufl font tests
-- basic glyph renderings
-- basic nwc file parsing
