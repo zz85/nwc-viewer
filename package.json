@@ -4,6 +4,7 @@
   "description": "Viewer for Noteworthy Composer files",
   "main": "index.js",
   "scripts": {
+    "pretty": "prettier --single-quote --use-tabs --no-semi --trailing-comma es5 --write src/*.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Joshua Koo",
@@ -12,5 +13,7 @@
   },
   "homepage": "https://github.com/zz85/nwc-viewer",
   "license": "GNU",
-  "devDependencies": {}
+  "devDependencies": {
+    "prettier": "^1.9.2"
+  }
 }
