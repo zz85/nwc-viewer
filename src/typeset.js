@@ -6,8 +6,6 @@
 
 /**
  * TODOs
- * - accidentals
- * - key signatures
  * - triplets
  * - dynamics
  */
@@ -390,9 +388,15 @@ function drawForNote(token, cursor, durToken) {
 	const noteHeadWidth = noteHead.width
 	let space = noteHeadWidth
 
+
 	// ledger lines
 	if (relativePos < 0) {
 		const ledger = new Ledger((relativePos / 2 | 0) * 2, 0)
+		cursor.posGlyph(ledger)
+		drawing.add(ledger)
+	}
+	else if (relativePos > 8) {
+		const ledger = new Ledger(((relativePos + 1) / 2 | 0) * 2, 8)
 		cursor.posGlyph(ledger)
 		drawing.add(ledger)
 	}

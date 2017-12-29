@@ -21,6 +21,7 @@ If you like this project, chat me up [@blurspline](https://twitter.com/blursplin
 - better playback controls (stop, seek, highlight notes)
 - simple exporting to lilypond and abc notation
 - better nwc compatibility? (lyrics)
+- midi keyboard output
 
 ### v0 "POC" 20 Nov 2017
 Porting nwc2ly.py to js, basic notation rendering
