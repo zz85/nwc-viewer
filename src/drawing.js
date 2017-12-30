@@ -91,9 +91,10 @@ const getCode = name => String.fromCharCode(parseInt(fontMap[name], 16))
 
 function setupCanvas() {
 	var score = document.getElementById('score')
+	var invisible_canvas = document.getElementById('invisible_canvas')
 
 	var canvas = document.createElement('canvas')
-	score.appendChild(canvas)
+	score.insertBefore(canvas, invisible_canvas)
 
 	var ctx = canvas.getContext('2d')
 
@@ -106,9 +107,11 @@ function setupCanvas() {
 function resizeByBounds() {
 	var score = document.getElementById('score')
 	const bb = score.getBoundingClientRect()
+	console.log(bb)
 
 	// TODO take min of canvas size vs bb heigh
-	resize(bb.width, bb.height)
+	// resize(bb.width, bb.height)
+	resize(score.clientWidth - 20, score.clientHeight - 20)
 }
 
 function resize(width, height) {
@@ -117,23 +120,12 @@ function resize(width, height) {
 	width = width || 800
 	height = height || 800
 
-	canvas.style = 'font-family: Bravura'
 	canvas.width = width * dpr
 	canvas.height = height * dpr
 	canvas.style.width = width
 	canvas.style.height = height
 
 	ctx.scale(dpr, dpr)
-}
-
-function onReady(callback, path) {
-	// Trick from https://stackoverflow.com/questions/2635814/
-	var image = new Image()
-	image.src = `${path}otf/Bravura.otf`
-	image.onerror = function() {
-		notableLoaded = true
-		setTimeout(callback, 500)
-	}
 }
 
 /* opentype.js loading */

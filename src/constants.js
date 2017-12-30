@@ -1,5 +1,5 @@
-var NODE = typeof module !== 'undefined'
-var BROWSER = typeof window !== 'undefined'
+const NODE = typeof module !== 'undefined'
+const BROWSER = typeof window !== 'undefined'
 
 // TODO remove HARDCODING
 const FONT_SIZE = 36

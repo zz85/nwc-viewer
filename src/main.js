@@ -332,8 +332,10 @@ let data
 
 function processData(payload) {
 	data = decodeNwcArrayBuffer(payload)
+	window.data = data
 	// console.log(JSON.stringify(data.score.staves[1].tokens.slice(0, 20), 0, 0));
 	rerender()
 }
 
 window.rerender = rerender
+window.processData = processData

@@ -1,5 +1,3 @@
-import Fraction from './fraction.js'
-
 /**********************
  *
  *   Constants
@@ -692,9 +690,7 @@ function Info(reader) {
 
 function PageSetup(reader) {
 	reader.descend('page_setup')
-	// margins =
 	Margins(reader)
-	// staffSize =
 	Fonts(reader)
 }
 
@@ -1433,12 +1429,6 @@ DataReader.prototype.dump = function(limit) {
 
 // Exports
 
-if (NODE) {
-	Object.assign(module.exports, {
-		decodeNwcArrayBuffer,
-	})
-} else {
-	Object.assign(window, {
-		decodeNwcArrayBuffer,
-	})
-}
+Object.assign(NODE ? module.exports : window, {
+	decodeNwcArrayBuffer,
+})

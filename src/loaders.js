@@ -19,11 +19,16 @@ function ajax(url, callback) {
 }
 
 // TODO Drag and Drop, File Opener
+
+// onclick="opener.click()
+
 var opener = document.getElementById('opener')
 opener.onchange = function() {
 	var files = opener.files
 	handleFileList(files)
 }
+
+document.getElementById('open').onclick = () => opener.click()
 
 function handleFileList(files) {
 	if (files && files.length) {

@@ -105,6 +105,16 @@ let absCounter = 0
 let drawing // placeholder for drawing system
 let info // running debug info
 
+function quickDraw(data, x, y) {
+	ctx.clearRect(0, 0, canvas.width, canvas.height)
+	ctx.save()
+	ctx.translate(x, y)
+	drawing.draw(ctx)
+	ctx.restore()
+}
+
+window.quickDraw = quickDraw
+
 function score(data) {
 	var ctx = window.ctx
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -150,14 +160,20 @@ function score(data) {
 		}
 	}
 
+	window.maxCanvasWidth = 100
+	window.maxCanvasHeight = 100
+
 	// draw staves
 	stavePointers.forEach((cursor, staveIndex) => {
 		drawStave(cursor, staveIndex)
+		maxCanvasWidth = Math.max(cursor.staveX, maxCanvasWidth)
 	})
 
 	// draw braces
 	var bottom = getStaffY(stavePointers.length - 1) - FONT_SIZE * 0.5
 	drawing.add(new Line(20, getStaffY(-1), 20, bottom))
+
+	maxCanvasHeight = bottom + 10
 
 	var { title, author, copyright1, copyright2 } = data.info || {}
 	var middle = window.innerWidth / 2
@@ -198,6 +214,15 @@ function score(data) {
 	}
 
 	drawing.draw(ctx)
+
+	// TODO move this out of this function
+
+	var invisible_canvas = document.getElementById('invisible_canvas')
+	invisible_canvas.style.width = `${maxCanvasWidth}px`
+	invisible_canvas.style.height = `${Math.max(
+		maxCanvasHeight,
+		document.getElementById('score').clientHeight
+	)}px`
 }
 
 function getStaffY(staffIndex) {
@@ -295,8 +320,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 
 		case 'Rest':
-			duration = token.duration
-			sym = {
+			var duration = token.duration
+			var sym = {
 				1: 'restWhole',
 				2: 'restHalf',
 				4: 'restQuarter',
