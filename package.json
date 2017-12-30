@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "pretty": "prettier --single-quote --use-tabs --no-semi --trailing-comma es5 --write src/*.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/test_nwc.js",
+    "lint": "eslint src/*.js"
   },
   "author": "Joshua Koo",
   "bugs": {
@@ -14,6 +15,9 @@
   "homepage": "https://github.com/zz85/nwc-viewer",
   "license": "GNU",
   "devDependencies": {
+    "eslint": "^4.14.0",
+    "eslint-config-prettier": "^2.9.0",
+    "eslint-plugin-prettier": "^2.4.0",
     "prettier": "^1.9.2"
   }
 }
