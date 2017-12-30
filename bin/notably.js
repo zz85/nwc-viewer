@@ -2646,6 +2646,104 @@ Object.assign(
  *
  **********************/
 
+function exportAbc() {
+	// ABC references
+	// http://trillian.mit.edu/~jc/music/abc/doc/ABCprimer.html
+	// http://abcnotation.com/wiki/abc:standard:v2.1#rests
+
+	var abc = [];
+	interpret(data);
+
+	abc.push('X: 1'); // reference number
+
+	var { title, author } = data.info || {};
+	if (title) abc.push(`T: ${title}`); // title
+	if (title) abc.push(`C: ${author}`); // composer
+	abc.push(`N: Generated from Notably`); // notes
+
+	//
+
+	data.score.staves[0].tokens
+		.filter(token => token.type === 'TimeSignature')
+		.some(token => {
+			abc.push(`M:${token.group}/${token.beat}`); // Meter
+			return true
+		});
+
+	// hardcode tempo first
+	abc.push('Q:1/4=100');
+
+	data.score.staves[0].tokens
+		.filter(token => token.type === 'Tempo')
+		.some(token => {
+			// abc.push(`Q:1/${token.note}=${token.duration}`) // Tempo
+			abc.push(`Q:1/4=${token.duration}`); // Tempo
+
+			return true
+		});
+
+	abc.push('L: 1'); // default note length
+	// N: // comments
+	// K: Key
+
+	const abc_accidentals = { b: '_', '#': '^', n: '=' };
+
+	data.score.staves.forEach((stave, v) => {
+		var tmp = '';
+
+		tmp += `\n[V:${v}]\n`;
+		stave.tokens.forEach(token => {
+			if (token.type === 'Note') {
+				if (token.accidentalValue) {
+					tmp += abc_accidentals[token.accidentalValue];
+				}
+
+				tmp += token.name.toLowerCase();
+				var octave = token.octave - 4;
+
+				if (octave < 0) {
+					tmp += Array(Math.abs(octave))
+						.fill(',')
+						.join('');
+				} else {
+					tmp += Array(octave)
+						.fill("'")
+						.join('');
+				}
+
+				// tmp += '1/' + token.duration
+				// tmp += Array(token.dots).fill('.').join('')
+				tmp += token.durValue.toString();
+				tmp += ' ';
+			}
+
+			if (token.type === 'Barline') {
+				tmp += '|\n';
+			}
+
+			if (token.type === 'Rest') {
+				tmp += `z${token.durValue.toString()} `;
+			}
+
+			// if (token.type === 'KeySignature') {
+			// 	console.log(token);
+			// 	// ly += `\\key ${token.signature}`
+			// }
+
+			if (token.type === 'TimeSignature') {
+				tmp += `M:${token.group}/${token.beat}\n`; // Meter
+			}
+		});
+
+		abc.push(tmp);
+	});
+
+	abc = abc.join('\n');
+	console.log('abc', abc);
+
+	return abc
+}
+
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
 // also make weak attempt to lay them out
@@ -2811,7 +2909,7 @@ function score(data) {
 	// draw staves
 	stavePointers.forEach((cursor, staveIndex) => {
 		drawStave(cursor, staveIndex);
-		maxCanvasWidth = Math.max(cursor.staveX, maxCanvasWidth);
+		maxCanvasWidth = Math.max(cursor.staveX + 100, maxCanvasWidth);
 	});
 
 	// draw braces
@@ -2868,6 +2966,8 @@ function score(data) {
 		maxCanvasHeight,
 		document.getElementById('score').clientHeight
 	)}px`;
+
+	// https://stackoverflow.com/questions/21064101/understanding-offsetwidth-clientwidth-scrollwidth-and-height-respectively
 }
 
 function getStaffY(staffIndex) {
@@ -3176,6 +3276,29 @@ setTimeout(() => {
 // v2.02?
 // ajax('samples/AChildThisDayIsBorn.nwc', processData);
 ajax('samples/WhatChildIsThis.nwc', processData$1);
+/**
+ * Playback
+ */
+
+const play = () => {
+	// Select a timbre that sounds like a piano.
+	const inst = new Instrument({ wave: 'piano', detune: 0 });
+
+	// inst.on('noteon', e => console.log('noteon', e))
+	// inst.on('noteoff', e => console.log('noteoff', e))
+
+	// The song below is written in ABC notation.  More on abc
+	// notation can be found at http://abcnotation.com/.
+	var song = exportAbc();
+
+	// Play a song from a string in ABC notation.
+	inst.play(song, () => {
+		console.log('(Done playing.)');
+	});
+};
+
+document.getElementById('play').onclick = play;
+
 const rerender = () => {
 	setup(() => {
 		interpret(data$1);
