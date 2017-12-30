@@ -10,8 +10,20 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
+	<style>
+		body {
+			background: #333;
+		}
+
+		canvas {
+			background: #fff;
+		}
+
+		#score {
+
+		}
+	</style>
 	<h3>Notably<span style="font-size: 12px">- A simple, lightweight music viewer for nwc (noteworthy composer) files</span></h3>
-	<!-- <div id="score"></div> -->
 
 	<button onclick="opener.click()">Open</button>
 	<input type="file" id="opener" hidden/>
@@ -24,6 +36,8 @@
 	<script src="vendor/inflate.min.js"></script>
 	<script src="vendor/musical.js"></script>
 	<script src="vendor/opentype.min.js"></script>
+
+	<div id="score"></div>
 
 	<!-- sources -->
 	<!--

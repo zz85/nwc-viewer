@@ -89,29 +89,6 @@ const fontMap = {
 
 const getCode = name => String.fromCharCode(parseInt(fontMap[name], 16))
 
-function insertFont(path) {
-	var fontStyle = document.createElement('style')
-	fontStyle.appendChild(
-		document.createTextNode(`
-	@font-face {
-			font-family: "Bravura";
-
-			src:
-				url("${path}otf/Bravura.otf") format("opentype"),
-				url("${path}woff/Bravura.woff2") format("woff2"),
-				url("${path}woff/Bravura.woff") format("woff");
-		}
-	`)
-	)
-
-	document.head.appendChild(fontStyle)
-
-	var div = document.createElement('div')
-	div.style = 'font-family: Bravura; display: none;'
-	div.innerText = '123'
-	document.body.appendChild(div)
-}
-
 function setupCanvas() {
 	var canvas = document.createElement('canvas')
 	document.body.appendChild(canvas)
@@ -145,20 +122,8 @@ function onReady(callback, path) {
 	}
 }
 
-// TODO depreciate this!
-/* Hack for inserting OTF */
-function oldSetup(render, path) {
-	if (notableLoaded) return render()
-
-	path = path || 'vendor/bravura-1.211/'
-
-	insertFont(path)
-	setupCanvas()
-	onReady(render, path)
-}
-
 /* opentype.js loading */
-function newSetup(render, path) {
+function setup(render, path) {
 	if (notableLoaded) return render()
 
 	path = path || 'vendor/bravura-1.211/'
@@ -167,7 +132,6 @@ function newSetup(render, path) {
 	loadFont(render, path)
 }
 
-const setup = newSetup || oldSetup
 var notableLoaded = false
 
 function loadFont(cb, path) {
@@ -263,12 +227,7 @@ class Glyph extends Draw {
 		this.name = char
 		this.char = getCode(char)
 		this.fontSize = FONT_SIZE // * (0.8 + Math.random() * 0.4);
-		// TODO remove ctx hardcoding
-		if (window.smuflFont) {
-			this.width = window.smuflFont.getAdvanceWidth(this.char, this.fontSize)
-		} else {
-			this.width = window.ctx.measureText(this.char).width
-		}
+		this.width = window.smuflFont.getAdvanceWidth(this.char, this.fontSize)
 
 		// this.padLeft = this.width;
 		if (adjustY) this.positionY(adjustY)
@@ -277,13 +236,7 @@ class Glyph extends Draw {
 	draw(ctx) {
 		ctx.fillStyle = '#000'
 
-		if (window.smuflFont) {
-			window.smuflFont.draw(ctx, this.char, 0, 0, this.fontSize)
-		} else {
-			// Only if OTF font is embeded
-			ctx.fillText(this.char, 0, 0)
-		}
-
+		window.smuflFont.draw(ctx, this.char, 0, 0, this.fontSize)
 		// this.debug(ctx);
 	}
 }
