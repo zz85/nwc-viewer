@@ -3,7 +3,7 @@ import { ajax } from './loaders.js'
 import './nwc.js'
 import './interpreter.js'
 import './drawing.js'
-import './exporter.js'
+import { exportAbc } from './exporter.js'
 import { score } from './typeset.js'
 
 /**********************
@@ -305,7 +305,7 @@ const test_dot_quaver = {
 
 const play = () => {
 	// Select a timbre that sounds like a piano.
-	inst = new Instrument({ wave: 'piano', detune: 0 })
+	const inst = new Instrument({ wave: 'piano', detune: 0 })
 
 	// inst.on('noteon', e => console.log('noteon', e))
 	// inst.on('noteoff', e => console.log('noteoff', e))
@@ -319,6 +319,8 @@ const play = () => {
 		console.log('(Done playing.)')
 	})
 }
+
+document.getElementById('play').onclick = play;
 
 const rerender = () => {
 	setup(() => {

@@ -14,6 +14,7 @@
 		body {
 			background: #333;
 			color: #ddd;
+			overflow: hidden;
 		}
 
 		canvas {
@@ -45,8 +46,10 @@
 			<h3>
 				Notably
 				<button id="open">Open</button>
+
 				<input type="file" id="opener" hidden/>
-				<button onclick="play()">Play</button>	
+				<button id="play">Play</button>
+
 				<i style="font-size: 12px">
 				Source Code: <a href="https://github.com/zz85/nwc-viewer">github.com/zz85/nwc-viewer</a>
 				</i>
@@ -64,12 +67,11 @@
 		</div>
 	</div>
 
-
 	<!-- vendor dependencies -->
 	<script src="vendor/inflate.min.js"></script>
 	<script src="vendor/musical.js"></script>
 	<script src="vendor/opentype.min.js"></script>
-	
+
 	<!-- sources -->
 	<!--
 	<script src="src/loaders.js"></script>
@@ -83,7 +85,7 @@
 	-->
 
 	<!-- rollup build -->
-	<!-- <script src="bin/notably.js"></script> -->
+	<script nomodule="true" src="bin/notably.js"></script>
 
 	<!-- module script -->
 	<script type="module" src="src/main.js"></script>
