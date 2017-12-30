@@ -42,14 +42,15 @@
 	</style>
 	<div id="container">
 		<div id="top">
-			<h3>Notably<span style="font-size: 12px">- A simple, lightweight music viewer for nwc (noteworthy composer) files</span></h3>
-
-			<button id="open">Open</button>
-			<input type="file" id="opener" hidden/>
-			<button onclick="play()">Play</button>
-			<i style="font-size: 12px">
-			Source Code: <a href="https://github.com/zz85/nwc-viewer">github.com/zz85/nwc-viewer</a>
-			</i>
+			<h3>
+				Notably
+				<button id="open">Open</button>
+				<input type="file" id="opener" hidden/>
+				<button onclick="play()">Play</button>	
+				<i style="font-size: 12px">
+				Source Code: <a href="https://github.com/zz85/nwc-viewer">github.com/zz85/nwc-viewer</a>
+				</i>
+			</h3>
 		</div>
 
 		<div id="score">
@@ -82,15 +83,25 @@
 	-->
 
 	<!-- rollup build -->
-	<script src="bin/notably.js"></script>
+	<!-- <script src="bin/notably.js"></script> -->
 
 	<!-- module script -->
-	<!-- <script type="module" src="src/main.js"></script> -->
+	<script type="module" src="src/main.js"></script>
 	<script>
-		document.getElementById('score').addEventListener('scroll', (e) => {
-			console.log('scroll', e.target.scrollLeft);
+		var nextRender
 
-			quickDraw(data, -e.target.scrollLeft, -e.target.scrollTop)
+		var scoreElm = document.getElementById('score')
+
+		function updateScroll() {
+			// console.log('scroll', scoreElm.scrollLeft, scoreElm.scrollTop);
+			quickDraw(data, -scoreElm.scrollLeft, -scoreElm.scrollTop)
+
+			nextRender = null
+		}
+
+		scoreElm.addEventListener('scroll', (e) => {
+			// for browsers firing off > 60fps, we limit the rerendering
+			if (!nextRender) nextRender = requestAnimationFrame(updateScroll)
 		})
 	</script>
 

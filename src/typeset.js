@@ -166,7 +166,7 @@ function score(data) {
 	// draw staves
 	stavePointers.forEach((cursor, staveIndex) => {
 		drawStave(cursor, staveIndex)
-		maxCanvasWidth = Math.max(cursor.staveX, maxCanvasWidth)
+		maxCanvasWidth = Math.max(cursor.staveX + 100, maxCanvasWidth)
 	})
 
 	// draw braces
@@ -223,6 +223,8 @@ function score(data) {
 		maxCanvasHeight,
 		document.getElementById('score').clientHeight
 	)}px`
+
+	// https://stackoverflow.com/questions/21064101/understanding-offsetwidth-clientwidth-scrollwidth-and-height-respectively
 }
 
 function getStaffY(staffIndex) {
