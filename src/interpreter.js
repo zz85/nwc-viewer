@@ -1,3 +1,5 @@
+import Fraction from './fraction.js'
+
 // Scanner / SightReader / Runner / PlayContext
 
 /**********************
@@ -17,6 +19,8 @@ var untabbableTypes = new Set([
 	'StaffProperties', 'StaffInstrument', 'PerformanceStyle', 'Dynamic', 'Spacer', 'Tempo',
 	'Boundary', 'Text', 'Instrument', 'DynamicVariance', 'TempoVariance', 'MidiInstruction'
 ])
+
+var NOTE_NAMES = 'C D E F G A B'.split(' ');
 
 function isTabbable(token) {
 	const visible = token.Visibility !== 'Never'
@@ -280,3 +284,5 @@ SightReader.prototype._handle_duration = function(token) {
 		token.durValue.multiply(3, 2);
 	}
 }
+
+window.interpret = interpret;

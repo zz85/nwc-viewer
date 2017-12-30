@@ -1,3 +1,10 @@
+import './constants.js'
+import { ajax } from './loaders.js';
+import './nwc.js';
+import './interpreter.js';
+import './drawing.js';
+import './exporter.js';
+import { score } from './typeset.js';
 
 /**********************
  *
@@ -49,7 +56,7 @@ ajax('samples/WhatChildIsThis.nwc', processData);
 // Long piece
 // ajax('samples/20171110c-bl.JingleBellsOverture.nwc', processData);
 
-test_data = {
+const test_data = {
 	score: {
 		staves: [
 			{ tokens: [
@@ -88,7 +95,7 @@ test_data = {
 	}
 }
 
-test_dot_quaver = {
+const test_dot_quaver = {
 	score: {
 		staves: [
 			{
@@ -119,7 +126,7 @@ test_dot_quaver = {
  * Playback
  */
 
-play = () => {
+const play = () => {
 	// Select a timbre that sounds like a piano.
 	inst = new Instrument({ wave: 'piano', detune: 0 });
 
@@ -136,14 +143,15 @@ play = () => {
 	});
 }
 
-rerender = () => {
+const rerender = () => {
 	setup(() => {
-		ctx.clearRect(0, 0, canvas.width, canvas.height)
 		interpret(data)
 		score(data)
 	})
 	// exportLilypond()
 }
+
+let data;
 
 function processData(payload) {
 	data = decodeNwcArrayBuffer(payload);

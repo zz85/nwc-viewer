@@ -1,11 +1,10 @@
+import Fraction from './fraction.js';
+
 /**********************
  *
  *   Constants
  *
  **********************/
-
-var NODE = typeof module !== 'undefined';
-var BROWSER = typeof window !== 'undefined';
 
 var TOKENS = {
 	0: Clef, // + 6
@@ -73,8 +72,6 @@ var ACCIDENTALS = {
 	4: 'v', // double flat bb
 	5: '', //'auto'
 };
-
-var NOTE_NAMES = 'C D E F G A B'.split(' ');
 
 /*
 var CLEF_OCTAVE = ('', '^8', '_8', '')
@@ -502,7 +499,7 @@ function Margins(reader) {
 
 	reader.set('measureStart', reader.readByte());
 	reader.skip(1); // likely 0
-	margins = reader.readString();
+	let margins = reader.readString();
 	margins = margins.split(' ').map(function(x) {
 		return +x;
 	});
@@ -1210,8 +1207,15 @@ DataReader.prototype.dump = function(limit) {
 	dump(this.array, this.pos, limit);
 };
 
+// Exports
+
 if (NODE) {
 	Object.assign(module.exports, {
 		decodeNwcArrayBuffer
 	});
+}
+else {
+	Object.assign(window, {
+		decodeNwcArrayBuffer
+	})
 }

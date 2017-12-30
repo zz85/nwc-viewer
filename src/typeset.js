@@ -1,3 +1,5 @@
+import { FONT_SIZE } from './constants.js'
+
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
 // also make weak attempt to lay them out
@@ -9,6 +11,7 @@
  * - triplets
  * - dynamics
  */
+const X_STRETCH = 0.5;
 
 class StaveCursor {
 	constructor(stave, staveIndex) {
@@ -52,8 +55,6 @@ class StaveCursor {
 		return ++this.tokenIndex;
 	}
 }
-
-const X_STRETCH = 0.5;
 
 class TickTracker {
 	constructor() {
@@ -99,10 +100,14 @@ class TickTracker {
 	}
 }
 
-tickTracker = new TickTracker();
-absCounter = 0
+const tickTracker = new TickTracker();
+let absCounter = 0
+let drawing // placeholder for drawing system
+let info // running debug info
 
 function score(data) {
+	var ctx = window.ctx;
+	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	drawing = new Drawing(ctx)
 
 	const staves = data.score.staves;
@@ -188,11 +193,8 @@ function getStaffY(staffIndex) {
 
 function drawStave(cursor, staveIndex) {
 	const staveStart = 40;
-	s = new Stave(cursor.staveX + staveStart)
+	const s = new Stave(cursor.staveX + staveStart)
 	s.moveTo(staveStart, getStaffY(staveIndex))
-
-	// s = new Stave(2000)
-	// cursor.posGlyph(s)
 	drawing.add(s)
 
 	console.log('staveIndex', staveIndex, cursor.tokens)
@@ -201,10 +203,11 @@ function drawStave(cursor, staveIndex) {
 function handleToken(token, tokenIndex, staveIndex, cursor) {
 	// info = tokenIndex
 	// info = absCounter++ + ' : ' + tokenIndex
-	info = ''
-	staveY = getStaffY(staveIndex)
+	let info = ''
+	const staveY = getStaffY(staveIndex)
 
 	const type = token.type;
+	let t, s;
 
 	// console.log('handleToken', token)
 	tickTracker.alignWithMax(token, cursor);
@@ -222,6 +225,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 		case 'Clef':
 			// TODO handle octave down
 			// console.log('clef', token);
+			let clef;
 			switch (token.clef) {
 				case 'treble':
 					clef = new Claire.TrebleClef()
@@ -421,6 +425,8 @@ function drawForNote(token, cursor, durToken) {
 	else if (requireStem && stemUp) {
 		cursor.incStaveX(noteHeadWidth);
 
+		let flag;
+
 		// stem up
 		const stem = new Stem(relativePos)
 		cursor.posGlyph(stem)
@@ -460,3 +466,6 @@ function calculatePadding(durValue) {
 
 	return spaceMultiplier;
 }
+
+
+export { score }

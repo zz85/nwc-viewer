@@ -5,7 +5,7 @@
  *
  **********************/
 
-exportLilypond = () => {
+function exportLilypond() {
 	/* Exports absolute pitches for now */
 	var ly = '';
 
@@ -56,7 +56,7 @@ exportLilypond = () => {
 	return ly
 }
 
-exportAbc = () => {
+function exportAbc() {
 	// ABC references
 	// http://trillian.mit.edu/~jc/music/abc/doc/ABCprimer.html
 	// http://abcnotation.com/wiki/abc:standard:v2.1#rests
@@ -150,4 +150,9 @@ exportAbc = () => {
 	console.log('abc', abc);
 
 	return abc;
+}
+
+export {
+	exportLilypond,
+	exportAbc
 }

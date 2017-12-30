@@ -1,10 +1,4 @@
-// TODO remove HARDCODING
-const FONT_SIZE = 36;
-
-(() => {
-
-
-fontMap = {
+const fontMap = {
 	// barlines
 
 	// clefs
@@ -94,7 +88,7 @@ fontMap = {
 
 }
 
-getCode = (name) => String.fromCharCode
+const getCode = (name) => String.fromCharCode
 (
 	parseInt(fontMap[name], 16)
 )
@@ -114,24 +108,31 @@ function insertFont(path) {
 
 	document.head.appendChild(fontStyle);
 
-	div = document.createElement('div')
+	var div = document.createElement('div')
 	div.style = 'font-family: Bravura; display: none;'
 	div.innerText=  '123'
 	document.body.appendChild(div)
 }
 
 function setupCanvas() {
+	var canvas = document.createElement('canvas');
+	document.body.appendChild(canvas)
+	var ctx = canvas.getContext('2d')
+	
+	window.ctx = ctx;
+	window.canvas = canvas;
+
+	resize();
+}
+
+function resize() {
 	var dpr = window.devicePixelRatio;
 
-	canvas = document.createElement('canvas');
 	canvas.style = 'font-family: Bravura'
 	canvas.width = 4000 * dpr
 	canvas.height = 1600 * dpr
 	canvas.style.width = 4000
 	canvas.style.height = 1600
-
-	document.body.appendChild(canvas)
-	ctx = canvas.getContext('2d')
 	
 	ctx.scale(dpr, dpr);
 }
@@ -148,7 +149,7 @@ function onReady(callback, path) {
 
 // TODO depreciate this!
 /* Hack for inserting OTF */
-function oldSetup(render, insertFont, path) {
+function oldSetup(render, path) {
 	if (notableLoaded) return render();
 
 	path = path || 'vendor/bravura-1.211/'
@@ -168,11 +169,11 @@ function newSetup(render, path) {
 	loadFont(render, path)
 }
 
-const setup = newSetup;
+const setup = newSetup || oldSetup;
 var notableLoaded = false;
 
 function loadFont(cb, path) {
-	opentype.load(`${path}otf/Bravura.otf`, (err, font) => {
+	window.opentype.load(`${path}otf/Bravura.otf`, (err, font) => {
 		if (err) return console.log('Error, font cannot be loaded', err);
 
 		notableLoaded = true;
@@ -221,7 +222,7 @@ class Stave extends Draw {
 	}
 
 	draw(ctx) {
-		const {x, y, width, size} = this
+		const {width, size} = this
 
 		ctx.strokeStyle = '#000'
 		ctx.lineWidth = 1.3
@@ -267,9 +268,9 @@ class Glyph extends Draw {
 		this.fontSize = FONT_SIZE; // * (0.8 + Math.random() * 0.4);
 		// TODO remove ctx hardcoding
 		if (window.smuflFont) {
-			this.width = smuflFont.getAdvanceWidth(this.char, this.fontSize);
+			this.width = window.smuflFont.getAdvanceWidth(this.char, this.fontSize);
 		} else {
-			this.width = ctx.measureText(this.char).width
+			this.width = window.ctx.measureText(this.char).width
 		}
 		
 		// this.padLeft = this.width;
@@ -280,7 +281,7 @@ class Glyph extends Draw {
 		ctx.fillStyle = '#000'
 
 		if (window.smuflFont) {
-			smuflFont.draw(ctx, this.char, 0, 0, this.fontSize)
+			window.smuflFont.draw(ctx, this.char, 0, 0, this.fontSize)
 		}
 		else {
 			// Only if OTF font is embeded
@@ -477,7 +478,7 @@ class Dot extends Glyph {
 class Text extends Glyph {
 	constructor(text, position, opts) {
 		super();
-		if (!text) { console.log('NO TEXT', text); debugger }
+		if (!text) { console.log('NO TEXT', text);  }
 		this.text = text || '';
 		this.positionY(-position || 0);
 
@@ -542,13 +543,13 @@ class Drawing {
 
 // TODO find namespace
 
-Claire = {
+const Claire = {
 	Drawing,
 	Draw,
 	Stave, Glyph,
 	TrebleClef, BassClef, AltoClef, TimeSignature,
 	KeySignature,
-	Accidental,
+	Accidental, Sharp, Flat, Natural, DoubleSharp,
 	Stem,
 	Barline,
 	Dot,
@@ -558,5 +559,3 @@ Claire = {
 }
 
 Object.assign(window, { Drawing, setup, Stave, Claire }, Claire)
-
-})()

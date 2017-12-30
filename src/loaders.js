@@ -60,3 +60,7 @@ function setupDragAndDrop(element) {
 }
 
 setupDragAndDrop(document.body);
+
+export {
+	ajax
+}

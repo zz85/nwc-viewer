@@ -12,7 +12,7 @@ class Fraction {
 	 */
 	static GCD(a, b) {
 		if (typeof a !== 'number' || typeof b !== 'number') {
-			throw new Vex.RERR('BadArgument', `Invalid numbers: ${a}, ${b}`);
+			throw new Error('BadArgument', `Invalid numbers: ${a}, ${b}`);
 		}
 
 		let t;
@@ -292,4 +292,6 @@ Fraction.__compareB = new Fraction();
 Fraction.__tmp = new Fraction();
 
 if (NODE)
-module.exports = Fraction
+	module.exports = Fraction
+
+export default Fraction;
