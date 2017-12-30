@@ -90,24 +90,38 @@ const fontMap = {
 const getCode = name => String.fromCharCode(parseInt(fontMap[name], 16))
 
 function setupCanvas() {
+	var score = document.getElementById('score')
+
 	var canvas = document.createElement('canvas')
-	document.body.appendChild(canvas)
+	score.appendChild(canvas)
+
 	var ctx = canvas.getContext('2d')
 
 	window.ctx = ctx
 	window.canvas = canvas
 
-	resize()
+	resizeByBounds()
 }
 
-function resize() {
+function resizeByBounds() {
+	var score = document.getElementById('score')
+	const bb = score.getBoundingClientRect()
+
+	// TODO take min of canvas size vs bb heigh
+	resize(bb.width, bb.height)
+}
+
+function resize(width, height) {
 	var dpr = window.devicePixelRatio
 
+	width = width || 800
+	height = height || 800
+
 	canvas.style = 'font-family: Bravura'
-	canvas.width = 4000 * dpr
-	canvas.height = 1600 * dpr
-	canvas.style.width = 4000
-	canvas.style.height = 1600
+	canvas.width = width * dpr
+	canvas.height = height * dpr
+	canvas.style.width = width
+	canvas.style.height = height
 
 	ctx.scale(dpr, dpr)
 }
@@ -522,4 +536,8 @@ const Claire = {
 	Line,
 }
 
-Object.assign(window, { Drawing, setup, Stave, Claire }, Claire)
+Object.assign(
+	window,
+	{ Drawing, setup, Stave, Claire, resize, resizeByBounds },
+	Claire
+)

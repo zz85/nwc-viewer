@@ -20,25 +20,43 @@
 		}
 
 		#score {
+			overflow: auto;
+			flex: 1 0;
+			padding: 10px;
+		}
 
+		#container {
+			display: flex;
+			flex-direction: column;
+			width: 100%;
+			height: 100%;
 		}
 	</style>
-	<h3>Notably<span style="font-size: 12px">- A simple, lightweight music viewer for nwc (noteworthy composer) files</span></h3>
+	<div id="container">
+		<div id="top">
+			<h3>Notably<span style="font-size: 12px">- A simple, lightweight music viewer for nwc (noteworthy composer) files</span></h3>
 
-	<button onclick="opener.click()">Open</button>
-	<input type="file" id="opener" hidden/>
-	<button onclick="play()">Play</button>
-	<i style="font-size: 12px">
-	Source Code: <a href="https://github.com/zz85/nwc-viewer">github.com/zz85/nwc-viewer</a>
-	</i>
+			<button onclick="opener.click()">Open</button>
+			<input type="file" id="opener" hidden/>
+			<button onclick="play()">Play</button>
+			<i style="font-size: 12px">
+			Source Code: <a href="https://github.com/zz85/nwc-viewer">github.com/zz85/nwc-viewer</a>
+			</i>
+		</div>
+
+		<div id="score"></div>
+
+		<div id="footer">
+			&nbsp;
+		</div>
+	</div>
+
 
 	<!-- vendor dependencies -->
 	<script src="vendor/inflate.min.js"></script>
 	<script src="vendor/musical.js"></script>
 	<script src="vendor/opentype.min.js"></script>
-
-	<div id="score"></div>
-
+	
 	<!-- sources -->
 	<!--
 	<script src="src/loaders.js"></script>

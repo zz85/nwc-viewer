@@ -12,6 +12,10 @@ import { score } from './typeset.js'
  *
  **********************/
 
+window.addEventListener('resize', () => {
+	resizeByBounds()
+})
+
 // For testing purposes
 setTimeout(() => {
 	// data = blank
@@ -331,3 +335,5 @@ function processData(payload) {
 	// console.log(JSON.stringify(data.score.staves[1].tokens.slice(0, 20), 0, 0));
 	rerender()
 }
+
+window.rerender = rerender
