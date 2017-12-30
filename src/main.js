@@ -1,10 +1,10 @@
 import './constants.js'
-import { ajax } from './loaders.js';
-import './nwc.js';
-import './interpreter.js';
-import './drawing.js';
-import './exporter.js';
-import { score } from './typeset.js';
+import { ajax } from './loaders.js'
+import './nwc.js'
+import './interpreter.js'
+import './drawing.js'
+import './exporter.js'
+import { score } from './typeset.js'
 
 /**********************
  *
@@ -12,14 +12,13 @@ import { score } from './typeset.js';
  *
  **********************/
 
- // For testing purposes
+// For testing purposes
 setTimeout(() => {
 	// data = blank
 	// data = test_data;
 	// data = test_dot_quaver;
-
 	// rerender();
-});
+})
 
 // v1.7 nwc
 // ajax('samples/anongs.nwc', processData);
@@ -33,15 +32,13 @@ setTimeout(() => {
 
 // v2.02?
 // ajax('samples/AChildThisDayIsBorn.nwc', processData);
-ajax('samples/WhatChildIsThis.nwc', processData);
+ajax('samples/WhatChildIsThis.nwc', processData)
 // ajax('samples/WakenChristianChildren.nwc', processData);
 // ajax('samples/NoelNoel.nwc', processData);
-
 
 // Doesn't wokrk yet
 
 // ajax('samples/OhWhoAreTheySoPure.nwc', processData); // EcceConcipies IShouldLikeToHaveHeard GodRestYouMerry MountainsBowYourHeadsMajestic LetMusicBreakOnThisBlestMorn RingChristmasBells OhWhoAreTheySoPure
-
 
 // ajax('samples/ComeLetUsAllSweetCarolSingNwc2.nwc', processData);
 // ajax('samples/AShepherdBandTheirFlocksAreKeeping.nwc', processData);
@@ -59,40 +56,160 @@ ajax('samples/WhatChildIsThis.nwc', processData);
 const test_data = {
 	score: {
 		staves: [
-			{ tokens: [
-				{"type":"Clef","clef":"treble","octave":0},
-				{"type":"KeySignature","signature":"Bb"},
-				{"type":"TimeSignature","signature":"AllaBreve"},
-				{"type":"Rest","position":0,"duration":4,"dots":0},
-				{"type":"Note","Dur":"4th","Pos":"-1","position":-1,"duration":4,"dots":0},
-				{"type":"Note","Dur":"4th","Pos":"-2","position":-2,"duration":4,"dots":0},
-				{"type":"Note","Dur":"4th","Pos":"-1","position":-1,"duration":4,"dots":0},
-				{"type":"Barline"},
-				{"type":"Note","Dur":"4th","Pos":"-3","Opts":"Slur=Downward","position":-3,"duration":4,"dots":0},
-				{"type":"Note","Dur":"4th","Pos":"-2","Opts":"Slur=Downward,Lyric=Never","position":-2,"duration":4,"dots":0},
-				{"type":"Note","Dur":"Half","Pos":"-1","position":-1,"duration":2,"dots":0},
-				{"type":"Barline"},
-				{"type":"Note","Dur":"4th","Pos":"-1","position":-1,"duration":4,"dots":0},
-			] },
-			{ tokens: [
-				{"type":"Clef","clef":"bass","octave":0},
-				{"type":"KeySignature","signature":"Bb"},
-				{"type":"TimeSignature","signature":"AllaBreve"},
-				{"type":"Note","Dur":"4th","Pos":"-3","position":-3,"duration":4,"dots":0},
-				{"type":"Rest","position":0,"duration":4,"dots":0},
-				{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
-				{"type":"Note","Dur":"4th","Pos":"-6","position":-6,"duration":4,"dots":0},
-				{"type":"Barline"},
-				{"type":"Note","Dur":"Half","Pos":"-3","position":-3,"duration":2,"dots":0},
-				{"type":"Note","Dur":"4th","Pos":"-5","Opts":"Slur=Downward","position":-5,"duration":4,"dots":0},
-				{"type":"Note","Dur":"4th","Pos":"-4","Opts":"Lyric=Never","position":-4,"duration":4,"dots":0},
-				{"type":"Barline"},
-				{"type":"Note","Dur":"4th","Pos":"-3","position":-3,"duration":4,"dots":0},
-				{"type":"Note","Dur":"4th","Pos":"-3","position":-3,"duration":4,"dots":0},
-				{"type":"Note","Dur":"Half","Pos":"-3","position":-3,"duration":2,"dots":0},
-			] },
-		]
-	}
+			{
+				tokens: [
+					{ type: 'Clef', clef: 'treble', octave: 0 },
+					{ type: 'KeySignature', signature: 'Bb' },
+					{ type: 'TimeSignature', signature: 'AllaBreve' },
+					{ type: 'Rest', position: 0, duration: 4, dots: 0 },
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-1',
+						position: -1,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-2',
+						position: -2,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-1',
+						position: -1,
+						duration: 4,
+						dots: 0,
+					},
+					{ type: 'Barline' },
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-3',
+						Opts: 'Slur=Downward',
+						position: -3,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-2',
+						Opts: 'Slur=Downward,Lyric=Never',
+						position: -2,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: 'Half',
+						Pos: '-1',
+						position: -1,
+						duration: 2,
+						dots: 0,
+					},
+					{ type: 'Barline' },
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-1',
+						position: -1,
+						duration: 4,
+						dots: 0,
+					},
+				],
+			},
+			{
+				tokens: [
+					{ type: 'Clef', clef: 'bass', octave: 0 },
+					{ type: 'KeySignature', signature: 'Bb' },
+					{ type: 'TimeSignature', signature: 'AllaBreve' },
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-3',
+						position: -3,
+						duration: 4,
+						dots: 0,
+					},
+					{ type: 'Rest', position: 0, duration: 4, dots: 0 },
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-4',
+						position: -4,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-6',
+						position: -6,
+						duration: 4,
+						dots: 0,
+					},
+					{ type: 'Barline' },
+					{
+						type: 'Note',
+						Dur: 'Half',
+						Pos: '-3',
+						position: -3,
+						duration: 2,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-5',
+						Opts: 'Slur=Downward',
+						position: -5,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-4',
+						Opts: 'Lyric=Never',
+						position: -4,
+						duration: 4,
+						dots: 0,
+					},
+					{ type: 'Barline' },
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-3',
+						position: -3,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-3',
+						position: -3,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: 'Half',
+						Pos: '-3',
+						position: -3,
+						duration: 2,
+						dots: 0,
+					},
+				],
+			},
+		],
+	},
 }
 
 const test_dot_quaver = {
@@ -100,26 +217,82 @@ const test_dot_quaver = {
 		staves: [
 			{
 				tokens: [
-					{"type":"Barline"},
-					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
-					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
-					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
-					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
-					{"type":"Barline"},
-				]
+					{ type: 'Barline' },
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-4',
+						position: -4,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-4',
+						position: -4,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-4',
+						position: -4,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-4',
+						position: -4,
+						duration: 4,
+						dots: 0,
+					},
+					{ type: 'Barline' },
+				],
 			},
 			{
 				tokens: [
-					{"type":"Barline"},
-					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":1},
-					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":8,"dots":0},
-					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
-					{"type":"Note","Dur":"4th","Pos":"-4","position":-4,"duration":4,"dots":0},
-					{"type":"Barline"},
-				]
+					{ type: 'Barline' },
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-4',
+						position: -4,
+						duration: 4,
+						dots: 1,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-4',
+						position: -4,
+						duration: 8,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-4',
+						position: -4,
+						duration: 4,
+						dots: 0,
+					},
+					{
+						type: 'Note',
+						Dur: '4th',
+						Pos: '-4',
+						position: -4,
+						duration: 4,
+						dots: 0,
+					},
+					{ type: 'Barline' },
+				],
 			},
-		]
-	}
+		],
+	},
 }
 
 /**
@@ -128,7 +301,7 @@ const test_dot_quaver = {
 
 const play = () => {
 	// Select a timbre that sounds like a piano.
-	inst = new Instrument({ wave: 'piano', detune: 0 });
+	inst = new Instrument({ wave: 'piano', detune: 0 })
 
 	// inst.on('noteon', e => console.log('noteon', e))
 	// inst.on('noteoff', e => console.log('noteoff', e))
@@ -139,8 +312,8 @@ const play = () => {
 
 	// Play a song from a string in ABC notation.
 	inst.play(song, () => {
-		console.log('(Done playing.)');
-	});
+		console.log('(Done playing.)')
+	})
 }
 
 const rerender = () => {
@@ -151,10 +324,10 @@ const rerender = () => {
 	// exportLilypond()
 }
 
-let data;
+let data
 
 function processData(payload) {
-	data = decodeNwcArrayBuffer(payload);
+	data = decodeNwcArrayBuffer(payload)
 	// console.log(JSON.stringify(data.score.staves[1].tokens.slice(0, 20), 0, 0));
-	rerender();
+	rerender()
 }

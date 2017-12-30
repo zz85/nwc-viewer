@@ -11,27 +11,24 @@ selectedStave = {
 		// {"type":"TimeSignature","group":6, beat: 8},
 
 		{ type: 'Clef', clef: 'treble' },
-		{"type":"Note","position":0,"duration":4, accidental: 'n'},
+		{ type: 'Note', position: 0, duration: 4, accidental: 'n' },
 		{ type: 'Clef', clef: 'bass' },
-		{"type":"Note","position":0,"duration":4, accidental: 'b'},
+		{ type: 'Note', position: 0, duration: 4, accidental: 'b' },
 		{ type: 'Clef', clef: 'alto' },
-		{"type":"Note","position":0,"duration":4, accidental: '#'},
+		{ type: 'Note', position: 0, duration: 4, accidental: '#' },
 		// { type: 'Clef', clef: 'tenor' },
 		// {"type":"Note","position":0,"duration":4},
-
-	]
+	],
 }
 
-selectedIndex = 0;
+selectedIndex = 0
 selectedY = 0
 selectedDuration = 4
 
 blank = {
 	score: {
-		staves: [
-			selectedStave
-		]
-	}
+		staves: [selectedStave],
+	},
 }
 
 load = () => {
@@ -46,11 +43,11 @@ save = () => {
 
 lastToken = () => {
 	// TODO search last note
-	tokens = selectedStave.tokens;
+	tokens = selectedStave.tokens
 	return tokens[tokens.length - 1]
 }
 
-appendToken = (token) => {
+appendToken = token => {
 	selectedStave.tokens.push(token)
 }
 
@@ -60,28 +57,28 @@ appendToken = (token) => {
  *
  **********************/
 
-window.addEventListener('keydown', (e) => {
-	console.log('keypressed', e);
-	const key = e.key; // code
+window.addEventListener('keydown', e => {
+	console.log('keypressed', e)
+	const key = e.key // code
 	if (key === 'Tab') {
 		appendToken({ type: 'Barline' })
 	}
 	if (key === 'ArrowUp') {
 		// selectedY++;
 		// console.log('selectedY', selectedY)
-		lastToken().position ++;
+		lastToken().position++
 	}
 	if (key === 'ArrowDown') {
 		// selectedY--;
 		// console.log('selectedY', selectedY)
-		lastToken().position --;
+		lastToken().position--
 	}
 
 	if (key === 'ArrowLeft') {
-		lastToken().duration *= 2;
+		lastToken().duration *= 2
 	}
 	if (key === 'ArrowRight') {
-		lastToken().duration /= 2;
+		lastToken().duration /= 2
 	}
 
 	if (key === '#') {
@@ -97,24 +94,22 @@ window.addEventListener('keydown', (e) => {
 	}
 
 	if (key === '.') {
-		lastToken().dots++;
+		lastToken().dots++
 	}
 
 	if (key === 'Enter') {
-		appendToken(
-			{
-				type: "Note",
-				position: 0,
-				duration: 4,
-				dots: 0
-			}
-		)
+		appendToken({
+			type: 'Note',
+			position: 0,
+			duration: 4,
+			dots: 0,
+		})
 	}
 
 	if (key === 'Backspace') {
 		selectedStave.tokens.splice(selectedStave.tokens.length - 1, 1)
 	}
 
-	rerender();
-	e.preventDefault();
+	rerender()
+	e.preventDefault()
 })

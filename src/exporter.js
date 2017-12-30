@@ -1,4 +1,3 @@
-
 /**********************
  *
  *   Exporters
@@ -7,29 +6,34 @@
 
 function exportLilypond() {
 	/* Exports absolute pitches for now */
-	var ly = '';
+	var ly = ''
 
 	interpret(data)
 
-	const lily_accidentals = {b: 'es', '#': 'is', n: '', x: 'isis', v: 'eses'}
+	const lily_accidentals = { b: 'es', '#': 'is', n: '', x: 'isis', v: 'eses' }
 
 	selectedStave.tokens.forEach(token => {
 		if (token.type === 'Note') {
 			ly += token.name.toLowerCase()
-			var octave = token.octave - 2;
+			var octave = token.octave - 2
 			if (token.accidentalValue) {
 				ly += lily_accidentals[token.accidentalValue]
 			}
 
 			if (octave < 0) {
-				ly += Array(Math.abs(octave)).fill(',').join('')
-			}
-			else {
-				ly += Array(octave).fill('\'').join('')
+				ly += Array(Math.abs(octave))
+					.fill(',')
+					.join('')
+			} else {
+				ly += Array(octave)
+					.fill("'")
+					.join('')
 			}
 
 			ly += token.duration
-			ly += Array(token.dots).fill('.').join('')
+			ly += Array(token.dots)
+				.fill('.')
+				.join('')
 			ly += ' '
 		}
 
@@ -38,21 +42,21 @@ function exportLilypond() {
 		}
 
 		if (token.type === 'KeySignature') {
-			console.log(token);
+			console.log(token)
 			// ly += `\\key ${token.signature}`
 		}
 
 		if (token.type === 'TimeSignature') {
-			console.log(token);
+			console.log(token)
 			ly += `\\key ${token.group}/${token.beat} `
 		}
 
 		if (token.type === 'Clef') {
 			ly += `\\clef ${token.clef} `
 		}
-	});
+	})
 
-	console.log(ly);
+	console.log(ly)
 	return ly
 }
 
@@ -61,15 +65,15 @@ function exportAbc() {
 	// http://trillian.mit.edu/~jc/music/abc/doc/ABCprimer.html
 	// http://abcnotation.com/wiki/abc:standard:v2.1#rests
 
-	var abc = [];
+	var abc = []
 	interpret(data)
 
-	abc.push('X: 1'); // reference number
+	abc.push('X: 1') // reference number
 
-	var { title, author } = data.info || {};
-	if (title) abc.push(`T: ${title}`); // title
-	if (title) abc.push(`C: ${author}`); // composer
-	abc.push(`N: Generated from Notably`); // notes
+	var { title, author } = data.info || {}
+	if (title) abc.push(`T: ${title}`) // title
+	if (title) abc.push(`C: ${author}`) // composer
+	abc.push(`N: Generated from Notably`) // notes
 
 	//
 
@@ -77,32 +81,31 @@ function exportAbc() {
 		.filter(token => token.type === 'TimeSignature')
 		.some(token => {
 			abc.push(`M:${token.group}/${token.beat}`) // Meter
-			return true;
+			return true
 		})
 
 	// hardcode tempo first
-	abc.push('Q:1/4=100');
+	abc.push('Q:1/4=100')
 
 	data.score.staves[0].tokens
 		.filter(token => token.type === 'Tempo')
 		.some(token => {
-
 			// abc.push(`Q:1/${token.note}=${token.duration}`) // Tempo
 			abc.push(`Q:1/4=${token.duration}`) // Tempo
 
-			return true;
+			return true
 		})
 
-	abc.push('L: 1'); // default note length
+	abc.push('L: 1') // default note length
 	// N: // comments
 	// K: Key
 
-	const abc_accidentals = {b: '_', '#': '^', n: '='}
+	const abc_accidentals = { b: '_', '#': '^', n: '=' }
 
 	data.score.staves.forEach((stave, v) => {
-		var tmp = '';
+		var tmp = ''
 
-		tmp += `\n[V:${v}]\n`;
+		tmp += `\n[V:${v}]\n`
 		stave.tokens.forEach(token => {
 			if (token.type === 'Note') {
 				if (token.accidentalValue) {
@@ -110,18 +113,21 @@ function exportAbc() {
 				}
 
 				tmp += token.name.toLowerCase()
-				var octave = token.octave - 4;
+				var octave = token.octave - 4
 
 				if (octave < 0) {
-					tmp += Array(Math.abs(octave)).fill(',').join('')
-				}
-				else {
-					tmp += Array(octave).fill('\'').join('')
+					tmp += Array(Math.abs(octave))
+						.fill(',')
+						.join('')
+				} else {
+					tmp += Array(octave)
+						.fill("'")
+						.join('')
 				}
 
 				// tmp += '1/' + token.duration
 				// tmp += Array(token.dots).fill('.').join('')
-				tmp += token.durValue.toString();
+				tmp += token.durValue.toString()
 				tmp += ' '
 			}
 
@@ -130,7 +136,7 @@ function exportAbc() {
 			}
 
 			if (token.type === 'Rest') {
-				tmp += `z${token.durValue.toString()} `;
+				tmp += `z${token.durValue.toString()} `
 			}
 
 			// if (token.type === 'KeySignature') {
@@ -139,20 +145,17 @@ function exportAbc() {
 			// }
 
 			if (token.type === 'TimeSignature') {
-				tmp +=`M:${token.group}/${token.beat}\n` // Meter
+				tmp += `M:${token.group}/${token.beat}\n` // Meter
 			}
-		});
+		})
 
-		abc.push(tmp);
-	});
+		abc.push(tmp)
+	})
 
-	abc = abc.join('\n');
-	console.log('abc', abc);
+	abc = abc.join('\n')
+	console.log('abc', abc)
 
-	return abc;
+	return abc
 }
 
-export {
-	exportLilypond,
-	exportAbc
-}
+export { exportLilypond, exportAbc }

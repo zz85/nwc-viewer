@@ -85,17 +85,14 @@ const fontMap = {
 	dynamicSforzando: 'E524',
 
 	// Common ornaments (U+E560–U+E56F)
-
 }
 
-const getCode = (name) => String.fromCharCode
-(
-	parseInt(fontMap[name], 16)
-)
+const getCode = name => String.fromCharCode(parseInt(fontMap[name], 16))
 
 function insertFont(path) {
-	var fontStyle = document.createElement('style');
-	fontStyle.appendChild(document.createTextNode(`
+	var fontStyle = document.createElement('style')
+	fontStyle.appendChild(
+		document.createTextNode(`
 	@font-face {
 			font-family: "Bravura";
 
@@ -104,53 +101,54 @@ function insertFont(path) {
 				url("${path}woff/Bravura.woff2") format("woff2"),
 				url("${path}woff/Bravura.woff") format("woff");
 		}
-	`));
+	`)
+	)
 
-	document.head.appendChild(fontStyle);
+	document.head.appendChild(fontStyle)
 
 	var div = document.createElement('div')
 	div.style = 'font-family: Bravura; display: none;'
-	div.innerText=  '123'
+	div.innerText = '123'
 	document.body.appendChild(div)
 }
 
 function setupCanvas() {
-	var canvas = document.createElement('canvas');
+	var canvas = document.createElement('canvas')
 	document.body.appendChild(canvas)
 	var ctx = canvas.getContext('2d')
-	
-	window.ctx = ctx;
-	window.canvas = canvas;
 
-	resize();
+	window.ctx = ctx
+	window.canvas = canvas
+
+	resize()
 }
 
 function resize() {
-	var dpr = window.devicePixelRatio;
+	var dpr = window.devicePixelRatio
 
 	canvas.style = 'font-family: Bravura'
 	canvas.width = 4000 * dpr
 	canvas.height = 1600 * dpr
 	canvas.style.width = 4000
 	canvas.style.height = 1600
-	
-	ctx.scale(dpr, dpr);
+
+	ctx.scale(dpr, dpr)
 }
 
 function onReady(callback, path) {
 	// Trick from https://stackoverflow.com/questions/2635814/
-	var image = new Image;
-	image.src = `${path}otf/Bravura.otf`;
+	var image = new Image()
+	image.src = `${path}otf/Bravura.otf`
 	image.onerror = function() {
-		notableLoaded = true;
+		notableLoaded = true
 		setTimeout(callback, 500)
-	};
+	}
 }
 
 // TODO depreciate this!
 /* Hack for inserting OTF */
 function oldSetup(render, path) {
-	if (notableLoaded) return render();
+	if (notableLoaded) return render()
 
 	path = path || 'vendor/bravura-1.211/'
 
@@ -161,7 +159,7 @@ function oldSetup(render, path) {
 
 /* opentype.js loading */
 function newSetup(render, path) {
-	if (notableLoaded) return render();
+	if (notableLoaded) return render()
 
 	path = path || 'vendor/bravura-1.211/'
 
@@ -169,16 +167,16 @@ function newSetup(render, path) {
 	loadFont(render, path)
 }
 
-const setup = newSetup || oldSetup;
-var notableLoaded = false;
+const setup = newSetup || oldSetup
+var notableLoaded = false
 
 function loadFont(cb, path) {
 	window.opentype.load(`${path}otf/Bravura.otf`, (err, font) => {
-		if (err) return console.log('Error, font cannot be loaded', err);
+		if (err) return console.log('Error, font cannot be loaded', err)
 
-		notableLoaded = true;
-		window.smuflFont = font;
-		cb && cb();
+		notableLoaded = true
+		window.smuflFont = font
+		cb && cb()
 	})
 }
 
@@ -187,8 +185,7 @@ class Draw {
 		console.log('implement me .draw()')
 	}
 
-	outline() {
-	}
+	outline() {}
 
 	debug(ctx) {
 		ctx.fillRect(0, 0, 10, 10)
@@ -199,8 +196,8 @@ class Draw {
 	}
 
 	moveTo(x, y) {
-		this.x = x;
-		this.y = y;
+		this.x = x
+		this.y = y
 	}
 
 	positionY(semitones) {
@@ -215,25 +212,25 @@ class Draw {
 class Stave extends Draw {
 	constructor(width) {
 		super()
-		this.size = FONT_SIZE  // TODO global
+		this.size = FONT_SIZE // TODO global
 		this.x = 0
 		this.y = 0
 		this.width = width || 100
 	}
 
 	draw(ctx) {
-		const {width, size} = this
+		const { width, size } = this
 
 		ctx.strokeStyle = '#000'
 		ctx.lineWidth = 1.3
 
 		// 5 lines
-		const spaces = 4; // TODO global
+		const spaces = 4 // TODO global
 		for (let i = 0; i <= spaces; i++) {
 			const ty = -i / spaces * size
 			ctx.beginPath()
 			ctx.moveTo(0, ty)
-			ctx.lineTo(width, ty);
+			ctx.lineTo(width, ty)
 			ctx.stroke()
 		}
 
@@ -243,19 +240,19 @@ class Stave extends Draw {
 
 class Line extends Draw {
 	constructor(x0, y0, x1, y1) {
-		super();
-		this.x = x0;
-		this.y = y0;
-		this.x1 = x1;
-		this.y1 = y1;
+		super()
+		this.x = x0
+		this.y = y0
+		this.x1 = x1
+		this.y1 = y1
 	}
 
 	draw(ctx) {
-		ctx.beginPath();
-		ctx.lineWidth = 1.4;
-		ctx.moveTo(this.x, this.y);
-		ctx.lineTo(this.x1, this.y1);
-		ctx.stroke();
+		ctx.beginPath()
+		ctx.lineWidth = 1.4
+		ctx.moveTo(this.x, this.y)
+		ctx.lineTo(this.x1, this.y1)
+		ctx.stroke()
 	}
 }
 
@@ -265,14 +262,14 @@ class Glyph extends Draw {
 
 		this.name = char
 		this.char = getCode(char)
-		this.fontSize = FONT_SIZE; // * (0.8 + Math.random() * 0.4);
+		this.fontSize = FONT_SIZE // * (0.8 + Math.random() * 0.4);
 		// TODO remove ctx hardcoding
 		if (window.smuflFont) {
-			this.width = window.smuflFont.getAdvanceWidth(this.char, this.fontSize);
+			this.width = window.smuflFont.getAdvanceWidth(this.char, this.fontSize)
 		} else {
 			this.width = window.ctx.measureText(this.char).width
 		}
-		
+
 		// this.padLeft = this.width;
 		if (adjustY) this.positionY(adjustY)
 	}
@@ -282,8 +279,7 @@ class Glyph extends Draw {
 
 		if (window.smuflFont) {
 			window.smuflFont.draw(ctx, this.char, 0, 0, this.fontSize)
-		}
-		else {
+		} else {
 			// Only if OTF font is embeded
 			ctx.fillText(this.char, 0, 0)
 		}
@@ -320,33 +316,33 @@ class AltoClef extends Clef {
  * Time signatures
  */
 class TimeSignature extends Glyph {
-	constructor(x=0, y) {
+	constructor(x = 0, y) {
 		super('timeSig' + x, y)
 	}
 }
 
 function noteToPosition(note, clefOffset) {
 	// TODO fix this!
-	let y = rotate(note, clefOffset);
-	if (y + 7 < 9) return y + 7;
-	return y;
+	let y = rotate(note, clefOffset)
+	if (y + 7 < 9) return y + 7
+	return y
 }
 
-const AG = 'abcdefg';
+const AG = 'abcdefg'
 function rotate(note, offset) {
 	const pos = (AG.indexOf(note) + 3 + (offset || 0)) % AG.length
-	return pos;
+	return pos
 }
 
 // e => 0, f => 1, g => 2, a => 3, b => 4, c => 5, d => 6
 // 1| 2 3| 4 5| 6 7| 8 9|
 
 // gClef = 'e' // line 0 = e // 0
-// fClef = 'g' // line 0 = g // 5 -2 
+// fClef = 'g' // line 0 = g // 5 -2
 // // alto 6 -1
 var clefOffsetMap = {
 	treble: 0,
-	bass: -2
+	bass: -2,
 }
 /**
  * Key Signature
@@ -356,23 +352,26 @@ class KeySignature extends Draw {
 		super()
 		// eg. ['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#'] ||
 		// ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb']
-		this.accidentals = accidentals;
+		this.accidentals = accidentals
 
 		this.sharps = this.accidentals.map((v, l) => {
-			const pos = noteToPosition(v.charAt(0).toLowerCase(), clefOffsetMap[clef] || 0)
+			const pos = noteToPosition(
+				v.charAt(0).toLowerCase(),
+				clefOffsetMap[clef] || 0
+			)
 
-			const sharp = new Accidental(v.charAt(1), pos);
-			sharp.moveTo(l * sharp.width, 0);
+			const sharp = new Accidental(v.charAt(1), pos)
+			sharp.moveTo(l * sharp.width, 0)
 			// sharp._debug = true;
-			return sharp;
-		});
+			return sharp
+		})
 
 		if (this.sharps.length)
-			this.width = this.sharps.length * this.sharps[0].width;
+			this.width = this.sharps.length * this.sharps[0].width
 	}
 
 	draw(ctx) {
-		this.sharps.forEach(s => Drawing._draw(ctx, s));
+		this.sharps.forEach(s => Drawing._draw(ctx, s))
 	}
 }
 
@@ -403,13 +402,17 @@ class DoubleSharp extends Glyph {
 class Accidental extends Glyph {
 	constructor(name, pos) {
 		super(
-		name === '#' ? 'accidentalSharp' :
-		name === 'b' ? 'accidentalFlat' :
-		name === 'n' || name === '' ? 'accidentalNatural' :
-		name === 'x' ? 'DoubleSharp' :
-		name === 'v' ? 'accidentalDoubleFlat' :
-			''
-			, pos);
+			name === '#'
+				? 'accidentalSharp'
+				: name === 'b'
+					? 'accidentalFlat'
+					: name === 'n' || name === ''
+						? 'accidentalNatural'
+						: name === 'x'
+							? 'DoubleSharp'
+							: name === 'v' ? 'accidentalDoubleFlat' : '',
+			pos
+		)
 
 		// super('accidental' + name[0].toUpperCase() + , pos)
 	}
@@ -421,12 +424,12 @@ class Ledger extends Draw {
 		const from = Math.min(start, end)
 		const to = Math.max(start, end)
 		this.positionY(from)
-		this.to = to - from;
+		this.to = to - from
 		this.width = 18
 	}
 
 	draw(ctx) {
-		for (let i = 0; i < this.to; i+=2) {
+		for (let i = 0; i < this.to; i += 2) {
 			ctx.beginPath()
 			ctx.moveTo(-4, this.unitsToY(i))
 			ctx.lineTo(this.width, this.unitsToY(i))
@@ -438,33 +441,33 @@ class Ledger extends Draw {
 // TODO generalized as vertical lines?
 class Stem extends Draw {
 	constructor(start, len) {
-		super();
+		super()
 		// this.name = 'stem';
-		this.positionY(start);
-		this.len = len || 7;
+		this.positionY(start)
+		this.len = len || 7
 	}
 
 	draw(ctx) {
 		ctx.beginPath()
 		ctx.lineWidth = 1.2
 		ctx.moveTo(0, 0)
-		ctx.lineTo(0, this.unitsToY(this.len));
-		ctx.stroke();
+		ctx.lineTo(0, this.unitsToY(this.len))
+		ctx.stroke()
 	}
 }
 
 class Barline extends Draw {
 	constructor(start, len) {
-		super();
-		this.len = len || 8;
+		super()
+		this.len = len || 8
 	}
 
 	draw(ctx) {
 		ctx.beginPath()
 		ctx.lineWidth = 1.2
 		ctx.moveTo(0, 0)
-		ctx.lineTo(0, this.unitsToY(this.len));
-		ctx.stroke();
+		ctx.lineTo(0, this.unitsToY(this.len))
+		ctx.stroke()
 	}
 }
 
@@ -477,10 +480,12 @@ class Dot extends Glyph {
 
 class Text extends Glyph {
 	constructor(text, position, opts) {
-		super();
-		if (!text) { console.log('NO TEXT', text);  }
-		this.text = text || '';
-		this.positionY(-position || 0);
+		super()
+		if (!text) {
+			console.log('NO TEXT', text)
+		}
+		this.text = text || ''
+		this.positionY(-position || 0)
 
 		// .font .textAlign
 		if (opts) Object.assign(this, opts)
@@ -499,7 +504,6 @@ class Drawing {
 
 		ctx.font = `${FONT_SIZE}px Bravura`
 		ctx.textBaseline = 'alphabetic' // alphabetic  bottom top
-
 	}
 
 	add(el) {
@@ -523,11 +527,10 @@ class Drawing {
 			}
 
 			if (el._debug) {
-				el.debug(ctx);
+				el.debug(ctx)
 			}
 			ctx.restore()
-		}
-		else {
+		} else {
 			console.log('Element', el, 'not a draw element')
 		}
 	}
@@ -535,7 +538,7 @@ class Drawing {
 	draw(ctx) {
 		ctx.save()
 		for (const el of this.set) {
-			Drawing._draw(ctx, el);
+			Drawing._draw(ctx, el)
 		}
 		ctx.restore()
 	}
@@ -546,16 +549,24 @@ class Drawing {
 const Claire = {
 	Drawing,
 	Draw,
-	Stave, Glyph,
-	TrebleClef, BassClef, AltoClef, TimeSignature,
+	Stave,
+	Glyph,
+	TrebleClef,
+	BassClef,
+	AltoClef,
+	TimeSignature,
 	KeySignature,
-	Accidental, Sharp, Flat, Natural, DoubleSharp,
+	Accidental,
+	Sharp,
+	Flat,
+	Natural,
+	DoubleSharp,
 	Stem,
 	Barline,
 	Dot,
 	Ledger,
 	Text,
-	Line
+	Line,
 }
 
 Object.assign(window, { Drawing, setup, Stave, Claire }, Claire)
