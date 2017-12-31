@@ -1432,3 +1432,5 @@ DataReader.prototype.dump = function(limit) {
 Object.assign(NODE ? module.exports : window, {
 	decodeNwcArrayBuffer,
 })
+
+export { decodeNwcArrayBuffer }

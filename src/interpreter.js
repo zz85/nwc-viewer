@@ -299,3 +299,5 @@ SightReader.prototype._handle_duration = function(token) {
 }
 
 window.interpret = interpret
+
+export { interpret }

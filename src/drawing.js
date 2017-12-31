@@ -101,13 +101,12 @@ function setupCanvas() {
 	window.ctx = ctx
 	window.canvas = canvas
 
-	resizeByBounds()
+	resizeToFit()
 }
 
-function resizeByBounds() {
+function resizeToFit() {
 	var score = document.getElementById('score')
 	const bb = score.getBoundingClientRect()
-	console.log(bb)
 
 	// TODO take min of canvas size vs bb heigh
 	// resize(bb.width, bb.height)
@@ -528,8 +527,7 @@ const Claire = {
 	Line,
 }
 
-Object.assign(
-	window,
-	{ Drawing, setup, Stave, Claire, resize, resizeByBounds },
-	Claire
-)
+Object.assign(Claire, { Drawing, setup, Claire, resize, resizeToFit })
+Object.assign(window, Claire)
+
+export { Drawing, setup, Claire, resize, resizeToFit }

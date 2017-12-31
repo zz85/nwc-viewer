@@ -1,8 +1,8 @@
 import './constants.js'
 import { ajax } from './loaders.js'
-import './nwc.js'
-import './interpreter.js'
-import './drawing.js'
+import { decodeNwcArrayBuffer } from './nwc.js'
+import { interpret } from './interpreter.js'
+import { setup, resizeToFit } from './drawing.js'
 import { exportAbc } from './exporter.js'
 import { score } from './typeset.js'
 
@@ -13,7 +13,8 @@ import { score } from './typeset.js'
  **********************/
 
 window.addEventListener('resize', () => {
-	resizeByBounds()
+	resizeToFit()
+	quickDraw()
 })
 
 // For testing purposes
@@ -320,7 +321,7 @@ const play = () => {
 	})
 }
 
-document.getElementById('play').onclick = play;
+document.getElementById('play').onclick = play
 
 const rerender = () => {
 	setup(() => {
