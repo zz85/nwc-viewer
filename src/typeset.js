@@ -173,7 +173,7 @@ function score(data) {
 	var bottom = getStaffY(stavePointers.length - 1) - FONT_SIZE * 0.5
 	drawing.add(new Line(20, getStaffY(-1), 20, bottom))
 
-	maxCanvasHeight = bottom + 10
+	maxCanvasHeight = bottom + 100
 
 	var { title, author, copyright1, copyright2 } = data.info || {}
 	var middle = window.innerWidth / 2
@@ -295,7 +295,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				sig === 'AllaBreve' ? 'CutCommon' : sig === 'Common' ? 'Common' : ''
 
 			if (name) {
-				t = new TimeSignature('Common', 4)
+				t = new TimeSignature(name, 4)
 				cursor.posGlyph(t)
 				drawing.add(t)
 
