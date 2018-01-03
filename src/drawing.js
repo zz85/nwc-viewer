@@ -276,57 +276,39 @@ class TimeSignature extends Glyph {
 	}
 }
 
-function noteToPosition(note, clefOffset) {
-	// TODO fix this!
-	let y = rotate(note, clefOffset)
-	if (y + 7 < 9) return y + 7
-	return y
-}
-
-const AG = 'abcdefg'
-function rotate(note, offset) {
-	const pos = (AG.indexOf(note) + 3 + (offset || 0)) % AG.length
-	return pos
-}
-
-// e => 0, f => 1, g => 2, a => 3, b => 4, c => 5, d => 6
-// 1| 2 3| 4 5| 6 7| 8 9|
-
-// gClef = 'e' // line 0 = e // 0
-// fClef = 'g' // line 0 = g // 5 -2
-// // alto 6 -1
-var clefOffsetMap = {
+const clefOffsetMap = {
 	treble: 0,
 	bass: -2,
 	alto: -1,
 	tenor: 1,
 }
+
 /**
  * Key Signature
  */
 class KeySignature extends Draw {
 	constructor(accidentals, clef) {
 		super()
-		// eg. ['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#'] ||
-		// ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb']
+		// eg. ['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#']
+		//     ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb']
 		this.accidentals = accidentals
 
 		// magic numbers
 		const key_sharps_pos = [8, 5, 9, 6, 3, 7, 4]
 		const key_flats_pos = [4, 7, 3, 6, 2, 5, 1]
 
-		console.log('---')
 		const first = accidentals[0]
 		if (!first) return
 
-		const positions = first.charAt(1) === '#' ? key_sharps_pos : key_flats_pos
+		let positions = first.charAt(1) === '#' ? key_sharps_pos : key_flats_pos
+
+		// only arrangement exception
+		if (positions === key_sharps_pos && clef === 'tenor') {
+			positions[0] -= 7
+			positions[2] -= 7
+		}
 
 		this.sharps = this.accidentals.map((v, l) => {
-			// const pos = noteToPosition(
-			// 	v.charAt(0).toLowerCase(),
-			// 	clefOffsetMap[clef] || 0
-			// )
-			// console.log('pos', pos);
 			const pos = positions[l] + (clefOffsetMap[clef] || 0)
 
 			const sharp = new Accidental(first.charAt(1), pos)
