@@ -25,10 +25,29 @@ setTimeout(() => {
 	// rerender();
 })
 
+// everyStaveTokens().filter(t => t && t.tie)
+// data.score.staves[1].tokens.filter(t => t && t.tie)
+// findFirstToken(t => t && t.tie)
+
+window.findFirstToken = predicate => {
+	var s, t
+	data.score.staves.some((stave, i) => {
+		s = i
+		return stave.tokens.some((token, j) => {
+			if (predicate(token)) {
+				t = j
+				return true
+			}
+		})
+	})
+
+	return { s, t }
+}
+
 // v1.7 nwc
 // ajax('samples/anongs.nwc', processData);
 // ajax('samples/adohn.nwc', processData);
-// ajax('samples/bwv140-2.nwc', processData);
+ajax('samples/bwv140-2.nwc', processData)
 // ajax('samples/carenot.nwc', processData);
 
 // v2.75
@@ -37,7 +56,7 @@ setTimeout(() => {
 
 // v2.02?
 // ajax('samples/AChildThisDayIsBorn.nwc', processData);
-ajax('samples/WhatChildIsThis.nwc', processData)
+// ajax('samples/WhatChildIsThis.nwc', processData)
 // ajax('samples/WakenChristianChildren.nwc', processData);
 // ajax('samples/NoelNoel.nwc', processData);
 
@@ -324,10 +343,16 @@ const play = () => {
 document.getElementById('play').onclick = play
 
 const rerender = () => {
-	setup(() => {
+	const canvas = setup(() => {
 		interpret(data)
 		score(data)
 	})
+
+	var score_div = document.getElementById('score')
+	var invisible_canvas = document.getElementById('invisible_canvas')
+
+	score_div.insertBefore(canvas, invisible_canvas)
+	resizeToFit()
 	// exportLilypond()
 }
 

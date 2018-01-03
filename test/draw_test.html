@@ -5,10 +5,13 @@
 
 <body>
     <script src="../vendor/opentype.min.js"></script>
-    <script src="../src/drawing.js"></script>
 
-<script>
-	render = () => {
+<script type="module">
+    import { setup, resize } from '../src/drawing.js'
+
+    let drawing;
+	const render = () => {
+        resize(800, 600);
 		drawing = new Drawing(ctx)
 
         // baseline = 50
@@ -16,14 +19,14 @@
         // s = new Stave()
         // s.moveTo(300, baseline)
 
-        stave2y = 160
-        stave2x = 40
+        var stave2y = 160
+        var stave2x = 40
 
-        s = new Stave(600)
+        var s = new Stave(600)
         s.moveTo(stave2x, stave2y)
         drawing.add(s)
 
-        t = new TrebleClef()
+        var t = new TrebleClef()
         t.moveTo(stave2x, stave2y)
         drawing.add(t)
         stave2x += t.width * 2
@@ -53,7 +56,7 @@
         drawing.add(s)
         stave2x += s.width * 2
 
-        stem = () => {
+        var stem = () => {
             // var stem = new Glyph('stem', 4)
             var stem = new Stem(4)
             stem.moveTo(stave2x, stave2y)
@@ -100,15 +103,25 @@
         drawing.add(s)
         stave2x += s.width * 2
 
-        s = new KeySignature(['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#']) // Bb C# Cb C#
+        const clef = 'alto' // treble, bass, 
+
+        s = new KeySignature(['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#'], clef) // Bb C# Cb C#
         s.moveTo(stave2x, stave2y)
         drawing.add(s)
         stave2x += s.width * 2
 
+        s = new KeySignature(['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb'], clef) // Bb C# Cb C#
+        
+        s.moveTo(stave2x, stave2y)
+        drawing.add(s)
+        stave2x += s.width * 2
+        
+
         drawing.draw(ctx)
     }
 
-    setup(render, '../vendor/bravura-1.211/')
+    const canvas = setup(render, '../vendor/bravura-1.211/')
+    document.body.appendChild(canvas);
 
 </script>
 

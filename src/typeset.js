@@ -115,6 +115,16 @@ function quickDraw(data, x, y) {
 
 window.quickDraw = quickDraw
 
+window.everyStaveTokens = () => {
+	const staves = data.score.staves
+
+	const tokens = data.score.staves.reduce((vals, stave) => {
+		return [...vals, ...stave.tokens]
+	}, [])
+
+	return tokens
+}
+
 function score(data) {
 	var ctx = window.ctx
 	ctx.clearRect(0, 0, canvas.width, canvas.height)

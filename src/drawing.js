@@ -1,3 +1,5 @@
+import './constants.js'
+
 const fontMap = {
 	// barlines
 
@@ -90,18 +92,12 @@ const fontMap = {
 const getCode = name => String.fromCharCode(parseInt(fontMap[name], 16))
 
 function setupCanvas() {
-	var score = document.getElementById('score')
-	var invisible_canvas = document.getElementById('invisible_canvas')
-
 	var canvas = document.createElement('canvas')
-	score.insertBefore(canvas, invisible_canvas)
-
 	var ctx = canvas.getContext('2d')
 
 	window.ctx = ctx
 	window.canvas = canvas
-
-	resizeToFit()
+	return canvas
 }
 
 function resizeToFit() {
@@ -133,8 +129,9 @@ function setup(render, path) {
 
 	path = path || 'vendor/bravura-1.211/'
 
-	setupCanvas()
+	const canvas = setupCanvas()
 	loadFont(render, path)
+	return canvas
 }
 
 var notableLoaded = false
@@ -301,6 +298,8 @@ function rotate(note, offset) {
 var clefOffsetMap = {
 	treble: 0,
 	bass: -2,
+	alto: -1,
+	tenor: 1,
 }
 /**
  * Key Signature
@@ -312,13 +311,25 @@ class KeySignature extends Draw {
 		// ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb']
 		this.accidentals = accidentals
 
-		this.sharps = this.accidentals.map((v, l) => {
-			const pos = noteToPosition(
-				v.charAt(0).toLowerCase(),
-				clefOffsetMap[clef] || 0
-			)
+		// magic numbers
+		const key_sharps_pos = [8, 5, 9, 6, 3, 7, 4]
+		const key_flats_pos = [4, 7, 3, 6, 2, 5, 1]
 
-			const sharp = new Accidental(v.charAt(1), pos)
+		console.log('---')
+		const first = accidentals[0]
+		if (!first) return
+
+		const positions = first.charAt(1) === '#' ? key_sharps_pos : key_flats_pos
+
+		this.sharps = this.accidentals.map((v, l) => {
+			// const pos = noteToPosition(
+			// 	v.charAt(0).toLowerCase(),
+			// 	clefOffsetMap[clef] || 0
+			// )
+			// console.log('pos', pos);
+			const pos = positions[l] + (clefOffsetMap[clef] || 0)
+
+			const sharp = new Accidental(first.charAt(1), pos)
 			sharp.moveTo(l * sharp.width, 0)
 			// sharp._debug = true;
 			return sharp
