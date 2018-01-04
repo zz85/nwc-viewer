@@ -343,16 +343,21 @@ const play = () => {
 document.getElementById('play').onclick = play
 
 const rerender = () => {
-	const canvas = setup(() => {
-		interpret(data)
-		score(data)
-	})
+	setup(
+		() => {
+			interpret(data)
+			score(data)
+		},
+		null,
+		canvas => {
+			console.log('ok')
+			var score_div = document.getElementById('score')
+			var invisible_canvas = document.getElementById('invisible_canvas')
 
-	var score_div = document.getElementById('score')
-	var invisible_canvas = document.getElementById('invisible_canvas')
-
-	score_div.insertBefore(canvas, invisible_canvas)
-	resizeToFit()
+			score_div.insertBefore(canvas, invisible_canvas)
+			resizeToFit()
+		}
+	)
 	// exportLilypond()
 }
 

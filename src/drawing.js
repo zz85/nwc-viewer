@@ -124,13 +124,17 @@ function resize(width, height) {
 }
 
 /* opentype.js loading */
-function setup(render, path) {
-	if (notableLoaded) return render()
+function setup(render, path, ok) {
+	if (notableLoaded) {
+		render()
+		return
+	}
 
 	path = path || 'vendor/bravura-1.211/'
 
 	const canvas = setupCanvas()
 	loadFont(render, path)
+	ok && ok(canvas)
 	return canvas
 }
 
@@ -231,6 +235,10 @@ class Glyph extends Draw {
 		this.fontSize = FONT_SIZE // * (0.8 + Math.random() * 0.4);
 		this.width = window.smuflFont.getAdvanceWidth(this.char, this.fontSize)
 
+		// TODO: can package only predefined fonts symbols
+		// this get cached instead on every draw
+		this.path = window.smuflFont.getPath(this.char, 0, 0, this.fontSize)
+
 		// this.padLeft = this.width;
 		if (adjustY) this.positionY(adjustY)
 	}
@@ -238,7 +246,11 @@ class Glyph extends Draw {
 	draw(ctx) {
 		ctx.fillStyle = '#000'
 
-		window.smuflFont.draw(ctx, this.char, 0, 0, this.fontSize)
+		this.path.draw(ctx)
+		// DO NOT do this. this include the overheads of parsing the font
+		// path, which may results in costly render cycles
+		// window.smuflFont.draw(ctx, this.char, 0, 0, this.fontSize)
+
 		// this.debug(ctx);
 	}
 }
