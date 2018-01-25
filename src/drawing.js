@@ -1,4 +1,5 @@
 import './constants.js'
+import { ajax } from './loaders.js'
 
 const fontMap = {
 	// barlines
@@ -141,8 +142,9 @@ function setup(render, path, ok) {
 var notableLoaded = false
 
 function loadFont(cb, path) {
-	window.opentype.load(`${path}otf/Bravura.otf`, (err, font) => {
-		if (err) return console.log('Error, font cannot be loaded', err)
+	ajax(`${path}otf/Bravura.otf`, (buffer) => {
+		var font = window.opentype.parse(buffer);
+		// if (err) return console.log('Error, font cannot be loaded', err)
 
 		notableLoaded = true
 		window.smuflFont = font
@@ -239,6 +241,11 @@ class Glyph extends Draw {
 		// this get cached instead on every draw
 		this.path = window.smuflFont.getPath(this.char, 0, 0, this.fontSize)
 
+		// const bb = this.path.getBoundingBox()
+		// // bounds and width may be different!
+		// if (this.width !== bb.x2)
+		// 	console.log(this.name, 'bb', bb, 'width', this.width, this.path.toPathData())
+
 		// this.padLeft = this.width;
 		if (adjustY) this.positionY(adjustY)
 	}
@@ -247,9 +254,6 @@ class Glyph extends Draw {
 		ctx.fillStyle = '#000'
 
 		this.path.draw(ctx)
-		// DO NOT do this. this include the overheads of parsing the font
-		// path, which may results in costly render cycles
-		// window.smuflFont.draw(ctx, this.char, 0, 0, this.fontSize)
 
 		// this.debug(ctx);
 	}
@@ -441,7 +445,7 @@ class Dot extends Glyph {
 	}
 }
 
-class Text extends Glyph {
+class Text extends Draw {
 	constructor(text, position, opts) {
 		super()
 		if (!text) {
@@ -479,6 +483,9 @@ class Drawing {
 
 	static _draw(ctx, el) {
 		if (el instanceof Draw) {
+			// TODO run quick check aabb bounds here to reduce rendering costs
+			if (el.x > scoreElm.scrollLeft + 1000) return
+			if (el.x < scoreElm.scrollLeft) return
 			ctx.save()
 			ctx.translate(el.x, el.y)
 			ctx.translate(el.offsetX || 0, el.offsetY || 0)

@@ -5,6 +5,7 @@ import { interpret } from './interpreter.js'
 import { setup, resizeToFit } from './drawing.js'
 import { exportAbc } from './exporter.js'
 import { score } from './typeset.js'
+// import './editing.js'
 
 /**********************
  *
