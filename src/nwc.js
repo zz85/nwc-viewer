@@ -347,8 +347,10 @@ function decodeNwcArrayBuffer(arrayBuffer) {
 		return processNwc(plain)
 	} else if ('[Note' === firstBytes) {
 		return processNwc(byteArray)
+	} else if ('!Note' === firstBytes) {
+		return processNwcText(byteArray, longArrayToString(byteArray))
 	} else {
-		console.log('Unrecognized headers')
+		console.log('Unrecognized headers', firstBytes)
 	}
 }
 
@@ -379,6 +381,20 @@ function longArrayToString(array, chunk) {
  *   Start Data Process
  *
  **********************/
+
+function processNwcText(array, nwctext) {
+	// copy pasta from below
+	var reader = new DataReader(array)
+	if (BROWSER) window.reader = reader
+	// Header(reader)
+	// if (reader.data.header.version >= 2.7) {
+		console.log('done', nwctext)
+		reader.set('nwctext', nwctext)
+		parseNwc275(reader, nwctext)
+		convert275Tokens(reader)
+		return reader.data
+	// }
+}
 
 function processNwc(array) {
 	var reader = new DataReader(array)
@@ -506,6 +522,8 @@ var durs = {
 	'8th': 8,
 	'16th': 16,
 	'32th': 32,
+	'32nd': 32,
+	'64th': 64
 }
 
 function parseDur(dur) {
@@ -521,7 +539,7 @@ function parseDur(dur) {
 		}
 	}
 
-	if (!duration) console.log('!!', token.Dur)
+	if (!duration) console.log('!!', dur)
 
 	return {
 		duration,
