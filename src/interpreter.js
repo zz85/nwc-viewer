@@ -49,7 +49,8 @@ function isTabbable(token) {
 
 function interpret(data) {
 	var staves = data.score.staves
-
+	var reading = new SightReader()
+	reading.read(staves);
 	/*
 	State
 
@@ -65,41 +66,6 @@ function interpret(data) {
 	- tabValue
 	- tabUntilValue
 	*/
-
-	var reading = new SightReader()
-
-	// TODO move this into reader itself
-	staves.forEach(function(staff) {
-		reading.reset()
-		staff.tokens.forEach(function(token) {
-			var type = token.type
-
-			// absolute time value when note should be played
-			token.tickValue = reading.tickCounter.value()
-			token.tabValue = reading.tabCounter.value()
-
-			if (type in reading) {
-				// calls corresponding token function
-				reading[type](token)
-			}
-
-			// if (token.type === 'Boundary') console.log('$$$', token);
-
-			if (token.durValue) {
-				// computes cumumutative value duration
-				reading.tickCounter.add(token.durValue).simplify()
-				reading.tabCounter.add(token.durValue).simplify()
-			} else {
-				if (isTabbable(token)) {
-					reading.tmpFraction.set(1, 4)
-					reading.tabCounter.add(reading.tmpFraction).simplify()
-				}
-			}
-
-			token.tickUntilValue = reading.tickCounter.value()
-			token.tabUntilValue = reading.tabCounter.value()
-		})
-	})
 }
 
 function SightReader() {
@@ -109,6 +75,41 @@ function SightReader() {
 	this.tmpFraction = new Fraction(0, 1)
 	this.timeSigVal = new Fraction(4, 4)
 	this.reset()
+}
+
+SightReader.prototype.read = function(staves) {
+	// TODO move this into reader itself
+	staves.forEach((staff) => {
+		this.reset()
+		staff.tokens.forEach((token) => {
+			var type = token.type
+
+			// absolute time value when note should be played
+			token.tickValue = this.tickCounter.value()
+			token.tabValue = this.tabCounter.value()
+
+			if (type in this) {
+				// calls corresponding token function
+				this[type](token)
+			}
+
+			// if (token.type === 'Boundary') console.log('$$$', token);
+
+			if (token.durValue) {
+				// computes cumumutative value duration
+				this.tickCounter.add(token.durValue).simplify()
+				this.tabCounter.add(token.durValue).simplify()
+			} else {
+				if (isTabbable(token)) {
+					this.tmpFraction.set(1, 4)
+					this.tabCounter.add(this.tmpFraction).simplify()
+				}
+			}
+
+			token.tickUntilValue = this.tickCounter.value()
+			token.tabUntilValue = this.tabCounter.value()
+		})
+	})
 }
 
 SightReader.prototype.reset = function() {
@@ -300,4 +301,4 @@ SightReader.prototype._handle_duration = function(token) {
 
 window.interpret = interpret
 
-export { interpret }
+export { interpret };
