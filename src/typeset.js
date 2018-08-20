@@ -20,6 +20,7 @@ class StaveCursor {
 		this.staveX = 60
 		this.stave = stave
 		this.tokens = stave.tokens
+		this.lastBarline = 40;
 	}
 
 	peek() {
@@ -53,6 +54,10 @@ class StaveCursor {
 
 	incTokenIndex() {
 		return ++this.tokenIndex
+	}
+
+	updateBarline() {
+		this.lastBarline = this.staveX;
 	}
 }
 
@@ -118,7 +123,7 @@ window.quickDraw = quickDraw
 window.everyStaveTokens = () => {
 	const staves = data.score.staves
 
-	const tokens = data.score.staves.reduce((vals, stave) => {
+	const tokens = staves.reduce((vals, stave) => {
 		return [...vals, ...stave.tokens]
 	}, [])
 
@@ -173,9 +178,13 @@ function score(data) {
 	window.maxCanvasWidth = 100
 	window.maxCanvasHeight = 100
 
+	// TODO draw stave for every bar
+
+	console.log('stavePointers', stavePointers)
 	// draw staves
+
 	stavePointers.forEach((cursor, staveIndex) => {
-		drawStave(cursor, staveIndex)
+		addStave(cursor, staveIndex)
 		maxCanvasWidth = Math.max(cursor.staveX + 100, maxCanvasWidth)
 	})
 
@@ -188,7 +197,7 @@ function score(data) {
 	var { title, author, copyright1, copyright2 } = data.info || {}
 	var middle = window.innerWidth / 2
 	if (title) {
-		var titleDrawing = new Claire.Text(title, 0, {
+		const titleDrawing = new Claire.Text(title, 0, {
 			font: '20px arial',
 			textAlign: 'center',
 		}) // italic bold
@@ -197,7 +206,7 @@ function score(data) {
 	}
 
 	if (author) {
-		var authorDrawing = new Claire.Text(author, 0, {
+		const authorDrawing = new Claire.Text(author, 0, {
 			font: 'italic 14px arial',
 			textAlign: 'center',
 		}) // italic bold
@@ -206,7 +215,7 @@ function score(data) {
 	}
 
 	if (copyright1) {
-		var authorDrawing = new Claire.Text(copyright1, 0, {
+		const authorDrawing = new Claire.Text(copyright1, 0, {
 			font: '10px arial',
 			textAlign: 'center',
 		}) // italic bold
@@ -215,7 +224,7 @@ function score(data) {
 	}
 
 	if (copyright2) {
-		var authorDrawing = new Claire.Text(copyright2, 0, {
+		const authorDrawing = new Claire.Text(copyright2, 0, {
 			font: '10px arial',
 			textAlign: 'center',
 		}) // italic bold
@@ -242,10 +251,10 @@ function getStaffY(staffIndex) {
 	// 120 100
 }
 
-function drawStave(cursor, staveIndex) {
-	const staveStart = 40
-	const s = new Stave(cursor.staveX + staveStart)
-	s.moveTo(staveStart, getStaffY(staveIndex))
+function addStave(cursor, staveIndex) {
+	const width = cursor.staveX - cursor.lastBarline;
+	const s = new Stave(width)
+	s.moveTo(cursor.lastBarline, getStaffY(staveIndex))
 	drawing.add(s)
 
 	console.log('staveIndex', staveIndex, cursor.tokens)
@@ -361,6 +370,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s._text = info
 			drawing.add(s)
 
+			addStave(cursor, staveIndex)
+			cursor.updateBarline()
 			cursor.tokenPadRight(10)
 			break
 

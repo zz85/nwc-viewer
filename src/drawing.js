@@ -485,7 +485,7 @@ class Drawing {
 		if (el instanceof Draw) {
 			// TODO run quick check aabb bounds here to reduce rendering costs
 			if (el.x > scoreElm.scrollLeft + 1000) return
-			if (el.x < scoreElm.scrollLeft) return
+			if (el.x < scoreElm.scrollLeft - 500) return
 			ctx.save()
 			ctx.translate(el.x, el.y)
 			ctx.translate(el.offsetX || 0, el.offsetY || 0)
