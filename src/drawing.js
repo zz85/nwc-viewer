@@ -481,11 +481,11 @@ class Drawing {
 		this.set.delete(el)
 	}
 
-	static _draw(ctx, el) {
+	static _draw(ctx, el, viewportWidth, viewportOffsetX) {
 		if (el instanceof Draw) {
 			// TODO run quick check aabb bounds here to reduce rendering costs
-			if (el.x > scoreElm.scrollLeft + 1000) return
-			if (el.x < scoreElm.scrollLeft - 500) return
+			if (el.x > viewportOffsetX + viewportWidth + 200) return
+			if (el.x + el.w < viewportOffsetX - 200) return
 			ctx.save()
 			ctx.translate(el.x, el.y)
 			ctx.translate(el.offsetX || 0, el.offsetY || 0)
@@ -506,9 +506,12 @@ class Drawing {
 	}
 
 	draw(ctx) {
+		const viewportWidth = scoreElm.clientWidth
+		const viewportOffsetX = scoreElm.scrollLeft
+
 		ctx.save()
 		for (const el of this.set) {
-			Drawing._draw(ctx, el)
+			Drawing._draw(ctx, el, viewportWidth, viewportOffsetX)
 		}
 		ctx.restore()
 	}
