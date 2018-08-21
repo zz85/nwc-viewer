@@ -486,6 +486,8 @@ class Drawing {
 			// TODO run quick check aabb bounds here to reduce rendering costs
 			if (el.x > viewportOffsetX + viewportWidth + 200) return
 			if (el.x + el.w < viewportOffsetX - 200) return
+
+		
 			ctx.save()
 			ctx.translate(el.x, el.y)
 			ctx.translate(el.offsetX || 0, el.offsetY || 0)
