@@ -1,3 +1,6 @@
+const NODE = typeof module !== 'undefined'
+const BROWSER = typeof window !== 'undefined'
+
 /**********************
  *
  *   Constants
@@ -1447,8 +1450,10 @@ DataReader.prototype.dump = function(limit) {
 
 // Exports
 
-Object.assign(NODE ? module.exports : window, {
-	decodeNwcArrayBuffer,
-})
+module.exports = { decodeNwcArrayBuffer };
 
-export { decodeNwcArrayBuffer }
+// Object.assign(NODE ? module.exports : window, {
+// 	decodeNwcArrayBuffer,
+// })
+
+// export { decodeNwcArrayBuffer }
