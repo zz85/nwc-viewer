@@ -978,9 +978,9 @@ function StaffInfo(reader, staff) {
 
 function Clef(reader) {
 	reader.set('type', 'Clef')
-	var data = reader.readBytes(6)
-	reader.set('clef', CLEF_NAMES[data[2] & 3])
-	reader.set('octave', data[4] & 3)
+	reader.skip(2)
+	reader.set('clef', CLEF_NAMES[reader.readShort() & 3])
+	reader.set('octave', reader.readShort() & 3)
 }
 
 function bitmapKeySignature(bitmap) {
@@ -998,9 +998,10 @@ function bitmapKeySignature(bitmap) {
 
 function KeySignature(reader) {
 	reader.set('type', 'KeySignature')
-	var data = reader.readBytes(12)
-	var flats = bitmapKeySignature(data[2])
-	var sharps = bitmapKeySignature(data[4])
+	reader.skip(2)
+	var data = reader.readBytes(10)
+	var flats = bitmapKeySignature(data[0])
+	var sharps = bitmapKeySignature(data[2])
 	reader.set('flats', flats)
 	reader.set('sharps', sharps)
 
@@ -1018,8 +1019,9 @@ function KeySignature(reader) {
 
 function Barline(reader) {
 	reader.set('type', 'Barline')
-	var data = reader.readBytes(4)
-	reader.set('barline', data[2] & 15)
+	reader.skip(2)
+	data = reader.readBytes(2)
+	reader.set('barline', data[0] & 15)
 }
 
 function Ending(reader) {
