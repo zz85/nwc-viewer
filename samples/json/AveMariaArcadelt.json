@@ -1,0 +1,5893 @@
+{
+	"header": {
+		"company": "[NoteWorthy ArtWare]",
+		"product": "[NoteWorthy Composer]",
+		"name1": "N/A",
+		"name2": "3yMlLxlOXnSbRI5jEhhCxr",
+		"version": 2.75,
+		"nwctext": "!NoteWorthyComposer(2.75)\r\n|Editor|ActiveStaff:4|CaretIndex:55|SelectIndex:54|CaretPos:-34\r\n|SongInfo|Title:\"Ave Maria\"|Author:\"Jacques Arcadelt (1504? - 1568)\"|Lyricist:\"\"|Copyright1:\"www.cipoo.net   -   Copyleft: this work of art is free, you can redistribute it\"|Copyright2:\"and/or modify it according to terms of the Free Art license http://artlibre.org\"\r\n|PgSetup|StaffSize:17|Zoom:4|TitlePage:Y|JustifyVertically:Y|PrintSystemSepMark:N|ExtendLastSystem:Y|DurationPadding:Y|PageNumbers:0|StaffLabels:None|BarNumbers:Plain|StartingBar:1|AllowLayering:N\r\n|Font|Style:StaffItalic|Typeface:\"Times New Roman\"|Size:11|Bold:Y|Italic:Y|CharSet:1\r\n|Font|Style:StaffBold|Typeface:\"Times New Roman\"|Size:10|Bold:Y|Italic:N|CharSet:1\r\n|Font|Style:StaffLyric|Typeface:\"Times New Roman\"|Size:10|Bold:N|Italic:N|CharSet:1\r\n|Font|Style:PageTitleText|Typeface:\"Times New Roman\"|Size:18|Bold:Y|Italic:N|CharSet:0\r\n|Font|Style:PageText|Typeface:\"Times New Roman\"|Size:12|Bold:N|Italic:N|CharSet:0\r\n|Font|Style:PageSmallText|Typeface:\"Bookman Old Style\"|Size:8|Bold:N|Italic:Y|CharSet:1\r\n|Font|Style:User1|Typeface:\"Times New Roman\"|Size:7|Bold:N|Italic:N|CharSet:1\r\n|Font|Style:User2|Typeface:\"Times New Roman\"|Size:5|Bold:N|Italic:N|CharSet:0\r\n|Font|Style:User3|Typeface:\"Times New Roman\"|Size:5|Bold:N|Italic:N|CharSet:0\r\n|Font|Style:User4|Typeface:\"Times New Roman\"|Size:5|Bold:N|Italic:N|CharSet:0\r\n|Font|Style:User5|Typeface:\"Times New Roman\"|Size:8|Bold:N|Italic:N|CharSet:0\r\n|Font|Style:User6|Typeface:\"Times New Roman\"|Size:8|Bold:N|Italic:N|CharSet:0\r\n|PgMargins|Left:1.80|Top:1.60|Right:1.70|Bottom:1.60|Mirror:Y\r\n|AddStaff|Name:\"s\"|Label:\"s\"|Group:\"Standard\"\r\n|StaffProperties|EndingBar:Section Close|Visible:Y|BoundaryTop:13|BoundaryBottom:11|Lines:5|WithNextStaff:Bracket|Color:Default\r\n|StaffProperties|Muted:N|Volume:127|StereoPan:72|Device:0|Channel:2\r\n|StaffInstrument|Patch:40|Trans:0|DynVel:10,30,45,60,75,92,108,127\r\n|Lyrics|Placement:Bottom|Align:Standard Rules|Offset:-1\r\n|Lyric1|Text:\"A-ve Ma-ri-a gra-ti-a ple-na,\\nDo-mi-nus te-cum, A-ve Ma-ri-a;\\nbe-ne-di-cta tu, be-ne-di-cta tu in mu-li-e-ri-bus,\\net be-ne-di-ctus fru-ctus ven-tris tu-i Je-sus.\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis,\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis,\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis.\\nA-men.\\n\"\r\n|Clef|Type:Treble\r\n|Key|Signature:Bb|Tonic:F\r\n|TimeSig|Signature:AllaBreve\r\n|Rest|Dur:4th\r\n|PerformanceStyle|Style:Legato|Pos:8|Justify:Right|Visibility:Never\r\n|Dynamic|Style:p|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:-3|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-2|Opts:Slur=Downward,Lyric=Never\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:Half|Pos:1\r\n|Bar\r\n|Note|Dur:4th|Pos:0|Opts:Stem=Up,Slur=Upward\r\n|Note|Dur:4th|Pos:-1|Opts:Lyric=Never\r\n|Note|Dur:Half|Pos:-2\r\n|Bar\r\n|Rest|Dur:4th\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:-3|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-2|Opts:Slur=Downward,Lyric=Never\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:-1|Opts:Lyric=Never\r\n|Note|Dur:8th|Pos:0|Opts:Stem=Up,Slur=Downward,Beam=First\r\n|Note|Dur:8th|Pos:-1|Opts:Stem=Up,Slur=Downward,Lyric=Never,Beam=End\r\n|Note|Dur:8th|Pos:-2|Opts:Stem=Up,Slur=Downward,Beam=First\r\n|Note|Dur:8th|Pos:-3|Opts:Stem=Up,Slur=Downward,Lyric=Never,Beam=End\r\n|Bar\r\n|Note|Dur:Half|Pos:-2\r\n|Note|Dur:Half|Pos:-3\r\n|Bar\r\n|Dynamic|Style:mf|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:Half|Pos:1\r\n|Bar\r\n|Note|Dur:4th|Pos:2|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:3|Opts:Lyric=Never\r\n|Note|Dur:Half|Pos:4\r\n|Bar\r\n|Note|Dur:4th|Pos:3\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:3\r\n|Dynamic|Style:f|Pos:5|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:4\r\n|Note|Dur:8th|Pos:4|Opts:Stem=Down,Beam=First\r\n|Note|Dur:8th|Pos:3|Opts:Stem=Down,Lyric=Never,Beam=End\r\n|Note|Dur:8th|Pos:2|Opts:Stem=Down,Beam=First,XNoteSpace=1\r\n|Note|Dur:8th|Pos:1|Opts:Stem=Down,Lyric=Never,Beam=End,XNoteSpace=1\r\n|Bar\r\n|Note|Dur:4th,Dotted|Pos:2\r\n|Note|Dur:8th|Pos:2\r\n|Note|Dur:4th|Pos:1\r\n|Dynamic|Style:p|Pos:5|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:-3\r\n|Bar\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:2|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:3|Opts:Lyric=Never\r\n|Bar\r\n|Note|Dur:Half|Pos:4\r\n|Note|Dur:4th|Pos:3\r\n|Note|Dur:4th|Pos:1\r\n|Bar\r\n|Note|Dur:4th|Pos:1|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:2|Opts:Lyric=Never\r\n|Note|Dur:4th|Pos:3\r\n|Note|Dur:4th|Pos:4^\r\n|Bar\r\n|Spacer|Width:175\r\n|Note|Dur:8th|Pos:4|Opts:Stem=Down,Slur=Upward,Beam=First\r\n|Note|Dur:8th|Pos:3|Opts:Stem=Down,Slur=Upward,Lyric=Never,Beam=End\r\n|Note|Dur:8th|Pos:2|Opts:Stem=Down,Slur=Upward,Beam=First\r\n|Note|Dur:8th|Pos:1|Opts:Stem=Down,Lyric=Never,Beam=End\r\n|Note|Dur:Half|Pos:2\r\n|Bar\r\n|Note|Dur:Half|Pos:1\r\n|Rest|Dur:Half\r\n|Bar\r\n|Rest|Dur:4th\r\n|Dynamic|Style:f|Pos:9|Justify:Right|Visibility:Never\r\n|Note|Dur:4th|Pos:4\r\n|Note|Dur:4th|Pos:4\r\n|Note|Dur:4th|Pos:3\r\n|Bar\r\n|Note|Dur:Half|Pos:2\r\n|Note|Dur:Half|Pos:#1\r\n|Bar\r\n|Dynamic|Style:p|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:Half|Pos:n1\r\n|Note|Dur:Half|Pos:2\r\n|Bar\r\n|Note|Dur:Half|Pos:2\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:8th|Pos:0|Opts:Stem=Up,Beam=First\r\n|Note|Dur:8th|Pos:-1|Opts:Stem=Up,Lyric=Never,Beam=End\r\n|Bar\r\n|Note|Dur:Half|Pos:0\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Rest|Dur:4th\r\n|Dynamic|Style:mf|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:2\r\n|Bar\r\n|Note|Dur:Half|Pos:1\r\n|Note|Dur:Half|Pos:0\r\n|Bar\r\n|Note|Dur:Half|Pos:-1\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:-1\r\n|Bar\r\n|Note|Dur:8th|Pos:0|Opts:Stem=Up,Beam=First,XNoteSpace=1\r\n|Note|Dur:8th|Pos:-1|Opts:Stem=Up,Lyric=Never,Beam=End,XNoteSpace=1\r\n|Note|Dur:8th|Pos:-2|Opts:Stem=Up,Beam=First\r\n|Note|Dur:8th|Pos:-3|Opts:Stem=Up,Lyric=Never,Beam=End\r\n|Note|Dur:Half|Pos:-2\r\n|Bar\r\n|Note|Dur:Half|Pos:-3\r\n|Dynamic|Style:p|Pos:6|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:-3|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-1|Opts:Lyric=Never\r\n|Bar\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:0\r\n|Bar\r\n|Tempo|Tempo:114|Pos:6|Visibility:Never\r\n|Note|Dur:Half|Pos:-1|Opts:XNoteSpace=1\r\n|Tempo|Tempo:108|Pos:6|Visibility:Never\r\n|Note|Dur:4th|Pos:-2|Opts:XNoteSpace=1\r\n|Note|Dur:4th|Pos:-1|Opts:XNoteSpace=1\r\n|Tempo|Tempo:102|Pos:6|Visibility:Never\r\n|Bar\r\n|Note|Dur:8th|Pos:0|Opts:Stem=Up,Beam=First,XNoteSpace=1\r\n|Note|Dur:8th|Pos:-1|Opts:Stem=Up,Lyric=Never,Beam=End,XNoteSpace=1\r\n|Note|Dur:8th|Pos:-2|Opts:Stem=Up,Beam=First\r\n|Note|Dur:8th|Pos:-3|Opts:Stem=Up,Lyric=Never,Beam=End\r\n|Note|Dur:Half|Pos:-2\r\n|Bar\r\n|Note|Dur:Whole|Pos:-3\r\n|Bar\r\n|Dynamic|Style:pp|Opts:Velocity=40|Pos:6|Visibility:Never\r\n|Tempo|Tempo:56|Pos:8|Visibility:Never\r\n|Note|Dur:Whole|Pos:-3\r\n|Bar\r\n|Note|Dur:Whole|Pos:-3\r\n|Bar|Style:SectionClose|SysBreak:Y\r\n|AddStaff|Name:\"a\"|Label:\"a\"|Group:\"Standard\"\r\n|StaffProperties|EndingBar:Section Close|Visible:Y|BoundaryTop:11|BoundaryBottom:11|Lines:5|WithNextStaff:Bracket|Color:Default\r\n|StaffProperties|Muted:N|Volume:127|StereoPan:66|Device:0|Channel:3\r\n|StaffInstrument|Patch:41|Trans:0|DynVel:10,30,45,60,75,92,108,127\r\n|Lyrics|Placement:Bottom|Align:Standard Rules|Offset:-1\r\n|Lyric1|Text:\"A-ve Ma-ri-a gra-ti-a ple-na,\\nDo-mi-nus te-cum, A-ve Ma-ri-a;\\nbe-ne-di-cta tu, be-ne-di-cta tu in mu-li-e-ri-bus,\\net be-ne-di-ctus fru-ctus ven-tris tu-i Je-sus.\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis,\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis,\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis.\\nA-men.\\n\"\r\n|Clef|Type:Treble\r\n|Key|Signature:Bb|Tonic:F\r\n|TimeSig|Signature:AllaBreve\r\n|Rest|Dur:4th\r\n|PerformanceStyle|Style:Legato|Pos:8|Justify:Right|Visibility:Never\r\n|Dynamic|Style:p|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-4\r\n|Note|Dur:4th|Pos:-6\r\n|Bar\r\n|Note|Dur:4th|Pos:-5|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-4|Opts:Lyric=Never\r\n|Note|Dur:Half|Pos:-3\r\n|Bar\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:Half|Pos:-3\r\n|Bar\r\n|Note|Dur:Half|Pos:-3\r\n|Note|Dur:Half|Pos:-4\r\n|Bar\r\n|Rest|Dur:4th\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-4\r\n|Note|Dur:4th|Pos:-6\r\n|Bar\r\n|Note|Dur:4th|Pos:-5|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-4|Opts:Lyric=Never\r\n|Note|Dur:Half|Pos:-3\r\n|Bar\r\n|Note|Dur:4th|Pos:-4\r\n|Note|Dur:4th|Pos:-3|Opts:Lyric=Never\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-5\r\n|Bar\r\n|Note|Dur:Half|Pos:-4\r\n|Note|Dur:Half|Pos:-3\r\n|Bar\r\n|Dynamic|Style:mf|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:Half|Pos:-3\r\n|Bar\r\n|Note|Dur:4th|Pos:-3|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-1|Opts:Lyric=Never\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-4\r\n|Note|Dur:4th|Pos:-4\r\n|Note|Dur:4th|Pos:-2\r\n|Bar\r\n|Note|Dur:4th|Pos:-2\r\n|Dynamic|Style:f|Pos:5|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:-4\r\n|Bar\r\n|Note|Dur:4th,Dotted|Pos:-2\r\n|Note|Dur:8th|Pos:-2\r\n|Note|Dur:4th|Pos:-4\r\n|Dynamic|Style:p|Pos:5|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:-3\r\n|Bar\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-1|Opts:Lyric=Never\r\n|Bar\r\n|Note|Dur:Half|Pos:-1\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-4\r\n|Bar\r\n|Note|Dur:4th|Pos:-4|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-2|Opts:Lyric=Never\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:-2|Opts:Slur=Downward,Lyric=Never\r\n|Note|Dur:4th|Pos:-4|Opts:Slur=Upward\r\n|Note|Dur:Half|Pos:-2\r\n|Bar\r\n|Note|Dur:Half|Pos:-4\r\n|Rest|Dur:Half\r\n|Bar\r\n|Rest|Dur:4th\r\n|Dynamic|Style:f|Pos:9|Justify:Right|Visibility:Never\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-1\r\n|Bar\r\n|Note|Dur:Half|Pos:-3\r\n|Note|Dur:Half|Pos:-4\r\n|Bar\r\n|Dynamic|Style:p|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:Half|Pos:-4\r\n|Note|Dur:Half|Pos:-3\r\n|Bar\r\n|Note|Dur:Half|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Bar\r\n|Boundary|Style:NewSize|Lower:8\r\n|Note|Dur:Half|Pos:-3\r\n|Note|Dur:Half|Pos:-3\r\n|Bar\r\n|Rest|Dur:4th\r\n|Dynamic|Style:mf|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Bar\r\n|Note|Dur:Half|Pos:-3\r\n|Note|Dur:Half|Pos:-5\r\n|Bar\r\n|Note|Dur:Half|Pos:-3\r\n|Note|Dur:4th|Pos:-6\r\n|Note|Dur:4th|Pos:-6\r\n|Bar\r\n|Note|Dur:4th|Pos:-5\r\n|Note|Dur:4th|Pos:-8\r\n|Note|Dur:Half|Pos:-6\r\n|Bar\r\n|Note|Dur:Half|Pos:-6\r\n|Dynamic|Style:p|Pos:6|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:-5|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-3|Opts:Lyric=Never\r\n|Bar\r\n|Note|Dur:4th|Pos:-4\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-5\r\n|Bar\r\n|Note|Dur:Half|Pos:-3\r\n|Note|Dur:4th|Pos:-6\r\n|Note|Dur:4th|Pos:-6\r\n|Bar\r\n|Note|Dur:4th|Pos:-5\r\n|Note|Dur:4th|Pos:-8\r\n|Note|Dur:Half|Pos:-6\r\n|Bar\r\n|Note|Dur:Whole|Pos:-6\r\n|Bar\r\n|Dynamic|Style:pp|Opts:Velocity=40|Pos:6|Visibility:Never\r\n|Note|Dur:Whole|Pos:-5\r\n|Bar\r\n|Note|Dur:Whole|Pos:-6\r\n|AddStaff|Name:\"t\"|Label:\"t\"|Group:\"Standard\"\r\n|StaffProperties|EndingBar:Section Close|Visible:Y|BoundaryTop:11|BoundaryBottom:11|Lines:5|WithNextStaff:Bracket|Color:Default\r\n|StaffProperties|Muted:N|Volume:127|StereoPan:60|Device:0|Channel:6\r\n|StaffInstrument|Patch:42|Trans:0|DynVel:10,30,45,60,75,92,108,127\r\n|Lyrics|Placement:Bottom|Align:Standard Rules|Offset:-1\r\n|Lyric1|Text:\"A-ve Ma-ri-a gra-ti-a ple-na,\\nDo-mi-nus te-cum, A-ve Ma-ri-a;\\nbe-ne-di-cta tu, be-ne-di-cta tu in mu-li-e-ri-bus,\\net be-ne-di-ctus fru-ctus ven-tris tu-i Je-sus.\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis,\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis,\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis.\\nA-men.\\n\"\r\n|Clef|Type:Treble|OctaveShift:Octave Down\r\n|Key|Signature:Bb|Tonic:F\r\n|TimeSig|Signature:AllaBreve\r\n|Rest|Dur:4th\r\n|PerformanceStyle|Style:Legato|Pos:8|Justify:Right|Visibility:Never\r\n|Dynamic|Style:p|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:-1|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:1|Opts:Lyric=Never\r\n|Note|Dur:Half|Pos:1\r\n|Bar\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:2|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:1|Opts:Lyric=Never\r\n|Note|Dur:Half|Pos:1\r\n|Bar\r\n|Rest|Dur:4th\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:-1|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:1|Opts:Lyric=Never\r\n|Note|Dur:Half|Pos:1\r\n|Bar\r\n|Note|Dur:Half|Pos:1|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:-1\r\n|Bar\r\n|Note|Dur:Half|Pos:1\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Dynamic|Style:mf|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:-1|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:#1|Opts:Lyric=Never\r\n|Note|Dur:Half|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:n1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:n0\r\n|Bar\r\n|Note|Dur:4th|Pos:1\r\n|Dynamic|Style:f|Pos:5|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Bar\r\n|Note|Dur:4th|Pos:n0\r\n|Note|Dur:4th|Pos:0\r\n|Note|Dur:4th|Pos:1\r\n|Dynamic|Style:p|Pos:5|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:-1\r\n|Bar\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-1|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:#1|Opts:Lyric=Never\r\n|Bar\r\n|Note|Dur:Half|Pos:2\r\n|Note|Dur:4th|Pos:n1\r\n|Note|Dur:4th|Pos:1\r\n|Bar\r\n|Note|Dur:4th|Pos:1|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:n0|Opts:Lyric=Never\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Bar\r\n|Note|Dur:Half|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:n0|Opts:Lyric=Never\r\n|Bar\r\n|Note|Dur:Half|Pos:1\r\n|Rest|Dur:Half\r\n|Bar\r\n|Rest|Dur:4th\r\n|Dynamic|Style:f|Pos:9|Justify:Right|Visibility:Never\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:1\r\n|Bar\r\n|Note|Dur:Half|Pos:-1\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Dynamic|Style:p|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:Half|Pos:-2\r\n|Note|Dur:Half|Pos:0\r\n|Bar\r\n|Note|Dur:Half|Pos:0\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:1\r\n|Bar\r\n|Note|Dur:Half|Pos:2\r\n|Note|Dur:Half|Pos:1\r\n|Bar\r\n|Rest|Dur:4th\r\n|Dynamic|Style:mf|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:0\r\n|Bar\r\n|Note|Dur:Half|Pos:-1\r\n|Note|Dur:Half|Pos:-2\r\n|Bar\r\n|Note|Dur:Half|Pos:-1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:-3\r\n|Bar\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-4|Opts:Lyric=Never\r\n|Bar\r\n|Note|Dur:Half|Pos:-3\r\n|Dynamic|Style:p|Pos:6|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:-1|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-3|Opts:Lyric=Never\r\n|Bar\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:0|Opts:Stem=Up\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-2\r\n|Bar\r\n|Note|Dur:Half|Pos:-1\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:-3\r\n|Bar\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3\r\n|Note|Dur:4th|Pos:-3|Opts:Slur=Downward\r\n|Note|Dur:4th|Pos:-4|Opts:Lyric=Never\r\n|Bar\r\n|Note|Dur:Whole|Pos:-3\r\n|Bar\r\n|Dynamic|Style:pp|Opts:Velocity=40|Pos:6|Visibility:Never\r\n|Note|Dur:Whole|Pos:0\r\n|Bar\r\n|Note|Dur:Whole|Pos:-1\r\n|AddStaff|Name:\"b\"|Label:\"b\"|Group:\"Standard\"\r\n|StaffProperties|EndingBar:Section Close|Visible:Y|BoundaryTop:11|BoundaryBottom:11|Lines:5|Color:Default\r\n|StaffProperties|Muted:N|Volume:127|StereoPan:54|Device:0|Channel:5\r\n|StaffInstrument|Patch:43|Trans:0|DynVel:10,30,45,60,75,92,108,127\r\n|Lyrics|Placement:Bottom|Align:Standard Rules|Offset:-1\r\n|Lyric1|Text:\"A-ve Ma-ri-a gra-ti-a ple-na,\\nDo-mi-nus te-cum, A-ve Ma-ri-a;\\nbe-ne-di-cta tu, be-ne-di-cta tu in mu-li-e-ri-bus,\\net be-ne-di-ctus fru-ctus ven-tris tu-i Je-sus.\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis,\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis,\\nSan-cta Ma-ri-a, o-ra, o-ra pro no-bis.\\nA-men.\\n\"\r\n|Clef|Type:Bass\r\n|Key|Signature:Bb|Tonic:F\r\n|TimeSig|Signature:AllaBreve\r\n|Rest|Dur:4th\r\n|PerformanceStyle|Style:Legato|Pos:8|Justify:Right|Visibility:Never\r\n|Dynamic|Style:p|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:0|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:-1|Opts:Slur=Upward,Lyric=Never\r\n|Note|Dur:Half|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:Half|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:-2|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:2|Opts:Slur=Upward,Lyric=Never\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Rest|Dur:4th\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:0|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:-1|Opts:Slur=Upward,Lyric=Never\r\n|Note|Dur:Half|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:-1|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:2|Opts:Slur=Upward,Lyric=Never\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:0\r\n|Bar\r\n|Note|Dur:Half|Pos:-1\r\n|Note|Dur:Half|Pos:-5\r\n|Bar\r\n|Dynamic|Style:mf|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:Half|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:0|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:-3|Opts:Slur=Upward,Lyric=Never\r\n|Note|Dur:Half|Pos:0\r\n|Bar\r\n|Note|Dur:4th|Pos:4\r\n|Note|Dur:4th|Pos:4\r\n|Note|Dur:4th|Pos:4\r\n|Note|Dur:4th|Pos:3\r\n|Bar\r\n|Text|Text:\"Rev. 2   16-May-17    \"|Font:User1|Pos:-41|Justify:Center\r\n|Note|Dur:4th|Pos:-1\r\n|Dynamic|Style:f|Pos:5|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:4\r\n|Bar\r\n|Note|Dur:4th|Pos:3\r\n|Note|Dur:4th|Pos:-4\r\n|Note|Dur:4th|Pos:-1\r\n|Dynamic|Style:p|Pos:5|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:0|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:-3|Opts:Slur=Upward,Lyric=Never\r\n|Bar\r\n|Note|Dur:Half|Pos:0\r\n|Note|Dur:4th|Pos:4\r\n|Note|Dur:4th|Pos:4\r\n|Bar\r\n|Note|Dur:4th|Pos:4|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:3|Opts:Slur=Upward,Lyric=Never\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:-1|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:4|Opts:Slur=Upward,Lyric=Never\r\n|Note|Dur:Half|Pos:3\r\n|Bar\r\n|Note|Dur:Half|Pos:-1\r\n|Rest|Dur:Half\r\n|Bar\r\n|Rest|Dur:4th\r\n|Dynamic|Style:f|Pos:9|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:4\r\n|Bar\r\n|Note|Dur:Half|Pos:0\r\n|Note|Dur:Half|Pos:-3\r\n|Bar\r\n|Dynamic|Style:p|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:Half|Pos:-1\r\n|Note|Dur:Half|Pos:-2\r\n|Bar\r\n|Note|Dur:Half|Pos:-2\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:2\r\n|Bar\r\n|Note|Dur:Half|Pos:-2\r\n|Note|Dur:Half|Pos:2\r\n|Bar\r\n|Rest|Dur:4th\r\n|Dynamic|Style:mf|Pos:8|Justify:Center|Visibility:Never\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:-2\r\n|Bar\r\n|Note|Dur:Half|Pos:2\r\n|Note|Dur:Half|Pos:3\r\n|Bar\r\n|Note|Dur:Half|Pos:0\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:0\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Note|Dur:Half|Pos:-5\r\n|Dynamic|Style:p|Pos:6|Placement:AsStaffSignature|Visibility:Never\r\n|Note|Dur:4th|Pos:2|Opts:Slur=Upward\r\n|Note|Dur:4th|Pos:0|Opts:Lyric=Never\r\n|Bar\r\n|Note|Dur:4th|Pos:-1\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:2\r\n|Note|Dur:4th|Pos:3\r\n|Bar\r\n|Note|Dur:Half|Pos:0\r\n|Note|Dur:4th|Pos:1\r\n|Note|Dur:4th|Pos:2\r\n|Bar\r\n|Note|Dur:4th|Pos:-2\r\n|Note|Dur:4th|Pos:0\r\n|Note|Dur:Half|Pos:-1\r\n|Bar\r\n|Note|Dur:Whole|Pos:-5\r\n|Bar\r\n|Dynamic|Style:pp|Opts:Velocity=40|Pos:6|Visibility:Never\r\n|Note|Dur:Whole|Pos:-2\r\n|Bar\r\n|Note|Dur:Whole|Pos:-5\r\n!NoteWorthyComposer-End\r\n"
+	},
+	"score": {
+		"fonts": [
+			{
+				"type": "Font",
+				"Style": "StaffItalic",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "11",
+				"Bold": "Y",
+				"Italic": "Y",
+				"CharSet": "1"
+			},
+			{
+				"type": "Font",
+				"Style": "StaffBold",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "10",
+				"Bold": "Y",
+				"Italic": "N",
+				"CharSet": "1"
+			},
+			{
+				"type": "Font",
+				"Style": "StaffLyric",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "10",
+				"Bold": "N",
+				"Italic": "N",
+				"CharSet": "1"
+			},
+			{
+				"type": "Font",
+				"Style": "PageTitleText",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "18",
+				"Bold": "Y",
+				"Italic": "N",
+				"CharSet": "0"
+			},
+			{
+				"type": "Font",
+				"Style": "PageText",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "12",
+				"Bold": "N",
+				"Italic": "N",
+				"CharSet": "0"
+			},
+			{
+				"type": "Font",
+				"Style": "PageSmallText",
+				"Typeface": "\"Bookman Old Style\"",
+				"Size": "8",
+				"Bold": "N",
+				"Italic": "Y",
+				"CharSet": "1"
+			},
+			{
+				"type": "Font",
+				"Style": "User1",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "7",
+				"Bold": "N",
+				"Italic": "N",
+				"CharSet": "1"
+			},
+			{
+				"type": "Font",
+				"Style": "User2",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "5",
+				"Bold": "N",
+				"Italic": "N",
+				"CharSet": "0"
+			},
+			{
+				"type": "Font",
+				"Style": "User3",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "5",
+				"Bold": "N",
+				"Italic": "N",
+				"CharSet": "0"
+			},
+			{
+				"type": "Font",
+				"Style": "User4",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "5",
+				"Bold": "N",
+				"Italic": "N",
+				"CharSet": "0"
+			},
+			{
+				"type": "Font",
+				"Style": "User5",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "8",
+				"Bold": "N",
+				"Italic": "N",
+				"CharSet": "0"
+			},
+			{
+				"type": "Font",
+				"Style": "User6",
+				"Typeface": "\"Times New Roman\"",
+				"Size": "8",
+				"Bold": "N",
+				"Italic": "N",
+				"CharSet": "0"
+			}
+		],
+		"staves": [
+			{
+				"tokens": [
+					{
+						"type": "StaffProperties",
+						"EndingBar": "Section Close",
+						"Visible": "Y",
+						"BoundaryTop": "13",
+						"BoundaryBottom": "11",
+						"Lines": "5",
+						"WithNextStaff": "Bracket",
+						"Color": "Default"
+					},
+					{
+						"type": "StaffProperties",
+						"Muted": "N",
+						"Volume": "127",
+						"StereoPan": "72",
+						"Device": "0",
+						"Channel": "2"
+					},
+					{
+						"type": "StaffInstrument",
+						"Patch": "40",
+						"Trans": "0",
+						"DynVel": "10,30,45,60,75,92,108,127"
+					},
+					{
+						"type": "Clef",
+						"clef": "treble",
+						"octave": 0
+					},
+					{
+						"type": "KeySignature",
+						"key": "F"
+					},
+					{
+						"type": "TimeSignature",
+						"signature": "AllaBreve"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "PerformanceStyle",
+						"Style": "Legato",
+						"Pos": "8",
+						"Justify": "Right",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "Legato",
+						"dynamic": "Legato"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"Opts": "Slur=Downward,Lyric=Never",
+						"Slur": "Downward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"Opts": "Stem=Up,Slur=Upward",
+						"Stem": "Up",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"Opts": "Slur=Downward,Lyric=Never",
+						"Slur": "Downward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "0",
+						"Opts": "Stem=Up,Slur=Downward,Beam=First",
+						"Stem": "Up",
+						"Slur": "Downward",
+						"Beam": "First",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-1",
+						"Opts": "Stem=Up,Slur=Downward,Lyric=Never,Beam=End",
+						"Stem": "Up",
+						"Slur": "Downward",
+						"Lyric": "Never",
+						"Beam": "End",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-2",
+						"Opts": "Stem=Up,Slur=Downward,Beam=First",
+						"Stem": "Up",
+						"Slur": "Downward",
+						"Beam": "First",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-3",
+						"Opts": "Stem=Up,Slur=Downward,Lyric=Never,Beam=End",
+						"Stem": "Up",
+						"Slur": "Downward",
+						"Lyric": "Never",
+						"Beam": "End",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "mf",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "mf",
+						"dynamic": "mf"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "f",
+						"Pos": "5",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 5,
+						"text": "f",
+						"dynamic": "f"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "4",
+						"Opts": "Stem=Down,Beam=First",
+						"Stem": "Down",
+						"Beam": "First",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "3",
+						"Opts": "Stem=Down,Lyric=Never,Beam=End",
+						"Stem": "Down",
+						"Lyric": "Never",
+						"Beam": "End",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "2",
+						"Opts": "Stem=Down,Beam=First,XNoteSpace=1",
+						"Stem": "Down",
+						"Beam": "First",
+						"XNoteSpace": "1",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "1",
+						"Opts": "Stem=Down,Lyric=Never,Beam=End,XNoteSpace=1",
+						"Stem": "Down",
+						"Lyric": "Never",
+						"Beam": "End",
+						"XNoteSpace": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th,Dotted",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 1
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "5",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 5,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4^",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "^",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Spacer",
+						"Width": "175"
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "4",
+						"Opts": "Stem=Down,Slur=Upward,Beam=First",
+						"Stem": "Down",
+						"Slur": "Upward",
+						"Beam": "First",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "3",
+						"Opts": "Stem=Down,Slur=Upward,Lyric=Never,Beam=End",
+						"Stem": "Down",
+						"Slur": "Upward",
+						"Lyric": "Never",
+						"Beam": "End",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "2",
+						"Opts": "Stem=Down,Slur=Upward,Beam=First",
+						"Stem": "Down",
+						"Slur": "Upward",
+						"Beam": "First",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "1",
+						"Opts": "Stem=Down,Lyric=Never,Beam=End",
+						"Stem": "Down",
+						"Lyric": "Never",
+						"Beam": "End",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "f",
+						"Pos": "9",
+						"Justify": "Right",
+						"Visibility": "Never",
+						"position": 9,
+						"text": "f",
+						"dynamic": "f"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "#1",
+						"accidental": "#",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "n1",
+						"accidental": "n",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "0",
+						"Opts": "Stem=Up,Beam=First",
+						"Stem": "Up",
+						"Beam": "First",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-1",
+						"Opts": "Stem=Up,Lyric=Never,Beam=End",
+						"Stem": "Up",
+						"Lyric": "Never",
+						"Beam": "End",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "mf",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "mf",
+						"dynamic": "mf"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "0",
+						"Opts": "Stem=Up,Beam=First,XNoteSpace=1",
+						"Stem": "Up",
+						"Beam": "First",
+						"XNoteSpace": "1",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-1",
+						"Opts": "Stem=Up,Lyric=Never,Beam=End,XNoteSpace=1",
+						"Stem": "Up",
+						"Lyric": "Never",
+						"Beam": "End",
+						"XNoteSpace": "1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-2",
+						"Opts": "Stem=Up,Beam=First",
+						"Stem": "Up",
+						"Beam": "First",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-3",
+						"Opts": "Stem=Up,Lyric=Never,Beam=End",
+						"Stem": "Up",
+						"Lyric": "Never",
+						"Beam": "End",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "6",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 6,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Tempo",
+						"Tempo": "114",
+						"Pos": "6",
+						"Visibility": "Never",
+						"duration": "114",
+						"note": 1,
+						"pos": "6"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"Opts": "XNoteSpace=1",
+						"XNoteSpace": "1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Tempo",
+						"Tempo": "108",
+						"Pos": "6",
+						"Visibility": "Never",
+						"duration": "108",
+						"note": 1,
+						"pos": "6"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"Opts": "XNoteSpace=1",
+						"XNoteSpace": "1",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "XNoteSpace=1",
+						"XNoteSpace": "1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Tempo",
+						"Tempo": "102",
+						"Pos": "6",
+						"Visibility": "Never",
+						"duration": "102",
+						"note": 1,
+						"pos": "6"
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "0",
+						"Opts": "Stem=Up,Beam=First,XNoteSpace=1",
+						"Stem": "Up",
+						"Beam": "First",
+						"XNoteSpace": "1",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-1",
+						"Opts": "Stem=Up,Lyric=Never,Beam=End,XNoteSpace=1",
+						"Stem": "Up",
+						"Lyric": "Never",
+						"Beam": "End",
+						"XNoteSpace": "1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-2",
+						"Opts": "Stem=Up,Beam=First",
+						"Stem": "Up",
+						"Beam": "First",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-3",
+						"Opts": "Stem=Up,Lyric=Never,Beam=End",
+						"Stem": "Up",
+						"Lyric": "Never",
+						"Beam": "End",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "pp",
+						"Opts": "Velocity=40",
+						"Pos": "6",
+						"Visibility": "Never",
+						"Velocity": "40",
+						"position": 6,
+						"text": "pp",
+						"dynamic": "pp"
+					},
+					{
+						"type": "Tempo",
+						"Tempo": "56",
+						"Pos": "8",
+						"Visibility": "Never",
+						"duration": "56",
+						"note": 1,
+						"pos": "8"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					},
+					{
+						"type": "Barline",
+						"Style": "SectionClose",
+						"SysBreak": "Y"
+					}
+				]
+			},
+			{
+				"tokens": [
+					{
+						"type": "StaffProperties",
+						"EndingBar": "Section Close",
+						"Visible": "Y",
+						"BoundaryTop": "11",
+						"BoundaryBottom": "11",
+						"Lines": "5",
+						"WithNextStaff": "Bracket",
+						"Color": "Default"
+					},
+					{
+						"type": "StaffProperties",
+						"Muted": "N",
+						"Volume": "127",
+						"StereoPan": "66",
+						"Device": "0",
+						"Channel": "3"
+					},
+					{
+						"type": "StaffInstrument",
+						"Patch": "41",
+						"Trans": "0",
+						"DynVel": "10,30,45,60,75,92,108,127"
+					},
+					{
+						"type": "Clef",
+						"clef": "treble",
+						"octave": 0
+					},
+					{
+						"type": "KeySignature",
+						"key": "F"
+					},
+					{
+						"type": "TimeSignature",
+						"signature": "AllaBreve"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "PerformanceStyle",
+						"Style": "Legato",
+						"Pos": "8",
+						"Justify": "Right",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "Legato",
+						"dynamic": "Legato"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-5",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-5",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-5",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "mf",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "mf",
+						"dynamic": "mf"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "f",
+						"Pos": "5",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 5,
+						"text": "f",
+						"dynamic": "f"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th,Dotted",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 1
+					},
+					{
+						"type": "Note",
+						"Dur": "8th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 8,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "5",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 5,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"Opts": "Slur=Downward,Lyric=Never",
+						"Slur": "Downward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "f",
+						"Pos": "9",
+						"Justify": "Right",
+						"Visibility": "Never",
+						"position": 9,
+						"text": "f",
+						"dynamic": "f"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Boundary",
+						"Style": "NewSize",
+						"Lower": "8"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "mf",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "mf",
+						"dynamic": "mf"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-5",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-5",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-8",
+						"accidental": "",
+						"position": -8,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "6",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 6,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-5",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-5",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-5",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-8",
+						"accidental": "",
+						"position": -8,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "pp",
+						"Opts": "Velocity=40",
+						"Pos": "6",
+						"Visibility": "Never",
+						"Velocity": "40",
+						"position": 6,
+						"text": "pp",
+						"dynamic": "pp"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-5",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-6",
+						"accidental": "",
+						"position": -6,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					}
+				]
+			},
+			{
+				"tokens": [
+					{
+						"type": "StaffProperties",
+						"EndingBar": "Section Close",
+						"Visible": "Y",
+						"BoundaryTop": "11",
+						"BoundaryBottom": "11",
+						"Lines": "5",
+						"WithNextStaff": "Bracket",
+						"Color": "Default"
+					},
+					{
+						"type": "StaffProperties",
+						"Muted": "N",
+						"Volume": "127",
+						"StereoPan": "60",
+						"Device": "0",
+						"Channel": "6"
+					},
+					{
+						"type": "StaffInstrument",
+						"Patch": "42",
+						"Trans": "0",
+						"DynVel": "10,30,45,60,75,92,108,127"
+					},
+					{
+						"type": "Clef",
+						"clef": "treble",
+						"octave": "Octave Down"
+					},
+					{
+						"type": "KeySignature",
+						"key": "F"
+					},
+					{
+						"type": "TimeSignature",
+						"signature": "AllaBreve"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "PerformanceStyle",
+						"Style": "Legato",
+						"Pos": "8",
+						"Justify": "Right",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "Legato",
+						"dynamic": "Legato"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "mf",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "mf",
+						"dynamic": "mf"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "#1",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "#",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "n1",
+						"accidental": "n",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "n0",
+						"accidental": "n",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "f",
+						"Pos": "5",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 5,
+						"text": "f",
+						"dynamic": "f"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "n0",
+						"accidental": "n",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "5",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 5,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "#1",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "#",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "n1",
+						"accidental": "n",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "n0",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "n",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "n0",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "n",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "f",
+						"Pos": "9",
+						"Justify": "Right",
+						"Visibility": "Never",
+						"position": 9,
+						"text": "f",
+						"dynamic": "f"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "mf",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "mf",
+						"dynamic": "mf"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "6",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 6,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"Opts": "Stem=Up",
+						"Stem": "Up",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Slur=Downward",
+						"Slur": "Downward",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "pp",
+						"Opts": "Velocity=40",
+						"Pos": "6",
+						"Visibility": "Never",
+						"Velocity": "40",
+						"position": 6,
+						"text": "pp",
+						"dynamic": "pp"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					}
+				]
+			},
+			{
+				"tokens": [
+					{
+						"type": "StaffProperties",
+						"EndingBar": "Section Close",
+						"Visible": "Y",
+						"BoundaryTop": "11",
+						"BoundaryBottom": "11",
+						"Lines": "5",
+						"Color": "Default"
+					},
+					{
+						"type": "StaffProperties",
+						"Muted": "N",
+						"Volume": "127",
+						"StereoPan": "54",
+						"Device": "0",
+						"Channel": "5"
+					},
+					{
+						"type": "StaffInstrument",
+						"Patch": "43",
+						"Trans": "0",
+						"DynVel": "10,30,45,60,75,92,108,127"
+					},
+					{
+						"type": "Clef",
+						"clef": "bass",
+						"octave": 0
+					},
+					{
+						"type": "KeySignature",
+						"key": "F"
+					},
+					{
+						"type": "TimeSignature",
+						"signature": "AllaBreve"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "PerformanceStyle",
+						"Style": "Legato",
+						"Pos": "8",
+						"Justify": "Right",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "Legato",
+						"dynamic": "Legato"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Slur=Upward,Lyric=Never",
+						"Slur": "Upward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"Opts": "Slur=Upward,Lyric=Never",
+						"Slur": "Upward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Slur=Upward,Lyric=Never",
+						"Slur": "Upward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"Opts": "Slur=Upward,Lyric=Never",
+						"Slur": "Upward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-5",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "mf",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "mf",
+						"dynamic": "mf"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Slur=Upward,Lyric=Never",
+						"Slur": "Upward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Text",
+						"Text": "\"Rev. 2   16-May-17    \"",
+						"Font": "User1",
+						"Pos": "-41",
+						"Justify": "Center",
+						"position": -41,
+						"text": "\"Rev. 2   16-May-17    \""
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "f",
+						"Pos": "5",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 5,
+						"text": "f",
+						"dynamic": "f"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-4",
+						"accidental": "",
+						"position": -4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "5",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 5,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-3",
+						"Opts": "Slur=Upward,Lyric=Never",
+						"Slur": "Upward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"Opts": "Slur=Upward,Lyric=Never",
+						"Slur": "Upward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"Opts": "Slur=Upward,Lyric=Never",
+						"Slur": "Upward",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "3",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "f",
+						"Pos": "9",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 9,
+						"text": "f",
+						"dynamic": "f"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "4",
+						"accidental": "",
+						"position": 4,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-3",
+						"accidental": "",
+						"position": -3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Rest",
+						"position": 0,
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "mf",
+						"Pos": "8",
+						"Justify": "Center",
+						"Visibility": "Never",
+						"position": 8,
+						"text": "mf",
+						"dynamic": "mf"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "3",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-5",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Dynamic",
+						"Style": "p",
+						"Pos": "6",
+						"Placement": "AsStaffSignature",
+						"Visibility": "Never",
+						"position": 6,
+						"text": "p",
+						"dynamic": "p"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"Opts": "Slur=Upward",
+						"Slur": "Upward",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"Opts": "Lyric=Never",
+						"Lyric": "Never",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "3",
+						"accidental": "",
+						"position": 3,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "1",
+						"accidental": "",
+						"position": 1,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "2",
+						"accidental": "",
+						"position": 2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "4th",
+						"Pos": "0",
+						"accidental": "",
+						"position": 0,
+						"notehead": "",
+						"tied": "",
+						"duration": 4,
+						"dots": 0
+					},
+					{
+						"type": "Note",
+						"Dur": "Half",
+						"Pos": "-1",
+						"accidental": "",
+						"position": -1,
+						"notehead": "",
+						"tied": "",
+						"duration": 2,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-5",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Dynamic",
+						"Style": "pp",
+						"Opts": "Velocity=40",
+						"Pos": "6",
+						"Visibility": "Never",
+						"Velocity": "40",
+						"position": 6,
+						"text": "pp",
+						"dynamic": "pp"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-2",
+						"accidental": "",
+						"position": -2,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					},
+					{
+						"type": "Barline"
+					},
+					{
+						"type": "Note",
+						"Dur": "Whole",
+						"Pos": "-5",
+						"accidental": "",
+						"position": -5,
+						"notehead": "",
+						"tied": "",
+						"duration": 1,
+						"dots": 0
+					}
+				]
+			}
+		],
+		"editor": {
+			"type": "Editor",
+			"ActiveStaff": "4",
+			"CaretIndex": "55",
+			"SelectIndex": "54",
+			"CaretPos": "-34"
+		},
+		"SongInfo": {
+			"type": "SongInfo",
+			"Title": "\"Ave Maria\"",
+			"Author": "\"Jacques Arcadelt (1504? - 1568)\"",
+			"Lyricist": "\"\"",
+			"Copyright1": "\"www.cipoo.net   -   Copyleft",
+			"Copyright2": "\"and/or modify it according to terms of the Free Art license http"
+		},
+		"PgSetup": {
+			"type": "PgSetup",
+			"StaffSize": "17",
+			"Zoom": "4",
+			"TitlePage": "Y",
+			"JustifyVertically": "Y",
+			"PrintSystemSepMark": "N",
+			"ExtendLastSystem": "Y",
+			"DurationPadding": "Y",
+			"PageNumbers": "0",
+			"StaffLabels": "None",
+			"BarNumbers": "Plain",
+			"StartingBar": "1",
+			"AllowLayering": "N"
+		},
+		"PgMargins": {
+			"type": "PgMargins",
+			"Left": "1.80",
+			"Top": "1.60",
+			"Right": "1.70",
+			"Bottom": "1.60",
+			"Mirror": "Y"
+		}
+	}
+}
