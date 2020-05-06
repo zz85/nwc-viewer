@@ -509,7 +509,8 @@ function drawForNote(token, cursor, durToken) {
 	}
 
 	for (let i = 0; i < token.dots; i++) {
-		const dot = new Dot(relativePos)
+		var adjust = isOnLine(relativePos) ? 1 : 0;
+		const dot = new Dot(relativePos + adjust - 0.2)
 		cursor.posGlyph(dot)
 		drawing.add(dot)
 		cursor.incStaveX(dot.width)
@@ -517,6 +518,10 @@ function drawForNote(token, cursor, durToken) {
 
 	var spaceMultiplier = calculatePadding(durValue || token.durValue)
 	cursor.tokenPadRight(noteHead.width * 1 * spaceMultiplier)
+}
+
+function isOnLine(pos) {
+	return pos % 2 == 0
 }
 
 function calculatePadding(durValue) {
