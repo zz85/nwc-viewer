@@ -958,7 +958,9 @@ function StaffInfo(reader, staff) {
 			// debug('token', name, i)
 			// reader.where()
 			if (isVersionOneFive(reader)) {
-				reader.pos -= 1
+				reader.skip(1)
+			} else {
+				reader.skip(2)
 			}
 			func(reader)
 		} else {
@@ -978,7 +980,6 @@ function StaffInfo(reader, staff) {
 
 function Clef(reader) {
 	reader.set('type', 'Clef')
-	reader.skip(2)
 	reader.set('clef', CLEF_NAMES[reader.readShort() & 3])
 	reader.set('octave', reader.readShort() & 3)
 }
@@ -998,7 +999,6 @@ function bitmapKeySignature(bitmap) {
 
 function KeySignature(reader) {
 	reader.set('type', 'KeySignature')
-	reader.skip(2)
 	var data = reader.readBytes(10)
 	var flats = bitmapKeySignature(data[0])
 	var sharps = bitmapKeySignature(data[2])
@@ -1019,13 +1019,11 @@ function KeySignature(reader) {
 
 function Barline(reader) {
 	reader.set('type', 'Barline')
-	reader.skip(2)
 	reader.set('barline', reader.readByte() & 15)
 	reader.set('repeat', reader.readByte())
 }
 
 function Ending(reader) {
-	reader.skip(2)
 	reader.set('type', 'Ending')
 	reader.set('repeat', reader.readByte())
 	reader.set('style', reader.readByte())
@@ -1033,13 +1031,11 @@ function Ending(reader) {
 
 function InstrumentPatch(reader) {
 	reader.set('type', 'InstrumentPatch')
-	reader.skip(2)
 	var data = reader.readBytes(8)
 }
 
 function TimeSignature(reader) {
 	reader.set('type', 'TimeSignature')
-	reader.skip(2)
 
 	var top = reader.readShort() // numerator
 	var beats = Math.pow(2, reader.readShort()) // denominator
@@ -1052,8 +1048,7 @@ function TimeSignature(reader) {
 
 function Tempo(reader) {
 	reader.set('type', 'Tempo')
-	// 7 byes
-	reader.skip(2)
+	// 5 bytes
 	var position = reader.readSignedInt() // 2
 	var placement = reader.readSignedInt() // 3
 	var duration = reader.readShort() // 4-5 // value / duration
@@ -1071,8 +1066,7 @@ function Tempo(reader) {
 
 function Dynamic(reader) {
 	reader.set('type', 'Dynamic')
-	// 9 Bytes
-	reader.skip(2)
+	// 7 Bytes
 	var position = reader.readSignedInt() // 1
 	var placement = reader.readSignedInt() // 2
 	var style = reader.readByte() & 7 // reader.readSignedInt(); // 3 dynamicRef
@@ -1091,7 +1085,6 @@ function Dynamic(reader) {
 }
 
 function Note(reader) {
-	reader.skip(2)
 	reader.set('type', 'Note')
 	var data = reader.readBytes(8)
 	NoteValue(reader, data)
@@ -1134,14 +1127,11 @@ function NoteValue(reader, data) {
 
 function Rest(reader) {
 	reader.set('type', 'Rest')
-	reader.skip(2)
 	var data = reader.readBytes(8)
 	NoteValue(reader, data)
 }
 
 function Chord(reader) {
-	reader.skip(2)
-	////
 	reader.set('type', 'Chord')
 	var data = reader.readBytes(10)
 
@@ -1170,13 +1160,11 @@ function Chord(reader) {
 
 function RestChord(reader) {
 	reader.set('type', 'RestChord')
-	reader.skip(2)
 	var data = reader.readBytes(10)
 	NoteValue(reader, data)
 }
 
 function Pedal(reader) {
-	reader.skip(2)
 	reader.set('type', 'Pedal')
 	var pos = reader.readByte()
 	var placement = reader.readByte()
@@ -1186,8 +1174,6 @@ function Pedal(reader) {
 
 function Flow(reader) {
 	reader.set('type', 'Flow')
-
-	reader.skip(2)
 	if (isVersionOneFive(reader)) {
 		reader.set('pos', -8)
 		reader.set('placement', 1)
@@ -1202,7 +1188,6 @@ function Flow(reader) {
 
 function MidiInstruction(reader) {
 	reader.set('type', 'MidiInstruction')
-	reader.skip(2)
 	var pos = reader.readByte()
 	var placement = reader.readByte()
 	var data = reader.readBytes(32)
@@ -1210,7 +1195,6 @@ function MidiInstruction(reader) {
 
 function TempoVariance(reader) {
 	reader.set('type', 'TempoVariance')
-	reader.skip(2)
 	var style, pos, placement, delay
 	if (isVersionOneFive(reader)) {
 		placement = reader.readByte()
@@ -1226,7 +1210,6 @@ function TempoVariance(reader) {
 }
 
 function DynamicVariance(reader) {
-	reader.skip(2)
 	reader.set('type', 'DynamicVariance')
 
 	var style, pos, placement
@@ -1242,7 +1225,6 @@ function DynamicVariance(reader) {
 }
 
 function PerformanceStyle(reader) {
-	reader.skip(2)
 	reader.set('type', 'PerformanceStyle')
 
 	var style, pos, placement
@@ -1261,7 +1243,6 @@ function PerformanceStyle(reader) {
 
 function Text(reader) {
 	reader.set('type', 'Text')
-	reader.skip(2)
 
 	var position = reader.readSignedInt()
 	var data = reader.readByte()
