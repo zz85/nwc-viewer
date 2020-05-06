@@ -45,12 +45,12 @@ window.findFirstToken = predicate => {
 	return { s, t }
 }
 // v1.55
-// ajax('samples/jem001.nwc', processData)
+ajax('samples/jem001.nwc', processData)
 
 // v1.7 nwc
 // ajax('samples/anongs.nwc', processData);
 // ajax('samples/adohn.nwc', processData);
-ajax('samples/bwv140-2.nwc', processData)
+// ajax('samples/bwv140-2.nwc', processData)
 // ajax('samples/carenot.nwc', processData);
 
 // v2.75

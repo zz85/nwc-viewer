@@ -469,6 +469,16 @@ function drawForNote(token, cursor, durToken) {
 		drawing.add(ledger)
 	}
 
+	if (token.text) {
+		var pos = 10
+		var text = new Text(token.text, pos, {
+			font: '12px arial',
+			textAlign: 'center',
+		})
+		cursor.posGlyph(text)
+		drawing.add(text)
+	}
+
 	if (requireStem && !stemUp) {
 		// stem down
 		const stem = new Stem(relativePos - 7)
@@ -508,15 +518,8 @@ function drawForNote(token, cursor, durToken) {
 		cursor.incStaveX(noteHeadWidth)
 	}
 
-	if (token.text) {
-		var pos = 10
-		var text = new Text(token.text, pos)
-		cursor.posGlyph(text)
-		drawing.add(text)
-	}
-
 	for (let i = 0; i < token.dots; i++) {
-		var adjust = isOnLine(relativePos) ? 1 : 0;
+		var adjust = isOnLine(relativePos) ? 1 : 0
 		const dot = new Dot(relativePos + adjust - 0.2)
 		cursor.posGlyph(dot)
 		drawing.add(dot)

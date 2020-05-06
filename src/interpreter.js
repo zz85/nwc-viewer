@@ -68,6 +68,46 @@ function interpret(data) {
 	*/
 }
 
+window.utils = {}
+utils.getScoreBar = function(n) {
+	var tokens = data.score.staves[0].tokens
+	var bar = 1
+
+	var index
+	tokens.some((token, i) => {
+		if (bar === n) {
+			index = i
+			return true
+		}
+
+		if (token.type == 'Barline') {
+			bar++
+		}
+
+		return false
+	})
+
+	if (index !== undefined) return tokens[index + 1]
+}
+
+utils.whichBar = function(find) {
+	// tokens.indexOf(tokens.filter(x => x.tie)[0])
+	var tokens = data.score.staves[0].tokens
+
+	var bar = 1
+	tokens.some((token, i) => {
+		if (token === find) {
+			return true
+		}
+		if (token.type == 'Barline') {
+			bar++
+		}
+
+		return false
+	})
+
+	return bar
+}
 
 function SightReader() {
 	// Note Streamer
@@ -78,18 +118,18 @@ function SightReader() {
 	this.reset()
 }
 
-var lyricsToken;
+var lyricsToken
 
 SightReader.prototype.read = function(staves) {
 	// TODO move this into reader itself
 	staves.forEach(staff => {
 		this.reset()
 
-		var lyrics = staff.lyrics;
+		var lyrics = staff.lyrics
 		if (lyrics) {
 			console.log('lyrics!', lyrics.length)
 			staff.lyrics.forEach(lyrics => {
-				lyricsToken = tokenizeLyrics(lyrics);
+				lyricsToken = tokenizeLyrics(lyrics)
 			})
 		}
 		staff.tokens.forEach(token => {
@@ -299,7 +339,15 @@ SightReader.prototype.Note = function(token) {
 
 	token.accidentalValue = computedAccidental
 
-	if (lyricsToken.length) token.text = lyricsToken.shift()
+	// match lyricss
+	if (lyricsToken.length) {
+		//  && token.slur !== 2 || token.tieEnd
+		token.text = lyricsToken.shift()
+
+		if (token.slur === 1 || token.tie) {
+			lyricsToken.unshift('')
+		}
+	}
 
 	// duration of this note
 	this._handle_duration(token)

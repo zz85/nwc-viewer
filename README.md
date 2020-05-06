@@ -92,13 +92,13 @@ decodeNwcArrayBuffer(bytearray)
 (nwc.js) takes in a bytearray and returns an data object with the interpretation of the nwc contents.
 
 ####  2. Musical intepretation
-(interpreter.js) uses SightReader to assign cumulative time values to notes. It also translate positions into musical values. The input tokens are modified in place with new properties
+(interpreter.js) uses SightReader to assign cumulative time values to notes. It also translate positions into musical values. The input tokens are modified in place with new properties.
 
 #### 3. Notation representation
-(typeset.js) attempts to score the music by generating graphical tokens and calculating necessary positions.
+(typeset.js) attempts to score the music by generating graphical tokens and calculating necessary adjustments.
 
 #### 4. Rendering
-(drawing.js) takes the graphical objects and renders them to a canvas target
+(drawing.js) takes the graphical objects and renders them to a canvas target.
 
 
 ## Internals

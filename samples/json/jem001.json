@@ -1204,6 +1204,7 @@
 						"stem": 0,
 						"triplet": 0,
 						"tie": 0,
+						"tieEnd": 1,
 						"staccato": 0,
 						"accent": 0,
 						"tenuto": 0,

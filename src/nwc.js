@@ -1104,6 +1104,9 @@ function NoteValue(reader, data) {
 
 	reader.set('duration', DURATIONS[durationBit])
 
+	var tieStart = (data[4] >> 4) & 1
+	var tieEnd = (data[4] >> 3) & 1
+
 	var durationDotBit = data[4]
 
 	var dots = durationDotBit & (1 << 2) ? 1 : durationDotBit & 1 ? 2 : 0
@@ -1111,10 +1114,13 @@ function NoteValue(reader, data) {
 	reader.set('dots', dots)
 	reader.set('stem', (data[2] >> 4) & 3)
 	reader.set('triplet', (data[2] >> 2) & 3)
-	reader.set('tie', (data[4] >> 4) & 1)
+
+	reader.set('tie', tieStart)
+	if (tieEnd) reader.set('tieEnd', tieEnd)
 
 	reader.set('staccato', (data[4] >> 1) & 1)
 	reader.set('accent', (data[4] >> 5) & 1)
+
 	reader.set('tenuto', (data[5] >> 2) & 1)
 	reader.set('grace', (data[5] >> 5) & 1)
 	reader.set('slur', data[5] & 3)
