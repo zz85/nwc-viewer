@@ -6,8 +6,10 @@ function isBrowser() {
 	return typeof window !== 'undefined'
 }
 
+var should_debug = false
+
 function debug(...args) {
-	// console.log(..args)
+	if (should_debug) console.log(...args)
 }
 
 /**********************
@@ -641,8 +643,6 @@ function mapTokens(token) {
  *
  **********************/
 
-// version 4
-// 3 7 8
 function Header(reader) {
 	// for (var i = 0; i < 25; i ++) {
 	// 	var line = reader.readLine();
@@ -955,7 +955,7 @@ function StaffInfo(reader, staff) {
 
 		if (func) {
 			var name = NwcConstants.ObjLabels[token] // (func + '').split('\n')[0]
-			// debug('token', name)
+			// debug('token', name, i)
 			// reader.where()
 			if (isVersionOneFive(reader)) {
 				reader.pos -= 1
@@ -1173,12 +1173,18 @@ function Pedal(reader) {
 
 function Flow(reader) {
 	reader.set('type', 'Flow')
-	// TODO
-	// console.log('Flow');
-	// reader.dump();
-	var data = reader.readBytes(6)
-	// 4 5 6* 11*
-	// reader.set('Flow', data[4]);
+
+	reader.skip(2)
+	if (isVersionOneFive(reader)) {
+		reader.set('pos', -8)
+		reader.set('placement', 1)
+		reader.set('style', reader.readShort())
+		return
+	}
+
+	reader.set('pos', reader.readSignedInt())
+	reader.set('placement', reader.readSignedInt())
+	reader.set('style', reader.readShort())
 }
 
 function MidiInstruction(reader) {

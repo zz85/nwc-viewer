@@ -44,6 +44,8 @@ window.findFirstToken = predicate => {
 
 	return { s, t }
 }
+// v1.55
+// ajax('samples/jem001.nwc', processData)
 
 // v1.7 nwc
 // ajax('samples/anongs.nwc', processData);

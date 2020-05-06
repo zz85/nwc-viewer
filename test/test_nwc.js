@@ -35,6 +35,7 @@ var tests = {
 
 
 files.forEach(file => {
+    console.log('Processing file', file)
     var contents = fs.readFileSync(`samples/${file}`);
     var nwcdata = nwc.decodeNwcArrayBuffer(contents);
 
