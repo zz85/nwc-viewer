@@ -3,18 +3,24 @@ var fs = require('fs');
 var assert = require('assert');
 
 var files = [
+    // 1.5
+    'jem001.nwc',
+
     // 1.7
     'anongs.nwc',
     'adohn.nwc',
     'bwv140-2.nwc',
     'carenot.nwc',
-
+    
     // 2.75
     'AveMariaArcadelt.nwc',
     'WeThreeKingsOfOrientAre.nwc',
 ];
 
 var tests = {
+    'jem001.nwc': {
+        version: 1.55,
+    },
     'anongs.nwc': {
         version: 1.75,
         staves: 6,
@@ -34,14 +40,12 @@ files.forEach(file => {
 
     var expected = tests[file];
     if (expected) {
-        equal(nwcdata.header.version, expected.version, 'decodes version number');
-        equal(nwcdata.score.staves.length, expected.staves, `staves`);
-        equal(nwcdata.score.staves[0].tokens.length, expected.firstTokens, `first stave token`);
+        if ('version' in expected) equal(nwcdata.header.version, expected.version, 'decodes version number');
+        if ('staves' in expected) equal(nwcdata.score.staves.length, expected.staves, `staves`);
+        if ('firstTokens' in expected) equal(nwcdata.score.staves[0].tokens.length, expected.firstTokens, `first stave token`);
     }
 
     return assert(!!nwcdata, 'parsed');
-
-    notEqual(nwcdata, null, 'returns nwcdata');
 });
 
 function notEqual(any, expected, message) {

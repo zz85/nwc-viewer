@@ -6,6 +6,10 @@ function isBrowser() {
 	return typeof window !== 'undefined'
 }
 
+function debug(...args) {
+	// console.log(..args)
+}
+
 /**********************
  *
  *   Constants
@@ -350,8 +354,7 @@ function decodeNwcArrayBuffer(arrayBuffer) {
 		}
 		if (isNode()) {
 			var plain = require('zlib').inflateSync(Buffer.from(nwz))
-			// fs = require('fs')
-			// fs.writeFileSync('planan.nwc', plain);
+			// require('fs').writeFileSync('plain.nwc', plain);
 		}
 
 		return processNwc(plain)
@@ -696,17 +699,15 @@ function Info(reader) {
 	if (version >= 2) {
 		var lyricist = reader.readString()
 		reader.set('lyricist', lyricist)
+
 		var copyright1 = reader.readString()
 		var copyright2 = reader.readString()
 	} else {
 		var copyright1 = reader.readString()
-		console.log('** copyright1', copyright1)
-		reader.where()
-		if (version == 1.55) reader.pos++
+		if (isVersionOneFive(reader)) reader.pos++
 		var copyright2 = reader.readString()
 	}
 	var comments = reader.readString()
-	console.log(reader.data)
 
 	///
 	reader.descend('info')
@@ -717,7 +718,7 @@ function Info(reader) {
 		copyright2,
 		comments,
 	})
-	console.log(reader.data)
+	debug('info', reader.data)
 }
 
 function PageSetup(reader) {
@@ -753,8 +754,6 @@ function Fonts(reader) {
 	// 08 01 ?
 	if (reader.data.header.version < 2) {
 		reader.skip(36)
-		console.log('margin done')
-		reader.where() // 17
 		var staff_size = reader.readByte()
 		reader.skip(1)
 	} else {
@@ -772,7 +771,6 @@ function Fonts(reader) {
 		typeface
 
 	console.log('staff_size', staff_size)
-	reader.where() // 17
 	var FONTS_TO_READ = isVersionOneFive(reader) ? 10 : 12
 	for (var i = 0; i < FONTS_TO_READ; i++) {
 		font = reader.readString()
@@ -787,20 +785,11 @@ function Fonts(reader) {
 			size: size,
 			typeface: typeface,
 		})
-		reader.where()
-		console.log({
-			font: font,
-			style: style,
-			size: size,
-			typeface: typeface,
-		})
 	}
 	reader.set('fonts', fonts)
 }
 
 function Score(reader) {
-	console.log('score')
-	reader.where()
 	reader.descend('score')
 	var version = reader.data.header.version
 
@@ -813,9 +802,6 @@ function Score(reader) {
 		reader.readBytes(2)
 		reader.set('layering', reader.readByte(1))
 	}
-
-	console.log('start stave')
-	reader.where()
 
 	var staves
 	if (version < 2) {
@@ -952,11 +938,10 @@ function StaffInfo(reader, staff) {
 	reader.set('tokens', [])
 	console.log('tokens', tokens)
 
-	if (reader.data.header.version > 1.5) {
+	if (!isVersionOneFive(reader)) {
 		tokens -= 2
 	}
 
-	// tokens = 10;
 	for (var i = 0; i < tokens; i++) {
 		if (reader.data.header.version === 1.7) {
 			reader.skip(2)
@@ -969,10 +954,12 @@ function StaffInfo(reader, staff) {
 		var func = TOKENS[token]
 
 		if (func) {
-			var name = func + ''
-			// .split('\n')[0];
-			console.log(name, NwcConstants.ObjLabels[token])
-			reader.where()
+			var name = NwcConstants.ObjLabels[token] // (func + '').split('\n')[0]
+			// debug('token', name)
+			// reader.where()
+			if (isVersionOneFive(reader)) {
+				reader.pos -= 1
+			}
 			func(reader)
 		} else {
 			console.log('Warning, token not recongnized', token, reader.pos)
@@ -1102,6 +1089,9 @@ function Note(reader) {
 	reader.set('type', 'Note')
 	var data = reader.readBytes(10)
 	NoteValue(reader, data)
+	if (isVersionOneFive(reader)) {
+		reader.pos += 2
+	}
 }
 
 function NoteValue(reader, data) {
@@ -1511,4 +1501,4 @@ Object.assign(isNode() ? module.exports : window, {
 	decodeNwcArrayBuffer,
 })
 
-// export { decodeNwcArrayBuffer }
+export { decodeNwcArrayBuffer }

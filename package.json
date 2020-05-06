@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "pretty": "prettier --single-quote --use-tabs --no-semi --trailing-comma es5 --write src/*.js",
-    "test": "node test/test_nwc.js",
+    "test": "node -r esm test/test_nwc.js",
     "lint": "eslint src/*.js",
     "build": "rollup src/main.js --output.format iife --output.file bin/notably.js"
   },
@@ -19,6 +19,7 @@
     "eslint": "^4.14.0",
     "eslint-config-prettier": "^2.9.0",
     "eslint-plugin-prettier": "^2.4.0",
+    "esm": "^3.2.25",
     "prettier": "^1.9.2",
     "rollup": "^0.53.1"
   }
