@@ -1,5 +1,5 @@
 import Fraction from './fraction.js'
-
+import tokenizeLyrics from './lyrics.js'
 // Scanner / SightReader / Runner / PlayContext
 
 /**********************
@@ -68,6 +68,7 @@ function interpret(data) {
 	*/
 }
 
+
 function SightReader() {
 	// Note Streamer
 	this.tickCounter = new Fraction(0, 1) // commutativeTickDuration
@@ -77,10 +78,20 @@ function SightReader() {
 	this.reset()
 }
 
+var lyricsToken;
+
 SightReader.prototype.read = function(staves) {
 	// TODO move this into reader itself
 	staves.forEach(staff => {
 		this.reset()
+
+		var lyrics = staff.lyrics;
+		if (lyrics) {
+			console.log('lyrics!', lyrics.length)
+			staff.lyrics.forEach(lyrics => {
+				lyricsToken = tokenizeLyrics(lyrics);
+			})
+		}
 		staff.tokens.forEach(token => {
 			var type = token.type
 
@@ -287,6 +298,8 @@ SightReader.prototype.Note = function(token) {
 	}
 
 	token.accidentalValue = computedAccidental
+
+	if (lyricsToken.length) token.text = lyricsToken.shift()
 
 	// duration of this note
 	this._handle_duration(token)

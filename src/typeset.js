@@ -508,6 +508,13 @@ function drawForNote(token, cursor, durToken) {
 		cursor.incStaveX(noteHeadWidth)
 	}
 
+	if (token.text) {
+		var pos = 10
+		var text = new Text(token.text, pos)
+		cursor.posGlyph(text)
+		drawing.add(text)
+	}
+
 	for (let i = 0; i < token.dots; i++) {
 		var adjust = isOnLine(relativePos) ? 1 : 0;
 		const dot = new Dot(relativePos + adjust - 0.2)
