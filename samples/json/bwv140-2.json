@@ -157,7 +157,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -176,7 +177,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -195,7 +197,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -214,7 +217,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -233,7 +237,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -252,7 +257,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -271,7 +277,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -290,7 +297,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -309,7 +317,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -328,7 +337,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -347,7 +357,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -366,7 +377,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -567,7 +579,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -706,7 +719,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -845,7 +859,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -969,7 +984,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -1078,7 +1094,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -1217,7 +1234,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -1356,7 +1374,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -1495,7 +1514,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -1604,7 +1624,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -1758,7 +1779,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -1882,7 +1904,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -2006,7 +2029,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -2214,7 +2238,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -2290,7 +2315,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -2366,7 +2392,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -2421,7 +2448,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -2548,7 +2576,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -2588,7 +2617,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -2664,7 +2694,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -2740,7 +2771,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -2903,7 +2935,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -2979,7 +3012,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -3055,7 +3089,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -3146,7 +3181,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -3368,7 +3404,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -3402,7 +3439,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -3436,7 +3474,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Chord",
@@ -3527,7 +3566,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -3591,7 +3631,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -3610,7 +3651,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -3644,7 +3686,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -3678,7 +3721,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -3742,7 +3786,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -3776,7 +3821,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -3810,7 +3856,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -3859,7 +3906,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -3985,7 +4033,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4004,7 +4053,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4038,7 +4088,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4072,7 +4123,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4136,7 +4188,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4155,7 +4208,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4189,7 +4243,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4223,7 +4278,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4302,7 +4358,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4321,7 +4378,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4355,7 +4413,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -4404,7 +4463,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -4453,7 +4513,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 3
+						"barline": 3,
+						"repeat": 1
 					},
 					{
 						"type": "Text",
@@ -4492,7 +4553,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 3
+						"barline": 3,
+						"repeat": 1
 					}
 				]
 			}

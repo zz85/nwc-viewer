@@ -253,7 +253,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -347,7 +348,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -486,7 +488,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -580,7 +583,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -689,7 +693,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -783,7 +788,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 4
+						"barline": 4,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -922,7 +928,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -1061,7 +1068,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Rest",
@@ -1215,7 +1223,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 0
+						"barline": 0,
+						"repeat": 1
 					},
 					{
 						"type": "Note",
@@ -1339,7 +1348,8 @@
 					},
 					{
 						"type": "Barline",
-						"barline": 5
+						"barline": 5,
+						"repeat": 2
 					}
 				]
 			}
