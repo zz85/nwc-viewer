@@ -46,6 +46,10 @@ files.forEach(file => {
         if ('firstTokens' in expected) equal(nwcdata.score.staves[0].tokens.length, expected.firstTokens, `first stave token`);
     }
 
+    // snapshot tests
+    var jsonout = `samples/json/${file.replace(/\.nwc$/, '')}.json`;
+    fs.writeFileSync(jsonout, JSON.stringify(nwcdata, null, '\t'));
+
     return assert(!!nwcdata, 'parsed');
 });
 
