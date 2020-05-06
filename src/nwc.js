@@ -1,5 +1,10 @@
-const NODE = typeof module !== 'undefined'
-const BROWSER = typeof window !== 'undefined'
+function isNode() {
+	return typeof module !== 'undefined'
+}
+
+function isBrowser() {
+	return typeof window !== 'undefined'
+}
 
 /**********************
  *
@@ -339,12 +344,14 @@ function decodeNwcArrayBuffer(arrayBuffer) {
 	var firstBytes = shortArrayToString(byteArray.subarray(0, 5))
 	if ('[NWZ]' === firstBytes) {
 		var nwz = byteArray.subarray(6)
-		if (BROWSER) {
+		if (isBrowser()) {
 			var inflate = new Zlib.Inflate(nwz)
 			var plain = inflate.decompress()
 		}
-		if (NODE) {
-			var plain = require('zlib').inflateSync(new Buffer(nwz))
+		if (isNode()) {
+			var plain = require('zlib').inflateSync(Buffer.from(nwz))
+			// fs = require('fs')
+			// fs.writeFileSync('planan.nwc', plain);
 		}
 
 		return processNwc(plain)
@@ -388,20 +395,22 @@ function longArrayToString(array, chunk) {
 function processNwcText(array, nwctext) {
 	// copy pasta from below
 	var reader = new DataReader(array)
-	if (BROWSER) window.reader = reader
+	if (isBrowser()) window.reader = reader
 	// Header(reader)
-	// if (reader.data.header.version >= 2.7) {
-		console.log('done', nwctext)
-		reader.set('nwctext', nwctext)
-		parseNwc275(reader, nwctext)
-		convert275Tokens(reader)
-		return reader.data
-	// }
+	if (reader.data.header.version < 2.7) {
+		console.log('warning, should not be < 2.7 version')
+	}
+
+	console.log('done', nwctext)
+	reader.set('nwctext', nwctext)
+	parseNwc275(reader, nwctext)
+	convert275Tokens(reader)
+	return reader.data
 }
 
 function processNwc(array) {
 	var reader = new DataReader(array)
-	if (BROWSER) window.reader = reader
+	if (isBrowser()) window.reader = reader
 
 	/*
 	// dump
@@ -526,7 +535,7 @@ var durs = {
 	'16th': 16,
 	'32th': 32,
 	'32nd': 32,
-	'64th': 64
+	'64th': 64,
 }
 
 function parseDur(dur) {
@@ -550,6 +559,7 @@ function parseDur(dur) {
 	}
 }
 
+/* This maps nwctxt to object */
 function mapTokens(token) {
 	var type = token.type
 	parseOpts(token)
@@ -598,14 +608,12 @@ function mapTokens(token) {
 				},
 				parseDur(token.Dur)
 			)
-			break
 		case 'Key':
 			return {
 				type: 'KeySignature',
 				key: token.Tonic,
 				// Signature
 			}
-			break
 		case 'Tempo':
 			token.duration = token.Tempo // note
 			token.note = 1
@@ -676,7 +684,7 @@ function Header(reader) {
 function Info(reader) {
 	var infoHeader = reader.readBytes(2) // 0x10 - nwc175 0x18 - nwc2
 	if (infoHeader[0] !== 0x10 && infoHeader[0] !== 0x18) {
-		console.log('info header not aligned!')
+		console.log('info header possibly not aligned!', infoHeader)
 	}
 
 	var version = reader.data.header.version
@@ -692,6 +700,9 @@ function Info(reader) {
 		var copyright2 = reader.readString()
 	} else {
 		var copyright1 = reader.readString()
+		console.log('** copyright1', copyright1)
+		reader.where()
+		if (version == 1.55) reader.pos++
 		var copyright2 = reader.readString()
 	}
 	var comments = reader.readString()
@@ -734,11 +745,18 @@ function Margins(reader) {
 	reader.set('margins', margins)
 }
 
+function isVersionOneFive(reader) {
+	return reader.data.header.version < 1.7
+}
+
 function Fonts(reader) {
+	// 08 01 ?
 	if (reader.data.header.version < 2) {
 		reader.skip(36)
-		reader.skip(1)
+		console.log('margin done')
+		reader.where() // 17
 		var staff_size = reader.readByte()
+		reader.skip(1)
 	} else {
 		reader.readUntil(0xff)
 		var pre = reader.readBytes(3) // 0 11 0
@@ -752,7 +770,11 @@ function Fonts(reader) {
 		style,
 		size,
 		typeface
-	for (var i = 0; i < 12; i++) {
+
+	console.log('staff_size', staff_size)
+	reader.where() // 17
+	var FONTS_TO_READ = isVersionOneFive(reader) ? 10 : 12
+	for (var i = 0; i < FONTS_TO_READ; i++) {
 		font = reader.readString()
 		style = STYLES[reader.readByte() & 3]
 		size = reader.readByte()
@@ -765,24 +787,42 @@ function Fonts(reader) {
 			size: size,
 			typeface: typeface,
 		})
+		reader.where()
+		console.log({
+			font: font,
+			style: style,
+			size: size,
+			typeface: typeface,
+		})
 	}
 	reader.set('fonts', fonts)
 }
 
 function Score(reader) {
+	console.log('score')
+	reader.where()
 	reader.descend('score')
 	var version = reader.data.header.version
 
-	reader.readUntil(0xff)
-	reader.readBytes(2)
-	reader.set('layering', reader.readByte(1))
+	if (isVersionOneFive(reader)) {
+		reader.readBytes(2)
+		reader.set('layering', reader.readByte(1))
+		reader.pos += 1
+	} else {
+		reader.readUntil(0xff)
+		reader.readBytes(2)
+		reader.set('layering', reader.readByte(1))
+	}
 
+	console.log('start stave')
+	reader.where()
+
+	var staves
 	if (version < 2) {
-		var staves = reader.readShort()
-		console.log('Detected Staves', staves)
+		staves = reader.readShort()
 	} else {
 		reader.readByte()
-		var staves = reader.readByte()
+		staves = reader.readByte()
 
 		// if (version === 2.02) {
 		// reader.readUntilNonZero();
@@ -862,6 +902,10 @@ function StaffInfo(reader, staff) {
 	}
 
 	reader.skip(2)
+
+	if (isVersionOneFive(reader)) {
+		reader.pos -= 2
+	}
 	var lyrics = reader.readShort()
 	var noLyrics = reader.readShort()
 
@@ -908,7 +952,12 @@ function StaffInfo(reader, staff) {
 	reader.set('tokens', [])
 	console.log('tokens', tokens)
 
-	for (var i = 0; i < tokens - 2; i++) {
+	if (reader.data.header.version > 1.5) {
+		tokens -= 2
+	}
+
+	// tokens = 10;
+	for (var i = 0; i < tokens; i++) {
 		if (reader.data.header.version === 1.7) {
 			reader.skip(2)
 		}
@@ -920,6 +969,10 @@ function StaffInfo(reader, staff) {
 		var func = TOKENS[token]
 
 		if (func) {
+			var name = func + ''
+			// .split('\n')[0];
+			console.log(name, NwcConstants.ObjLabels[token])
+			reader.where()
 			func(reader)
 		} else {
 			console.log('Warning, token not recongnized', token, reader.pos)
@@ -1448,12 +1501,14 @@ DataReader.prototype.dump = function(limit) {
 	dump(this.array, this.pos, limit)
 }
 
+DataReader.prototype.where = function() {
+	console.log('position', this.pos, '0x' + this.pos.toString(16))
+}
+
 // Exports
 
-module.exports = { decodeNwcArrayBuffer };
-
-// Object.assign(NODE ? module.exports : window, {
-// 	decodeNwcArrayBuffer,
-// })
+Object.assign(isNode() ? module.exports : window, {
+	decodeNwcArrayBuffer,
+})
 
 // export { decodeNwcArrayBuffer }

@@ -142,8 +142,8 @@ function setup(render, path, ok) {
 var notableLoaded = false
 
 function loadFont(cb, path) {
-	ajax(`${path}otf/Bravura.otf`, (buffer) => {
-		var font = window.opentype.parse(buffer);
+	ajax(`${path}otf/Bravura.otf`, buffer => {
+		var font = window.opentype.parse(buffer)
 		// if (err) return console.log('Error, font cannot be loaded', err)
 
 		notableLoaded = true
@@ -487,7 +487,6 @@ class Drawing {
 			if (el.x > viewportOffsetX + viewportWidth + 200) return
 			if (el.x + el.w < viewportOffsetX - 200) return
 
-		
 			ctx.save()
 			ctx.translate(el.x, el.y)
 			ctx.translate(el.offsetX || 0, el.offsetY || 0)

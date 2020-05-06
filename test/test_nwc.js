@@ -32,15 +32,16 @@ files.forEach(file => {
     var contents = fs.readFileSync(`samples/${file}`);
     var nwcdata = nwc.decodeNwcArrayBuffer(contents);
 
-    var test = tests[file];
+    var expected = tests[file];
+    if (expected) {
+        equal(nwcdata.header.version, expected.version, 'decodes version number');
+        equal(nwcdata.score.staves.length, expected.staves, `staves`);
+        equal(nwcdata.score.staves[0].tokens.length, expected.firstTokens, `first stave token`);
+    }
 
     return assert(!!nwcdata, 'parsed');
 
     notEqual(nwcdata, null, 'returns nwcdata');
-    equal(nwcdata.header.version, test.version, 'decodes version number');
-    equal(nwcdata.score.staves.length, test.staves, `staves`);
-
-    equal(nwcdata.score.staves[0].tokens.length, test.firstTokens, `first stave token`);
 });
 
 function notEqual(any, expected, message) {

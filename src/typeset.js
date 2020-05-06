@@ -20,7 +20,7 @@ class StaveCursor {
 		this.staveX = 60
 		this.stave = stave
 		this.tokens = stave.tokens
-		this.lastBarline = 40;
+		this.lastBarline = 40
 	}
 
 	peek() {
@@ -57,7 +57,7 @@ class StaveCursor {
 	}
 
 	updateBarline() {
-		this.lastBarline = this.staveX;
+		this.lastBarline = this.staveX
 	}
 }
 
@@ -252,7 +252,7 @@ function getStaffY(staffIndex) {
 }
 
 function addStave(cursor, staveIndex) {
-	const width = cursor.staveX - cursor.lastBarline;
+	const width = cursor.staveX - cursor.lastBarline
 	const s = new Stave(width)
 	s.moveTo(cursor.lastBarline, getStaffY(staveIndex))
 	drawing.add(s)
@@ -299,7 +299,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				default:
 					console.log('ERR unknown clef', token.clef)
 					clef = new Claire.AltoClef()
-					break;
+					break
 			}
 			// clef = new {
 			// 	treble: Claire.TrebleClef,

@@ -50,7 +50,7 @@ function isTabbable(token) {
 function interpret(data) {
 	var staves = data.score.staves
 	var reading = new SightReader()
-	reading.read(staves);
+	reading.read(staves)
 	/*
 	State
 
@@ -79,9 +79,9 @@ function SightReader() {
 
 SightReader.prototype.read = function(staves) {
 	// TODO move this into reader itself
-	staves.forEach((staff) => {
+	staves.forEach(staff => {
 		this.reset()
-		staff.tokens.forEach((token) => {
+		staff.tokens.forEach(token => {
 			var type = token.type
 
 			// absolute time value when note should be played
@@ -301,4 +301,4 @@ SightReader.prototype._handle_duration = function(token) {
 
 window.interpret = interpret
 
-export { interpret };
+export { interpret }
