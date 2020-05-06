@@ -1,9 +1,11 @@
 # Notably
-Notably is a musical viewer and player for NWC ([Noteworthy Composer](http://noteworthycomposer.com)) files. It attempts to parse multiple version of nwc files and renders music notation. It is cross-platform and doesn't require installation, using only browser based technologies like js, canvas and html.
+Notably is a musical viewer and player for NWC ([Noteworthy Composer](http://noteworthycomposer.com)) files. It runs in browser so it has cross platform compatability and doesn't require any software installation. It attempts to parse multiple version of nwc files (v1.5, v1.7, v2.2) and renders music notation. It usees browser based technologies like js, canvas and html.
 
-It is pretty alpha quality, so if you encounter bugs, feel free to [submit an issue](https://github.com/zz85/nwc-viewer/issues) or a pull request.
+If you encounter bugs, feel free to [submit an issue](https://github.com/zz85/nwc-viewer/issues) or a pull request.
 
-If you like this project, chat me up [@blurspline](https://twitter.com/blurspline) on twitter.
+And if you like this project, you can also chat me up [@blurspline on twitter](https://twitter.com/blurspline).
+
+### [Try it](http://zz85.github.io/nwc-viewer/)
 
 ![screen shot](https://user-images.githubusercontent.com/314997/34420095-94df3818-ec42-11e7-9987-2d0bbe0cbdff.png)
 
