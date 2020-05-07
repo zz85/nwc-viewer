@@ -1,10 +1,4 @@
-function isNode() {
-	return typeof module !== 'undefined'
-}
-
-function isBrowser() {
-	return typeof window !== 'undefined'
-}
+import './constants.js'
 
 var should_debug = false
 

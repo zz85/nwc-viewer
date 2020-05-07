@@ -1,5 +1,6 @@
 import './constants.js'
 import { ajax } from './loaders.js'
+import { getFontSize } from './constants.js'
 
 const fontMap = {
 	// barlines
@@ -177,14 +178,14 @@ class Draw {
 	}
 
 	unitsToY(units) {
-		return -units / 2 / 4 * FONT_SIZE
+		return -units / 2 / 4 * getFontSize()
 	}
 }
 
 class Stave extends Draw {
 	constructor(width) {
 		super()
-		this.size = FONT_SIZE // TODO global
+		this.size = getFontSize() // TODO global
 		this.x = 0
 		this.y = 0
 		this.width = width || 100
@@ -234,7 +235,7 @@ class Glyph extends Draw {
 
 		this.name = char
 		this.char = getCode(char)
-		this.fontSize = FONT_SIZE // * (0.8 + Math.random() * 0.4);
+		this.fontSize = getFontSize() // * (0.8 + Math.random() * 0.4);
 		this.width = window.smuflFont.getAdvanceWidth(this.char, this.fontSize)
 
 		// TODO: can package only predefined fonts symbols
@@ -469,7 +470,7 @@ class Drawing {
 	constructor(ctx) {
 		this.set = new Set()
 
-		ctx.font = `${FONT_SIZE}px Bravura`
+		ctx.font = `${getFontSize()}px Bravura`
 		ctx.textBaseline = 'alphabetic' // alphabetic  bottom top
 	}
 

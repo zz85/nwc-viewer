@@ -44,20 +44,34 @@
 			/* background: linear-gradient(to right, white, yellow); */
 			opacity: 0.9;
 		}
+
+		h4 {
+			display: inline-block;
+		}
+
+		#logo {
+			font-size: 16px;
+			font-weight: bold;
+		}
 	</style>
 	<div id="container">
 		<div id="top">
-			<h3>
-				Notably
-				<button id="open">Open</button>
+			<div>
+				<span id="logo">Notably</span>
+				<button id="open">Open nwc</button>
 
 				<input type="file" id="opener" hidden/>
 				<button id="play">Play</button>
 
-				<i style="font-size: 12px">
-				Source Code: <a href="https://github.com/zz85/nwc-viewer">github.com/zz85/nwc-viewer</a>
+				<span style="width: 50px"></span>
+				Zoom:
+				<button onclick="setFontSize(getFontSize() + 4); rerender()">+</button>
+				<button onclick="setFontSize(getFontSize() - 4); rerender()">-</button>
+
+				<i style="font-size: 12px; float: right">
+				Code: <a href="https://github.com/zz85/nwc-viewer">github.com/zz85/nwc-viewer</a>
 				</i>
-			</h3>
+			</div>
 		</div>
 
 		<div id="score">

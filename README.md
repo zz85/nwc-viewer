@@ -1,5 +1,5 @@
 # Notably
-Notably is a musical viewer and player for NWC ([Noteworthy Composer](http://noteworthycomposer.com)) files. It runs in browser so it has cross platform compatability and doesn't require any software installation. It attempts to parse multiple version of nwc files (v1.5, v1.7, v2.2) and renders music notation. It usees browser based technologies like js, canvas and html.
+Notably is a musical viewer and player for NWC ([Noteworthy Composer](http://noteworthycomposer.com)) files. It runs in browser so it has cross platform compatability and doesn't require any software installation. It attempts to parse multiple version of nwc files (v1.5, v1.7, v2.75) and renders music notation. It usees browser based technologies like js, canvas and html.
 
 If you encounter bugs, feel free to [submit an issue](https://github.com/zz85/nwc-viewer/issues) or a pull request.
 
@@ -13,6 +13,7 @@ And if you like this project, you can also chat me up [@blurspline on twitter](h
 
 5 May 2020
 - Add support for loading nwc v1.55
+- lyrics rendering
 
 ### v1 "MVP" 28 December 2017
 [Basic opening of some nwc files](https://github.com/zz85/nwc-viewer/releases/tag/v1)
@@ -100,6 +101,20 @@ decodeNwcArrayBuffer(bytearray)
 #### 4. Rendering
 (drawing.js) takes the graphical objects and renders them to a canvas target.
 
+interpret(data)
+|- SightReader. assign start/end music/display time to tokens
+  |- tokens
+    |- tickValue is musical duration
+    |- tabValue is display duration
+  |- keeps running keysig, time sig, clef, barlines
+
+score(data)
+|- Scoring
+  |- convert staves to StaveCursors
+    |- ask for new tokens from staves
+      |- position stuff of the same tab value to the furthest
+
+The layout is currently done on a fixed, time based top, left constrained algorithm. The goal would be to move to a move generic, flexible layout model.
 
 ## Internals
 

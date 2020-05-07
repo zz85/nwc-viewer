@@ -300,6 +300,4 @@ Fraction.__compareA = new Fraction()
 Fraction.__compareB = new Fraction()
 Fraction.__tmp = new Fraction()
 
-if (NODE) module.exports = Fraction
-
 export default Fraction

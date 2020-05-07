@@ -1,4 +1,4 @@
-import { FONT_SIZE } from './constants.js'
+import { getFontSize } from './constants.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
@@ -13,6 +13,9 @@ import { FONT_SIZE } from './constants.js'
  */
 const X_STRETCH = 0.5
 
+/**
+ * StaveCursor keeps score of something ?
+ */
 class StaveCursor {
 	constructor(stave, staveIndex) {
 		this.tokenIndex = -1
@@ -61,6 +64,12 @@ class StaveCursor {
 	}
 }
 
+/**
+ * Aligns tokens by their time values.
+ * The tokens that uses the most space
+ * determines where other tokens should
+ * align
+ */
 class TickTracker {
 	constructor() {
 		this.maxTicks = {}
@@ -70,7 +79,6 @@ class TickTracker {
 		if (token.Visibility === 'hidden') return
 
 		const refValue = token.tabUntilValue
-		// tickValue tickUntilValue tabValue
 		const which = this.maxTicks[refValue]
 
 		const x = cursor.staveX + cursor.lastPadRight * X_STRETCH || 0
@@ -155,6 +163,7 @@ function score(data) {
 			break
 		}
 
+		/* position stuff of the same tab value to the furthest */
 		var smallestTick = Infinity,
 			smallestIndex = -1
 		stavePointers.forEach(cursor => {
@@ -189,7 +198,7 @@ function score(data) {
 	})
 
 	// draw braces
-	var bottom = getStaffY(stavePointers.length - 1) - FONT_SIZE * 0.5
+	var bottom = getStaffY(stavePointers.length - 1) - getFontSize() * 0.5
 	drawing.add(new Line(20, getStaffY(-1), 20, bottom))
 
 	maxCanvasHeight = bottom + 100
@@ -247,7 +256,7 @@ function score(data) {
 }
 
 function getStaffY(staffIndex) {
-	return FONT_SIZE * 4 + FONT_SIZE * 2.6 * staffIndex
+	return getFontSize() * 4 + getFontSize() * 2.6 * staffIndex
 	// 120 100
 }
 
@@ -272,6 +281,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 	// console.log('handleToken', token)
 	tickTracker.alignWithMax(token, cursor)
 
+	let clef
+
 	switch (type) {
 		default:
 			console.log('Typeset: Unhandled type - ', type) // , token
@@ -283,28 +294,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 		case 'Clef':
 			// TODO handle octave down
-			// console.log('clef', token);
-			let clef
-			switch (token.clef) {
-				case 'treble':
-					clef = new Claire.TrebleClef()
-					break
-				case 'bass':
-					clef = new Claire.BassClef()
-					break
-				case 'alto':
-					clef = new Claire.AltoClef()
-					break
-				case 'percussion':
-				default:
-					console.log('ERR unknown clef', token.clef)
-					clef = new Claire.AltoClef()
-					break
-			}
-			// clef = new {
-			// 	treble: Claire.TrebleClef,
-			// }[token.clef]()
-
+			clef = clefFromString(token.clef)
 			cursor.posGlyph(clef)
 			drawing.add(clef)
 			cursor.incStaveX(clef.width * 2)
@@ -541,6 +531,21 @@ function calculatePadding(durValue) {
 	// console.log(spaceMultiplier);
 
 	return spaceMultiplier
+}
+
+function clefFromString(str) {
+	switch (str) {
+		case 'treble':
+			return new Claire.TrebleClef()
+		case 'bass':
+			return new Claire.BassClef()
+		case 'alto':
+			return new Claire.AltoClef()
+		case 'percussion':
+		default:
+			console.log('ERR unknown clef', str)
+			return new Claire.AltoClef()
+	}
 }
 
 export { score }

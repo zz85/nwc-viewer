@@ -60,11 +60,11 @@ function interpret(data) {
 	- barlines
 
 	Tokens are tagged with following attributes
-	- tickValue. abs musical time value when it should be played
 	- durValue. music time value note should be played for
-	- tickUntilValue. abs musical timevalue music stops playing
-	- tabValue
-	- tabUntilValue
+	- tickValue. abs musical time value when it should be played (startTime)
+	- tickUntilValue. abs musical timevalue music stops playing (endTime)
+	- tabValue. (display "start time")
+	- tabUntilValue (display "end time")
 	*/
 }
 
@@ -157,7 +157,7 @@ SightReader.prototype.read = function(staves) {
 				}
 			}
 
-			token.tickUntilValue = this.tickCounter.value()
+			// token.tickUntilValue = this.tickCounter.value()
 			token.tabUntilValue = this.tabCounter.value()
 		})
 	})
