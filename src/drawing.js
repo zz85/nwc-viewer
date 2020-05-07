@@ -195,7 +195,7 @@ class Stave extends Draw {
 		const { width, size } = this
 
 		ctx.strokeStyle = '#000'
-		ctx.lineWidth = 1.3
+		ctx.lineWidth = getFontSize() / 32 // 1.3
 
 		// 5 lines
 		const spaces = 4 // TODO global
@@ -222,7 +222,7 @@ class Line extends Draw {
 
 	draw(ctx) {
 		ctx.beginPath()
-		ctx.lineWidth = 1.4
+		ctx.lineWidth = getFontSize() / 24 // 1.4
 		ctx.moveTo(this.x, this.y)
 		ctx.lineTo(this.x1, this.y1)
 		ctx.stroke()
@@ -417,7 +417,7 @@ class Stem extends Draw {
 
 	draw(ctx) {
 		ctx.beginPath()
-		ctx.lineWidth = 1.2
+		ctx.lineWidth = getFontSize() / 30 // 1.2
 		ctx.moveTo(0, 0)
 		ctx.lineTo(0, this.unitsToY(this.len))
 		ctx.stroke()
@@ -432,7 +432,7 @@ class Barline extends Draw {
 
 	draw(ctx) {
 		ctx.beginPath()
-		ctx.lineWidth = 1.2
+		ctx.lineWidth = getFontSize() / 30  // 1.2
 		ctx.moveTo(0, 0)
 		ctx.lineTo(0, this.unitsToY(this.len))
 		ctx.stroke()
