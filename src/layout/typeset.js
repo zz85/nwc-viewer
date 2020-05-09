@@ -1,6 +1,6 @@
-import { getFontSize } from './constants.js'
+import { getFontSize } from '../constants.js'
 import { layoutBeaming } from './beams.js'
-import { layoutTies } from './layout/ties.js'
+import { layoutTies } from './ties.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.

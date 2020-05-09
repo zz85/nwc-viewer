@@ -4,7 +4,7 @@ import { decodeNwcArrayBuffer } from './nwc.js'
 import { interpret } from './interpreter.js'
 import { setup, resizeToFit } from './drawing.js'
 import { exportAbc } from './exporter.js'
-import { score } from './typeset.js'
+import { score } from './layout/typeset.js'
 import { blank } from './editing.js'
 
 /**********************
@@ -63,7 +63,7 @@ ajax('samples/jem001.nwc', processData)
 // ajax('samples/WakenChristianChildren.nwc', processData);
 // ajax('samples/NoelNoel.nwc', processData);
 
-// Doesn't wokrk yet
+// Doesn't work yet
 
 // ajax('samples/OhWhoAreTheySoPure.nwc', processData); // EcceConcipies IShouldLikeToHaveHeard GodRestYouMerry MountainsBowYourHeadsMajestic LetMusicBreakOnThisBlestMorn RingChristmasBells OhWhoAreTheySoPure
 
