@@ -240,22 +240,28 @@ class Line extends Draw {
 
 var glyphCache = {}
 
-function glyphWidthGet(char, fontSize) {
-	var key = char + ':width:' + fontSize
+function cacheGet(key, loader) {
 	if (!(key in glyphCache)) {
-		glyphCache[key] = window.smuflFont.getAdvanceWidth(char, fontSize)
+		glyphCache[key] = loader()
 	}
 
 	return glyphCache[key]
 }
 
+// todo clear the cache when font sizes invalides
+
+function glyphWidthGet(char, fontSize) {
+	var key = char + ':width:' + fontSize
+	return cacheGet(key, () => {
+		return window.smuflFont.getAdvanceWidth(char, fontSize)
+	})
+}
+
 function glyphPathGet(char, fontSize) {
 	var key = char + ':path:' + fontSize
-	if (!(key in glyphCache)) {
-		glyphCache[key] = window.smuflFont.getPath(char, 0, 0, fontSize)
-	}
-
-	return glyphCache[key]
+	return cacheGet(key, () => {
+		return window.smuflFont.getPath(char, 0, 0, fontSize)
+	})
 }
 
 class Glyph extends Draw {
