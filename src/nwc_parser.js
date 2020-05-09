@@ -226,7 +226,7 @@ function parseNoteValue(reader, data) {
 	var hasTieDir = (byteMarking3 >> 6) & 1
 
 	// console.log('tieEnd', tieEnd);
-	// console.log('stats', beam)
+	console.log('stats', slur)
 
 	if (hasSlur) {
 		if (byteMarking1 & 0x40) {

@@ -64,7 +64,7 @@ function handleNoteHead(note, token) {
 	// !?!
 	// if (token.Beam) console.log('Beam', token);
 
-	if (token.stem) console.log('stem', token)
+	// if (token.stem) console.log('stem', token)
 }
 
 function handleBeamTokens(token) {
