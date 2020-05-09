@@ -12,7 +12,7 @@ function exportLilypond() {
 
 	const lily_accidentals = { b: 'es', '#': 'is', n: '', x: 'isis', v: 'eses' }
 
-	selectedStave.tokens.forEach(token => {
+	selectedStave.tokens.forEach((token) => {
 		if (token.type === 'Note') {
 			ly += token.name.toLowerCase()
 			var octave = token.octave - 2
@@ -21,19 +21,13 @@ function exportLilypond() {
 			}
 
 			if (octave < 0) {
-				ly += Array(Math.abs(octave))
-					.fill(',')
-					.join('')
+				ly += Array(Math.abs(octave)).fill(',').join('')
 			} else {
-				ly += Array(octave)
-					.fill("'")
-					.join('')
+				ly += Array(octave).fill("'").join('')
 			}
 
 			ly += token.duration
-			ly += Array(token.dots)
-				.fill('.')
-				.join('')
+			ly += Array(token.dots).fill('.').join('')
 			ly += ' '
 		}
 
@@ -78,8 +72,8 @@ function exportAbc() {
 	//
 
 	data.score.staves[0].tokens
-		.filter(token => token.type === 'TimeSignature')
-		.some(token => {
+		.filter((token) => token.type === 'TimeSignature')
+		.some((token) => {
 			abc.push(`M:${token.group}/${token.beat}`) // Meter
 			return true
 		})
@@ -88,8 +82,8 @@ function exportAbc() {
 	abc.push('Q:1/4=100')
 
 	data.score.staves[0].tokens
-		.filter(token => token.type === 'Tempo')
-		.some(token => {
+		.filter((token) => token.type === 'Tempo')
+		.some((token) => {
 			// abc.push(`Q:1/${token.note}=${token.duration}`) // Tempo
 			abc.push(`Q:1/4=${token.duration}`) // Tempo
 
@@ -106,7 +100,7 @@ function exportAbc() {
 		var tmp = ''
 
 		tmp += `\n[V:${v}]\n`
-		stave.tokens.forEach(token => {
+		stave.tokens.forEach((token) => {
 			if (token.type === 'Note') {
 				if (token.accidentalValue) {
 					tmp += abc_accidentals[token.accidentalValue]
@@ -116,13 +110,9 @@ function exportAbc() {
 				var octave = token.octave - 4
 
 				if (octave < 0) {
-					tmp += Array(Math.abs(octave))
-						.fill(',')
-						.join('')
+					tmp += Array(Math.abs(octave)).fill(',').join('')
 				} else {
-					tmp += Array(octave)
-						.fill("'")
-						.join('')
+					tmp += Array(octave).fill("'").join('')
 				}
 
 				// tmp += '1/' + token.duration

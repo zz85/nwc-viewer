@@ -168,7 +168,7 @@ function score(data) {
 
 	while (true) {
 		// for (var i = 0; i < 50; i++) {
-		if (!stavePointers.some(s => s.hasNext())) {
+		if (!stavePointers.some((s) => s.hasNext())) {
 			console.log('nothing left')
 			break
 		}
@@ -176,7 +176,7 @@ function score(data) {
 		/* position stuff of the same tab value to the furthest */
 		var smallestTick = Infinity,
 			smallestIndex = -1
-		stavePointers.forEach(cursor => {
+		stavePointers.forEach((cursor) => {
 			const token = cursor.peek()
 			if (!token) return
 			const tick = token.tabValue || 0
@@ -383,7 +383,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 		case 'Chord':
 			let tmp = cursor.staveX
-			token.notes.forEach(note => {
+			token.notes.forEach((note) => {
 				cursor.staveX = tmp
 				drawForNote(note, cursor, token)
 			})
@@ -435,7 +435,9 @@ function drawForNote(token, cursor, durToken) {
 	const sym =
 		duration < 2
 			? 'noteheadWhole'
-			: duration < 4 ? 'noteheadHalf' : 'noteheadBlack'
+			: duration < 4
+			? 'noteheadHalf'
+			: 'noteheadBlack'
 
 	const relativePos = token.position + 4
 

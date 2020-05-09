@@ -30,7 +30,7 @@ window.addEventListener('resize', () => {
 // data.score.staves[1].tokens.filter(t => t && t.tie)
 // findFirstToken(t => t && t.tie)
 
-window.findFirstToken = predicate => {
+window.findFirstToken = (predicate) => {
 	var s, t
 	data.score.staves.some((stave, i) => {
 		s = i
@@ -352,7 +352,7 @@ const rerender = () => {
 			score(data)
 		},
 		null,
-		canvas => {
+		(canvas) => {
 			console.log('ok')
 			var score_div = document.getElementById('score')
 			var invisible_canvas = document.getElementById('invisible_canvas')

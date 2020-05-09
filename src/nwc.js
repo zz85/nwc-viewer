@@ -151,7 +151,7 @@ function parseNwc275(reader, nwctext) {
 function convert275Tokens(reader) {
 	var data = reader.data
 
-	data.score.staves.forEach(stave => {
+	data.score.staves.forEach((stave) => {
 		stave.tokens = stave.tokens.map(mapTokens)
 	})
 }
@@ -161,7 +161,7 @@ function parseOpts(token) {
 	if (!Opts) return
 
 	const opts = Opts.split(',')
-	opts.forEach(opt => {
+	opts.forEach((opt) => {
 		const pairs = opt.split('=')
 		token[pairs[0]] = pairs[1]
 	})
@@ -403,7 +403,7 @@ function Margins(reader) {
 	reader.set('measureStart', reader.readByte())
 	reader.skip(1) // likely 0
 	let margins = reader.readString()
-	margins = margins.split(' ').map(function(x) {
+	margins = margins.split(' ').map(function (x) {
 		return +x
 	})
 	reader.set('margins', margins)
@@ -705,11 +705,11 @@ function dump(byteArray, start, limit) {
 			// '00000'
 			(pad + i + ')').slice(-pad.length),
 
-			...keys.map(k => hex(byteArray[i + k])),
+			...keys.map((k) => hex(byteArray[i + k])),
 			// ...keys.map(k => binary(byteArray[i + k])),
 			'|',
-			...keys.map(k => string(byteArray[i + k])),
-			...keys.map(k => num(byteArray[i + k]))
+			...keys.map((k) => string(byteArray[i + k])),
+			...keys.map((k) => num(byteArray[i + k]))
 		)
 	}
 }
@@ -735,23 +735,23 @@ function DataReader(array) {
  * creating an object if it does not exist
  * @param {*} path
  */
-DataReader.prototype.descend = function(path) {
+DataReader.prototype.descend = function (path) {
 	this.pointer = this.data
 	this.descendPath = []
 	this.enter(path)
 }
 
-DataReader.prototype.ended = function() {
+DataReader.prototype.ended = function () {
 	var cursor = this.pos
 	return cursor >= this.array.length
 }
 
 // Relative descend
-DataReader.prototype.enter = function(path) {
+DataReader.prototype.enter = function (path) {
 	var node = this.pointer
 	var self = this
 	if (typeof path !== 'string') path = '' + path
-	path.split('.').forEach(function(p) {
+	path.split('.').forEach(function (p) {
 		if (!(p in node)) {
 			node[p] = {}
 		}
@@ -761,7 +761,7 @@ DataReader.prototype.enter = function(path) {
 	})
 }
 
-DataReader.prototype.exit = function() {
+DataReader.prototype.exit = function () {
 	this.descend(this.descendPath.slice(0, -1).join('.'))
 }
 
@@ -770,15 +770,15 @@ DataReader.prototype.exit = function() {
  * @param {*} name
  * @param {*} value
  */
-DataReader.prototype.set = function(name, value) {
+DataReader.prototype.set = function (name, value) {
 	this.pointer[name] = value
 }
 
-DataReader.prototype.setObject = function(object) {
+DataReader.prototype.setObject = function (object) {
 	Object.assign(this.pointer, object)
 }
 
-DataReader.prototype.push = function(value) {
+DataReader.prototype.push = function (value) {
 	this.pointer.push(value)
 	return this.pointer.length - 1
 }
@@ -845,11 +845,11 @@ var TokenMode = {
 var tokenMode = TokenMode.JustSet
 
 // aka "emits"
-DataReader.prototype.token = function(key, value) {
+DataReader.prototype.token = function (key, value) {
 	tokenMode(this, key, value)
 }
 
-DataReader.prototype.readUntil = function(x) {
+DataReader.prototype.readUntil = function (x) {
 	var pos = this.pos
 	while (this.array[pos] !== x && pos < this.array.length) {
 		pos++
@@ -861,7 +861,7 @@ DataReader.prototype.readUntil = function(x) {
 	return slice
 }
 
-DataReader.prototype.readUntilNonZero = function() {
+DataReader.prototype.readUntilNonZero = function () {
 	var x = this.pos
 
 	if (this.array[x] !== 0) return
@@ -872,30 +872,30 @@ DataReader.prototype.readUntilNonZero = function() {
 	return slice
 }
 
-DataReader.prototype.readLine = function() {
+DataReader.prototype.readLine = function () {
 	return this.readUntil(0)
 }
 
-DataReader.prototype.readString = function() {
+DataReader.prototype.readString = function () {
 	return shortArrayToString(this.readLine())
 }
 
-DataReader.prototype.readByte = function() {
+DataReader.prototype.readByte = function () {
 	var slice = this.array[this.pos++]
 	return slice
 }
 
-DataReader.prototype.readSignedInt = function() {
+DataReader.prototype.readSignedInt = function () {
 	var int = this.readByte()
 	return int > 127 ? int - 256 : int
 }
 
-DataReader.prototype.readShort = function() {
+DataReader.prototype.readShort = function () {
 	var num = this.readBytes(2)
 	return num[0] + num[1] * 256
 }
 
-DataReader.prototype.readBytes = function(k) {
+DataReader.prototype.readBytes = function (k) {
 	var pos = this.pos
 	pos += k
 	var slice = this.array.subarray(this.pos, pos)
@@ -903,15 +903,15 @@ DataReader.prototype.readBytes = function(k) {
 	return slice
 }
 
-DataReader.prototype.skip = function(k) {
+DataReader.prototype.skip = function (k) {
 	this.pos += k || 1
 }
 
-DataReader.prototype.dump = function(limit) {
+DataReader.prototype.dump = function (limit) {
 	dump(this.array, this.pos, limit)
 }
 
-DataReader.prototype.where = function() {
+DataReader.prototype.where = function () {
 	console.log('position', this.pos, '0x' + this.pos.toString(16))
 }
 

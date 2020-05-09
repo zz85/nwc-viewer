@@ -47,7 +47,7 @@ var lastToken = () => {
 	return tokens[tokens.length - 1]
 }
 
-var appendToken = token => {
+var appendToken = (token) => {
 	selectedStave.tokens.push(token)
 }
 
@@ -117,11 +117,11 @@ function handleKeyDown(e) {
 	e.preventDefault()
 }
 
-window.activateEdit = function() {
+window.activateEdit = function () {
 	window.addEventListener('keydown', handleKeyDown)
 }
 
-window.deactivateEdit = function() {
+window.deactivateEdit = function () {
 	window.removeEventListener('keydown', handleKeyDown)
 }
 

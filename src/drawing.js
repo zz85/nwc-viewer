@@ -91,7 +91,7 @@ const fontMap = {
 	// Common ornaments (U+E560–U+E56F)
 }
 
-const getCode = name => String.fromCharCode(parseInt(fontMap[name], 16))
+const getCode = (name) => String.fromCharCode(parseInt(fontMap[name], 16))
 
 function setupCanvas() {
 	var canvas = document.createElement('canvas')
@@ -143,7 +143,7 @@ function setup(render, path, ok) {
 var notableLoaded = false
 
 function loadFont(cb, path) {
-	ajax(`${path}otf/Bravura.otf`, buffer => {
+	ajax(`${path}otf/Bravura.otf`, (buffer) => {
 		var font = window.opentype.parse(buffer)
 		// if (err) return console.log('Error, font cannot be loaded', err)
 
@@ -187,7 +187,7 @@ class Draw {
 	}
 
 	unitsToY(units) {
-		return -units / 2 / 4 * getFontSize()
+		return (-units / 2 / 4) * getFontSize()
 	}
 }
 
@@ -209,7 +209,7 @@ class Stave extends Draw {
 		// 5 lines
 		const spaces = 4 // TODO global
 		for (let i = 0; i <= spaces; i++) {
-			const ty = -i / spaces * size
+			const ty = (-i / spaces) * size
 			ctx.beginPath()
 			ctx.moveTo(0, ty)
 			ctx.lineTo(width, ty)
@@ -368,7 +368,7 @@ class KeySignature extends Draw {
 	}
 
 	draw(ctx) {
-		this.sharps.forEach(s => Drawing._draw(ctx, s))
+		this.sharps.forEach((s) => Drawing._draw(ctx, s))
 	}
 }
 
@@ -402,12 +402,14 @@ class Accidental extends Glyph {
 			name === '#'
 				? 'accidentalSharp'
 				: name === 'b'
-					? 'accidentalFlat'
-					: name === 'n' || name === ''
-						? 'accidentalNatural'
-						: name === 'x'
-							? 'DoubleSharp'
-							: name === 'v' ? 'accidentalDoubleFlat' : '',
+				? 'accidentalFlat'
+				: name === 'n' || name === ''
+				? 'accidentalNatural'
+				: name === 'x'
+				? 'DoubleSharp'
+				: name === 'v'
+				? 'accidentalDoubleFlat'
+				: '',
 			pos
 		)
 

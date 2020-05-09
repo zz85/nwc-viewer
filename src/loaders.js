@@ -9,7 +9,7 @@ function ajax(url, callback) {
 	oReq.open('GET', url, true)
 	oReq.responseType = 'arraybuffer'
 
-	oReq.onload = function(oEvent) {
+	oReq.onload = function (oEvent) {
 		console.log('ajax done for ', url)
 		var arrayBuffer = oReq.response
 		callback(arrayBuffer)
@@ -23,7 +23,7 @@ function ajax(url, callback) {
 // onclick="opener.click()
 
 var opener = document.getElementById('opener')
-opener.onchange = function() {
+opener.onchange = function () {
 	var files = opener.files
 	handleFileList(files)
 }
@@ -40,7 +40,7 @@ function handleFileList(files) {
 
 function readFile(file) {
 	var reader = new FileReader()
-	reader.onload = function(event) {
+	reader.onload = function (event) {
 		var arraybuffer = event.target.result
 		console.log(event)
 		processData(arraybuffer)

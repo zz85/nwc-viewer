@@ -30,7 +30,7 @@ class Fraction {
 	 * LCM: Lowest common multiple
 	 */
 	static LCM(a, b) {
-		return a * b / Fraction.GCD(a, b)
+		return (a * b) / Fraction.GCD(a, b)
 	}
 
 	/**
@@ -250,10 +250,7 @@ class Fraction {
 
 	// Returns a simplified string respresentation
 	toSimplifiedString() {
-		return Fraction.__tmp
-			.copy(this)
-			.simplify()
-			.toString()
+		return Fraction.__tmp.copy(this).simplify().toString()
 	}
 
 	// Returns string representation in mixed form

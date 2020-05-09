@@ -69,7 +69,7 @@ function interpret(data) {
 }
 
 window.utils = {}
-utils.getScoreBar = function(n) {
+utils.getScoreBar = function (n) {
 	var tokens = data.score.staves[0].tokens
 	var bar = 1
 
@@ -90,7 +90,7 @@ utils.getScoreBar = function(n) {
 	if (index !== undefined) return tokens[index + 1]
 }
 
-utils.whichBar = function(find) {
+utils.whichBar = function (find) {
 	// tokens.indexOf(tokens.filter(x => x.tie)[0])
 	var tokens = data.score.staves[0].tokens
 
@@ -120,19 +120,19 @@ function SightReader() {
 
 var lyricsToken
 
-SightReader.prototype.read = function(staves) {
+SightReader.prototype.read = function (staves) {
 	// TODO move this into reader itself
-	staves.forEach(staff => {
+	staves.forEach((staff) => {
 		this.reset()
 
 		var lyrics = staff.lyrics
 		if (lyrics) {
 			console.log('lyrics!', lyrics.length)
-			staff.lyrics.forEach(lyrics => {
+			staff.lyrics.forEach((lyrics) => {
 				lyricsToken = tokenizeLyrics(lyrics)
 			})
 		}
-		staff.tokens.forEach(token => {
+		staff.tokens.forEach((token) => {
 			var type = token.type
 
 			// absolute time value when note should be played
@@ -163,7 +163,7 @@ SightReader.prototype.read = function(staves) {
 	})
 }
 
-SightReader.prototype.reset = function() {
+SightReader.prototype.reset = function () {
 	this.setClef('treble')
 	this.tickCounter.set(0, 1)
 	this.tabCounter.set(0, 1)
@@ -174,16 +174,16 @@ SightReader.prototype.reset = function() {
 	this.setKeySignature(['C'])
 }
 
-SightReader.prototype.setClef = function(clef) {
+SightReader.prototype.setClef = function (clef) {
 	this.clef = clef
 	this.offset = CLEF_PITCH_OFFSETS[clef]
 }
 
-SightReader.prototype.Clef = function(token) {
+SightReader.prototype.Clef = function (token) {
 	this.setClef(token.clef)
 }
 
-SightReader.prototype.TimeSignature = function(token) {
+SightReader.prototype.TimeSignature = function (token) {
 	this.lastTimeSignature = token
 	// TODO account for Common / Cuttime
 	if (!(token.group && token.beat)) {
@@ -200,7 +200,7 @@ SightReader.prototype.TimeSignature = function(token) {
 	this.timeSigVal.set(token.group, token.beat)
 }
 
-SightReader.prototype.Barline = function() {
+SightReader.prototype.Barline = function () {
 	// reset
 	this.pitches = {} // should reset??
 }
@@ -227,9 +227,9 @@ const flats = {
 	Cb: ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb'],
 }
 
-SightReader.prototype.setKeySignature = function(accidentals) {
+SightReader.prototype.setKeySignature = function (accidentals) {
 	// Majors only!
-	NOTE_NAMES.forEach(name => {
+	NOTE_NAMES.forEach((name) => {
 		this.keySig[name.toUpperCase()] = ''
 	})
 
@@ -239,7 +239,7 @@ SightReader.prototype.setKeySignature = function(accidentals) {
 	})
 }
 
-SightReader.prototype.KeySignature = function(token) {
+SightReader.prototype.KeySignature = function (token) {
 	var signature = token.key
 	if (!signature) console.error('no key found for key signature', token)
 	const accidentals = sharps[signature] || flats[signature]
@@ -253,7 +253,7 @@ SightReader.prototype.KeySignature = function(token) {
 
 function circularIndex(n) {
 	var m = 7
-	return n < 0 ? (m - -n % m) % m : n % m
+	return n < 0 ? (m - (-n % m)) % m : n % m
 	/*
 	0   1   2   3   4   5   6
 	7   8   9   10  11  12  13
@@ -279,7 +279,7 @@ function octaveIndex(pitch) {
 	return -1 - (((-pitch - 1) / 7) | 0)
 }
 
-SightReader.prototype.Rest = function(token) {
+SightReader.prototype.Rest = function (token) {
 	if (token.duration === 1) {
 		// whole bar rest take into account time signature
 
@@ -289,7 +289,7 @@ SightReader.prototype.Rest = function(token) {
 	this._handle_duration(token)
 }
 
-SightReader.prototype.Chord = function(token) {
+SightReader.prototype.Chord = function (token) {
 	this._handle_duration(token)
 }
 
@@ -303,7 +303,7 @@ var CLEF_PITCH_OFFSETS = {
 	tenor: (OCTAVE_START + 0) * OCTAVE_NOTES + 5, // a'
 }
 
-SightReader.prototype.Note = function(token) {
+SightReader.prototype.Note = function (token) {
 	var pos = token.position
 
 	var pitch = pos + this.offset
@@ -354,7 +354,7 @@ SightReader.prototype.Note = function(token) {
 	this._handle_duration(token)
 }
 
-SightReader.prototype._handle_duration = function(token) {
+SightReader.prototype._handle_duration = function (token) {
 	token.durValue = new Fraction(1, token.duration)
 	for (var i = 0; i < token.dots; i++) {
 		token.durValue.multiply(3, 2)

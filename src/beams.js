@@ -18,7 +18,9 @@ function handleNote(token) {
 	const stemUp =
 		token.Stem === 'Up'
 			? true
-			: token.Stem === 'Down' ? false : token.position < 0
+			: token.Stem === 'Down'
+			? false
+			: token.position < 0
 
 	// TODO refactor flag drawing!!
 	const requireFlag = duration >= 8
@@ -65,7 +67,7 @@ function handleBeamTokens(token) {
 
 function layoutBeaming() {
 	const staves = data.score.staves
-	staves.forEach(stave => {
+	staves.forEach((stave) => {
 		stave.tokens.forEach(handleBeamTokens)
 	})
 }
