@@ -31,26 +31,26 @@ var ACCIDENTALS = {
 	5: '', //'auto'
 }
 
-var TOKENS = {
-	0: Clef, // + 6
-	1: KeySignature, // + 12
-	2: Barline,
-	3: Ending, // repeat
-	4: InstrumentPatch, // instrument
-	5: TimeSignature, // + 8 bytes
-	6: Tempo,
-	7: Dynamic,
-	8: Note,
-	9: Rest, // 0x09
-	10: Chord, // 0x0a notechord
-	11: Pedal, // 0x0b SustainPedal
-	12: Flow, // flow direction
-	13: MidiInstruction, // 0x0d // MPC
-	14: TempoVariance, // 0x0e // Fermata
-	15: DynamicVariance, // 0x0f
-	16: PerformanceStyle, // 0x10 performance
-	17: Text, // 0x11 text object
-	18: RestChord, // 0x12
+var TokenParsers = {
+	0: parseClef, // + 6
+	1: parseKeySignature, // + 12
+	2: parseBarline,
+	3: parseEnding, // repeat
+	4: parseInstrumentPatch, // instrument
+	5: parseTimeSignature, // + 8 bytes
+	6: parseTempo,
+	7: parseDynamic,
+	8: parseNote,
+	9: parseRest, // 0x09
+	10: parseChord, // 0x0a notechord
+	11: parsePedal, // 0x0b SustainPedal
+	12: parseFlow, // flow direction
+	13: parseMidiInstruction, // 0x0d // MPC
+	14: parseTempoVariance, // 0x0e // Fermata
+	15: parseDynamicVariance, // 0x0f
+	16: parsePerformanceStyle, // 0x10 performance
+	17: parseText, // 0x11 text object
+	18: parseRestChord, // 0x12
 	// 19: User,
 	// 20: Spacer,
 	// 21: RestMultiBar,
@@ -68,7 +68,7 @@ function isVersionOneFive(reader) {
  *
  **********************/
 
-function Clef(reader) {
+function parseClef(reader) {
 	reader.set('type', 'Clef')
 	reader.set('clef', CLEF_NAMES[reader.readShort() & 3])
 	reader.set('octave', reader.readShort() & 3)
@@ -87,7 +87,7 @@ function bitmapKeySignature(bitmap) {
 	return names
 }
 
-function KeySignature(reader) {
+function parseKeySignature(reader) {
 	reader.set('type', 'KeySignature')
 	var data = reader.readBytes(10)
 	var flats = bitmapKeySignature(data[0])
@@ -107,24 +107,24 @@ function KeySignature(reader) {
 	}
 }
 
-function Barline(reader) {
+function parseBarline(reader) {
 	reader.set('type', 'Barline')
 	reader.set('barline', reader.readByte() & 15)
 	reader.set('repeat', reader.readByte())
 }
 
-function Ending(reader) {
+function parseEnding(reader) {
 	reader.set('type', 'Ending')
 	reader.set('repeat', reader.readByte())
 	reader.set('style', reader.readByte())
 }
 
-function InstrumentPatch(reader) {
+function parseInstrumentPatch(reader) {
 	reader.set('type', 'InstrumentPatch')
 	var data = reader.readBytes(8)
 }
 
-function TimeSignature(reader) {
+function parseTimeSignature(reader) {
 	reader.set('type', 'TimeSignature')
 
 	var top = reader.readShort() // numerator
@@ -136,7 +136,7 @@ function TimeSignature(reader) {
 	reader.set('signature', top + '/' + beats)
 }
 
-function Tempo(reader) {
+function parseTempo(reader) {
 	reader.set('type', 'Tempo')
 	// 5 bytes
 	var position = reader.readSignedInt() // 2
@@ -154,7 +154,7 @@ function Tempo(reader) {
 	})
 }
 
-function Dynamic(reader) {
+function parseDynamic(reader) {
 	reader.set('type', 'Dynamic')
 	// 7 Bytes
 	var position = reader.readSignedInt() // 1
@@ -174,16 +174,16 @@ function Dynamic(reader) {
 	})
 }
 
-function Note(reader) {
+function parseNote(reader) {
 	reader.set('type', 'Note')
 	var data = reader.readBytes(8)
-	NoteValue(reader, data)
+	parseNoteValue(reader, data)
 	if (isVersionOneFive(reader)) {
 		reader.pos += 2
 	}
 }
 
-function NoteValue(reader, data) {
+function parseNoteValue(reader, data) {
 	var position = data[6]
 	position = position > 127 ? 256 - position : -position
 	reader.set('position', position)
@@ -221,13 +221,13 @@ function NoteValue(reader, data) {
 	}
 }
 
-function Rest(reader) {
+function parseRest(reader) {
 	reader.set('type', 'Rest')
 	var data = reader.readBytes(8)
-	NoteValue(reader, data)
+	parseNoteValue(reader, data)
 }
 
-function Chord(reader) {
+function parseChord(reader) {
 	reader.set('type', 'Chord')
 	var data = reader.readBytes(10)
 
@@ -246,7 +246,7 @@ function Chord(reader) {
 		reader.skip()
 		reader.skip(2)
 		data = reader.readBytes(8)
-		NoteValue(reader, data)
+		parseNoteValue(reader, data)
 	}
 
 	reader.pointer = pointer
@@ -254,13 +254,13 @@ function Chord(reader) {
 	reader.set('dots', notes[0].dots)
 }
 
-function RestChord(reader) {
+function parseRestChord(reader) {
 	reader.set('type', 'RestChord')
 	var data = reader.readBytes(10)
-	NoteValue(reader, data)
+	parseNoteValue(reader, data)
 }
 
-function Pedal(reader) {
+function parsePedal(reader) {
 	reader.set('type', 'Pedal')
 	var pos = reader.readByte()
 	var placement = reader.readByte()
@@ -268,7 +268,7 @@ function Pedal(reader) {
 	reader.set('sustain', style)
 }
 
-function Flow(reader) {
+function parseFlow(reader) {
 	reader.set('type', 'Flow')
 	if (isVersionOneFive(reader)) {
 		reader.set('pos', -8)
@@ -282,14 +282,14 @@ function Flow(reader) {
 	reader.set('style', reader.readShort())
 }
 
-function MidiInstruction(reader) {
+function parseMidiInstruction(reader) {
 	reader.set('type', 'MidiInstruction')
 	var pos = reader.readByte()
 	var placement = reader.readByte()
 	var data = reader.readBytes(32)
 }
 
-function TempoVariance(reader) {
+function parseTempoVariance(reader) {
 	reader.set('type', 'TempoVariance')
 	var style, pos, placement, delay
 	if (isVersionOneFive(reader)) {
@@ -305,7 +305,7 @@ function TempoVariance(reader) {
 	reader.set('sustain', style)
 }
 
-function DynamicVariance(reader) {
+function parseDynamicVariance(reader) {
 	reader.set('type', 'DynamicVariance')
 
 	var style, pos, placement
@@ -320,7 +320,7 @@ function DynamicVariance(reader) {
 	reader.set('sustain', style)
 }
 
-function PerformanceStyle(reader) {
+function parsePerformanceStyle(reader) {
 	reader.set('type', 'PerformanceStyle')
 
 	var style, pos, placement
@@ -337,7 +337,7 @@ function PerformanceStyle(reader) {
 	reader.set('text', NwcConstants.PerformanceStyle[style])
 }
 
-function Text(reader) {
+function parseText(reader) {
 	reader.set('type', 'Text')
 
 	var position = reader.readSignedInt()
@@ -349,4 +349,4 @@ function Text(reader) {
 	reader.set('text', text)
 }
 
-export { TOKENS }
+export { TokenParsers }

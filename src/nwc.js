@@ -1,6 +1,6 @@
 import './constants.js'
 import { NwcConstants, FontStyles } from './nwc_constants.js'
-import { TOKENS } from './nwc_parser.js'
+import { TokenParsers } from './nwc_parser.js'
 
 var should_debug = false
 
@@ -614,7 +614,7 @@ function StaffInfo(reader, staff) {
 		var token = reader.readByte()
 
 		reader.descend('score.staves.' + staff + '.tokens.' + i)
-		var func = TOKENS[token]
+		var func = TokenParsers[token]
 
 		if (func) {
 			var name = NwcConstants.ObjLabels[token] // (func + '').split('\n')[0]
