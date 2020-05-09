@@ -1,4 +1,4 @@
-// TODO it's no longer a constant, we should find a better name for this file 
+// TODO it's no longer a constant, we should find a better name for this file
 let FONT_SIZE = 60 // 42
 
 // Stave space
@@ -28,10 +28,4 @@ Object.assign(isNode() ? global : window, {
 	getFontSize,
 })
 
-export {
-	isNode,
-	isBrowser,
-	FONT_SIZE,
-	setFontSize,
-	getFontSize,
-}
+export { isNode, isBrowser, FONT_SIZE, setFontSize, getFontSize }

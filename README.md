@@ -11,9 +11,12 @@ And if you like this project, you can also chat me up [@blurspline on twitter](h
 
 ## Changelog
 
-5 May 2020
+#### 5 May 2020
 - Add support for loading nwc v1.55
 - lyrics rendering
+- add zoom scaling
+- add canvas scrolling by dragging
+
 
 ### v1 "MVP" 28 December 2017
 [Basic opening of some nwc files](https://github.com/zz85/nwc-viewer/releases/tag/v1)

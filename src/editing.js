@@ -8,7 +8,7 @@ var selectedStave = {
 	tokens: [
 		// { type: 'Clef', clef: 'treble' },
 		// {"type":"KeySignature","signature":"Bb"},
-		{"type":"TimeSignature","group":6, beat: 8},
+		{ type: 'TimeSignature', group: 6, beat: 8 },
 
 		{ type: 'Clef', clef: 'treble' },
 		{ type: 'Note', position: 0, duration: 4, accidental: 'n' },
@@ -74,7 +74,7 @@ function handleKeyDown(e) {
 		lastToken().position--
 	}
 
-	var selected = lastToken();
+	var selected = lastToken()
 	if (key === 'ArrowLeft') {
 		console.log(selected.duration)
 		selected.duration *= 2

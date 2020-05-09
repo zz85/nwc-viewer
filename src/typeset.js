@@ -160,7 +160,7 @@ function score(data) {
 	});
 	*/
 
-	tickTracker.reset();
+	tickTracker.reset()
 
 	while (true) {
 		// for (var i = 0; i < 50; i++) {

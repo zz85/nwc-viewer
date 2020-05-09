@@ -432,7 +432,7 @@ class Barline extends Draw {
 
 	draw(ctx) {
 		ctx.beginPath()
-		ctx.lineWidth = getFontSize() / 30  // 1.2
+		ctx.lineWidth = getFontSize() / 30 // 1.2
 		ctx.moveTo(0, 0)
 		ctx.lineTo(0, this.unitsToY(this.len))
 		ctx.stroke()
