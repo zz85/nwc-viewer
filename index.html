@@ -121,6 +121,37 @@
 			// for browsers firing off > 60fps, we limit the rerendering
 			if (!nextRender) nextRender = requestAnimationFrame(updateScroll)
 		})
+
+		scoreElm.style.cursor = 'pointer'
+
+		var downx, downy, scrollLeft, scrollTop;
+		scoreElm.addEventListener('mousedown', e => {
+			// console.log('mousedown', 	e);
+			downx = e.x;
+			downy = e.y;
+			scrollLeft = scoreElm.scrollLeft;
+			scrollTop = scoreElm.scrollTop;
+			window.addEventListener('mousemove', mousedrag);
+			scoreElm.style.cursor = 'grab' // move
+
+			e.preventDefault()
+
+			window.addEventListener('mouseup', e => {
+				window.removeEventListener('mousemove', mousedrag);
+				scoreElm.style.cursor = 'pointer'
+			})
+		})
+
+		function mousedrag(e) {
+			// scoreElm.scrollLeft = scrollLeft + downx - e.x;
+			// scoreElm.scrollTop = scrollTop + downy - e.y;
+
+			scoreElm.scrollLeft += downx - e.x;
+			scoreElm.scrollTop += downy - e.y;
+
+			// console.log('drag', e)
+		}
+
 	</script>
 
 </body>
