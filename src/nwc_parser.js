@@ -13,14 +13,6 @@ var CLEF_NAMES = {
 	3: 'tenor',
 }
 
-var ENDINGS = [
-	'SectionClose',
-	'MasterRepeatClose',
-	'Single',
-	'Double',
-	'Open hidden',
-]
-
 var DURATIONS = [1, 2, 4, 8, 16, 32, 64]
 var ACCIDENTALS = {
 	0: '#', // sharp
@@ -64,14 +56,33 @@ function isVersionOneFive(reader) {
 
 /**********************
  *
+ *   Objectss
+ *
+ **********************/
+class Token {
+	constructor(obj) {
+		Object.assign(this, obj)
+	}
+}
+
+class Clef extends Token {
+	constructor(blend) {
+		super(blend)
+	}
+}
+
+/**********************
+ *
  *   Token Modes
  *
  **********************/
 
 function parseClef(reader) {
-	reader.set('type', 'Clef')
-	reader.set('clef', CLEF_NAMES[reader.readShort() & 3])
-	reader.set('octave', reader.readShort() & 3)
+	return new Clef({
+		type: 'Clef',
+		clef: CLEF_NAMES[reader.readShort() & 3],
+		octave: reader.readShort() & 3,
+	})
 }
 
 function bitmapKeySignature(bitmap) {
@@ -108,15 +119,19 @@ function parseKeySignature(reader) {
 }
 
 function parseBarline(reader) {
-	reader.set('type', 'Barline')
-	reader.set('barline', reader.readByte() & 15)
-	reader.set('repeat', reader.readByte())
+	return new Token({
+		type: 'Barline',
+		barline: reader.readByte() & 15,
+		repeat: reader.readByte(),
+	})
 }
 
 function parseEnding(reader) {
-	reader.set('type', 'Ending')
-	reader.set('repeat', reader.readByte())
-	reader.set('style', reader.readByte())
+	return new Token({
+		type: 'Ending',
+		repeat: reader.readByte(),
+		style: reader.readByte(),
+	})
 }
 
 function parseInstrumentPatch(reader) {
@@ -137,7 +152,6 @@ function parseTimeSignature(reader) {
 }
 
 function parseTempo(reader) {
-	reader.set('type', 'Tempo')
 	// 5 bytes
 	var position = reader.readSignedInt() // 2
 	var placement = reader.readSignedInt() // 3
@@ -146,7 +160,8 @@ function parseTempo(reader) {
 
 	reader.readLine() // ?
 
-	reader.setObject({
+	return new Token({
+		type: 'Tempo',
 		position,
 		placement,
 		duration,
@@ -155,7 +170,7 @@ function parseTempo(reader) {
 }
 
 function parseDynamic(reader) {
-	reader.set('type', 'Dynamic')
+	var type = 'Dynamic'
 	// 7 Bytes
 	var position = reader.readSignedInt() // 1
 	var placement = reader.readSignedInt() // 2
@@ -164,7 +179,8 @@ function parseDynamic(reader) {
 	var volume = reader.readShort() // 6-7
 	var dynamic = NwcConstants.DynamicLevels[style]
 
-	reader.setObject({
+	return new Token({
+		type,
 		position,
 		placement,
 		style,

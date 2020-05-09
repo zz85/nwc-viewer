@@ -625,7 +625,11 @@ function StaffInfo(reader, staff) {
 			} else {
 				reader.skip(2)
 			}
-			func(reader)
+			var ret = func(reader)
+			if (ret) {
+				reader.exit()
+				reader.set(i, ret)
+			}
 		} else {
 			console.log('Warning, token not recongnized', token, reader.pos)
 			reader.dump()
