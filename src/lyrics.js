@@ -1,5 +1,5 @@
 function tokenizeLyrics(lyrics) {
-    // lyrics = lyrics.split('\n').join('')
+	// lyrics = lyrics.split('\n').join('')
 	var len = lyrics.length
 
 	var cursor = 0

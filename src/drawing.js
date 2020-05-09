@@ -165,12 +165,12 @@ class Draw {
 		ctx.fillRect(-4, -4, 8, 8)
 
 		// console.log(this.width)
-		ctx.strokeStyle = 'purple';
+		ctx.strokeStyle = 'purple'
 		ctx.strokeRect(0, -10, this.width || 40, 10)
 		if (this.path) {
 			const bb = this.path.getBoundingBox()
 			// console.log(bb);
-			ctx.strokeStyle = 'red';
+			ctx.strokeStyle = 'red'
 			ctx.strokeRect(bb.x1, bb.y1, bb.x2 - bb.x1, bb.y2 - bb.y1)
 		}
 
@@ -238,7 +238,7 @@ class Line extends Draw {
 	}
 }
 
-var glyphCache = {};
+var glyphCache = {}
 
 function glyphWidthGet(char, fontSize) {
 	var key = char + ':width:' + fontSize
@@ -246,7 +246,7 @@ function glyphWidthGet(char, fontSize) {
 		glyphCache[key] = window.smuflFont.getAdvanceWidth(char, fontSize)
 	}
 
-	return glyphCache[key];
+	return glyphCache[key]
 }
 
 function glyphPathGet(char, fontSize) {
@@ -255,9 +255,8 @@ function glyphPathGet(char, fontSize) {
 		glyphCache[key] = window.smuflFont.getPath(char, 0, 0, fontSize)
 	}
 
-	return glyphCache[key];
+	return glyphCache[key]
 }
-
 
 class Glyph extends Draw {
 	constructor(char, adjustY) {
@@ -286,7 +285,7 @@ class Glyph extends Draw {
 
 		this.path.draw(ctx)
 
-		// this.debug(ctx);
+		this.debug(ctx)
 	}
 }
 

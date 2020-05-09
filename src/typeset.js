@@ -1,4 +1,5 @@
 import { getFontSize } from './constants.js'
+import { layoutBeaming } from './beams.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
@@ -199,8 +200,11 @@ function score(data) {
 	// TODO draw stave for every bar
 
 	console.log('stavePointers', stavePointers)
-	// draw staves
 
+	/* Layout Beams */
+	layoutBeaming()
+
+	/* Layout staves */
 	stavePointers.forEach((cursor, staveIndex) => {
 		addStave(cursor, staveIndex)
 		maxCanvasWidth = Math.max(cursor.staveX + 100, maxCanvasWidth)
@@ -208,7 +212,7 @@ function score(data) {
 
 	// draw braces
 	var bottom = getStaffY(stavePointers.length - 1) - getFontSize() * 0.5
-	drawing.add(new Line(20, getStaffY(-1), 20, bottom))
+	// drawing.add(new Line(20, getStaffY(-1), 20, bottom))
 
 	maxCanvasHeight = bottom + 100
 
@@ -274,12 +278,10 @@ function addStave(cursor, staveIndex) {
 	const s = new Stave(width)
 	s.moveTo(cursor.lastBarline, getStaffY(staveIndex))
 	drawing.add(s)
-
-	console.log('staveIndex', staveIndex, cursor.tokens)
 }
 
 function spacerWidth() {
-	return getFontSize() * 0.25;
+	return getFontSize() * 0.25
 }
 
 function handleToken(token, tokenIndex, staveIndex, cursor) {
@@ -436,14 +438,6 @@ function drawForNote(token, cursor, durToken) {
 			: duration < 4 ? 'noteheadHalf' : 'noteheadBlack'
 
 	const relativePos = token.position + 4
-	const requireStem = duration >= 2
-	const stemUp =
-		token.Stem === 'Up'
-			? true
-			: token.Stem === 'Down' ? false : token.position < 0
-
-	// TODO refactor flag drawing!!
-	const requireFlag = duration >= 8
 
 	if (token.accidental) {
 		var acc = new Accidental(token.accidental, relativePos)
@@ -452,15 +446,12 @@ function drawForNote(token, cursor, durToken) {
 		drawing.add(acc)
 	}
 
-	// if (token.Beam) console.log('Beam', token);
-
 	// note head
 	const noteHead = new Glyph(sym, relativePos)
 	cursor.posGlyph(noteHead)
 	// noteHead._text = info + '.' // + ':' + token.name;
 	drawing.add(noteHead)
 	const noteHeadWidth = noteHead.width
-	let space = noteHeadWidth
 
 	// ledger lines
 	if (relativePos < 0) {
@@ -473,6 +464,8 @@ function drawForNote(token, cursor, durToken) {
 		drawing.add(ledger)
 	}
 
+	token.drawingNoteHead = noteHead
+
 	if (token.text) {
 		var pos = 10
 		var text = new Text(token.text, pos, {
@@ -482,6 +475,8 @@ function drawForNote(token, cursor, durToken) {
 		cursor.posGlyph(text)
 		drawing.add(text)
 	}
+
+	/*
 
 	if (requireStem && !stemUp) {
 		// stem down
@@ -521,6 +516,9 @@ function drawForNote(token, cursor, durToken) {
 	} else {
 		cursor.incStaveX(noteHeadWidth)
 	}
+	*/
+
+	cursor.incStaveX(noteHeadWidth)
 
 	for (let i = 0; i < token.dots; i++) {
 		var adjust = isOnLine(relativePos) ? 1 : 0
@@ -529,6 +527,9 @@ function drawForNote(token, cursor, durToken) {
 		drawing.add(dot)
 		cursor.incStaveX(dot.width)
 	}
+
+	// cursor.incStaveX(spacerWidth())
+	cursor.tokenPadRight(spacerWidth())
 
 	var spaceMultiplier = calculatePadding(durValue || token.durValue)
 	cursor.tokenPadRight(noteHead.width * 1 * spaceMultiplier)
