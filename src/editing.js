@@ -4,11 +4,11 @@
  *
  **********************/
 
-selectedStave = {
+var selectedStave = {
 	tokens: [
 		// { type: 'Clef', clef: 'treble' },
 		// {"type":"KeySignature","signature":"Bb"},
-		// {"type":"TimeSignature","group":6, beat: 8},
+		{"type":"TimeSignature","group":6, beat: 8},
 
 		{ type: 'Clef', clef: 'treble' },
 		{ type: 'Note', position: 0, duration: 4, accidental: 'n' },
@@ -21,33 +21,33 @@ selectedStave = {
 	],
 }
 
-selectedIndex = 0
-selectedY = 0
-selectedDuration = 4
+var selectedIndex = 0
+var selectedY = 0
+var selectedDuration = 4
 
-blank = {
+var blank = {
 	score: {
 		staves: [selectedStave],
 	},
 }
 
-load = () => {
+var load = () => {
 	selectedStave = JSON.parse(localStorage.lastStave)
 }
 
-save = () => {
+var save = () => {
 	const saving = JSON.stringify(selectedStave)
 	console.log(saving)
 	localStorage.lastStave = saving
 }
 
-lastToken = () => {
+var lastToken = () => {
 	// TODO search last note
-	tokens = selectedStave.tokens
+	var tokens = selectedStave.tokens
 	return tokens[tokens.length - 1]
 }
 
-appendToken = token => {
+var appendToken = token => {
 	selectedStave.tokens.push(token)
 }
 
@@ -57,7 +57,7 @@ appendToken = token => {
  *
  **********************/
 
-window.addEventListener('keydown', e => {
+function handleKeyDown(e) {
 	console.log('keypressed', e)
 	const key = e.key // code
 	if (key === 'Tab') {
@@ -74,11 +74,14 @@ window.addEventListener('keydown', e => {
 		lastToken().position--
 	}
 
+	var selected = lastToken();
 	if (key === 'ArrowLeft') {
-		lastToken().duration *= 2
+		console.log(selected.duration)
+		selected.duration *= 2
 	}
 	if (key === 'ArrowRight') {
-		lastToken().duration /= 2
+		console.log(selected.duration)
+		selected.duration /= 2
 	}
 
 	if (key === '#') {
@@ -112,4 +115,14 @@ window.addEventListener('keydown', e => {
 
 	rerender()
 	e.preventDefault()
-})
+}
+
+window.activateEdit = function() {
+	window.addEventListener('keydown', handleKeyDown)
+}
+
+window.deactivateEdit = function() {
+	window.removeEventListener('keydown', handleKeyDown)
+}
+
+export { blank }

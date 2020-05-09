@@ -5,7 +5,7 @@ import { interpret } from './interpreter.js'
 import { setup, resizeToFit } from './drawing.js'
 import { exportAbc } from './exporter.js'
 import { score } from './typeset.js'
-// import './editing.js'
+import { blank } from './editing.js'
 
 /**********************
  *
@@ -19,12 +19,12 @@ window.addEventListener('resize', () => {
 })
 
 // For testing purposes
-setTimeout(() => {
-	// data = blank
-	// data = test_data;
-	// data = test_dot_quaver;
-	// rerender();
-})
+// setTimeout(() => {
+// 	data = blank
+// 	// data = test_data;
+// 	// data = test_dot_quaver;
+// 	rerender();
+// }, 100)
 
 // everyStaveTokens().filter(t => t && t.tie)
 // data.score.staves[1].tokens.filter(t => t && t.tie)
@@ -377,7 +377,8 @@ function processData(payload) {
 	setDataAndRender(data)
 }
 
-setDataAndRender(test_data)
+// setDataAndRender(test_data)
 
 window.rerender = rerender
 window.processData = processData
+window.setDataAndRender = setDataAndRender

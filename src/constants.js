@@ -1,5 +1,5 @@
 // TODO it's no longer a constant, we should find a better name for this file 
-let FONT_SIZE = 42
+let FONT_SIZE = 60 // 42
 
 // Stave space
 // 1-1.25 key 1-1.5 timesig 2 note p.42
