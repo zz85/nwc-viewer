@@ -5,12 +5,21 @@ var beam_handler = {
 	Note: handleNote,
 }
 
-function handleChord(token) {}
+function handleChord(token) {
+	// TODO do this correctly!
+	token.notes.forEach((note) => {
+		handleNote(note, token)
+	})
+}
 
 function handleNote(token) {
+	handleNoteHead(token, token)
+}
+
+function handleNoteHead(note, token) {
 	console.log('handle note')
 
-	const duration = token.duration
+	const duration = note.duration
 	const requireStem = duration >= 2
 
 	if (!requireStem) return

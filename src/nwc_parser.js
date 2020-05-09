@@ -200,38 +200,77 @@ function parseNote(reader) {
 }
 
 function parseNoteValue(reader, data) {
-	var position = data[6]
+	var byteDuration = data[0] // mDuration
+	// data[1]                  // mData2[0] unused
+	var byteMarking1 = data[2] // mData2[1]
+	var byteMarking4 = data[3] // mData2[2] // beam slur stemss
+	var byteMarking2 = data[4] // mAttribute1[0] - accent tie staccato
+	var byteMarking3 = data[5] // mAttribute1[1] - grace, tenuto
+	var position = data[6] // mPos
+	var byteMarking5 = data[7] // mAttribute2[0]
+
+	var stemShift = byteMarking1 & 3
+	var triplet = (byteMarking1 >> 2) & 3
+	var stem = (byteMarking1 >> 4) & 3
+
+	var staccato = (byteMarking2 >> 1) & 1
+	var tieEnd = (byteMarking2 >> 3) & 1
+	var tieStart = (byteMarking2 >> 4) & 1
+	var accent = (byteMarking2 >> 5) & 1
+
+	var slur = byteMarking3 & 3
+	var tenuto = (byteMarking3 >> 2) & 1
+	var grace = (byteMarking3 >> 5) & 1
+
+	var hasSlur = (byteMarking3 >> 7) & 1
+	var hasTieDir = (byteMarking3 >> 6) & 1
+
+	if (hasSlur) {
+		if (byteMarking1 & 0x40) {
+			// down
+		} else {
+			// up
+		}
+	}
+
+	if (hasTieDir) {
+		if (byteMarking5 & 0x08) {
+			// tie dir down
+		} else {
+			// tie dir up
+		}
+	}
+
+	var beam = byteMarking4 & 3
+
 	position = position > 127 ? 256 - position : -position
 	reader.set('position', position)
 
-	var accidental = ACCIDENTALS[data[7] & 7]
+	var accidental = ACCIDENTALS[byteMarking5 & 7]
 	reader.set('accidental', accidental)
-	var durationBit = data[0] & 7
+	var durationBit = byteDuration & 7
 
 	reader.set('duration', DURATIONS[durationBit])
 
-	var tieStart = (data[4] >> 4) & 1
-	var tieEnd = (data[4] >> 3) & 1
-
-	var durationDotBit = data[4]
+	var durationDotBit = byteMarking2
 
 	var dots = durationDotBit & (1 << 2) ? 1 : durationDotBit & 1 ? 2 : 0
 
 	reader.set('dots', dots)
-	reader.set('stem', (data[2] >> 4) & 3)
-	reader.set('triplet', (data[2] >> 2) & 3)
+	reader.set('stem', stem)
+	reader.set('triplet', triplet)
 
 	reader.set('tie', tieStart)
 	if (tieEnd) reader.set('tieEnd', tieEnd)
 
-	reader.set('staccato', (data[4] >> 1) & 1)
-	reader.set('accent', (data[4] >> 5) & 1)
+	reader.set('staccato', staccato)
+	reader.set('accent', accent)
 
-	reader.set('tenuto', (data[5] >> 2) & 1)
-	reader.set('grace', (data[5] >> 5) & 1)
-	reader.set('slur', data[5] & 3)
+	reader.set('tenuto', tenuto)
+	reader.set('grace', grace)
+	reader.set('slur', slur)
 
-	if (data[7] & 0x40) {
+	if (byteMarking5 & 0x40) {
 		console.log('more stemming info')
 		reader.readByte()
 	}

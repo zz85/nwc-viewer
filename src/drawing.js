@@ -291,7 +291,7 @@ class Glyph extends Draw {
 
 		this.path.draw(ctx)
 
-		this.debug(ctx)
+		if (window._debug_glyph) this.debug(ctx)
 	}
 }
 
