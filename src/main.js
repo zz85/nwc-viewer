@@ -86,7 +86,7 @@ const test_data = {
 			{
 				tokens: [
 					{ type: 'Clef', clef: 'treble', octave: 0 },
-					{ type: 'KeySignature', signature: 'Bb' },
+					{ type: 'KeySignature', key: 'Bb' },
 					{ type: 'TimeSignature', signature: 'AllaBreve' },
 					{ type: 'Rest', position: 0, duration: 4, dots: 0 },
 					{
@@ -154,7 +154,7 @@ const test_data = {
 			{
 				tokens: [
 					{ type: 'Clef', clef: 'bass', octave: 0 },
-					{ type: 'KeySignature', signature: 'Bb' },
+					{ type: 'KeySignature', key: 'Bb' },
 					{ type: 'TimeSignature', signature: 'AllaBreve' },
 					{
 						type: 'Note',
@@ -366,12 +366,18 @@ const rerender = () => {
 
 let data
 
-function processData(payload) {
-	data = decodeNwcArrayBuffer(payload)
+function setDataAndRender(_data) {
+	data = _data
 	window.data = data
-	// console.log(JSON.stringify(data.score.staves[1].tokens.slice(0, 20), 0, 0));
 	rerender()
 }
+
+function processData(payload) {
+	data = decodeNwcArrayBuffer(payload)
+	setDataAndRender(data)
+}
+
+setDataAndRender(test_data)
 
 window.rerender = rerender
 window.processData = processData

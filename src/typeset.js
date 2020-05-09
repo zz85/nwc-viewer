@@ -72,6 +72,10 @@ class StaveCursor {
  */
 class TickTracker {
 	constructor() {
+		this.reset()
+	}
+
+	reset() {
 		this.maxTicks = {}
 	}
 
@@ -155,6 +159,8 @@ function score(data) {
 		});
 	});
 	*/
+
+	tickTracker.reset();
 
 	while (true) {
 		// for (var i = 0; i < 50; i++) {

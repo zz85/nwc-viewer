@@ -241,6 +241,7 @@ SightReader.prototype.setKeySignature = function(accidentals) {
 
 SightReader.prototype.KeySignature = function(token) {
 	var signature = token.key
+	if (!signature) console.error('no key found for key signature', token)
 	const accidentals = sharps[signature] || flats[signature]
 	this.setKeySignature(accidentals)
 
@@ -340,7 +341,7 @@ SightReader.prototype.Note = function(token) {
 	token.accidentalValue = computedAccidental
 
 	// match lyricss
-	if (lyricsToken.length) {
+	if (lyricsToken && lyricsToken.length) {
 		//  && token.slur !== 2 || token.tieEnd
 		token.text = lyricsToken.shift()
 
