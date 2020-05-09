@@ -56,7 +56,7 @@ function isVersionOneFive(reader) {
 
 /**********************
  *
- *   Objectss
+ *   Objects
  *
  **********************/
 class Token {
@@ -201,7 +201,7 @@ function parseNote(reader) {
 
 function parseNoteValue(reader, data) {
 	var byteDuration = data[0] // mDuration
-	// data[1]                  // mData2[0] unused
+	// data[1]                 // mData2[0] unused
 	var byteMarking1 = data[2] // mData2[1]
 	var byteMarking4 = data[3] // mData2[2] // beam slur stemss
 	var byteMarking2 = data[4] // mAttribute1[0] - accent tie staccato
@@ -224,6 +224,9 @@ function parseNoteValue(reader, data) {
 
 	var hasSlur = (byteMarking3 >> 7) & 1
 	var hasTieDir = (byteMarking3 >> 6) & 1
+
+	// console.log('tieEnd', tieEnd);
+	console.log('stats', beam)
 
 	if (hasSlur) {
 		if (byteMarking1 & 0x40) {

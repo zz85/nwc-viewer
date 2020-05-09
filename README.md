@@ -16,7 +16,8 @@ And if you like this project, you can also chat me up [@blurspline on twitter](h
 - lyrics rendering
 - add zoom scaling
 - add canvas scrolling by dragging
-
+- initial tie
+- added debug glyph buttonsss
 
 ### v1 "MVP" 28 December 2017
 [Basic opening of some nwc files](https://github.com/zz85/nwc-viewer/releases/tag/v1)
@@ -57,6 +58,10 @@ This project contains
 - [x] Interpret JSON format and map to drawing symbols
 - [x] Position by Note Value
 
+### Toolbar
+- open library
+
+
 ### Drawing
 - [x] Clefs
 - [x] Time Signatures
@@ -67,7 +72,7 @@ This project contains
 - [x] Stems & Flags
 - [x] Barlines
 - [x] Dots
-- [x] Text 
+- [x] Text
 - [ ] Beams
 - [ ] Dynamics
 - [ ] Tempo
@@ -75,6 +80,7 @@ This project contains
 - [ ] Slurs
 - [ ] Braces
 - [ ] Ending Barlines
+- [ ] Ties
 
 ### Technical Road Map
 - [ ] Audio Playback
@@ -86,38 +92,6 @@ This project contains
 2. Musical intepretation of tokens
 3. Notation representation of data
 4. Rendering
-
-### API
-
-####  1. NWC parsing
-```
-decodeNwcArrayBuffer(bytearray)
-```
-(nwc.js) takes in a bytearray and returns an data object with the interpretation of the nwc contents.
-
-####  2. Musical intepretation
-(interpreter.js) uses SightReader to assign cumulative time values to notes. It also translate positions into musical values. The input tokens are modified in place with new properties.
-
-#### 3. Notation representation
-(typeset.js) attempts to score the music by generating graphical tokens and calculating necessary adjustments.
-
-#### 4. Rendering
-(drawing.js) takes the graphical objects and renders them to a canvas target.
-
-interpret(data)
-|- SightReader. assign start/end music/display time to tokens
-  |- tokens
-    |- tickValue is musical duration
-    |- tabValue is display duration
-  |- keeps running keysig, time sig, clef, barlines
-
-score(data)
-|- Scoring
-  |- convert staves to StaveCursors
-    |- ask for new tokens from staves
-      |- position stuff of the same tab value to the furthest
-
-The layout is currently done on a fixed, time based top, left constrained algorithm. The goal would be to move to a move generic, flexible layout model.
 
 ## Internals
 
@@ -137,6 +111,40 @@ The tokens gets passed through a interpreter. These runs through the tokens and 
 Next, the scoring engine picks up the tokens and maps them to appropriate drawing symbols. It also lays them out and attach coordinates to the drawing objects.
 
 Finally, the drawing system runs through all graphical objects and renders them on screen.
+
+### API
+
+####  1. NWC parsing
+```
+decodeNwcArrayBuffer(bytearray)
+```
+(nwc.js) takes in a bytearray and returns an data object with the interpretation of the nwc contents.
+
+####  2. Musical intepretation
+(interpreter.js) uses SightReader to assign cumulative time values to notes. It also translate positions into musical values. The input tokens are modified in place with new properties.
+
+#### 3. Notation representation
+(typeset.js) attempts to score the music by generating graphical tokens and calculating necessary adjustments.
+
+#### 4. Rendering
+(drawing.js) takes the graphical objects and renders them to a canvas target.
+
+```
+interpret(data)
+|- SightReader. assign start/end music/display time to tokens
+  |- tokens
+    |- tickValue is musical duration
+    |- tabValue is display duration
+  |- keeps running keysig, time sig, clef, barlines
+
+score(data)
+|- Scoring
+  |- convert staves to StaveCursors
+    |- ask for new tokens from staves
+      |- position stuff of the same tab value to the furthest
+```
+
+The layout is currently done on a fixed, time based top, left constrained algorithm. The goal would be to move to a move generic, flexible layout model.
 
 ## NWC File Format
 I wrote a nwc parser/converter back in 2005 [nwc2ly.py](https://github.com/zz85/nwc2ly.py) using the "french cafe approach". The decoder used here was initially a port of the python version with additions to support versions 2.7 and nwctext.

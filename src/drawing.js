@@ -503,6 +503,58 @@ class Text extends Draw {
 	}
 }
 
+class Tie extends Draw {
+	constructor(start, end) {
+		super()
+		var x1 = start.x + start.width / 2
+		var y1 = start.y
+		var x2 = end.x + end.width / 2
+		var y2 = end.y
+
+		this.size = getFontSize() // TODO global
+		this.x = x1
+		this.y = y1
+		this.endx = x2
+		this.endy = y2
+		this.height = getFontSize() * 0.5
+
+		this.width = this.endx - this.x
+	}
+
+	draw(ctx) {
+		ctx.strokeStyle = '#000'
+		ctx.lineWidth = getFontSize() / 32
+
+		ctx.beginPath()
+
+		ctx.moveTo(0, 0)
+		var mx = this.width / 2
+		var my = this.height
+		var x2 = this.width
+		var y2 = this.endy - this.y
+
+		// ctx.lineTo(mx, my);
+		// ctx.lineTo(x2, y2);
+		// ctx.stroke()
+
+		// ctx.rect(0, 0, this.width, this.height)
+		// ctx.fill();
+
+		// ctx.quadraticCurveTo(mx, my, x2, y2)
+		// ctx.stroke()
+
+		ctx.quadraticCurveTo(mx, my - getFontSize() / 10, x2, y2)
+		ctx.quadraticCurveTo(mx, my, 0, 0)
+		ctx.fill()
+
+		// var ratio = 0.2
+		// ctx.bezierCurveTo(x2 * ratio, my * 0.5 , x2 * (1 - ratio), my * 0.5, x2, y2)
+		// ctx.stroke()
+
+		// this.debug(ctx);
+	}
+}
+
 class Drawing {
 	constructor(ctx) {
 		this.set = new Set()
@@ -579,6 +631,7 @@ const Claire = {
 	Ledger,
 	Text,
 	Line,
+	Tie,
 }
 
 Object.assign(Claire, { Drawing, setup, Claire, resize, resizeToFit })

@@ -17,7 +17,7 @@ function handleNote(token) {
 }
 
 function handleNoteHead(note, token) {
-	console.log('handle note')
+	// console.log('handle note')
 
 	const duration = note.duration
 	const requireStem = duration >= 2
