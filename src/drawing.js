@@ -161,10 +161,19 @@ class Draw {
 	outline() {}
 
 	debug(ctx) {
-		ctx.fillRect(0, 0, 10, 10)
+		ctx.fillStyle = 'blue'
+		ctx.fillRect(-4, -4, 8, 8)
 
-		console.log(this.width)
-		ctx.strokeRect(0, 0, this.width || 40, 40)
+		// console.log(this.width)
+		ctx.strokeStyle = 'purple';
+		ctx.strokeRect(0, -10, this.width || 40, 10)
+		if (this.path) {
+			const bb = this.path.getBoundingBox()
+			// console.log(bb);
+			ctx.strokeStyle = 'red';
+			ctx.strokeRect(bb.x1, bb.y1, bb.x2 - bb.x1, bb.y2 - bb.y1)
+		}
+
 		// TODO add y bounds
 	}
 
@@ -229,6 +238,27 @@ class Line extends Draw {
 	}
 }
 
+var glyphCache = {};
+
+function glyphWidthGet(char, fontSize) {
+	var key = char + ':width:' + fontSize
+	if (!(key in glyphCache)) {
+		glyphCache[key] = window.smuflFont.getAdvanceWidth(char, fontSize)
+	}
+
+	return glyphCache[key];
+}
+
+function glyphPathGet(char, fontSize) {
+	var key = char + ':path:' + fontSize
+	if (!(key in glyphCache)) {
+		glyphCache[key] = window.smuflFont.getPath(char, 0, 0, fontSize)
+	}
+
+	return glyphCache[key];
+}
+
+
 class Glyph extends Draw {
 	constructor(char, adjustY) {
 		super()
@@ -236,11 +266,11 @@ class Glyph extends Draw {
 		this.name = char
 		this.char = getCode(char)
 		this.fontSize = getFontSize() // * (0.8 + Math.random() * 0.4);
-		this.width = window.smuflFont.getAdvanceWidth(this.char, this.fontSize)
+		this.width = glyphWidthGet(this.char, this.fontSize)
 
 		// TODO: can package only predefined fonts symbols
 		// this get cached instead on every draw
-		this.path = window.smuflFont.getPath(this.char, 0, 0, this.fontSize)
+		this.path = glyphPathGet(this.char, this.fontSize)
 
 		// const bb = this.path.getBoundingBox()
 		// // bounds and width may be different!

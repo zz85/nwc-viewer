@@ -20,7 +20,7 @@ class StaveCursor {
 	constructor(stave, staveIndex) {
 		this.tokenIndex = -1
 		this.staveIndex = staveIndex
-		this.staveX = 60
+		this.staveX = getFontSize() // 60
 		this.stave = stave
 		this.tokens = stave.tokens
 		this.lastBarline = 40
@@ -46,11 +46,13 @@ class StaveCursor {
 		this.staveX += inc
 	}
 
+	/* assign padding to previous token */
 	tokenPadRight(pad) {
 		this.lastPadRight = pad
 		// this.incStaveX(pad);
 	}
 
+	/* position a drawing object to the current x position of this cursor */
 	posGlyph(glyph) {
 		glyph.moveTo(this.staveX, getStaffY(this.staveIndex))
 	}
@@ -122,6 +124,7 @@ let absCounter = 0
 let drawing // placeholder for drawing system
 let info // running debug info
 
+/* Rerenders all drawing objects */
 function quickDraw(data, x, y) {
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	ctx.save()
@@ -145,7 +148,7 @@ window.everyStaveTokens = () => {
 function score(data) {
 	var ctx = window.ctx
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
-	drawing = new Drawing(ctx)
+	window.drawing = drawing = new Drawing(ctx)
 
 	const staves = data.score.staves
 	const stavePointers = staves.map(
@@ -275,6 +278,10 @@ function addStave(cursor, staveIndex) {
 	console.log('staveIndex', staveIndex, cursor.tokens)
 }
 
+function spacerWidth() {
+	return getFontSize() * 0.25;
+}
+
 function handleToken(token, tokenIndex, staveIndex, cursor) {
 	// info = tokenIndex
 	// info = absCounter++ + ' : ' + tokenIndex
@@ -299,11 +306,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 
 		case 'Clef':
-			// TODO handle octave down
 			clef = clefFromString(token.clef)
 			cursor.posGlyph(clef)
 			drawing.add(clef)
-			cursor.incStaveX(clef.width * 2)
+			cursor.incStaveX(clef.width + spacerWidth())
 			break
 
 		case 'TimeSignature':
@@ -327,7 +333,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				cursor.posGlyph(t)
 				drawing.add(t)
 
-				cursor.incStaveX(t.width * 2)
+				cursor.incStaveX(t.width + spacerWidth() * 2)
 			}
 
 			break
@@ -336,7 +342,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			cursor.posGlyph(key)
 			drawing.add(key)
 
-			cursor.incStaveX(key.width * 2)
+			cursor.incStaveX(key.width + spacerWidth())
 			break
 
 		case 'Rest':
@@ -368,7 +374,9 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 			addStave(cursor, staveIndex)
 			cursor.updateBarline()
-			cursor.tokenPadRight(10)
+			cursor.incStaveX(spacerWidth() * 1)
+			// cursor.tokenPadRight(spacerWidth())
+			// 10
 			break
 
 		case 'Chord':
