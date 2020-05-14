@@ -238,6 +238,8 @@ function score(data) {
 		authorDrawing.moveTo(middle, 60)
 		drawing.add(authorDrawing)
 	}
+	footer.innerText = copyright1 + '\n' + copyright2
+	/*
 
 	if (copyright1) {
 		const authorDrawing = new Claire.Text(copyright1, 0, {
@@ -256,6 +258,7 @@ function score(data) {
 		authorDrawing.moveTo(middle, bottom + 90)
 		drawing.add(authorDrawing)
 	}
+	*/
 
 	drawing.draw(ctx)
 

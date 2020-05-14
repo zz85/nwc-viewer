@@ -3,7 +3,7 @@ import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer } from './nwc.js'
 import { interpret } from './interpreter.js'
 import { setup, resizeToFit } from './drawing.js'
-import { exportAbc } from './exporter.js'
+import { exportAbc, exportLilypond } from './exporter.js'
 import { score } from './layout/typeset.js'
 import { blank } from './editing.js'
 
@@ -17,14 +17,6 @@ window.addEventListener('resize', () => {
 	resizeToFit()
 	quickDraw()
 })
-
-// For testing purposes
-// setTimeout(() => {
-// 	data = blank
-// 	// data = test_data;
-// 	// data = test_dot_quaver;
-// 	rerender();
-// }, 100)
 
 // everyStaveTokens().filter(t => t && t.tie)
 // data.score.staves[1].tokens.filter(t => t && t.tie)
@@ -44,6 +36,31 @@ window.findFirstToken = (predicate) => {
 
 	return { s, t }
 }
+
+var samples = [
+	'AChildThisDayIsBorn.nwc',
+	'AveMariaArcadelt.nwc',
+	'WakenChristianChildren.nwc',
+	'WeThreeKingsOfOrientAre.nwc',
+	'WhatChildIsThis.nwc',
+	'adohn.nwc',
+	'anongs.nwc',
+	'bwv140-2.nwc',
+	'carenot.nwc',
+	'jem001.nwc',
+]
+
+var sample_dom = document.getElementById('samples')
+samples.forEach((sample) => {
+	var option = document.createElement('option')
+	option.value = sample
+	option.text = sample
+	sample_dom.appendChild(option)
+})
+sample_dom.onchange = function () {
+	ajax('samples/' + sample_dom.value, processData)
+}
+
 // v1.55
 ajax('samples/jem001.nwc', processData)
 
@@ -348,6 +365,8 @@ document.getElementById('play').onclick = play
 const rerender = () => {
 	setup(
 		() => {
+			console.log('rerender')
+			let data = scoreManager.getData()
 			interpret(data)
 			score(data)
 		},
@@ -364,11 +383,12 @@ const rerender = () => {
 	// exportLilypond()
 }
 
-let data
+window.exportLilypond = exportLilypond
 
 function setDataAndRender(_data) {
-	data = _data
-	window.data = data
+	scoreManager.setData(_data)
+	// data = _data;
+	// window.data = data;
 	rerender()
 }
 
@@ -377,7 +397,11 @@ function processData(payload) {
 	setDataAndRender(data)
 }
 
-// setDataAndRender(test_data)
+document.getElementById('blank_button').onclick = () => {
+	setDataAndRender(blank)
+	// setDataAndRender(test_data)
+	// setDataAndRender(test_dot_quaver)
+}
 
 window.rerender = rerender
 window.processData = processData

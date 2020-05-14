@@ -25,11 +25,70 @@ var selectedIndex = 0
 var selectedY = 0
 var selectedDuration = 4
 
-var blank = {
-	score: {
-		staves: [selectedStave],
-	},
+var blank = blankScore()
+
+function blankScore() {
+	return {
+		score: {
+			staves: [newStaff()],
+		},
+	}
 }
+
+function newStaff() {
+	return {
+		tokens: [
+			{ type: 'Clef', clef: 'treble' },
+			{ type: 'TimeSignature', group: 4, beat: 4 },
+		],
+	}
+}
+
+class ScoreManager {
+	constructor(score) {
+		this.setData(score)
+		this.selectStaffIndex = 0
+	}
+
+	newScore() {
+		this.setData(blankScore())
+	}
+
+	setData(score) {
+		this.score = score
+
+		// hack
+		window.data = this.score
+		// data = _data;
+		window.data = score
+	}
+
+	getData() {
+		return this.score
+	}
+
+	getScore() {
+		return this.getData().score
+	}
+
+	getStaves() {
+		return this.getScore().staves
+	}
+
+	addStaff() {
+		this.getStaves().splice(this.selectStaffIndex, 0, newStaff())
+	}
+
+	getSelectStaff() {
+		// return this.score.score[this.selectStaffIndex]
+	}
+}
+
+document.getElementById('new_staff').onclick = () => {
+	scoreManager.addStaff()
+}
+
+window.scoreManager = new ScoreManager()
 
 var load = () => {
 	selectedStave = JSON.parse(localStorage.lastStave)
