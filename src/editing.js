@@ -4,26 +4,20 @@
  *
  **********************/
 
-var selectedStave = {
-	tokens: [
-		// { type: 'Clef', clef: 'treble' },
-		// {"type":"KeySignature","signature":"Bb"},
-		{ type: 'TimeSignature', group: 6, beat: 8 },
+var sampleTokens = [
+	// { type: 'Clef', clef: 'treble' },
+	// {"type":"KeySignature","signature":"Bb"},
+	{ type: 'TimeSignature', group: 6, beat: 8 },
 
-		{ type: 'Clef', clef: 'treble' },
-		{ type: 'Note', position: 0, duration: 4, accidental: 'n' },
-		{ type: 'Clef', clef: 'bass' },
-		{ type: 'Note', position: 0, duration: 4, accidental: 'b' },
-		{ type: 'Clef', clef: 'alto' },
-		{ type: 'Note', position: 0, duration: 4, accidental: '#' },
-		// { type: 'Clef', clef: 'tenor' },
-		// {"type":"Note","position":0,"duration":4},
-	],
-}
-
-var selectedIndex = 0
-var selectedY = 0
-var selectedDuration = 4
+	{ type: 'Clef', clef: 'treble' },
+	{ type: 'Note', position: 0, duration: 4, accidental: 'n' },
+	{ type: 'Clef', clef: 'bass' },
+	{ type: 'Note', position: 0, duration: 4, accidental: 'b' },
+	{ type: 'Clef', clef: 'alto' },
+	{ type: 'Note', position: 0, duration: 4, accidental: '#' },
+	// { type: 'Clef', clef: 'tenor' },
+	// {"type":"Note","position":0,"duration":4},
+]
 
 var blank = blankScore()
 
@@ -44,10 +38,12 @@ function newStaff() {
 	}
 }
 
+var selectedY = 0
+var selectedDuration = 4
 class ScoreManager {
-	constructor(score) {
-		this.setData(score)
+	constructor() {
 		this.selectStaffIndex = 0
+		// select note token?
 	}
 
 	newScore() {
@@ -57,10 +53,11 @@ class ScoreManager {
 	setData(score) {
 		this.score = score
 
+		var staves = this.getStaves()
+		this.selectStaffIndex = staves.length - 1
+
 		// hack
 		window.data = this.score
-		// data = _data;
-		window.data = score
 	}
 
 	getData() {
@@ -76,38 +73,49 @@ class ScoreManager {
 	}
 
 	addStaff() {
-		this.getStaves().splice(this.selectStaffIndex, 0, newStaff())
+		var staves = this.getStaves()
+		this.selectStaffIndex++
+		staves.splice(this.selectStaffIndex, 0, newStaff())
 	}
 
-	getSelectStaff() {
-		// return this.score.score[this.selectStaffIndex]
+	getSelectedStaff() {
+		var staves = this.getStaves()
+		return staves[this.selectStaffIndex]
+	}
+
+	getTokens() {
+		return this.getSelectedStaff().tokens
 	}
 }
 
 document.getElementById('new_staff').onclick = () => {
 	scoreManager.addStaff()
+
+	rerender()
 }
 
 window.scoreManager = new ScoreManager()
 
-var load = () => {
-	selectedStave = JSON.parse(localStorage.lastStave)
+function localStorageLoad() {
+	var data = JSON.parse(localStorage.lastStave)
+	scoreManager.setData(data)
+	rerender()
 }
 
-var save = () => {
-	const saving = JSON.stringify(selectedStave)
+function localStorageSave() {
+	const saving = JSON.stringify(scoreManager.getData())
 	console.log(saving)
 	localStorage.lastStave = saving
 }
 
-var lastToken = () => {
+var selectedToken = () => {
 	// TODO search last note
-	var tokens = selectedStave.tokens
+	var tokens = scoreManager.getTokens()
 	return tokens[tokens.length - 1]
 }
 
 var appendToken = (token) => {
-	selectedStave.tokens.push(token)
+	scoreManager.getTokens().push(token)
 }
 
 /**********************
@@ -125,15 +133,15 @@ function handleKeyDown(e) {
 	if (key === 'ArrowUp') {
 		// selectedY++;
 		// console.log('selectedY', selectedY)
-		lastToken().position++
+		selectedToken().position++
 	}
 	if (key === 'ArrowDown') {
 		// selectedY--;
 		// console.log('selectedY', selectedY)
-		lastToken().position--
+		selectedToken().position--
 	}
 
-	var selected = lastToken()
+	var selected = selectedToken()
 	if (key === 'ArrowLeft') {
 		console.log(selected.duration)
 		selected.duration *= 2
@@ -144,19 +152,19 @@ function handleKeyDown(e) {
 	}
 
 	if (key === '#') {
-		lastToken().accidental = '#'
+		selectedToken().accidental = '#'
 	}
 
 	if (key === 'b') {
-		lastToken().accidental = 'b'
+		selectedToken().accidental = 'b'
 	}
 
 	if (key === 'n') {
-		lastToken().accidental = 'n'
+		selectedToken().accidental = 'n'
 	}
 
 	if (key === '.') {
-		lastToken().dots++
+		selectedToken().dots++
 	}
 
 	if (key === 'Enter') {
@@ -169,7 +177,8 @@ function handleKeyDown(e) {
 	}
 
 	if (key === 'Backspace') {
-		selectedStave.tokens.splice(selectedStave.tokens.length - 1, 1)
+		var tokens = scoreManager.getTokens()
+		tokens.splice(tokens.length - 1, 1)
 	}
 
 	rerender()

@@ -12,6 +12,8 @@ function exportLilypond() {
 
 	const lily_accidentals = { b: 'es', '#': 'is', n: '', x: 'isis', v: 'eses' }
 
+	var selectedStave = scoreManager.getSelectedStaff()
+
 	selectedStave.tokens.forEach((token) => {
 		if (token.type === 'Note') {
 			ly += token.name.toLowerCase()

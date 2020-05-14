@@ -393,7 +393,7 @@ function setDataAndRender(_data) {
 }
 
 function processData(payload) {
-	data = decodeNwcArrayBuffer(payload)
+	var data = decodeNwcArrayBuffer(payload)
 	setDataAndRender(data)
 }
 
