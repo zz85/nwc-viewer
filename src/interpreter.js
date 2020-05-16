@@ -359,6 +359,10 @@ SightReader.prototype._handle_duration = function (token) {
 	for (var i = 0; i < token.dots; i++) {
 		token.durValue.multiply(3, 2)
 	}
+	if (token.triplet) {
+		// FIXME
+		token.durValue.multiply(2, 3)
+	}
 }
 
 window.interpret = interpret

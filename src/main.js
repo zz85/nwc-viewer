@@ -38,16 +38,16 @@ window.findFirstToken = (predicate) => {
 }
 
 var samples = [
-	'AChildThisDayIsBorn.nwc',
-	'AveMariaArcadelt.nwc',
-	'WakenChristianChildren.nwc',
-	'WeThreeKingsOfOrientAre.nwc',
-	'WhatChildIsThis.nwc',
-	'adohn.nwc',
-	'anongs.nwc',
-	'bwv140-2.nwc',
-	'carenot.nwc',
-	'jem001.nwc',
+	'AChildThisDayIsBorn.nwc', // v2.02
+	'AveMariaArcadelt.nwc', // v2.75
+	'WakenChristianChildren.nwc', // v2.75
+	'WeThreeKingsOfOrientAre.nwc', // v2.75
+	'WhatChildIsThis.nwc', // v2.02
+	'adohn.nwc', // v1.75 *
+	'anongs.nwc', // v1.75
+	'bwv140-2.nwc', // v1.75
+	'carenot.nwc', // v1.75
+	'jem001.nwc', // v1.55
 ]
 
 var sample_dom = document.getElementById('samples')
@@ -61,24 +61,8 @@ sample_dom.onchange = function () {
 	ajax('samples/' + sample_dom.value, processData)
 }
 
-// v1.55
+// Default loading
 ajax('samples/jem001.nwc', processData)
-
-// v1.7 nwc
-// ajax('samples/anongs.nwc', processData)
-// ajax('samples/adohn.nwc', processData);
-// ajax('samples/bwv140-2.nwc', processData)
-// ajax('samples/carenot.nwc', processData);
-
-// v2.75
-// ajax('samples/AveMariaArcadelt.nwc', processData);
-// ajax('samples/WeThreeKingsOfOrientAre.nwc', processData)
-
-// v2.02?
-// ajax('samples/AChildThisDayIsBorn.nwc', processData);
-// ajax('samples/WhatChildIsThis.nwc', processData)
-// ajax('samples/WakenChristianChildren.nwc', processData);
-// ajax('samples/NoelNoel.nwc', processData);
 
 // Doesn't work yet
 

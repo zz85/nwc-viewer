@@ -18,14 +18,33 @@
 	<body>
 		<style>
 			body {
-				background: #ddd;
-				color: #333;
+				background: #1a1a1a;
+				color: #fefefe;
 				overflow: hidden;
 				/* Use System Fonts */
 				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
 					'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
 					'Helvetica Neue', sans-serif !important;
-				/* padding: 10px; */
+				margin: 0;
+				padding: 0;
+			}
+
+			#top,
+			#footer {
+				padding: 10px 4px 10px 4px;
+			}
+
+			a {
+				color: #9a9a9a;
+			}
+
+			button,
+			select {
+				background: #2d2d2d;
+				color: #fefefe;
+				border: 1px #2e2e2e;
+				outline: #9a9a9a;
+				padding: 4px;
 			}
 
 			canvas {
@@ -85,8 +104,13 @@
 						Debug glyph
 					</button>
 
-					<button id="blank_button">blank</button>
-					<button id="new_staff">new staff</button>
+					<button id="blank_button">blank score</button>
+					<button id="new_staff">add staff</button>
+
+					<button>Toggle Editing</button>
+					<button>Save</button>
+					<button>Load</button>
+					<!-- export selection to lilypond -->
 
 					<select id="samples"></select>
 
