@@ -374,7 +374,7 @@ class KeySignature extends Draw {
 	}
 
 	draw(ctx) {
-		this.sharps.forEach((s) => Drawing._draw(ctx, s))
+		if (this.sharps) this.sharps.forEach((s) => Drawing._draw(ctx, s))
 	}
 }
 

@@ -29,9 +29,13 @@
 				padding: 0;
 			}
 
-			#top,
+			#top {
+				padding: 10px 4px 10px 4px;
+			}
+
 			#footer {
 				padding: 10px 4px 10px 4px;
+				font-size: 10px;
 			}
 
 			a {
@@ -40,11 +44,12 @@
 
 			button,
 			select {
-				background: #2d2d2d;
+				background: #3f3f3f;
 				color: #fefefe;
 				border: 1px #2e2e2e;
 				outline: #9a9a9a;
 				padding: 4px;
+				margin: 2px;
 			}
 
 			canvas {
@@ -87,6 +92,9 @@
 					<button id="open">Open nwc</button>
 
 					<input type="file" id="opener" hidden />
+
+					<select id="samples"></select>
+
 					<button id="play">Play</button>
 
 					<span style="width: 50px;"></span>
@@ -98,28 +106,28 @@
 						-
 					</button>
 
-					<button
-						onclick="window._debug_glyph = !window._debug_glyph; rerender()"
-					>
-						Debug glyph
-					</button>
-
-					<button id="blank_button">blank score</button>
-					<button id="new_staff">add staff</button>
-
-					<button>Toggle Editing</button>
-					<button>Save</button>
-					<button>Load</button>
-					<!-- export selection to lilypond -->
-
-					<select id="samples"></select>
-
-					<i style="font-size: 12px; float: right;">
-						Code:
-						<a href="https://github.com/zz85/nwc-viewer"
-							>github.com/zz85/nwc-viewer</a
+					<div id="debug_tools" style="display: none;">
+						<button
+							onclick="window._debug_glyph = !window._debug_glyph; rerender()"
 						>
-					</i>
+							Debug glyph
+						</button>
+
+						<button id="blank_button">blank score</button>
+						<button id="new_staff">add staff</button>
+
+						<button onclick="activateEdit()">Toggle Editing</button>
+						<button>Save</button>
+						<button>Load</button>
+						<!-- export selection to lilypond -->
+
+						<i style="font-size: 12px; float: right;">
+							Code:
+							<a href="https://github.com/zz85/nwc-viewer"
+								>github.com/zz85/nwc-viewer</a
+							>
+						</i>
+					</div>
 				</div>
 			</div>
 

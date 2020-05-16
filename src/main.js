@@ -18,6 +18,10 @@ window.addEventListener('resize', () => {
 	quickDraw()
 })
 
+if (location.hostname === 'localhost') {
+	document.getElementById('debug_tools').style.display = ''
+}
+
 // everyStaveTokens().filter(t => t && t.tie)
 // data.score.staves[1].tokens.filter(t => t && t.tie)
 // findFirstToken(t => t && t.tie)
@@ -62,15 +66,13 @@ sample_dom.onchange = function () {
 }
 
 // Default loading
-ajax('samples/jem001.nwc', processData)
+ajax('samples/WhatChildIsThis.nwc', processData) // samples/jem001.nwc // adohn
 
 // Doesn't work yet
 
 // ajax('samples/OhWhoAreTheySoPure.nwc', processData); // EcceConcipies IShouldLikeToHaveHeard GodRestYouMerry MountainsBowYourHeadsMajestic LetMusicBreakOnThisBlestMorn RingChristmasBells OhWhoAreTheySoPure
-
 // ajax('samples/ComeLetUsAllSweetCarolSingNwc2.nwc', processData);
 // ajax('samples/AShepherdBandTheirFlocksAreKeeping.nwc', processData);
-
 // ajax('samples/canon.nwc', processData);
 // ajax('samples/prelude.nwc', processData);
 
