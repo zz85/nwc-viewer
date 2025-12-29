@@ -310,6 +310,7 @@ function parseChord(reader) {
 	reader.pointer = pointer
 	reader.set('duration', notes[0].duration)
 	reader.set('dots', notes[0].dots)
+	reader.set('stem', notes[0].stem)
 }
 
 function parseRestChord(reader) {

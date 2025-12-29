@@ -203,7 +203,7 @@ function score(data) {
 	console.log('stavePointers', stavePointers)
 
 	/* Layout Beams */
-	layoutBeaming()
+	layoutBeaming(drawing, data)
 	/* Layout Ties */
 	layoutTies()
 

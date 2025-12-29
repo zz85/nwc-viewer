@@ -637,4 +637,4 @@ const Claire = {
 Object.assign(Claire, { Drawing, setup, Claire, resize, resizeToFit })
 Object.assign(window, Claire)
 
-export { Drawing, setup, Claire, resize, resizeToFit }
+export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph }

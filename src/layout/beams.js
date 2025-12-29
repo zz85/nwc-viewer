@@ -1,4 +1,7 @@
 /* this file cares about laying out beams */
+import { Stem, Glyph } from '../drawing.js'
+
+let drawing, data
 
 var beam_handler = {
 	Chord: handleChord,
@@ -6,40 +9,73 @@ var beam_handler = {
 }
 
 function handleChord(token) {
-	// TODO do this correctly!
-	token.notes.forEach((note) => {
-		handleNote(note, token)
-	})
+	const duration = token.duration
+	if (duration < 2) return
+
+	// Find top and bottom notes
+	const notes = token.notes
+	const topNote = notes.reduce((a, b) => a.position > b.position ? a : b)
+	const bottomNote = notes.reduce((a, b) => a.position < b.position ? a : b)
+
+	const stemUp =
+		token.Stem === 'Up' || token.stem === 1
+			? true
+			: token.Stem === 'Down' || token.stem === 2
+			? false
+			: topNote.position + bottomNote.position < 0
+
+	const anchorNote = stemUp ? bottomNote : topNote
+	const notehead = anchorNote.drawingNoteHead
+	if (!notehead) return
+
+	const relativePos = anchorNote.position + 4
+	const chordSpan = topNote.position - bottomNote.position
+	const stemLen = 7 + chordSpan
+	const requireFlag = duration >= 8
+
+	if (!stemUp) {
+		const stem = new Stem(relativePos - stemLen, stemLen)
+		stem.moveTo(notehead.x, notehead.y)
+		drawing.add(stem)
+
+		if (requireFlag) {
+			var flag = new Glyph(`flag${duration}thDown`, relativePos - stemLen - 0.5)
+			flag.moveTo(notehead.x, notehead.y)
+			drawing.add(flag)
+		}
+	} else {
+		const stem = new Stem(relativePos, stemLen)
+		stem.moveTo(notehead.x + notehead.width, notehead.y)
+		drawing.add(stem)
+
+		if (requireFlag) {
+			var flag = new Glyph(`flag${duration}thUp`, relativePos + stemLen)
+			flag.moveTo(notehead.x + notehead.width, notehead.y)
+			drawing.add(flag)
+		}
+	}
 }
 
 function handleNote(token) {
-	handleNoteHead(token, token)
-}
+	const duration = token.duration
+	if (duration < 2) return
 
-function handleNoteHead(note, token) {
-	// console.log('handle note')
-
-	const duration = note.duration
-	const requireStem = duration >= 2
-
-	if (!requireStem) return
+	const notehead = token.drawingNoteHead
+	if (!notehead) return
 
 	const stemUp =
-		token.Stem === 'Up'
+		token.Stem === 'Up' || token.stem === 1
 			? true
-			: token.Stem === 'Down'
+			: token.Stem === 'Down' || token.stem === 2
 			? false
 			: token.position < 0
 
-	// TODO refactor flag drawing!!
-	const requireFlag = duration >= 8
 	const relativePos = token.position + 4
-	var notehead = token.drawingNoteHead
+	const requireFlag = duration >= 8
 
-	if (requireStem && !stemUp) {
-		// stem down
+	if (!stemUp) {
 		const stem = new Stem(relativePos - 7)
-		stem.moveTo(notehead.x, notehead.y) /* TODO move to constrain rule */
+		stem.moveTo(notehead.x, notehead.y)
 		drawing.add(stem)
 
 		if (requireFlag) {
@@ -47,24 +83,17 @@ function handleNoteHead(note, token) {
 			flag.moveTo(notehead.x, notehead.y)
 			drawing.add(flag)
 		}
-	} else if (requireStem && stemUp) {
-		// stem up
+	} else {
 		const stem = new Stem(relativePos)
 		stem.moveTo(notehead.x + notehead.width, notehead.y)
 		drawing.add(stem)
 
-		// Flags
 		if (requireFlag) {
 			var flag = new Glyph(`flag${duration}thUp`, relativePos + 7)
 			flag.moveTo(notehead.x + notehead.width, notehead.y)
 			drawing.add(flag)
 		}
 	}
-
-	// !?!
-	// if (token.Beam) console.log('Beam', token);
-
-	// if (token.stem) console.log('stem', token)
 }
 
 function handleBeamTokens(token) {
@@ -74,7 +103,9 @@ function handleBeamTokens(token) {
 	func(token)
 }
 
-function layoutBeaming() {
+function layoutBeaming(_drawing, _data) {
+	drawing = _drawing
+	data = _data
 	const staves = data.score.staves
 	staves.forEach((stave) => {
 		stave.tokens.forEach(handleBeamTokens)
