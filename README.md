@@ -17,7 +17,7 @@ And if you like this project, you can also chat me up [@blurspline on twitter](h
 - add zoom scaling
 - add canvas scrolling by dragging
 - initial tie
-- added debug glyph buttonsss
+- added debug glyph buttons
 
 ### v1 "MVP" 28 December 2017
 [Basic opening of some nwc files](https://github.com/zz85/nwc-viewer/releases/tag/v1)

@@ -68,8 +68,8 @@ function interpret(data) {
 	*/
 }
 
-window.utils = {}
-utils.getScoreBar = function (n) {
+window.utils = window.utils || {}
+window.utils.getScoreBar = function (n) {
 	var tokens = data.score.staves[0].tokens
 	var bar = 1
 
@@ -90,7 +90,7 @@ utils.getScoreBar = function (n) {
 	if (index !== undefined) return tokens[index + 1]
 }
 
-utils.whichBar = function (find) {
+window.utils.whichBar = function (find) {
 	// tokens.indexOf(tokens.filter(x => x.tie)[0])
 	var tokens = data.score.staves[0].tokens
 

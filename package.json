@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "pretty": "prettier --single-quote --use-tabs --no-semi --trailing-comma es5 --write src/*.js src/*/*.js index.html",
-    "test": "node -r esm test/test_nwc.js",
+    "test": "bun test",
+    "test:node": "node -r esm test/test_nwc.js",
     "lint": "eslint src/*.js",
     "build": "rollup src/main.js --output.format iife --output.file bin/notably.js"
   },

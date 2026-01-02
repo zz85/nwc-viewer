@@ -226,24 +226,6 @@ function parseNoteValue(reader, data) {
 	var hasTieDir = (byteMarking3 >> 6) & 1
 
 	// console.log('tieEnd', tieEnd);
-	console.log('stats', slur)
-
-	if (hasSlur) {
-		if (byteMarking1 & 0x40) {
-			// down
-		} else {
-			// up
-		}
-	}
-
-	if (hasTieDir) {
-		if (byteMarking5 & 0x08) {
-			// tie dir down
-		} else {
-			// tie dir up
-		}
-	}
-
 	var beam = byteMarking4 & 3
 
 	position = position > 127 ? 256 - position : -position

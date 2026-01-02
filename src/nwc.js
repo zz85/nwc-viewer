@@ -4,6 +4,14 @@ import { TokenParsers } from './nwc_parser.js'
 
 var should_debug = false
 
+function isBrowser() {
+	return typeof window !== 'undefined' && typeof window.document !== 'undefined'
+}
+
+function isNode() {
+	return typeof process !== 'undefined' && process.versions != null && process.versions.node != null
+}
+
 function debug(...args) {
 	if (should_debug) console.log(...args)
 }
@@ -36,7 +44,7 @@ function shortArrayToString(array) {
 	return String.fromCharCode.apply(null, array)
 }
 
-function longArrayToString(array, chunk) {
+function longArrayToString(array, chunkSize) {
 	/*
 	For way longer strings, better to use this
 	var enc = new TextDecoder();
@@ -46,7 +54,7 @@ function longArrayToString(array, chunk) {
 
 	var buffer = []
 
-	var chunk = 1024 || chunk
+	var chunk = chunkSize || 1024
 	for (var i = 0; i < array.length; i += chunk) {
 		buffer.push(shortArrayToString(array.slice(i, i + chunk)))
 	}
@@ -631,7 +639,7 @@ function StaffInfo(reader, staff) {
 				reader.set(i, ret)
 			}
 		} else {
-			console.log('Warning, token not recongnized', token, reader.pos)
+			console.log('Warning, token not recognized', token, reader.pos)
 			reader.dump()
 			return
 		}
@@ -917,8 +925,8 @@ DataReader.prototype.where = function () {
 
 // Exports
 
-Object.assign(isNode() ? module.exports : window, {
-	decodeNwcArrayBuffer,
-})
+if (typeof window !== 'undefined') {
+	Object.assign(window, { decodeNwcArrayBuffer })
+}
 
 export { decodeNwcArrayBuffer }

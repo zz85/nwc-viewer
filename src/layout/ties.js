@@ -1,6 +1,11 @@
 /* this deals with drawing ties */
+import { Tie } from '../drawing.js'
 
-function layoutTies() {
+let drawing, data
+
+function layoutTies(_drawing, _data) {
+	drawing = _drawing
+	data = _data
 	const staves = data.score.staves
 	staves.forEach((stave) => {
 		var ties = stave.tokens

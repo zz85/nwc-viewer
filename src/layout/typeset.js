@@ -205,7 +205,7 @@ function score(data) {
 	/* Layout Beams */
 	layoutBeaming(drawing, data)
 	/* Layout Ties */
-	layoutTies()
+	layoutTies(drawing, data)
 
 	/* Layout staves */
 	stavePointers.forEach((cursor, staveIndex) => {
