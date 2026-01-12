@@ -24,8 +24,7 @@ function decodeNwcArrayBuffer(arrayBuffer) {
 		if (isBrowser()) {
 			var inflate = new Zlib.Inflate(nwz)
 			var plain = inflate.decompress()
-		}
-		if (isNode()) {
+		} else {
 			var plain = require('zlib').inflateSync(Buffer.from(nwz))
 			// require('fs').writeFileSync('plain.nwc', plain);
 		}

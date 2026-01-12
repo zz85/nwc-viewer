@@ -1,10 +1,6 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'fs'
 
-// Mock browser globals for nwc.js
-globalThis.window = {}
-globalThis.Zlib = { Inflate: class { decompress() { return new Uint8Array() } } }
-
 const { decodeNwcArrayBuffer } = await import('../src/nwc.js')
 
 describe('NWC Parser', () => {

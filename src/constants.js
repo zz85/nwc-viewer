@@ -20,7 +20,7 @@ function isBrowser() {
 	return typeof window !== 'undefined'
 }
 
-Object.assign(isNode() ? global : window, {
+Object.assign(!isBrowser() ? global : window, {
 	isNode,
 	isBrowser,
 	FONT_SIZE,

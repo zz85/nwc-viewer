@@ -1,10 +1,6 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, readdirSync } from 'fs'
 
-// Mock browser globals
-globalThis.window = { utils: {} }
-globalThis.Zlib = { Inflate: class { decompress() { return new Uint8Array() } } }
-
 const { decodeNwcArrayBuffer } = await import('../src/nwc.js')
 
 describe('NWC Sample Files Regression', () => {
