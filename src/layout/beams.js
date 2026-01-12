@@ -14,6 +14,8 @@ function handleChord(token) {
 
 	// Find top and bottom notes
 	const notes = token.notes
+	if (!notes || notes.length === 0) return
+	
 	const topNote = notes.reduce((a, b) => a.position > b.position ? a : b)
 	const bottomNote = notes.reduce((a, b) => a.position < b.position ? a : b)
 
