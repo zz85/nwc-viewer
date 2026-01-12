@@ -290,15 +290,39 @@ function parseChord(reader) {
 	}
 
 	reader.pointer = pointer
-	reader.set('duration', notes[0].duration)
-	reader.set('dots', notes[0].dots)
-	reader.set('stem', notes[0].stem)
+	if (notes[0]) {
+		reader.set('duration', notes[0].duration)
+		reader.set('dots', notes[0].dots)
+		reader.set('stem', notes[0].stem)
+	}
 }
 
 function parseRestChord(reader) {
 	reader.set('type', 'RestChord')
 	var data = reader.readBytes(10)
-	parseNoteValue(reader, data)
+
+	var chords = data[8]
+	var notes = new Array(chords)
+
+	reader.set('chords', chords)
+	reader.set('notes', notes)
+
+	var pointer = reader.pointer
+
+	for (var i = 0; i < chords; i++) {
+		notes[i] = {}
+		reader.pointer = pointer.notes[i]
+		reader.skip()
+		reader.skip(2)
+		data = reader.readBytes(8)
+		parseNoteValue(reader, data)
+	}
+
+	reader.pointer = pointer
+	if (notes[0]) {
+		reader.set('duration', notes[0].duration)
+		reader.set('dots', notes[0].dots)
+	}
 }
 
 function parsePedal(reader) {
