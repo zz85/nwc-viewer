@@ -171,13 +171,26 @@ function parseTempo(reader) {
 
 function parseDynamic(reader) {
 	var type = 'Dynamic'
-	// 7 Bytes
-	var position = reader.readSignedInt() // 1
-	var placement = reader.readSignedInt() // 2
-	var style = reader.readByte() & 7 // reader.readSignedInt(); // 3 dynamicRef
-	var velocity = reader.readShort() // 4-5
-	var volume = reader.readShort() // 6-7
-	var dynamic = NwcConstants.DynamicLevels[style]
+	var version = reader.data.header.version
+	var position, placement, style, velocity, volume
+	
+	if (version >= 1.7) {
+		position = reader.readSignedInt()
+		placement = reader.readSignedInt()
+		style = reader.readByte()
+		velocity = reader.readShort()
+		volume = reader.readShort()
+	} else {
+		// v1.55 and earlier
+		placement = reader.readByte()
+		position = reader.readByte()
+		velocity = reader.readShort()
+		volume = reader.readShort()
+		style = placement & 0x07
+		placement = placement & (~0x07) // 0x10: Preserve Width
+	}
+	
+	var dynamic = NwcConstants.DynamicLevels[style & 0x1F]
 
 	return new Token({
 		type,
@@ -201,9 +214,10 @@ function parseNote(reader) {
 
 function parseNoteValue(reader, data) {
 	var byteDuration = data[0] // mDuration
-	// data[1]                 // mData2[0] unused
+	var extraAccidentalSpacing = (data[1] >> 4) & 0x0F // mData2[0] high nibble
+	var extraNoteSpacing = data[1] & 0x0F // mData2[0] low nibble
 	var byteMarking1 = data[2] // mData2[1]
-	var byteMarking4 = data[3] // mData2[2] // beam slur stemss
+	var byteMarking4 = data[3] // mData2[2] // beam slur stems
 	var byteMarking2 = data[4] // mAttribute1[0] - accent tie staccato
 	var byteMarking3 = data[5] // mAttribute1[1] - grace, tenuto
 	var position = data[6] // mPos
@@ -212,6 +226,7 @@ function parseNoteValue(reader, data) {
 	var stemShift = byteMarking1 & 3
 	var triplet = (byteMarking1 >> 2) & 3
 	var stem = (byteMarking1 >> 4) & 3
+	var lyricSyllable = (byteMarking4 >> 7) & 3 // 0x0180 bits
 
 	var staccato = (byteMarking2 >> 1) & 1
 	var tieEnd = (byteMarking2 >> 3) & 1
@@ -225,7 +240,6 @@ function parseNoteValue(reader, data) {
 	var hasSlur = (byteMarking3 >> 7) & 1
 	var hasTieDir = (byteMarking3 >> 6) & 1
 
-	// console.log('tieEnd', tieEnd);
 	var beam = byteMarking4 & 3
 
 	position = position > 127 ? 256 - position : -position
@@ -255,9 +269,17 @@ function parseNoteValue(reader, data) {
 	reader.set('grace', grace)
 	reader.set('slur', slur)
 
+	// Store spacing if non-zero
+	if (extraNoteSpacing) reader.set('extraNoteSpacing', extraNoteSpacing)
+	if (extraAccidentalSpacing) reader.set('extraAccidentalSpacing', extraAccidentalSpacing)
+	
+	// Store lyric syllable control if not default
+	if (lyricSyllable) reader.set('lyricSyllable', lyricSyllable)
+
+	// NWC 2.0+ stem length
 	if (byteMarking5 & 0x40) {
-		console.log('more stemming info')
-		reader.readByte()
+		var stemLength = reader.readByte()
+		reader.set('stemLength', stemLength)
 	}
 }
 
@@ -327,9 +349,27 @@ function parseRestChord(reader) {
 
 function parsePedal(reader) {
 	reader.set('type', 'Pedal')
-	var pos = reader.readByte()
-	var placement = reader.readByte()
-	var style = reader.readByte()
+	var version = reader.data.header.version
+	var pos, placement, style
+	
+	if (version >= 1.7) {
+		pos = reader.readByte()
+		placement = reader.readByte()
+		style = reader.readByte()
+	} else if (version <= 1.55) {
+		pos = reader.readByte()
+		reader.readByte() // unknown
+		placement = reader.readByte()
+		style = reader.readByte()
+	} else {
+		// v1.70
+		pos = reader.readByte()
+		placement = 0
+		style = reader.readByte()
+	}
+	
+	reader.set('pos', pos)
+	reader.set('placement', placement)
 	reader.set('sustain', style)
 }
 
@@ -356,62 +396,94 @@ function parseMidiInstruction(reader) {
 
 function parseTempoVariance(reader) {
 	reader.set('type', 'TempoVariance')
+	var version = reader.data.header.version
 	var style, pos, placement, delay
-	if (isVersionOneFive(reader)) {
-		placement = reader.readByte()
+	
+	if (version < 1.7) {
+		style = reader.readByte()
 		pos = reader.readByte()
+		placement = reader.readByte()
+		delay = reader.readByte()
+		style = style & 0x0F
 	} else {
 		pos = reader.readByte()
 		placement = reader.readByte()
+		style = reader.readByte()
+		delay = reader.readByte()
 	}
-	style = reader.readByte()
-	delay = reader.readByte()
 
-	reader.set('sustain', style)
+	reader.set('pos', pos)
+	reader.set('placement', placement)
+	reader.set('style', style)
+	reader.set('delay', delay)
 }
 
 function parseDynamicVariance(reader) {
 	reader.set('type', 'DynamicVariance')
-
+	var version = reader.data.header.version
 	var style, pos, placement
-	if (isVersionOneFive(reader)) {
-		style = reader.readByte()
+	
+	if (version < 1.7) {
 		pos = reader.readByte()
+		style = reader.readByte()
+		placement = 0
 	} else {
 		pos = reader.readByte()
 		placement = reader.readByte()
 		style = reader.readByte()
 	}
-	reader.set('sustain', style)
+	
+	reader.set('pos', pos)
+	reader.set('placement', placement)
+	reader.set('style', style)
 }
 
 function parsePerformanceStyle(reader) {
 	reader.set('type', 'PerformanceStyle')
-
+	var version = reader.data.header.version
 	var style, pos, placement
-	if (isVersionOneFive(reader)) {
+	
+	if (version < 1.7) {
 		style = reader.readByte()
 		pos = reader.readByte()
+		placement = 0
 	} else {
 		pos = reader.readByte()
 		placement = reader.readByte()
 		style = reader.readByte()
 	}
 
+	reader.set('pos', pos)
+	reader.set('placement', placement)
 	reader.set('style', style)
 	reader.set('text', NwcConstants.PerformanceStyle[style])
 }
 
 function parseText(reader) {
 	reader.set('type', 'Text')
-
-	var position = reader.readSignedInt()
-	var data = reader.readByte()
-	var font = reader.readByte()
-	var text = reader.readString()
+	var version = reader.data.header.version
+	var position, font, preserveWidth, text
+	
+	if (version >= 1.7) {
+		position = reader.readSignedInt()
+		var data = reader.readByte()
+		font = reader.readByte()
+		// Parse bit fields from data byte
+		preserveWidth = data & 0x01
+	} else {
+		// v1.55
+		font = reader.readByte()
+		position = reader.readByte()
+		preserveWidth = font >> 4
+		font = font & 0x0F
+	}
+	
+	text = reader.readString()
 
 	reader.set('position', position)
+	reader.set('font', font)
 	reader.set('text', text)
+	if (preserveWidth) reader.set('preserveWidth', preserveWidth)
 }
 
 export { TokenParsers }
