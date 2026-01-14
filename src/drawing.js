@@ -484,6 +484,31 @@ class Dot extends Glyph {
 	}
 }
 
+class Beam extends Draw {
+	constructor(startY, endY, startX, endX, count = 1) {
+		super()
+		this.startY = startY
+		this.endY = endY
+		this.startX = startX
+		this.endX = endX
+		this.count = count
+	}
+
+	draw(ctx) {
+		const beamThickness = getFontSize() / 10
+		const beamSpacing = getFontSize() / 4
+
+		for (let i = 0; i < this.count; i++) {
+			const offsetY = i * beamSpacing
+			ctx.beginPath()
+			ctx.moveTo(this.startX, this.unitsToY(this.startY) + offsetY)
+			ctx.lineTo(this.endX, this.unitsToY(this.endY) + offsetY)
+			ctx.lineWidth = beamThickness
+			ctx.stroke()
+		}
+	}
+}
+
 class Text extends Draw {
 	constructor(text, position, opts) {
 		super()
@@ -638,4 +663,4 @@ const Claire = {
 Object.assign(Claire, { Drawing, setup, Claire, resize, resizeToFit })
 Object.assign(window, Claire)
 
-export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie }
+export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, Beam }
