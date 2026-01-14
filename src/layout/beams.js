@@ -12,9 +12,34 @@ function groupBeamableNotes(tokens) {
 		                   token.duration >= 8 && 
 		                   token.drawingNoteHead
 
-		if (isBeamable) {
+		if (!isBeamable) {
+			if (currentGroup.length > 1) {
+				groups.push(currentGroup)
+			}
+			currentGroup = []
+			continue
+		}
+
+		// Use beam markers from NWC file if present
+		// beam: 1 = start, 2 = end, 3 = middle, 0 or undefined = auto
+		if (token.beam === 1) {
+			// Start new beam group
+			if (currentGroup.length > 1) {
+				groups.push(currentGroup)
+			}
+			currentGroup = [token]
+		} else if (token.beam === 2) {
+			// End beam group
+			currentGroup.push(token)
+			if (currentGroup.length > 1) {
+				groups.push(currentGroup)
+			}
+			currentGroup = []
+		} else if (token.beam === 3 || token.beam === undefined) {
+			// Middle or auto - continue current group
 			currentGroup.push(token)
 		} else {
+			// beam === 0 means no beam - standalone note
 			if (currentGroup.length > 1) {
 				groups.push(currentGroup)
 			}

@@ -268,6 +268,9 @@ function parseNoteValue(reader, data) {
 	reader.set('tenuto', tenuto)
 	reader.set('grace', grace)
 	reader.set('slur', slur)
+	
+	// Store beam information
+	if (beam) reader.set('beam', beam)
 
 	// Store spacing if non-zero
 	if (extraNoteSpacing) reader.set('extraNoteSpacing', extraNoteSpacing)
