@@ -9,24 +9,12 @@
     "nwc2xml": "./bin/nwc2xml.js"
   },
   "scripts": {
-    "pretty": "prettier --single-quote --use-tabs --no-semi --trailing-comma es5 --write src/*.js src/*/*.js index.html",
-    "test": "bun test",
-    "test:node": "node -r esm test/test_nwc.js",
-    "lint": "eslint src/*.js",
-    "build": "rollup src/main.js --output.format iife --output.file bin/notably.js"
+    "test": "bun test"
   },
   "author": "Joshua Koo",
   "bugs": {
     "url": "https://github.com/zz85/nwc-viewer/issues"
   },
   "homepage": "https://github.com/zz85/nwc-viewer",
-  "license": "GNU",
-  "devDependencies": {
-    "eslint": "^4.14.0",
-    "eslint-config-prettier": "^2.9.0",
-    "eslint-plugin-prettier": "^2.4.0",
-    "esm": "^3.2.25",
-    "prettier": "^2.0.5",
-    "rollup": "^0.53.1"
-  }
+  "license": "GNU"
 }
