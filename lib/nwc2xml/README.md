@@ -2,15 +2,43 @@
 
 Library and tools for converting Noteworthy Composer (NWC) files to MusicXML format.
 
-## Library
+## Architecture
 
-The conversion library is located in `lib/nwc2xml/` and can be imported as an ES module:
+The library is split into two main components:
+
+1. **Parser** (`parser.js`, `nwctxt-parser.js`, `reader.js`) - Parses NWC files into a structured format
+2. **Writer** (`writer.js`) - Converts parsed NWC data to MusicXML
+
+This separation allows the parser to be reused independently for other purposes.
+
+## Library Usage
+
+### Parse NWC files
+
+```javascript
+import { parseNWC } from './lib/nwc2xml/index.js';
+
+const buffer = // ... read NWC file as Uint8Array
+const nwcFile = parseNWC(buffer);
+// nwcFile contains: version, title, author, staffs[], etc.
+```
+
+### Convert to MusicXML
 
 ```javascript
 import { convertNWCToMusicXML } from './lib/nwc2xml/index.js';
 
 const buffer = // ... read NWC file as Uint8Array
 const xml = convertNWCToMusicXML(buffer);
+```
+
+### Use parser separately
+
+```javascript
+import { parseNWC } from './lib/nwc-parser.js';
+
+const nwcFile = parseNWC(buffer);
+// Use parsed data for your own purposes
 ```
 
 ## CLI Tool
