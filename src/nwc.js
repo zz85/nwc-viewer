@@ -5,7 +5,8 @@ import { TokenParsers } from './nwc_parser.js'
 var should_debug = false
 
 // Toggle to use new parser (set to true to use lib/nwc2xml parser)
-const USE_NEW_PARSER = true;
+// Note: New parser currently only works well with v2.75 files
+const USE_NEW_PARSER = false;
 
 function isBrowser() {
 	return typeof window !== 'undefined' && typeof window.document !== 'undefined'
@@ -25,11 +26,17 @@ async function decodeNwcArrayBuffer(arrayBuffer) {
 		try {
 			const { parseNWC } = await import('../lib/nwc-parser.js');
 			const nwcFile = parseNWC(arrayBuffer);
+			
+			if (!nwcFile || !nwcFile.staffs) {
+				throw new Error('Parser returned invalid structure');
+			}
+			
 			console.log('Parsed with new parser:', nwcFile);
 			// Convert to old format for compatibility
 			return convertFromNewParser(nwcFile);
 		} catch (error) {
 			console.error('New parser failed, falling back to old parser:', error);
+			// Fall through to old parser
 		}
 	}
 	
@@ -88,7 +95,13 @@ function longArrayToString(array, chunkSize) {
 // Convert from new parser format to old viewer format
 function convertFromNewParser(nwcFile) {
 	console.log('Converting new parser format to viewer format...');
-	// TODO: Full conversion - for now return a basic structure
+	console.log('New parser returned:', nwcFile);
+	
+	if (!nwcFile || !nwcFile.staffs) {
+		console.error('Invalid nwcFile structure:', nwcFile);
+		throw new Error('Parser returned invalid structure');
+	}
+	
 	return {
 		header: {
 			version: nwcFile.version,
@@ -96,19 +109,20 @@ function convertFromNewParser(nwcFile) {
 			product: '[NoteWorthy Composer]',
 		},
 		info: {
-			title: nwcFile.title,
-			author: nwcFile.author,
-			lyricist: nwcFile.lyricist,
-			copyright1: nwcFile.copyright1,
-			copyright2: nwcFile.copyright2,
-			comments: nwcFile.comment,
+			title: nwcFile.title || '',
+			author: nwcFile.author || '',
+			lyricist: nwcFile.lyricist || '',
+			copyright1: nwcFile.copyright1 || '',
+			copyright2: nwcFile.copyright2 || '',
+			comments: nwcFile.comment || '',
 		},
 		score: {
 			staves: nwcFile.staffs.map(staff => ({
-				staff_name: staff.name,
-				tokens: staff.objects.map(obj => ({
+				staff_name: staff.name || '',
+				tokens: (staff.objects || []).map(obj => ({
 					type: mapObjectType(obj.type),
 					// Map other properties as needed
+					...obj
 				}))
 			}))
 		}
@@ -120,14 +134,30 @@ function mapObjectType(type) {
 	const typeMap = {
 		0: 'Clef',
 		1: 'KeySignature',
-		2: 'TimeSig',
-		3: 'BarLine',
-		4: 'Note',
-		5: 'Rest',
-		6: 'Chord',
-		// Add more mappings as needed
+		2: 'Barline',
+		3: 'Ending',
+		4: 'Instrument',
+		5: 'TimeSignature',
+		6: 'Tempo',
+		7: 'Dynamic',
+		8: 'Note',
+		9: 'Rest',
+		10: 'Chord',
+		11: 'Pedal',
+		12: 'Flow',
+		13: 'MidiInstruction',
+		14: 'TempoVariance',
+		15: 'DynamicVariance',
+		16: 'PerformanceStyle',
+		17: 'Text',
+		18: 'RestChord',
+		19: 'User',
+		20: 'Spacer',
+		21: 'RestMultiBar',
+		22: 'Boundary',
+		23: 'Marker',
 	};
-	return typeMap[type] || 'Unknown';
+	return typeMap[type] || `Unknown_${type}`;
 }
 
 /**********************
