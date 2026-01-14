@@ -7,42 +7,30 @@ function layoutTies(_drawing, _data) {
 	drawing = _drawing
 	data = _data
 	const staves = data.score.staves
+	
 	staves.forEach((stave) => {
-		var ties = stave.tokens
-			.filter((token) => token.type === 'Note')
-			.filter((token) => token.tie || token.tieEnd)
-
-		var i = 0
-		while (i < ties.length) {
-			var note = ties[i]
-
+		const notes = stave.tokens.filter(token => token.type === 'Note' || token.type === 'Chord')
+		
+		for (let i = 0; i < notes.length; i++) {
+			const note = notes[i]
+			
 			if (note.tie) {
-				var start = note.drawingNoteHead
-
-				// find connecting note
-				var j = i + 1
-				while (j < ties.length) {
-					var connecting = ties[j]
-					if (connecting.tieEnd) {
-						var end = connecting.drawingNoteHead
-						var tie = new Tie(start, end)
-						drawing.add(tie)
-						break
+				const start = note.drawingNoteHead
+				if (!start) continue
+				
+				// Find the next note with tieEnd
+				for (let j = i + 1; j < notes.length; j++) {
+					const nextNote = notes[j]
+					if (nextNote.tieEnd && nextNote.position === note.position) {
+						const end = nextNote.drawingNoteHead
+						if (end) {
+							const tie = new Tie(start, end)
+							drawing.add(tie)
+							break
+						}
 					}
-					j++
 				}
 			}
-
-			// if (token.tie) {
-			// 	var text = new Text("((((", 0, {
-			// 		font: '12px arial',
-			// 		textAlign: 'center',
-			// 	})
-			// 	text.moveTo(notehead.x, notehead.y + 10)
-			// 	drawing.add(text)
-			// }
-
-			i++
 		}
 	})
 
@@ -51,42 +39,30 @@ function layoutTies(_drawing, _data) {
 
 function layoutSlurs() {
 	const staves = data.score.staves
+	
 	staves.forEach((stave) => {
-		var ties = stave.tokens
-			.filter((token) => token.type === 'Note')
-			.filter((token) => token.slur)
-
-		var i = 0
-		while (i < ties.length) {
-			var note = ties[i]
-
-			if (note.slur == 1) {
-				var start = note.drawingNoteHead
-
-				// find connecting note
-				var j = i + 1
-				while (j < ties.length) {
-					var connecting = ties[j]
-					if (connecting.slur == 2) {
-						var end = connecting.drawingNoteHead
-						var tie = new Tie(start, end)
-						drawing.add(tie)
-						break
+		const notes = stave.tokens.filter(token => token.type === 'Note' || token.type === 'Chord')
+		
+		for (let i = 0; i < notes.length; i++) {
+			const note = notes[i]
+			
+			if (note.slur === 1) {
+				const start = note.drawingNoteHead
+				if (!start) continue
+				
+				// Find the next note with slur end
+				for (let j = i + 1; j < notes.length; j++) {
+					const nextNote = notes[j]
+					if (nextNote.slur === 2) {
+						const end = nextNote.drawingNoteHead
+						if (end) {
+							const tie = new Tie(start, end)
+							drawing.add(tie)
+							break
+						}
 					}
-					j++
 				}
 			}
-
-			// if (token.tie) {
-			// 	var text = new Text("((((", 0, {
-			// 		font: '12px arial',
-			// 		textAlign: 'center',
-			// 	})
-			// 	text.moveTo(notehead.x, notehead.y + 10)
-			// 	drawing.add(text)
-			// }
-
-			i++
 		}
 	})
 }
