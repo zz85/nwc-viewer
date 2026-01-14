@@ -45,6 +45,24 @@ This project contains
 - interpreter, that make sense of the notation objects
 - musical notation rendering, using canvas and smufl font
 - simple lilypond code exporter
+- **CLI tool** for parsing NWC files to JSON (see `bin/nwc-parse.js`)
+
+## CLI Tool
+
+Parse NWC files from the command line:
+
+```bash
+# Parse to JSON
+bun bin/nwc-parse.js file.nwc
+
+# Pretty print
+bun bin/nwc-parse.js --pretty file.nwc
+
+# Save to file
+bun bin/nwc-parse.js file.nwc > output.json
+```
+
+See [bin/README.md](bin/README.md) for more details.
 
 ## Progress
 

@@ -477,6 +477,8 @@ function Score(reader) {
 	if (version < 2) {
 		staves = reader.readShort()
 	} else {
+		// V205 has 13 extra bytes before staff count
+		if (version >= 2.05) reader.skip(13)
 		reader.readByte()
 		staves = reader.readByte()
 
