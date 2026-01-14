@@ -540,6 +540,18 @@ function drawForNote(token, cursor, durToken) {
 
 	cursor.incStaveX(noteHeadWidth)
 
+	// Determine if note will have stem up with flag
+	const hasStem = duration >= 2
+	const hasFlag = duration >= 8 && (!token.beam || token.beam === 0)
+	const stemUp = token.Stem === 'Up' || token.stem === 1 ? true :
+	               token.Stem === 'Down' || token.stem === 2 ? false :
+	               token.position < 0
+	
+	// If stem up with flag, add extra space before dot
+	if (hasStem && hasFlag && stemUp) {
+		cursor.incStaveX(spacerWidth() * 2)
+	}
+
 	for (let i = 0; i < token.dots; i++) {
 		var adjust = isOnLine(relativePos) ? 1 : 0
 		const dot = new Dot(relativePos + adjust - 0.2)
@@ -552,7 +564,7 @@ function drawForNote(token, cursor, durToken) {
 	cursor.tokenPadRight(spacerWidth())
 
 	// Account for stem width on notes that will have stems
-	const hasStem = duration >= 2
+	const stemBuffer = hasStem ? spacerWidth() * 2 : 0
 	const stemBuffer = hasStem ? spacerWidth() * 2 : 0
 
 	var spaceMultiplier = calculatePadding(durValue || token.durValue)
