@@ -565,7 +565,6 @@ function drawForNote(token, cursor, durToken) {
 
 	// Account for stem width on notes that will have stems
 	const stemBuffer = hasStem ? spacerWidth() * 2 : 0
-	const stemBuffer = hasStem ? spacerWidth() * 2 : 0
 
 	var spaceMultiplier = calculatePadding(durValue || token.durValue)
 	cursor.tokenPadRight(noteHead.width * spaceMultiplier + stemBuffer)

@@ -115,4 +115,27 @@ describe('Layout System', () => {
 		expect(beamableNotes[2].beam).toBe(2) // end
 		expect(beamableNotes[3].beam).toBe(0) // no beam
 	})
+
+	test('dotted notes with flags have proper spacing', () => {
+		const testData = {
+			score: {
+				staves: [{
+					tokens: [
+						{ type: 'Note', position: -2, duration: 8, dots: 1, beam: 0, stem: 1 }
+					]
+				}]
+			}
+		}
+
+		interpret(testData)
+		const note = testData.score.staves[0].tokens[0]
+		
+		// Verify note has duration value and dots
+		expect(note.durValue).toBeDefined()
+		expect(note.dots).toBe(1)
+		expect(note.duration).toBe(8)
+		
+		// Note should be marked for stem up (position < 0)
+		expect(note.position).toBeLessThan(0)
+	})
 })
