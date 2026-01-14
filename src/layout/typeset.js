@@ -554,12 +554,15 @@ function isOnLine(pos) {
 }
 
 function calculatePadding(durValue) {
-	// TODO tweak this, consider exponential or constrains systems
-	var spaceMultiplier = Math.min(Math.max(durValue.value() * 8, 1), 8)
-	// use 1/8 as units
-	// console.log(spaceMultiplier);
-
-	return spaceMultiplier
+	// Improved spacing: logarithmic scale for better visual balance
+	// Whole notes get more space, shorter notes get proportionally less
+	const duration = durValue.value()
+	
+	// Base spacing on note duration with diminishing returns
+	const baseSpacing = Math.sqrt(duration * 16)
+	
+	// Clamp between reasonable bounds
+	return Math.min(Math.max(baseSpacing, 0.5), 10)
 }
 
 function clefFromString(str) {
