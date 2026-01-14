@@ -56,10 +56,11 @@ This project contains
 - musical notation rendering, using canvas and smufl font
 - simple lilypond code exporter
 - **CLI tool** for parsing NWC files to JSON (see `bin/nwc-parse.js`)
+- **NWC to MusicXML converter** - library, CLI tool, and web interface (see `lib/nwc2xml/`)
 
-## CLI Tool
+## CLI Tools
 
-Parse NWC files from the command line:
+### Parse NWC to JSON
 
 ```bash
 # Parse to JSON
@@ -73,6 +74,23 @@ bun bin/nwc-parse.js file.nwc > output.json
 ```
 
 See [bin/README.md](bin/README.md) for more details.
+
+### Convert NWC to MusicXML
+
+```bash
+# Convert to MusicXML
+bun bin/nwc2xml.js song.nwc
+
+# Specify output file
+bun bin/nwc2xml.js song.nwc output.xml
+```
+
+See [lib/nwc2xml/README.md](lib/nwc2xml/README.md) for more details.
+
+## Web Tools
+
+- **[index.html](index.html)** - Music viewer and player for NWC files
+- **[nwc2xml_converter.html](nwc2xml_converter.html)** - NWC to MusicXML converter with drag-and-drop interface
 
 ## Progress
 

@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "bin": {
-    "nwc-parse": "./bin/nwc-parse.js"
+    "nwc-parse": "./bin/nwc-parse.js",
+    "nwc2xml": "./bin/nwc2xml.js"
   },
   "scripts": {
     "pretty": "prettier --single-quote --use-tabs --no-semi --trailing-comma es5 --write src/*.js src/*/*.js index.html",

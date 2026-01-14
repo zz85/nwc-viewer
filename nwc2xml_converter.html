@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>NWC to MusicXML Converter</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<style>
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+			max-width: 800px;
+			margin: 40px auto;
+			padding: 20px;
+			background: #f5f5f5;
+		}
+		.container {
+			background: white;
+			padding: 30px;
+			border-radius: 8px;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		}
+		h1 {
+			margin-top: 0;
+			color: #333;
+		}
+		.upload-area {
+			border: 2px dashed #ccc;
+			border-radius: 8px;
+			padding: 40px;
+			text-align: center;
+			margin: 20px 0;
+			cursor: pointer;
+			transition: all 0.3s;
+		}
+		.upload-area:hover {
+			border-color: #666;
+			background: #fafafa;
+		}
+		.upload-area.dragover {
+			border-color: #4CAF50;
+			background: #e8f5e9;
+		}
+		button {
+			background: #4CAF50;
+			color: white;
+			border: none;
+			padding: 12px 24px;
+			border-radius: 4px;
+			cursor: pointer;
+			font-size: 16px;
+			margin: 10px 5px;
+		}
+		button:hover {
+			background: #45a049;
+		}
+		button:disabled {
+			background: #ccc;
+			cursor: not-allowed;
+		}
+		#output {
+			margin-top: 20px;
+			padding: 15px;
+			background: #f9f9f9;
+			border-radius: 4px;
+			max-height: 400px;
+			overflow: auto;
+			font-family: monospace;
+			font-size: 12px;
+			white-space: pre-wrap;
+			word-break: break-all;
+		}
+		.hidden {
+			display: none;
+		}
+		.info {
+			color: #666;
+			font-size: 14px;
+			margin: 10px 0;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<h1>NWC to MusicXML Converter</h1>
+		<p class="info">Convert Noteworthy Composer (.nwc) files to MusicXML format</p>
+		
+		<div class="upload-area" id="uploadArea">
+			<p>📁 Drop NWC file here or click to select</p>
+			<input type="file" id="fileInput" accept=".nwc" style="display: none">
+		</div>
+
+		<div id="controls" class="hidden">
+			<button id="convertBtn">Convert to MusicXML</button>
+			<button id="downloadBtn" class="hidden">Download XML</button>
+			<button id="resetBtn">Reset</button>
+		</div>
+
+		<div id="output" class="hidden"></div>
+
+		<div style="margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 4px;">
+			<h3 style="margin-top: 0;">View MusicXML Online</h3>
+			<p class="info">After converting, you can view the MusicXML file using these online tools:</p>
+			<ul style="line-height: 1.8;">
+				<li><a href="https://www.soundslice.com/musicxml-viewer/" target="_blank">Soundslice MusicXML Viewer</a> - Interactive viewer with playback</li>
+				<li><a href="https://www.verovio.org/musicxml.html" target="_blank">Verovio MusicXML Viewer</a> - High-quality music engraving</li>
+			</ul>
+		</div>
+	</div>
+
+	<!-- Load zlib decompression library -->
+	<script src="vendor/inflate.min.js"></script>
+
+	<script type="module">
+		import { convertNWCToMusicXML } from './lib/nwc2xml/index.js';
+
+		const uploadArea = document.getElementById('uploadArea');
+		const fileInput = document.getElementById('fileInput');
+		const controls = document.getElementById('controls');
+		const convertBtn = document.getElementById('convertBtn');
+		const downloadBtn = document.getElementById('downloadBtn');
+		const resetBtn = document.getElementById('resetBtn');
+		const output = document.getElementById('output');
+
+		let currentFile = null;
+		let xmlContent = null;
+
+		uploadArea.addEventListener('click', () => fileInput.click());
+		
+		uploadArea.addEventListener('dragover', (e) => {
+			e.preventDefault();
+			uploadArea.classList.add('dragover');
+		});
+
+		uploadArea.addEventListener('dragleave', () => {
+			uploadArea.classList.remove('dragover');
+		});
+
+		uploadArea.addEventListener('drop', (e) => {
+			e.preventDefault();
+			uploadArea.classList.remove('dragover');
+			const file = e.dataTransfer.files[0];
+			if (file && file.name.endsWith('.nwc')) {
+				handleFile(file);
+			}
+		});
+
+		fileInput.addEventListener('change', (e) => {
+			const file = e.target.files[0];
+			if (file) handleFile(file);
+		});
+
+		function handleFile(file) {
+			currentFile = file;
+			uploadArea.innerHTML = `<p>✓ ${file.name}</p>`;
+			controls.classList.remove('hidden');
+			output.classList.add('hidden');
+			downloadBtn.classList.add('hidden');
+		}
+
+		convertBtn.addEventListener('click', async () => {
+			if (!currentFile) return;
+			
+			try {
+				const buffer = await currentFile.arrayBuffer();
+				xmlContent = convertNWCToMusicXML(new Uint8Array(buffer));
+				
+				output.textContent = xmlContent;
+				output.classList.remove('hidden');
+				downloadBtn.classList.remove('hidden');
+			} catch (e) {
+				output.textContent = `Error: ${e.message}`;
+				output.classList.remove('hidden');
+			}
+		});
+
+		downloadBtn.addEventListener('click', () => {
+			if (!xmlContent) return;
+			
+			const blob = new Blob([xmlContent], { type: 'application/xml' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = currentFile.name.replace(/\.nwc$/i, '.xml');
+			a.click();
+			URL.revokeObjectURL(url);
+		});
+
+		resetBtn.addEventListener('click', () => {
+			currentFile = null;
+			xmlContent = null;
+			fileInput.value = '';
+			uploadArea.innerHTML = '<p>📁 Drop NWC file here or click to select</p>';
+			controls.classList.add('hidden');
+			output.classList.add('hidden');
+		});
+	</script>
+</body>
+</html>
