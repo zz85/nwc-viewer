@@ -551,8 +551,12 @@ function drawForNote(token, cursor, durToken) {
 	// cursor.incStaveX(spacerWidth())
 	cursor.tokenPadRight(spacerWidth())
 
+	// Account for stem width on notes that will have stems
+	const hasStem = duration >= 2
+	const stemBuffer = hasStem ? spacerWidth() * 2 : 0
+
 	var spaceMultiplier = calculatePadding(durValue || token.durValue)
-	cursor.tokenPadRight(noteHead.width * 1 * spaceMultiplier)
+	cursor.tokenPadRight(noteHead.width * spaceMultiplier + stemBuffer)
 }
 
 function isOnLine(pos) {
