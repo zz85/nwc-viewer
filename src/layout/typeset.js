@@ -547,9 +547,9 @@ function drawForNote(token, cursor, durToken) {
 	               token.Stem === 'Down' || token.stem === 2 ? false :
 	               token.position < 0
 	
-	// If stem up with flag, add extra space before dot
+	// If stem up with flag, add small space before dot
 	if (hasStem && hasFlag && stemUp) {
-		cursor.incStaveX(spacerWidth() * 2)
+		cursor.incStaveX(spacerWidth() * 0.5)
 	}
 
 	for (let i = 0; i < token.dots; i++) {
