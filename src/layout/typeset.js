@@ -128,11 +128,17 @@ let info // running debug info
 
 /* Rerenders all drawing objects */
 function quickDraw(dataOrContext, x, y) {
-	const ctx = dataOrContext.getContext ? dataOrContext.getContext() : window.ctx
-	const canvas = dataOrContext.getCanvas ? dataOrContext.getCanvas() : window.canvas
+	const ctx = dataOrContext?.getContext ? dataOrContext.getContext() : window.ctx
+	const canvas = dataOrContext?.getCanvas ? dataOrContext.getCanvas() : window.canvas
+	
+	if (!ctx || !canvas) {
+		console.warn('quickDraw called without valid context')
+		return
+	}
+	
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	ctx.save()
-	ctx.translate(x, y)
+	ctx.translate(x || 0, y || 0)
 	drawing.draw(ctx)
 	ctx.restore()
 }
