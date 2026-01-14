@@ -11,6 +11,16 @@ And if you like this project, you can also chat me up [@blurspline on twitter](h
 
 ## Changelog
 
+#### 14 January 2026
+- Refactored global variables to MusicContext pattern for better modularity
+- Implemented proper beam support respecting NWC file beam markers
+- Improved tie and slur rendering with better matching logic
+- Added comprehensive error handling throughout parsing and rendering
+- Improved layout spacing with logarithmic scale for better visual balance
+- Added layout test suite (184 total tests)
+- Fixed dotted note spacing for stem-up notes with flags
+- Fixed quickDraw resize handling
+
 #### 5 May 2020
 - Add support for loading nwc v1.55
 - lyrics rendering
