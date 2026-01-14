@@ -207,14 +207,14 @@ function layoutBeaming(_drawing, _data) {
 	staves.forEach((stave) => {
 		// Group beamable notes
 		const beamGroups = groupBeamableNotes(stave.tokens)
+		const beamedTokens = new Set(beamGroups.flat())
 		
 		// Draw beam groups
 		beamGroups.forEach(drawBeamGroup)
 		
-		// Draw individual stems/flags for non-beamed notes
+		// Draw individual stems/flags only for non-beamed notes
 		stave.tokens.forEach(token => {
-			const isInBeamGroup = beamGroups.some(group => group.includes(token))
-			if (!isInBeamGroup) {
+			if (!beamedTokens.has(token)) {
 				handleBeamTokens(token)
 			}
 		})
