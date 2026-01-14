@@ -6,6 +6,7 @@ import { setup, resizeToFit } from './drawing.js'
 import { exportAbc, exportLilypond } from './exporter.js'
 import { score } from './layout/typeset.js'
 import { blank } from './editing.js'
+import { MusicContext } from './context.js'
 
 /**********************
  *
@@ -353,8 +354,9 @@ const rerender = () => {
 		() => {
 			console.log('rerender')
 			let data = scoreManager.getData()
-			interpret(data)
-			score(data)
+			const musicContext = new MusicContext(data, window.canvas)
+			interpret(musicContext)
+			score(musicContext)
 		},
 		null,
 		(canvas) => {

@@ -47,7 +47,9 @@ function isTabbable(token) {
 	}
 }
 
-function interpret(data) {
+function interpret(dataOrContext) {
+	// Support both legacy data object and new MusicContext
+	const data = dataOrContext.getData ? dataOrContext.getData() : dataOrContext
 	var staves = data.score.staves
 	var reading = new SightReader()
 	reading.read(staves)

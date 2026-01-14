@@ -127,7 +127,9 @@ let drawing // placeholder for drawing system
 let info // running debug info
 
 /* Rerenders all drawing objects */
-function quickDraw(data, x, y) {
+function quickDraw(dataOrContext, x, y) {
+	const ctx = dataOrContext.getContext ? dataOrContext.getContext() : window.ctx
+	const canvas = dataOrContext.getCanvas ? dataOrContext.getCanvas() : window.canvas
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	ctx.save()
 	ctx.translate(x, y)
@@ -147,8 +149,12 @@ window.everyStaveTokens = () => {
 	return tokens
 }
 
-function score(data) {
-	var ctx = window.ctx
+function score(dataOrContext) {
+	// Support both legacy data object and new MusicContext
+	const data = dataOrContext.getData ? dataOrContext.getData() : dataOrContext
+	const ctx = dataOrContext.getContext ? dataOrContext.getContext() : window.ctx
+	const canvas = dataOrContext.getCanvas ? dataOrContext.getCanvas() : window.canvas
+	
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	window.drawing = drawing = new Drawing(ctx)
 

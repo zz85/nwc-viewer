@@ -97,9 +97,10 @@ function setupCanvas() {
 	var canvas = document.createElement('canvas')
 	var ctx = canvas.getContext('2d')
 
+	// Keep for backward compatibility
 	window.ctx = ctx
 	window.canvas = canvas
-	return canvas
+	return { canvas, ctx }
 }
 
 function resizeToFit() {
@@ -134,10 +135,10 @@ function setup(render, path, ok) {
 
 	path = path || 'vendor/bravura-1.211/'
 
-	const canvas = setupCanvas()
+	const { canvas, ctx } = setupCanvas()
 	loadFont(render, path)
 	ok && ok(canvas)
-	return canvas
+	return { canvas, ctx }
 }
 
 var notableLoaded = false
