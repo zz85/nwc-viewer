@@ -4,6 +4,9 @@ import { TokenParsers } from './nwc_parser.js'
 
 var should_debug = false
 
+// Toggle to use new parser (set to true to use lib/nwc2xml parser)
+const USE_NEW_PARSER = true;
+
 function isBrowser() {
 	return typeof window !== 'undefined' && typeof window.document !== 'undefined'
 }
@@ -16,12 +19,27 @@ function debug(...args) {
 	if (should_debug) console.log(...args)
 }
 
-function decodeNwcArrayBuffer(arrayBuffer) {
+async function decodeNwcArrayBuffer(arrayBuffer) {
+	if (USE_NEW_PARSER) {
+		console.log('Using lib/nwc2xml parser (new robust parser)');
+		try {
+			const { parseNWC } = await import('../lib/nwc-parser.js');
+			const nwcFile = parseNWC(arrayBuffer);
+			console.log('Parsed with new parser:', nwcFile);
+			// Convert to old format for compatibility
+			return convertFromNewParser(nwcFile);
+		} catch (error) {
+			console.error('New parser failed, falling back to old parser:', error);
+		}
+	}
+	
+	console.log('Using src/nwc.js parser (original viewer parser)');
 	try {
 		var byteArray = new Uint8Array(arrayBuffer)
 		var firstBytes = shortArrayToString(byteArray.subarray(0, 5))
 		
 		if ('[NWZ]' === firstBytes) {
+			console.log('Detected compressed NWC file [NWZ]');
 			var nwz = byteArray.subarray(6)
 			if (isBrowser()) {
 				var inflate = new Zlib.Inflate(nwz)
@@ -31,8 +49,10 @@ function decodeNwcArrayBuffer(arrayBuffer) {
 			}
 			return processNwc(plain)
 		} else if ('[Note' === firstBytes) {
+			console.log('Detected binary NWC file [Note]');
 			return processNwc(byteArray)
 		} else if ('!Note' === firstBytes) {
+			console.log('Detected NWC text format (!Note)');
 			return processNwcText(byteArray, longArrayToString(byteArray))
 		} else {
 			throw new Error(`Unrecognized NWC file format: ${firstBytes}`)
@@ -63,6 +83,51 @@ function longArrayToString(array, chunkSize) {
 	}
 
 	return buffer.join('')
+}
+
+// Convert from new parser format to old viewer format
+function convertFromNewParser(nwcFile) {
+	console.log('Converting new parser format to viewer format...');
+	// TODO: Full conversion - for now return a basic structure
+	return {
+		header: {
+			version: nwcFile.version,
+			company: '[NoteWorthy ArtWare]',
+			product: '[NoteWorthy Composer]',
+		},
+		info: {
+			title: nwcFile.title,
+			author: nwcFile.author,
+			lyricist: nwcFile.lyricist,
+			copyright1: nwcFile.copyright1,
+			copyright2: nwcFile.copyright2,
+			comments: nwcFile.comment,
+		},
+		score: {
+			staves: nwcFile.staffs.map(staff => ({
+				staff_name: staff.name,
+				tokens: staff.objects.map(obj => ({
+					type: mapObjectType(obj.type),
+					// Map other properties as needed
+				}))
+			}))
+		}
+	};
+}
+
+function mapObjectType(type) {
+	// Map object types from new parser to old format
+	const typeMap = {
+		0: 'Clef',
+		1: 'KeySignature',
+		2: 'TimeSig',
+		3: 'BarLine',
+		4: 'Note',
+		5: 'Rest',
+		6: 'Chord',
+		// Add more mappings as needed
+	};
+	return typeMap[type] || 'Unknown';
 }
 
 /**********************
