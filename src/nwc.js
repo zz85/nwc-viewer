@@ -17,25 +17,29 @@ function debug(...args) {
 }
 
 function decodeNwcArrayBuffer(arrayBuffer) {
-	var byteArray = new Uint8Array(arrayBuffer)
-	var firstBytes = shortArrayToString(byteArray.subarray(0, 5))
-	if ('[NWZ]' === firstBytes) {
-		var nwz = byteArray.subarray(6)
-		if (isBrowser()) {
-			var inflate = new Zlib.Inflate(nwz)
-			var plain = inflate.decompress()
+	try {
+		var byteArray = new Uint8Array(arrayBuffer)
+		var firstBytes = shortArrayToString(byteArray.subarray(0, 5))
+		
+		if ('[NWZ]' === firstBytes) {
+			var nwz = byteArray.subarray(6)
+			if (isBrowser()) {
+				var inflate = new Zlib.Inflate(nwz)
+				var plain = inflate.decompress()
+			} else {
+				var plain = require('zlib').inflateSync(Buffer.from(nwz))
+			}
+			return processNwc(plain)
+		} else if ('[Note' === firstBytes) {
+			return processNwc(byteArray)
+		} else if ('!Note' === firstBytes) {
+			return processNwcText(byteArray, longArrayToString(byteArray))
 		} else {
-			var plain = require('zlib').inflateSync(Buffer.from(nwz))
-			// require('fs').writeFileSync('plain.nwc', plain);
+			throw new Error(`Unrecognized NWC file format: ${firstBytes}`)
 		}
-
-		return processNwc(plain)
-	} else if ('[Note' === firstBytes) {
-		return processNwc(byteArray)
-	} else if ('!Note' === firstBytes) {
-		return processNwcText(byteArray, longArrayToString(byteArray))
-	} else {
-		console.log('Unrecognized headers', firstBytes)
+	} catch (error) {
+		console.error('NWC parsing failed:', error)
+		throw error
 	}
 }
 

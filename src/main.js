@@ -350,25 +350,29 @@ const play = () => {
 document.getElementById('play').onclick = play
 
 const rerender = () => {
-	setup(
-		() => {
-			console.log('rerender')
-			let data = scoreManager.getData()
-			const musicContext = new MusicContext(data, window.canvas)
-			interpret(musicContext)
-			score(musicContext)
-		},
-		null,
-		(canvas) => {
-			console.log('ok')
-			var score_div = document.getElementById('score')
-			var invisible_canvas = document.getElementById('invisible_canvas')
+	try {
+		setup(
+			() => {
+				console.log('rerender')
+				let data = scoreManager.getData()
+				const musicContext = new MusicContext(data, window.canvas)
+				interpret(musicContext)
+				score(musicContext)
+			},
+			null,
+			(canvas) => {
+				console.log('ok')
+				var score_div = document.getElementById('score')
+				var invisible_canvas = document.getElementById('invisible_canvas')
 
-			score_div.insertBefore(canvas, invisible_canvas)
-			resizeToFit()
-		}
-	)
-	// exportLilypond()
+				score_div.insertBefore(canvas, invisible_canvas)
+				resizeToFit()
+			}
+		)
+	} catch (error) {
+		console.error('Rendering failed:', error)
+		alert(`Error rendering score: ${error.message}`)
+	}
 }
 
 window.exportLilypond = exportLilypond
@@ -381,8 +385,13 @@ function setDataAndRender(_data) {
 }
 
 function processData(payload) {
-	var data = decodeNwcArrayBuffer(payload)
-	setDataAndRender(data)
+	try {
+		var data = decodeNwcArrayBuffer(payload)
+		setDataAndRender(data)
+	} catch (error) {
+		console.error('Failed to process NWC file:', error)
+		alert(`Error loading file: ${error.message}`)
+	}
 }
 
 document.getElementById('blank_button').onclick = () => {
