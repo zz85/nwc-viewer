@@ -7,9 +7,9 @@ describe('NWC Sample Files Regression', () => {
 	const sampleFiles = readdirSync('samples').filter(f => f.endsWith('.nwc'))
 
 	sampleFiles.forEach(file => {
-		test(`parses ${file} without throwing`, () => {
+		test(`parses ${file} without throwing`, async () => {
 			const contents = readFileSync(`samples/${file}`)
-			expect(() => decodeNwcArrayBuffer(contents)).not.toThrow()
+			await expect(decodeNwcArrayBuffer(contents)).resolves.toBeDefined()
 		})
 	})
 
@@ -20,9 +20,9 @@ describe('NWC Sample Files Regression', () => {
 		const nwcFile = jsonFile.replace('.json', '.nwc')
 		if (!sampleFiles.includes(nwcFile)) return
 
-		test(`${nwcFile} matches snapshot`, () => {
+		test(`${nwcFile} matches snapshot`, async () => {
 			const contents = readFileSync(`samples/${nwcFile}`)
-			const data = decodeNwcArrayBuffer(contents)
+			const data = await decodeNwcArrayBuffer(contents)
 			const expected = JSON.parse(readFileSync(`samples/json/${jsonFile}`, 'utf-8'))
 
 			// Compare key structural elements

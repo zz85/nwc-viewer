@@ -6,7 +6,7 @@ var should_debug = false
 
 // Toggle to use new parser (set to true to use lib/nwc2xml parser)
 // Note: New parser currently only works well with v2.75 files
-const USE_NEW_PARSER = false;
+const USE_NEW_PARSER = true;
 
 function isBrowser() {
 	return typeof window !== 'undefined' && typeof window.document !== 'undefined'
@@ -93,18 +93,240 @@ function longArrayToString(array, chunkSize) {
 }
 
 // Convert from new parser format to old viewer format
+// ================================================================
+// Adapter: converts NWCFile (new parser) -> old viewer data format
+// ================================================================
+
+var TYPE_NAMES = {
+	0: 'Clef', 1: 'KeySignature', 2: 'Barline', 3: 'Ending', 4: 'Instrument',
+	5: 'TimeSignature', 6: 'Tempo', 7: 'Dynamic', 8: 'Note', 9: 'Rest',
+	10: 'Chord', 11: 'Pedal', 12: 'Flow', 13: 'MidiInstruction',
+	14: 'TempoVariance', 15: 'DynamicVariance', 16: 'PerformanceStyle',
+	17: 'Text', 18: 'RestChord', 19: 'User', 20: 'Spacer',
+	21: 'RestMultiBar', 22: 'Boundary', 23: 'Marker',
+}
+
+var ADAPTER_DURATIONS = [1, 2, 4, 8, 16, 32, 64]
+var ADAPTER_ACCIDENTALS = { 0: '#', 1: 'b', 2: 'n', 3: 'x', 4: 'v', 5: '' }
+var ADAPTER_CLEFS = { 0: 'treble', 1: 'bass', 2: 'alto', 3: 'tenor' }
+var ADAPTER_DYNAMICS = ['ppp', 'pp', 'p', 'mp', 'mf', 'f', 'ff', 'fff']
+var ADAPTER_FLAT_KEYS = ['C', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb']
+var ADAPTER_SHARP_KEYS = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#']
+var ADAPTER_PERF_STYLES = [
+	'Ad Libitum','Animato','Cantabile','Con brio','Dolce','Espressivo',
+	'Grazioso','Legato','Maestoso','Marcato','Meno mosso','Poco a poco',
+	'Più mosso','Semplice','Simile','Solo','Sostenuto','Sotto Voce',
+	'Staccato','Subito','Tenuto','Tutti','Volta Subito',
+]
+var ADAPTER_VISIBILITY = ['Default', 'Always', 'TopStaff', 'SingleStaff', 'MultiStaff', 'Never']
+
+function versionToFloat(v) {
+	var major = v >> 8
+	var minor = v & 0xFF
+	return major + minor * 0.01
+}
+
+function bitmapToNotes(bitmap) {
+	var AG = 'ABCDEFG', names = []
+	for (var i = 0; i < 7; i++) if ((bitmap >> i) & 1) names.push(AG.charAt(i))
+	return names
+}
+
+function adaptNoteAttrs(obj) {
+	// Extract flat properties from new parser NoteObj getAttributes() bitmask
+	var attr = obj.getAttributes()
+	var dt = obj.getDurationType()
+	return {
+		position: -obj.pos,
+		duration: ADAPTER_DURATIONS[obj.getDuration()] || 4,
+		dots: (dt & 0x02) ? 2 : (dt & 0x01) ? 1 : 0,
+		accidental: ADAPTER_ACCIDENTALS[obj.getAccidental()] || '',
+		tie: (attr & 0x10000) ? 1 : 0,
+		tieEnd: (attr & 0x20000) ? 1 : 0,
+		slur: (attr >> 10) & 3,
+		beam: (attr >> 8) & 3,
+		stem: (attr >> 14) & 3,
+		triplet: (dt >> 2) & 3,
+		staccato: (attr & 0x004) ? 1 : 0,
+		accent: (attr & 0x001) ? 1 : 0,
+		grace: (attr & 0x002) ? 1 : 0,
+		tenuto: (attr & 0x008) ? 1 : 0,
+	}
+}
+
+function adaptObject(obj) {
+	var type = TYPE_NAMES[obj.type] || ('Unknown_' + obj.type)
+	var token = { type: type }
+	var vis = obj.visible !== undefined ? obj.visible : 0
+	if (vis > 0 && vis < ADAPTER_VISIBILITY.length) token.Visibility = ADAPTER_VISIBILITY[vis]
+
+	switch (obj.type) {
+		case 0: // Clef
+			token.clef = ADAPTER_CLEFS[obj.clefType & 3] || 'treble'
+			token.octave = obj.octaveShift || 0
+			break
+
+		case 1: { // KeySignature
+			var flatBits = obj.flat || 0
+			var sharpBits = obj.sharp || 0
+			var flatNames = bitmapToNotes(flatBits)
+			var sharpNames = bitmapToNotes(sharpBits)
+			token.flats = flatNames
+			token.sharps = sharpNames
+			if (obj.getFifths) {
+				var fifths = obj.getFifths()
+				if (fifths < 0) token.key = ADAPTER_FLAT_KEYS[-fifths] || 'C'
+				else if (fifths > 0) token.key = ADAPTER_SHARP_KEYS[fifths] || 'C'
+				else token.key = 'C'
+			} else {
+				token.key = flatNames.length ? ADAPTER_FLAT_KEYS[flatNames.length] || 'C'
+					: sharpNames.length ? ADAPTER_SHARP_KEYS[sharpNames.length] || 'C' : 'C'
+			}
+			break
+		}
+
+		case 2: // Barline
+			token.barline = obj.getStyle ? obj.getStyle() : (obj.style & 0x7F)
+			token.repeat = obj.repeatCount || 2
+			break
+
+		case 3: // Ending
+			token.repeat = obj.style & 0xFF
+			token.style = (obj.style >> 8) & 0xFF
+			break
+
+		case 4: // Instrument
+			break
+
+		case 5: // TimeSignature
+			token.group = obj.beats || 4
+			token.beat = obj.getBeatType ? obj.getBeatType() : (1 << (obj.beatType || 2))
+			token.signature = token.group + '/' + token.beat
+			// Handle special time signatures
+			if (obj.style === 1) token.signature = 'Common'
+			else if (obj.style === 2) token.signature = 'AllaBreve'
+			break
+
+		case 6: // Tempo
+			token.position = obj.pos || 0
+			token.placement = obj.placement || 0
+			token.duration = obj.value || obj.getSpeed?.() || 120
+			token.note = obj.base || 2
+			break
+
+		case 7: // Dynamic
+			token.position = obj.pos || 0
+			token.placement = obj.placement || 0
+			token.style = obj.style || 0
+			token.dynamic = obj.getStyleName ? obj.getStyleName() : (ADAPTER_DYNAMICS[obj.style & 0x1F] || 'mf')
+			break
+
+		case 8: { // Note
+			var noteAttrs = adaptNoteAttrs(obj)
+			Object.assign(token, noteAttrs)
+			break
+		}
+
+		case 9: { // Rest
+			var durIdx = obj.getDuration ? obj.getDuration() : (obj.duration & 0x0F)
+			var restDt = obj.getDurationType ? obj.getDurationType() : 0
+			token.duration = ADAPTER_DURATIONS[durIdx] || 4
+			token.dots = (restDt & 0x02) ? 2 : (restDt & 0x01) ? 1 : 0
+			token.position = 0
+			token.triplet = (restDt >> 2) & 3
+			break
+		}
+
+		case 10: { // Chord (NoteCM)
+			var children = obj.children || []
+			var notes = []
+			// First child data becomes the primary token properties
+			if (children.length > 0) {
+				var first = children[0]
+				var firstAttrs = adaptNoteAttrs(first)
+				Object.assign(token, firstAttrs)
+				// Build notes array for all children
+				for (var ci = 0; ci < children.length; ci++) {
+					notes.push(adaptNoteAttrs(children[ci]))
+				}
+			}
+			token.chords = children.length
+			token.notes = notes
+			break
+		}
+
+		case 11: // Pedal
+			token.pos = obj.pos || 0
+			token.placement = obj.placement || 0
+			token.sustain = obj.style || 0
+			break
+
+		case 12: // Flow
+			token.pos = obj.pos || 0
+			token.placement = obj.placement || 0
+			token.style = obj.style || 0
+			break
+
+		case 13: // MPC
+			break
+
+		case 14: // TempoVariance
+			token.pos = obj.pos || 0
+			token.placement = obj.placement || 0
+			token.style = obj.style || 0
+			token.delay = obj.delay || 0
+			break
+
+		case 15: // DynamicVariance
+			token.pos = obj.pos || 0
+			token.placement = obj.placement || 0
+			token.style = obj.style || 0
+			break
+
+		case 16: // PerformanceStyle
+			token.pos = obj.pos || 0
+			token.placement = obj.placement || 0
+			token.style = obj.style || 0
+			token.text = ADAPTER_PERF_STYLES[obj.style] || ''
+			break
+
+		case 17: // Text
+			token.position = obj.pos || 0
+			token.font = obj.font || 0
+			token.text = obj.text || ''
+			break
+
+		case 18: { // RestChord (RestCM)
+			var rcChildren = obj.children || []
+			var rcNotes = []
+			if (rcChildren.length > 0) {
+				var rcFirst = rcChildren[0]
+				var rcFirstAttrs = adaptNoteAttrs(rcFirst)
+				Object.assign(token, rcFirstAttrs)
+				for (var ri = 0; ri < rcChildren.length; ri++) {
+					rcNotes.push(adaptNoteAttrs(rcChildren[ri]))
+				}
+			}
+			token.chords = rcChildren.length
+			token.notes = rcNotes
+			break
+		}
+
+		default:
+			break
+	}
+
+	return token
+}
+
 function convertFromNewParser(nwcFile) {
-	console.log('Converting new parser format to viewer format...');
-	console.log('New parser returned:', nwcFile);
-	
 	if (!nwcFile || !nwcFile.staffs) {
-		console.error('Invalid nwcFile structure:', nwcFile);
 		throw new Error('Parser returned invalid structure');
 	}
-	
+
 	return {
 		header: {
-			version: nwcFile.version,
+			version: versionToFloat(nwcFile.version),
 			company: '[NoteWorthy ArtWare]',
 			product: '[NoteWorthy Composer]',
 		},
@@ -117,47 +339,19 @@ function convertFromNewParser(nwcFile) {
 			comments: nwcFile.comment || '',
 		},
 		score: {
-			staves: nwcFile.staffs.map(staff => ({
-				staff_name: staff.name || '',
-				tokens: (staff.objects || []).map(obj => ({
-					type: mapObjectType(obj.type),
-					// Map other properties as needed
-					...obj
-				}))
-			}))
+			staves: nwcFile.staffs.map(function(staff) {
+				return {
+					staff_name: staff.name || '',
+					group_name: staff.group || '',
+					channel: staff.channel || 0,
+					lyrics: (staff.lyrics || []).map(function(lyric) {
+						return Array.isArray(lyric) ? lyric.join('\n') : (lyric || '')
+					}),
+					tokens: (staff.objects || []).map(adaptObject)
+				}
+			})
 		}
 	};
-}
-
-function mapObjectType(type) {
-	// Map object types from new parser to old format
-	const typeMap = {
-		0: 'Clef',
-		1: 'KeySignature',
-		2: 'Barline',
-		3: 'Ending',
-		4: 'Instrument',
-		5: 'TimeSignature',
-		6: 'Tempo',
-		7: 'Dynamic',
-		8: 'Note',
-		9: 'Rest',
-		10: 'Chord',
-		11: 'Pedal',
-		12: 'Flow',
-		13: 'MidiInstruction',
-		14: 'TempoVariance',
-		15: 'DynamicVariance',
-		16: 'PerformanceStyle',
-		17: 'Text',
-		18: 'RestChord',
-		19: 'User',
-		20: 'Spacer',
-		21: 'RestMultiBar',
-		22: 'Boundary',
-		23: 'Marker',
-	};
-	return typeMap[type] || `Unknown_${type}`;
 }
 
 /**********************
