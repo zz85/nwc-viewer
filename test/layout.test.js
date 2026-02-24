@@ -59,9 +59,9 @@ describe('Layout System', () => {
 		})
 	})
 
-	test('tokens receive tabValue for layout positioning', async () => {
+	test('tokens receive tabValue for layout positioning', () => {
 		const contents = readFileSync('samples/carenot.nwc')
-		const data = await decodeNwcArrayBuffer(contents)
+		const data = decodeNwcArrayBuffer(contents)
 		interpret(data)
 
 		const tokens = data.score.staves[0].tokens
@@ -75,9 +75,9 @@ describe('Layout System', () => {
 		})
 	})
 
-	test('notes with different durations have different spacing', async () => {
+	test('notes with different durations have different spacing', () => {
 		const contents = readFileSync('samples/carenot.nwc')
-		const data = await decodeNwcArrayBuffer(contents)
+		const data = decodeNwcArrayBuffer(contents)
 		interpret(data)
 
 		const notes = data.score.staves[0].tokens.filter(t => t.type === 'Note')

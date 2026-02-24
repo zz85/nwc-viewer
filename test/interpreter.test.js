@@ -8,9 +8,9 @@ const { decodeNwcArrayBuffer } = await import('../src/nwc.js')
 const { interpret } = await import('../src/interpreter.js')
 
 describe('Interpreter', () => {
-	test('assigns tickValue to tokens', async () => {
+	test('assigns tickValue to tokens', () => {
 		const contents = readFileSync('samples/carenot.nwc')
-		const data = await decodeNwcArrayBuffer(contents)
+		const data = decodeNwcArrayBuffer(contents)
 		interpret(data)
 
 		const tokens = data.score.staves[0].tokens
@@ -20,9 +20,9 @@ describe('Interpreter', () => {
 		})
 	})
 
-	test('assigns tabValue to tokens', async () => {
+	test('assigns tabValue to tokens', () => {
 		const contents = readFileSync('samples/carenot.nwc')
-		const data = await decodeNwcArrayBuffer(contents)
+		const data = decodeNwcArrayBuffer(contents)
 		interpret(data)
 
 		const tokens = data.score.staves[0].tokens
@@ -31,9 +31,9 @@ describe('Interpreter', () => {
 		})
 	})
 
-	test('assigns tabUntilValue to tokens', async () => {
+	test('assigns tabUntilValue to tokens', () => {
 		const contents = readFileSync('samples/carenot.nwc')
-		const data = await decodeNwcArrayBuffer(contents)
+		const data = decodeNwcArrayBuffer(contents)
 		interpret(data)
 
 		const tokens = data.score.staves[0].tokens
@@ -42,9 +42,9 @@ describe('Interpreter', () => {
 		})
 	})
 
-	test('interprets Note tokens with name and octave', async () => {
+	test('interprets Note tokens with name and octave', () => {
 		const contents = readFileSync('samples/carenot.nwc')
-		const data = await decodeNwcArrayBuffer(contents)
+		const data = decodeNwcArrayBuffer(contents)
 		interpret(data)
 
 		const notes = data.score.staves[0].tokens.filter(t => t.type === 'Note')
@@ -55,9 +55,9 @@ describe('Interpreter', () => {
 		})
 	})
 
-	test('interprets KeySignature with accidentals', async () => {
+	test('interprets KeySignature with accidentals', () => {
 		const contents = readFileSync('samples/carenot.nwc')
-		const data = await decodeNwcArrayBuffer(contents)
+		const data = decodeNwcArrayBuffer(contents)
 		interpret(data)
 
 		const keySigs = data.score.staves[0].tokens.filter(t => t.type === 'KeySignature')
@@ -67,9 +67,9 @@ describe('Interpreter', () => {
 		})
 	})
 
-	test('assigns durValue to notes', async () => {
+	test('assigns durValue to notes', () => {
 		const contents = readFileSync('samples/carenot.nwc')
-		const data = await decodeNwcArrayBuffer(contents)
+		const data = decodeNwcArrayBuffer(contents)
 		interpret(data)
 
 		const notes = data.score.staves[0].tokens.filter(t => t.type === 'Note')

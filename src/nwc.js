@@ -1,6 +1,7 @@
 import './constants.js'
 import { NwcConstants, FontStyles } from './nwc_constants.js'
 import { TokenParsers } from './nwc_parser.js'
+import { parseNWC } from '../lib/nwc-parser.js'
 
 var should_debug = false
 
@@ -20,11 +21,10 @@ function debug(...args) {
 	if (should_debug) console.log(...args)
 }
 
-async function decodeNwcArrayBuffer(arrayBuffer) {
+function decodeNwcArrayBuffer(arrayBuffer) {
 	if (USE_NEW_PARSER) {
 		console.log('Using lib/nwc2xml parser (new robust parser)');
 		try {
-			const { parseNWC } = await import('../lib/nwc-parser.js');
 			const nwcFile = parseNWC(arrayBuffer);
 			
 			if (!nwcFile || !nwcFile.staffs) {

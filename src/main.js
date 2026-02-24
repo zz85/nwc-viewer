@@ -393,9 +393,9 @@ function setDataAndRender(_data) {
 	rerender()
 }
 
-async function processData(payload) {
+function processData(payload) {
 	try {
-		var data = await decodeNwcArrayBuffer(payload)
+		var data = decodeNwcArrayBuffer(payload)
 		setDataAndRender(data)
 	} catch (error) {
 		console.error('Failed to process NWC file:', error)
