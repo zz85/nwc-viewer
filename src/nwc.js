@@ -108,7 +108,7 @@ var TYPE_NAMES = {
 
 var ADAPTER_DURATIONS = [1, 2, 4, 8, 16, 32, 64]
 var ADAPTER_ACCIDENTALS = { 0: '#', 1: 'b', 2: 'n', 3: 'x', 4: 'v', 5: '' }
-var ADAPTER_CLEFS = { 0: 'treble', 1: 'bass', 2: 'alto', 3: 'tenor' }
+var ADAPTER_CLEFS = { 0: 'treble', 1: 'bass', 2: 'alto', 3: 'tenor', 4: 'percussion' }
 var ADAPTER_DYNAMICS = ['ppp', 'pp', 'p', 'mp', 'mf', 'f', 'ff', 'fff']
 var ADAPTER_FLAT_KEYS = ['C', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb']
 var ADAPTER_SHARP_KEYS = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#']
@@ -136,22 +136,30 @@ function adaptNoteAttrs(obj) {
 	// Extract flat properties from new parser NoteObj getAttributes() bitmask
 	var attr = obj.getAttributes()
 	var dt = obj.getDurationType()
-	return {
+	var result = {
 		position: -obj.pos,
 		duration: ADAPTER_DURATIONS[obj.getDuration()] || 4,
 		dots: (dt & 0x02) ? 2 : (dt & 0x01) ? 1 : 0,
 		accidental: ADAPTER_ACCIDENTALS[obj.getAccidental()] || '',
-		tie: (attr & 0x10000) ? 1 : 0,
-		tieEnd: (attr & 0x20000) ? 1 : 0,
-		slur: (attr >> 10) & 3,
-		beam: (attr >> 8) & 3,
-		stem: (attr >> 14) & 3,
+		tie: (attr & 0x20000) ? 1 : 0,
+		tieEnd: (attr & 0x40000) ? 1 : 0,
+		slur: (attr >> 11) & 3,
+		beam: (attr >> 9) & 3,
+		stem: (attr >> 15) & 3,
 		triplet: (dt >> 2) & 3,
 		staccato: (attr & 0x004) ? 1 : 0,
 		accent: (attr & 0x001) ? 1 : 0,
 		grace: (attr & 0x002) ? 1 : 0,
 		tenuto: (attr & 0x008) ? 1 : 0,
 	}
+	// Additional articulation flags (additive, only set if non-zero)
+	if (attr & 0x010) result.marcato = 1
+	if (attr & 0x020) result.sforzando = 1
+	if (attr & 0x040) result.staccatissimo = 1
+	if (attr & 0x080) result.crescendo = 1
+	if (attr & 0x100) result.diminuendo = 1
+	if (attr & 0x200000) result.fermata = 1
+	return result
 }
 
 function adaptObject(obj) {
@@ -162,7 +170,7 @@ function adaptObject(obj) {
 
 	switch (obj.type) {
 		case 0: // Clef
-			token.clef = ADAPTER_CLEFS[obj.clefType & 3] || 'treble'
+			token.clef = ADAPTER_CLEFS[obj.clefType & 7] || 'treble'
 			token.octave = obj.octaveShift || 0
 			break
 

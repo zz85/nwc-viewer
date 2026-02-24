@@ -11,6 +11,7 @@ var CLEF_NAMES = {
 	1: 'bass',
 	2: 'alto',
 	3: 'tenor',
+	4: 'percussion',
 }
 
 var DURATIONS = [1, 2, 4, 8, 16, 32, 64]
@@ -80,7 +81,7 @@ class Clef extends Token {
 function parseClef(reader) {
 	return new Clef({
 		type: 'Clef',
-		clef: CLEF_NAMES[reader.readShort() & 3],
+		clef: CLEF_NAMES[reader.readShort() & 7],
 		octave: reader.readShort() & 3,
 	})
 }
@@ -268,6 +269,20 @@ function parseNoteValue(reader, data) {
 	reader.set('tenuto', tenuto)
 	reader.set('grace', grace)
 	reader.set('slur', slur)
+
+	// Additional articulation flags from unused bits in the note data
+	var marcato = (byteMarking3 >> 3) & 1
+	var sforzando = (byteMarking2 >> 6) & 1
+	var staccatissimo = (byteMarking4 >> 4) & 1
+	var crescendo = (byteMarking4 >> 2) & 1
+	var diminuendo = (byteMarking4 >> 3) & 1
+	var fermata = (byteMarking4 >> 5) & 1
+	if (marcato) reader.set('marcato', marcato)
+	if (sforzando) reader.set('sforzando', sforzando)
+	if (staccatissimo) reader.set('staccatissimo', staccatissimo)
+	if (crescendo) reader.set('crescendo', crescendo)
+	if (diminuendo) reader.set('diminuendo', diminuendo)
+	if (fermata) reader.set('fermata', fermata)
 	
 	// Store beam information
 	if (beam) reader.set('beam', beam)
@@ -417,6 +432,8 @@ function parseTempoVariance(reader) {
 
 	reader.set('pos', pos)
 	reader.set('placement', placement)
+	// Pre-v2.0 files store style values offset by -1; the native viewer adjusts style += 1 for values >= 1
+	if (version < 2.0 && style >= 1) style = (style + 1) & 0xFF
 	reader.set('style', style)
 	reader.set('delay', delay)
 }
