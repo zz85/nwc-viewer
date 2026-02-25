@@ -9,7 +9,7 @@ describe('NWC Sample Files Regression', () => {
 	sampleFiles.forEach(file => {
 		test(`parses ${file} without throwing`, () => {
 			const contents = readFileSync(`samples/${file}`)
-			expect(() => decodeNwcArrayBuffer(contents)).not.toThrow()
+			expect(decodeNwcArrayBuffer(contents)).toBeDefined()
 		})
 	})
 

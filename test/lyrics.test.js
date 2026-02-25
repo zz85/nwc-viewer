@@ -12,16 +12,14 @@ describe('tokenizeLyrics', () => {
 		expect(tokens).toEqual(['hel-', 'lo'])
 	})
 
-	test('splits on semicolons (known bug - trailing word lost)', () => {
+	test('splits on semicolons', () => {
 		const tokens = tokenizeLyrics('a;b;c ')
-		// Known bug: trailing word after semicolon not captured even with trailing space
-		expect(tokens).toEqual(['a;', 'b;'])
+		expect(tokens).toEqual(['a;', 'b;', 'c'])
 	})
 
-	test('splits on semicolons without trailing space (known bug)', () => {
+	test('splits on semicolons without trailing space', () => {
 		const tokens = tokenizeLyrics('a;b;c')
-		// Known bug: trailing word without whitespace is not captured
-		expect(tokens).toEqual(['a;', 'b;'])
+		expect(tokens).toEqual(['a;', 'b;', 'c'])
 	})
 
 	test('handles underscores as dividers', () => {
@@ -36,14 +34,18 @@ describe('tokenizeLyrics', () => {
 		expect(tokens).toEqual(['hello', 'world'])
 	})
 
-	test('handles multiple spaces (known bug - only first word captured)', () => {
+	test('handles multiple spaces', () => {
 		const tokens = tokenizeLyrics('test 1  2    3 ')
-		// Known bug: multiple spaces break tokenization
-		expect(tokens).toEqual(['test'])
+		expect(tokens).toEqual(['test', '1', '2', '3'])
 	})
 
 	test('handles complex lyrics with trailing space', () => {
 		const tokens = tokenizeLyrics('Glo-ry to the King ')
 		expect(tokens).toEqual(['Glo-', 'ry', 'to', 'the', 'King'])
+	})
+
+	test('handles trailing word without trailing space', () => {
+		const tokens = tokenizeLyrics('hello world')
+		expect(tokens).toEqual(['hello', 'world'])
 	})
 })

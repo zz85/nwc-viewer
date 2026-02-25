@@ -123,16 +123,15 @@ function SightReader() {
 var lyricsToken
 
 SightReader.prototype.read = function (staves) {
-	// TODO move this into reader itself
 	staves.forEach((staff) => {
 		this.reset()
 
+		lyricsToken = null
 		var lyrics = staff.lyrics
-		if (lyrics) {
+		if (lyrics && lyrics.length) {
 			console.log('lyrics!', lyrics.length)
-			staff.lyrics.forEach((lyrics) => {
-				lyricsToken = tokenizeLyrics(lyrics)
-			})
+			// Use the first lyric line for note assignment
+			lyricsToken = tokenizeLyrics(lyrics[0])
 		}
 		staff.tokens.forEach((token) => {
 			var type = token.type
@@ -176,13 +175,16 @@ SightReader.prototype.reset = function () {
 	this.setKeySignature(['C'])
 }
 
-SightReader.prototype.setClef = function (clef) {
+SightReader.prototype.setClef = function (clef, octaveShift) {
 	this.clef = clef
 	this.offset = CLEF_PITCH_OFFSETS[clef]
+	// OctaveShift: 1 = Octave Up (8va), 2 = Octave Down (8vb)
+	if (octaveShift === 1 || octaveShift === 'Octave Up') this.offset += 7
+	else if (octaveShift === 2 || octaveShift === 'Octave Down') this.offset -= 7
 }
 
 SightReader.prototype.Clef = function (token) {
-	this.setClef(token.clef)
+	this.setClef(token.clef, token.octave)
 }
 
 SightReader.prototype.TimeSignature = function (token) {
@@ -293,6 +295,16 @@ SightReader.prototype.Rest = function (token) {
 
 SightReader.prototype.Chord = function (token) {
 	this._handle_duration(token)
+	// Resolve pitch for each note in the chord
+	if (token.notes) {
+		token.notes.forEach((note) => {
+			if (note.position !== undefined) {
+				var pitch = note.position + this.offset
+				note.name = NOTE_NAMES[circularIndex(pitch)]
+				note.octave = octaveIndex(pitch)
+			}
+		})
+	}
 }
 
 var OCTAVE_START = 3
@@ -303,6 +315,7 @@ var CLEF_PITCH_OFFSETS = {
 	bass: (OCTAVE_START + 0) * OCTAVE_NOTES + 1, // d
 	alto: (OCTAVE_START + 1) * OCTAVE_NOTES, // c'
 	tenor: (OCTAVE_START + 0) * OCTAVE_NOTES + 5, // a'
+	percussion: (OCTAVE_START + 0) * OCTAVE_NOTES + 1, // same middle line as bass per HLIL
 }
 
 SightReader.prototype.Note = function (token) {

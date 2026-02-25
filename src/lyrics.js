@@ -12,7 +12,7 @@ function tokenizeLyrics(lyrics) {
 		// /char == ' ' || char == '\t' ||
 		if (/\s+/m.exec(char)) {
 			/* white space */
-			if (marker > -1 && cursor - marker > 1) {
+			if (marker > -1 && cursor > marker) {
 				tokens.push(lyrics.substring(marker, cursor))
 			}
 			marker = -1
@@ -26,6 +26,7 @@ function tokenizeLyrics(lyrics) {
 			char == ','
 		) {
 			/* divider tokens */
+			if (marker === -1) marker = cursor
 			tokens.push(lyrics.substring(marker, cursor + 1))
 			cursor++
 			marker = cursor
@@ -37,6 +38,11 @@ function tokenizeLyrics(lyrics) {
 			}
 			cursor++
 		}
+	}
+
+	// Flush any remaining word after the loop
+	if (marker > -1 && marker < len) {
+		tokens.push(lyrics.substring(marker, len))
 	}
 
 	console.log('lyrics tokens', JSON.parse(JSON.stringify(tokens)))
