@@ -6,8 +6,16 @@ import { parseNWC } from '../lib/nwc-parser.js'
 var should_debug = false
 
 // Toggle to use new parser (set to true to use lib/nwc2xml parser)
-// Note: New parser currently only works well with v2.75 files
-const USE_NEW_PARSER = true;
+// Can be toggled at runtime via setUseNewParser()
+let USE_NEW_PARSER = true;
+
+export function getUseNewParser() {
+	return USE_NEW_PARSER;
+}
+
+export function setUseNewParser(value) {
+	USE_NEW_PARSER = value;
+}
 
 function isBrowser() {
 	return typeof window !== 'undefined' && typeof window.document !== 'undefined'

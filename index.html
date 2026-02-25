@@ -101,14 +101,18 @@
 						<button>NWC to MusicXML</button>
 					</a>
 
-					<span style="width: 50px;"></span>
-					Zoom:
-					<button onclick="setFontSize(getFontSize() + 4); rerender()">
-						+
-					</button>
-					<button onclick="setFontSize(getFontSize() - 4); rerender()">
-						-
-					</button>
+				<span style="width: 50px;"></span>
+				Zoom:
+				<button onclick="setFontSize(getFontSize() + 4); rerender()">
+					+
+				</button>
+				<button onclick="setFontSize(getFontSize() - 4); rerender()">
+					-
+				</button>
+
+				<span style="width: 20px;"></span>
+				Parser:
+				<button id="parser_toggle" onclick="toggleParser()">New</button>
 
 					<div id="debug_tools" style="display: none;">
 						<button

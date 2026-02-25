@@ -1,6 +1,6 @@
 import './constants.js'
 import { ajax } from './loaders.js'
-import { decodeNwcArrayBuffer } from './nwc.js'
+import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { interpret } from './interpreter.js'
 import { setup, resizeToFit } from './drawing.js'
 import { exportAbc, exportLilypond } from './exporter.js'
@@ -395,6 +395,7 @@ function setDataAndRender(_data) {
 
 function processData(payload) {
 	try {
+		window._lastPayload = payload
 		var data = decodeNwcArrayBuffer(payload)
 		setDataAndRender(data)
 	} catch (error) {
@@ -412,3 +413,27 @@ document.getElementById('blank_button').onclick = () => {
 window.rerender = rerender
 window.processData = processData
 window.setDataAndRender = setDataAndRender
+
+const PARSER_STORAGE_KEY = 'nwc_use_new_parser'
+
+function updateParserButton() {
+	const btn = document.getElementById('parser_toggle')
+	if (btn) btn.textContent = getUseNewParser() ? 'New' : 'Old'
+}
+
+window.toggleParser = function () {
+	const next = !getUseNewParser()
+	setUseNewParser(next)
+	localStorage.setItem(PARSER_STORAGE_KEY, next)
+	updateParserButton()
+	if (window._lastPayload) {
+		processData(window._lastPayload)
+	}
+}
+
+// Restore persisted parser preference
+const storedParser = localStorage.getItem(PARSER_STORAGE_KEY)
+if (storedParser !== null) {
+	setUseNewParser(storedParser === 'true')
+}
+updateParserButton()
