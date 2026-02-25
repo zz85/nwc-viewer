@@ -523,7 +523,7 @@ class Text extends Draw {
 	}
 
 	draw(ctx) {
-		ctx.font = this.font || 'italic bold 12px arial'
+		ctx.font = this.font || "italic bold 12px Arial, 'Segoe UI', sans-serif"
 		if (this.textAlign) ctx.textAlign = this.textAlign
 		ctx.fillText(this.text, 0, 0)
 	}
@@ -585,8 +585,9 @@ class Drawing {
 	constructor(ctx) {
 		this.set = new Set()
 
-		ctx.font = `${getFontSize()}px Bravura`
+		ctx.font = `${getFontSize()}px Arial, 'Segoe UI', sans-serif`
 		ctx.textBaseline = 'alphabetic' // alphabetic  bottom top
+		ctx.fillStyle = '#000'
 	}
 
 	add(el) {
@@ -609,7 +610,7 @@ class Drawing {
 			el.draw(ctx)
 
 			if (el._text) {
-				ctx.font = '8px arial'
+				ctx.font = "8px Arial, 'Segoe UI', sans-serif"
 				ctx.fillText(el._text, 0, 50)
 			}
 

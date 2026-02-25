@@ -235,7 +235,7 @@ function score(dataOrContext) {
 	var middle = window.innerWidth / 2
 	if (title) {
 		const titleDrawing = new Claire.Text(title, 0, {
-			font: '20px arial',
+			font: "bold 20px Arial, 'Segoe UI', sans-serif",
 			textAlign: 'center',
 		}) // italic bold
 		titleDrawing.moveTo(middle, 40)
@@ -244,7 +244,7 @@ function score(dataOrContext) {
 
 	if (author) {
 		const authorDrawing = new Claire.Text(author, 0, {
-			font: 'italic 14px arial',
+			font: "italic 14px Arial, 'Segoe UI', sans-serif",
 			textAlign: 'center',
 		}) // italic bold
 		authorDrawing.moveTo(middle, 60)
@@ -489,7 +489,7 @@ function drawForNote(token, cursor, durToken) {
 	if (token.text) {
 		var pos = 10
 		var text = new Text(token.text, pos, {
-			font: '12px arial',
+			font: "12px Arial, 'Segoe UI', sans-serif",
 			textAlign: 'center',
 		})
 		cursor.posGlyph(text)
