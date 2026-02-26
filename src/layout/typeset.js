@@ -1,6 +1,7 @@
 import { getFontSize } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
+import { resizeToFit } from '../drawing.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
@@ -266,15 +267,16 @@ function score(dataOrContext) {
 	}
 	footer.innerText = copyright1 + '\n' + copyright2
 
-	// Always resize canvas to exactly fit the computed score dimensions.
-	// This prevents right-edge and bottom-edge clipping regardless of viewport size.
+	// Virtual rendering: keep the canvas at viewport size and let the
+	// invisible_canvas spacer provide the scrollable area.  On each scroll
+	// frame quickDraw() re-renders only the visible portion via
+	// ctx.translate() + viewport culling in Drawing._draw().
+	//
+	// resizeToFit() sizes the canvas to the #score container's visible area
+	// (which is already the case on first load).  This avoids ever creating a
+	// canvas anywhere near browser backing-store limits.
 	if (canvas) {
-		const dpr = window.devicePixelRatio || 1
-		canvas.width = maxCanvasWidth * dpr
-		canvas.height = maxCanvasHeight * dpr
-		canvas.style.width = maxCanvasWidth + 'px'
-		canvas.style.height = maxCanvasHeight + 'px'
-		ctx.scale(dpr, dpr)
+		resizeToFit()
 	}
 	/*
 
@@ -297,7 +299,10 @@ function score(dataOrContext) {
 	}
 	*/
 
-	drawing.draw(ctx)
+	// Draw the visible portion of the score, offset by the current scroll
+	// position.  This is the same path the scroll handler takes on every frame.
+	var scoreElm = document.getElementById('score')
+	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 
 	// TODO move this out of this function
 

@@ -16,7 +16,8 @@ import { MusicContext } from './context.js'
 
 window.addEventListener('resize', () => {
 	resizeToFit()
-	quickDraw()
+	var scoreElm = document.getElementById('score')
+	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 })
 
 if (location.hostname === 'localhost') {

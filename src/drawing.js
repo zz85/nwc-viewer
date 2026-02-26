@@ -113,13 +113,22 @@ function resizeToFit() {
 }
 
 function resize(width, height) {
-	var dpr = window.devicePixelRatio
+	// Browsers cap canvas backing-store dimensions (typically 16 384 px per axis).
+	// Reduce the effective DPR when the logical size would exceed the limit so the
+	// canvas is created at lower resolution rather than throwing.
+	var MAX_CANVAS_DIM = 16384
+	var nativeDpr = window.devicePixelRatio || 1
 
 	width = width || 800
 	height = height || 800
 
-	canvas.width = width * dpr
-	canvas.height = height * dpr
+	var dpr = Math.min(
+		nativeDpr,
+		MAX_CANVAS_DIM / width,
+		MAX_CANVAS_DIM / height
+	)
+	canvas.width = Math.round(width * dpr)
+	canvas.height = Math.round(height * dpr)
 	canvas.style.width = width + 'px'
 	canvas.style.height = height + 'px'
 
@@ -598,11 +607,16 @@ class Drawing {
 		this.set.delete(el)
 	}
 
-	static _draw(ctx, el, viewportWidth, viewportOffsetX) {
+	static _draw(ctx, el, viewportWidth, viewportOffsetX, viewportHeight, viewportOffsetY) {
 		if (el instanceof Draw) {
-			// TODO run quick check aabb bounds here to reduce rendering costs
+			// Viewport culling — skip elements entirely outside the visible area.
+			// Horizontal
 			if (el.x > viewportOffsetX + viewportWidth + 200) return
-			if (el.x + el.w < viewportOffsetX - 200) return
+			if (el.x + (el.width || 0) < viewportOffsetX - 200) return
+			// Vertical
+			var elY = el.y + (el.offsetY || 0)
+			if (elY > viewportOffsetY + viewportHeight + 200) return
+			if (elY + (el.height || 0) < viewportOffsetY - 200) return
 
 			ctx.save()
 			ctx.translate(el.x, el.y)
@@ -626,10 +640,18 @@ class Drawing {
 	draw(ctx) {
 		const viewportWidth = scoreElm.clientWidth
 		const viewportOffsetX = scoreElm.scrollLeft
+		const viewportHeight = scoreElm.clientHeight
+		const viewportOffsetY = scoreElm.scrollTop
+
+		// Restore default font/baseline — canvas resets wipe context state
+		// (e.g. after resizeToFit()), so re-apply on every draw pass.
+		ctx.font = `${getFontSize()}px Arial, 'Segoe UI', sans-serif`
+		ctx.textBaseline = 'alphabetic'
+		ctx.fillStyle = '#000'
 
 		ctx.save()
 		for (const el of this.set) {
-			Drawing._draw(ctx, el, viewportWidth, viewportOffsetX)
+			Drawing._draw(ctx, el, viewportWidth, viewportOffsetX, viewportHeight, viewportOffsetY)
 		}
 		ctx.restore()
 	}
