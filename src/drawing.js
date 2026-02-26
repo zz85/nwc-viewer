@@ -120,8 +120,8 @@ function resize(width, height) {
 
 	canvas.width = width * dpr
 	canvas.height = height * dpr
-	canvas.style.width = width
-	canvas.style.height = height
+	canvas.style.width = width + 'px'
+	canvas.style.height = height + 'px'
 
 	ctx.scale(dpr, dpr)
 }

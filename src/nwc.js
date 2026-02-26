@@ -255,18 +255,21 @@ function adaptObject(obj) {
 
 		case 10: { // Chord (NoteCM)
 			var children = obj.children || []
+			// Filter out any child objects that lack the NoteObj interface (e.g.
+			// misread NoteCMObj children in old binary formats like v1.75).
+			var noteChildren = children.filter(function(c) { return typeof c.getAttributes === 'function' })
 			var notes = []
 			// First child data becomes the primary token properties
-			if (children.length > 0) {
-				var first = children[0]
+			if (noteChildren.length > 0) {
+				var first = noteChildren[0]
 				var firstAttrs = adaptNoteAttrs(first)
 				Object.assign(token, firstAttrs)
 				// Build notes array for all children
-				for (var ci = 0; ci < children.length; ci++) {
-					notes.push(adaptNoteAttrs(children[ci]))
+				for (var ci = 0; ci < noteChildren.length; ci++) {
+					notes.push(adaptNoteAttrs(noteChildren[ci]))
 				}
 			}
-			token.chords = children.length
+			token.chords = noteChildren.length
 			token.notes = notes
 			break
 		}
@@ -314,16 +317,27 @@ function adaptObject(obj) {
 
 		case 18: { // RestChord (RestCM)
 			var rcChildren = obj.children || []
+			// Filter out any child objects that lack the NoteObj interface (e.g.
+			// misread NoteCMObj children in old binary formats like v1.75).
+			var rcNoteChildren = rcChildren.filter(function(c) { return typeof c.getAttributes === 'function' })
 			var rcNotes = []
-			if (rcChildren.length > 0) {
-				var rcFirst = rcChildren[0]
+			if (rcNoteChildren.length > 0) {
+				var rcFirst = rcNoteChildren[0]
 				var rcFirstAttrs = adaptNoteAttrs(rcFirst)
 				Object.assign(token, rcFirstAttrs)
-				for (var ri = 0; ri < rcChildren.length; ri++) {
-					rcNotes.push(adaptNoteAttrs(rcChildren[ri]))
+				for (var ri = 0; ri < rcNoteChildren.length; ri++) {
+					rcNotes.push(adaptNoteAttrs(rcNoteChildren[ri]))
 				}
 			}
-			token.chords = rcChildren.length
+			// Fall back to parent object's own duration data when no valid note children
+			if (rcNoteChildren.length === 0 && typeof obj.getDuration === 'function') {
+				token.duration = ADAPTER_DURATIONS[obj.getDuration()] || 4
+				var rcDt = typeof obj.getDurationType === 'function' ? obj.getDurationType() : 0
+				token.dots = (rcDt & 0x02) ? 2 : (rcDt & 0x01) ? 1 : 0
+				token.position = 0
+				token.triplet = (rcDt >> 2) & 3
+			}
+			token.chords = rcNoteChildren.length
 			token.notes = rcNotes
 			break
 		}

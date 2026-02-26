@@ -15,6 +15,12 @@ class Fraction {
 			throw new Error('BadArgument', `Invalid numbers: ${a}, ${b}`)
 		}
 
+		// Guard against NaN or Infinity which would cause an infinite loop in
+		// the Euclidean algorithm (NaN !== 0 is always true).
+		if (!isFinite(a) || !isFinite(b) || isNaN(a) || isNaN(b)) {
+			return 1
+		}
+
 		let t
 
 		while (b !== 0) {

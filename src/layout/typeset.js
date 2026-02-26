@@ -179,8 +179,18 @@ function score(dataOrContext) {
 
 	tickTracker.reset()
 
+	// Safety limit: total token count × 2 is a generous upper bound.
+	// An infinite spin means no cursor advanced; break and warn rather than hang.
+	const totalTokens = stavePointers.reduce((n, c) => n + c.tokens.length, 0)
+	let layoutIterations = 0
+	const maxIterations = Math.max(totalTokens * 2, 100)
+
 	while (true) {
-		// for (var i = 0; i < 50; i++) {
+		if (++layoutIterations > maxIterations) {
+			console.warn(`Layout loop exceeded ${maxIterations} iterations — aborting to prevent hang`)
+			break
+		}
+
 		if (!stavePointers.some((s) => s.hasNext())) {
 			console.log('nothing left')
 			break
@@ -204,6 +214,7 @@ function score(dataOrContext) {
 			stavePointers[smallestIndex].next(handleToken)
 		} else {
 			console.log('no candidate!!')
+			break
 		}
 	}
 
@@ -232,7 +243,10 @@ function score(dataOrContext) {
 	maxCanvasHeight = bottom + 100
 
 	var { title, author, copyright1, copyright2 } = data.info || {}
-	var middle = window.innerWidth / 2
+
+	// Use canvas width (set after resize) for centering — not window.innerWidth
+	// which can differ in headless/embedded contexts.
+	var middle = maxCanvasWidth / 2
 	if (title) {
 		const titleDrawing = new Claire.Text(title, 0, {
 			font: "bold 20px Arial, 'Segoe UI', sans-serif",
@@ -251,6 +265,17 @@ function score(dataOrContext) {
 		drawing.add(authorDrawing)
 	}
 	footer.innerText = copyright1 + '\n' + copyright2
+
+	// Always resize canvas to exactly fit the computed score dimensions.
+	// This prevents right-edge and bottom-edge clipping regardless of viewport size.
+	if (canvas) {
+		const dpr = window.devicePixelRatio || 1
+		canvas.width = maxCanvasWidth * dpr
+		canvas.height = maxCanvasHeight * dpr
+		canvas.style.width = maxCanvasWidth + 'px'
+		canvas.style.height = maxCanvasHeight + 'px'
+		ctx.scale(dpr, dpr)
+	}
 	/*
 
 	if (copyright1) {
@@ -345,15 +370,17 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 				cursor.incStaveX(t.width * 2)
 			} else if (token.group && token.beat) {
-				t = new TimeSignature(token.group, 6)
-				cursor.posGlyph(t)
-				drawing.add(t)
+				// Numeric time signature: stack numerator (top) and denominator (bottom)
+				// Both glyphs share the same x position — they are vertically stacked.
+				const numerator   = new TimeSignature(token.group, 6)   // upper staff half
+				const denominator = new TimeSignature(token.beat,  2)   // lower staff half
 
-				t = new TimeSignature(token.beat, 2)
-				cursor.posGlyph(t)
-				drawing.add(t)
+				cursor.posGlyph(numerator)
+				cursor.posGlyph(denominator)  // same x — intentionally stacked
+				drawing.add(numerator)
+				drawing.add(denominator)
 
-				cursor.incStaveX(t.width + spacerWidth() * 2)
+				cursor.incStaveX(numerator.width + spacerWidth() * 2)
 			}
 
 			break
@@ -417,24 +444,28 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			drawing.add(text)
 			break
 		case 'PerformanceStyle':
-			var pos = token.position !== undefined ? token.position : -11
-			var text = new Text(token.text, pos)
+			// Fixed position: always above the top staff line to avoid colliding with lyrics
+			var text = new Text(token.text, -13, {
+				font: "italic 11px Arial, 'Segoe UI', sans-serif",
+			})
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break
 		case 'Tempo':
-			var pos = token.position !== undefined ? token.position : -15
+			// Fixed position: above the staff, slightly offset right of the barline
 			var text = new Text(
-				// `${token.note} = ${token.duration}`
 				`(${token.duration})`,
-				pos
+				-15,
+				{ font: "11px Arial, 'Segoe UI', sans-serif" }
 			)
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break
 		case 'Dynamic':
-			var pos = token.position !== undefined ? token.position : 7
-			var text = new Text(token.dynamic, pos)
+			// Fixed position: below the bottom staff line
+			var text = new Text(token.dynamic, 9, {
+				font: "italic bold 12px Arial, 'Segoe UI', sans-serif",
+			})
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break

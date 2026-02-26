@@ -1,1 +1,8 @@
 .aider*
+
+# Integration test ephemeral output (screenshots and AI reports)
+test/integration/output/
+test/integration/reports/
+
+# Playwright cache
+node_modules/
