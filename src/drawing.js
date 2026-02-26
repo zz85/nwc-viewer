@@ -1,6 +1,6 @@
 import './constants.js'
 import { ajax } from './loaders.js'
-import { getFontSize } from './constants.js'
+import { getFontSize, getZoomLevel } from './constants.js'
 
 const fontMap = {
 	// barlines
@@ -610,13 +610,20 @@ class Drawing {
 	static _draw(ctx, el, viewportWidth, viewportOffsetX, viewportHeight, viewportOffsetY) {
 		if (el instanceof Draw) {
 			// Viewport culling — skip elements entirely outside the visible area.
+			// The margin scales with font size so that large zoom levels don't
+			// clip oversized glyphs / staves.  Most elements never set `height`,
+			// so we fall back to 4× font size (covers a full staff + ledger lines).
+			var margin = getFontSize() * 4
+			var elW = el.width || margin
+			var elH = el.height || margin
+
 			// Horizontal
-			if (el.x > viewportOffsetX + viewportWidth + 200) return
-			if (el.x + (el.width || 0) < viewportOffsetX - 200) return
+			if (el.x > viewportOffsetX + viewportWidth + margin) return
+			if (el.x + elW < viewportOffsetX - margin) return
 			// Vertical
 			var elY = el.y + (el.offsetY || 0)
-			if (elY > viewportOffsetY + viewportHeight + 200) return
-			if (elY + (el.height || 0) < viewportOffsetY - 200) return
+			if (elY > viewportOffsetY + viewportHeight + margin) return
+			if (elY + elH < viewportOffsetY - margin) return
 
 			ctx.save()
 			ctx.translate(el.x, el.y)
@@ -638,10 +645,14 @@ class Drawing {
 	}
 
 	draw(ctx) {
-		const viewportWidth = scoreElm.clientWidth
-		const viewportOffsetX = scoreElm.scrollLeft
-		const viewportHeight = scoreElm.clientHeight
-		const viewportOffsetY = scoreElm.scrollTop
+		// Convert screen-space viewport bounds to score-space for culling.
+		// quickDraw() applies ctx.scale(zoom) so drawing coordinates are in
+		// score-space, but scrollLeft/clientWidth are in screen pixels.
+		const zoom = getZoomLevel()
+		const viewportWidth = scoreElm.clientWidth / zoom
+		const viewportOffsetX = scoreElm.scrollLeft / zoom
+		const viewportHeight = scoreElm.clientHeight / zoom
+		const viewportOffsetY = scoreElm.scrollTop / zoom
 
 		// Restore default font/baseline — canvas resets wipe context state
 		// (e.g. after resizeToFit()), so re-apply on every draw pass.

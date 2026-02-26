@@ -1,4 +1,4 @@
-import { getFontSize } from '../constants.js'
+import { getFontSize, getZoomLevel } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit } from '../drawing.js'
@@ -139,7 +139,11 @@ function quickDraw(dataOrContext, x, y) {
 	
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	ctx.save()
+	// Translate by screen-space scroll offset, then scale into score-space.
+	// The transform chain is: DPR (from resize) → scroll translate → zoom scale.
 	ctx.translate(x || 0, y || 0)
+	var zoom = getZoomLevel()
+	if (zoom !== 1) ctx.scale(zoom, zoom)
 	drawing.draw(ctx)
 	ctx.restore()
 }
@@ -267,53 +271,30 @@ function score(dataOrContext) {
 	}
 	footer.innerText = copyright1 + '\n' + copyright2
 
+	// Size the invisible_canvas spacer BEFORE rendering so the browser can
+	// clamp scrollLeft / scrollTop to the new content bounds (e.g. after zoom
+	// changes the score dimensions).  The spacer dimensions are in screen-space
+	// (score-space × zoom) so the scrollbar range matches the zoomed extent.
+	var invisible_canvas = document.getElementById('invisible_canvas')
+	var scoreElm = document.getElementById('score')
+	var zoom = getZoomLevel()
+	invisible_canvas.style.width = `${maxCanvasWidth * zoom}px`
+	invisible_canvas.style.height = `${Math.max(
+		maxCanvasHeight * zoom,
+		scoreElm.clientHeight
+	)}px`
+
 	// Virtual rendering: keep the canvas at viewport size and let the
 	// invisible_canvas spacer provide the scrollable area.  On each scroll
 	// frame quickDraw() re-renders only the visible portion via
 	// ctx.translate() + viewport culling in Drawing._draw().
-	//
-	// resizeToFit() sizes the canvas to the #score container's visible area
-	// (which is already the case on first load).  This avoids ever creating a
-	// canvas anywhere near browser backing-store limits.
 	if (canvas) {
 		resizeToFit()
 	}
-	/*
-
-	if (copyright1) {
-		const authorDrawing = new Claire.Text(copyright1, 0, {
-			font: '10px arial',
-			textAlign: 'center',
-		}) // italic bold
-		authorDrawing.moveTo(middle, bottom + 80)
-		drawing.add(authorDrawing)
-	}
-
-	if (copyright2) {
-		const authorDrawing = new Claire.Text(copyright2, 0, {
-			font: '10px arial',
-			textAlign: 'center',
-		}) // italic bold
-		authorDrawing.moveTo(middle, bottom + 90)
-		drawing.add(authorDrawing)
-	}
-	*/
 
 	// Draw the visible portion of the score, offset by the current scroll
-	// position.  This is the same path the scroll handler takes on every frame.
-	var scoreElm = document.getElementById('score')
+	// position (now correctly clamped by the spacer resize above).
 	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
-
-	// TODO move this out of this function
-
-	var invisible_canvas = document.getElementById('invisible_canvas')
-	invisible_canvas.style.width = `${maxCanvasWidth}px`
-	invisible_canvas.style.height = `${Math.max(
-		maxCanvasHeight,
-		document.getElementById('score').clientHeight
-	)}px`
-
-	// https://stackoverflow.com/questions/21064101/understanding-offsetwidth-clientwidth-scrollwidth-and-height-respectively
 }
 
 function getStaffY(staffIndex) {
