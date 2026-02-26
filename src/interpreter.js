@@ -379,11 +379,13 @@ SightReader.prototype._handle_duration = function (token) {
 		dur = 4
 	}
 	token.durValue = new Fraction(1, dur)
-	for (var i = 0; i < token.dots; i++) {
+	// Dotted: d * 3/2.  Double-dotted: d * 7/4 (NOT 3/2 * 3/2 = 9/4).
+	if (token.dots === 2) {
+		token.durValue.multiply(7, 4)
+	} else if (token.dots === 1) {
 		token.durValue.multiply(3, 2)
 	}
 	if (token.triplet) {
-		// FIXME
 		token.durValue.multiply(2, 3)
 	}
 }
