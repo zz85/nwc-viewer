@@ -370,12 +370,22 @@ SightReader.prototype.Note = function (token) {
 }
 
 SightReader.prototype._handle_duration = function (token) {
-	token.durValue = new Fraction(1, token.duration)
-	for (var i = 0; i < token.dots; i++) {
+	// Guard against missing or zero duration: fall back to quarter note (4).
+	// A zero denominator in Fraction(1, 0) propagates NaN through simplify()
+	// and then triggers an infinite loop in GCD(NaN, NaN).
+	var dur = token.duration
+	if (!dur || !isFinite(dur) || dur <= 0) {
+		console.warn('_handle_duration: invalid duration', dur, 'on token', token.type, '- defaulting to 4')
+		dur = 4
+	}
+	token.durValue = new Fraction(1, dur)
+	// Dotted: d * 3/2.  Double-dotted: d * 7/4 (NOT 3/2 * 3/2 = 9/4).
+	if (token.dots === 2) {
+		token.durValue.multiply(7, 4)
+	} else if (token.dots === 1) {
 		token.durValue.multiply(3, 2)
 	}
 	if (token.triplet) {
-		// FIXME
 		token.durValue.multiply(2, 3)
 	}
 }

@@ -16,7 +16,8 @@ import { MusicContext } from './context.js'
 
 window.addEventListener('resize', () => {
 	resizeToFit()
-	quickDraw()
+	var scoreElm = document.getElementById('score')
+	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 })
 
 if (location.hostname === 'localhost') {
@@ -72,11 +73,11 @@ nwcSamples.forEach((sample) => {
 })
 sample_dom.onchange = function () {
 	const path = samples.includes(sample_dom.value) ? 'samples/' : 'nwcs/'
-	ajax(path + sample_dom.value, processData)
+	ajax(path + sample_dom.value, (buf) => processData(buf, sample_dom.value))
 }
 
 // Default loading
-ajax('samples/WhatChildIsThis.nwc', processData) // samples/jem001.nwc // adohn
+ajax('samples/WhatChildIsThis.nwc', (buf) => processData(buf, 'WhatChildIsThis.nwc'))
 
 // Doesn't work yet
 
@@ -367,6 +368,7 @@ const rerender = () => {
 				const musicContext = new MusicContext(data, window.canvas)
 				interpret(musicContext)
 				score(musicContext)
+				window.__renderComplete = { ts: Date.now(), file: window.__currentFile }
 			},
 			null,
 			(canvas) => {
@@ -380,7 +382,7 @@ const rerender = () => {
 		)
 	} catch (error) {
 		console.error('Rendering failed:', error)
-		alert(`Error rendering score: ${error.message}`)
+		alert(`Error rendering score: ${error.message}\n\nSee DevTools console for the full stack trace.`)
 	}
 }
 
@@ -393,14 +395,19 @@ function setDataAndRender(_data) {
 	rerender()
 }
 
-function processData(payload) {
+function processData(payload, filename) {
 	try {
 		window._lastPayload = payload
+		window.__currentFile = filename || '(unknown)'
+		window.__renderComplete = null
 		var data = decodeNwcArrayBuffer(payload)
 		setDataAndRender(data)
 	} catch (error) {
 		console.error('Failed to process NWC file:', error)
-		alert(`Error loading file: ${error.message}`)
+		// Log the full stack so the root cause is visible in DevTools, then
+		// surface a user-readable message.  We deliberately do NOT catch errors
+		// from rerender() here — those are caught inside rerender() itself.
+		alert(`Error loading file: ${error.message}\n\nSee DevTools console for the full stack trace.`)
 	}
 }
 

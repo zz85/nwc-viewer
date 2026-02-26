@@ -1,6 +1,7 @@
-import { getFontSize } from '../constants.js'
+import { getFontSize, getZoomLevel } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
+import { resizeToFit } from '../drawing.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
@@ -138,7 +139,11 @@ function quickDraw(dataOrContext, x, y) {
 	
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	ctx.save()
+	// Translate by screen-space scroll offset, then scale into score-space.
+	// The transform chain is: DPR (from resize) → scroll translate → zoom scale.
 	ctx.translate(x || 0, y || 0)
+	var zoom = getZoomLevel()
+	if (zoom !== 1) ctx.scale(zoom, zoom)
 	drawing.draw(ctx)
 	ctx.restore()
 }
@@ -179,8 +184,18 @@ function score(dataOrContext) {
 
 	tickTracker.reset()
 
+	// Safety limit: total token count × 2 is a generous upper bound.
+	// An infinite spin means no cursor advanced; break and warn rather than hang.
+	const totalTokens = stavePointers.reduce((n, c) => n + c.tokens.length, 0)
+	let layoutIterations = 0
+	const maxIterations = Math.max(totalTokens * 2, 100)
+
 	while (true) {
-		// for (var i = 0; i < 50; i++) {
+		if (++layoutIterations > maxIterations) {
+			console.warn(`Layout loop exceeded ${maxIterations} iterations — aborting to prevent hang`)
+			break
+		}
+
 		if (!stavePointers.some((s) => s.hasNext())) {
 			console.log('nothing left')
 			break
@@ -204,6 +219,7 @@ function score(dataOrContext) {
 			stavePointers[smallestIndex].next(handleToken)
 		} else {
 			console.log('no candidate!!')
+			break
 		}
 	}
 
@@ -232,7 +248,10 @@ function score(dataOrContext) {
 	maxCanvasHeight = bottom + 100
 
 	var { title, author, copyright1, copyright2 } = data.info || {}
-	var middle = window.innerWidth / 2
+
+	// Use canvas width (set after resize) for centering — not window.innerWidth
+	// which can differ in headless/embedded contexts.
+	var middle = maxCanvasWidth / 2
 	if (title) {
 		const titleDrawing = new Claire.Text(title, 0, {
 			font: "bold 20px Arial, 'Segoe UI', sans-serif",
@@ -251,39 +270,31 @@ function score(dataOrContext) {
 		drawing.add(authorDrawing)
 	}
 	footer.innerText = copyright1 + '\n' + copyright2
-	/*
 
-	if (copyright1) {
-		const authorDrawing = new Claire.Text(copyright1, 0, {
-			font: '10px arial',
-			textAlign: 'center',
-		}) // italic bold
-		authorDrawing.moveTo(middle, bottom + 80)
-		drawing.add(authorDrawing)
-	}
-
-	if (copyright2) {
-		const authorDrawing = new Claire.Text(copyright2, 0, {
-			font: '10px arial',
-			textAlign: 'center',
-		}) // italic bold
-		authorDrawing.moveTo(middle, bottom + 90)
-		drawing.add(authorDrawing)
-	}
-	*/
-
-	drawing.draw(ctx)
-
-	// TODO move this out of this function
-
+	// Size the invisible_canvas spacer BEFORE rendering so the browser can
+	// clamp scrollLeft / scrollTop to the new content bounds (e.g. after zoom
+	// changes the score dimensions).  The spacer dimensions are in screen-space
+	// (score-space × zoom) so the scrollbar range matches the zoomed extent.
 	var invisible_canvas = document.getElementById('invisible_canvas')
-	invisible_canvas.style.width = `${maxCanvasWidth}px`
+	var scoreElm = document.getElementById('score')
+	var zoom = getZoomLevel()
+	invisible_canvas.style.width = `${maxCanvasWidth * zoom}px`
 	invisible_canvas.style.height = `${Math.max(
-		maxCanvasHeight,
-		document.getElementById('score').clientHeight
+		maxCanvasHeight * zoom,
+		scoreElm.clientHeight
 	)}px`
 
-	// https://stackoverflow.com/questions/21064101/understanding-offsetwidth-clientwidth-scrollwidth-and-height-respectively
+	// Virtual rendering: keep the canvas at viewport size and let the
+	// invisible_canvas spacer provide the scrollable area.  On each scroll
+	// frame quickDraw() re-renders only the visible portion via
+	// ctx.translate() + viewport culling in Drawing._draw().
+	if (canvas) {
+		resizeToFit()
+	}
+
+	// Draw the visible portion of the score, offset by the current scroll
+	// position (now correctly clamped by the spacer resize above).
+	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 }
 
 function getStaffY(staffIndex) {
@@ -345,15 +356,17 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 				cursor.incStaveX(t.width * 2)
 			} else if (token.group && token.beat) {
-				t = new TimeSignature(token.group, 6)
-				cursor.posGlyph(t)
-				drawing.add(t)
+				// Numeric time signature: stack numerator (top) and denominator (bottom)
+				// Both glyphs share the same x position — they are vertically stacked.
+				const numerator   = new TimeSignature(token.group, 6)   // upper staff half
+				const denominator = new TimeSignature(token.beat,  2)   // lower staff half
 
-				t = new TimeSignature(token.beat, 2)
-				cursor.posGlyph(t)
-				drawing.add(t)
+				cursor.posGlyph(numerator)
+				cursor.posGlyph(denominator)  // same x — intentionally stacked
+				drawing.add(numerator)
+				drawing.add(denominator)
 
-				cursor.incStaveX(t.width + spacerWidth() * 2)
+				cursor.incStaveX(numerator.width + spacerWidth() * 2)
 			}
 
 			break
@@ -417,24 +430,28 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			drawing.add(text)
 			break
 		case 'PerformanceStyle':
-			var pos = token.position !== undefined ? token.position : -11
-			var text = new Text(token.text, pos)
+			// Fixed position: always above the top staff line to avoid colliding with lyrics
+			var text = new Text(token.text, -13, {
+				font: "italic 11px Arial, 'Segoe UI', sans-serif",
+			})
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break
 		case 'Tempo':
-			var pos = token.position !== undefined ? token.position : -15
+			// Fixed position: above the staff, slightly offset right of the barline
 			var text = new Text(
-				// `${token.note} = ${token.duration}`
 				`(${token.duration})`,
-				pos
+				-15,
+				{ font: "11px Arial, 'Segoe UI', sans-serif" }
 			)
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break
 		case 'Dynamic':
-			var pos = token.position !== undefined ? token.position : 7
-			var text = new Text(token.dynamic, pos)
+			// Fixed position: below the bottom staff line
+			var text = new Text(token.dynamic, 9, {
+				font: "italic bold 12px Arial, 'Segoe UI', sans-serif",
+			})
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break

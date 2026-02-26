@@ -51,6 +51,12 @@ class ScoreManager {
 	}
 
 	setData(score) {
+		if (!score || !score.score || !Array.isArray(score.score.staves)) {
+			throw new Error(
+				'Invalid score data: expected { score: { staves: [] } }, got ' +
+				JSON.stringify(score && score.score ? Object.keys(score.score) : score)
+			)
+		}
 		this.score = score
 
 		var staves = this.getStaves()

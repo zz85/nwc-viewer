@@ -9,7 +9,14 @@
     "nwc2xml": "./bin/nwc2xml.js"
   },
   "scripts": {
-    "test": "bun test"
+    "test": "bun test test/*.test.js",
+    "test:integration": "playwright test",
+    "test:integration:update": "UPDATE_SNAPSHOTS=1 playwright test --update-snapshots",
+    "test:score": "bun test/integration/scorer.js",
+    "test:all": "playwright test && bun test/integration/scorer.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
   },
   "author": "Joshua Koo",
   "bugs": {

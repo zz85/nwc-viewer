@@ -102,13 +102,18 @@
 					</a>
 
 				<span style="width: 50px;"></span>
+				Size:
+				<button onclick="setFontSize(getFontSize() - 4); rerender()">-</button>
+				<button onclick="setFontSize(getFontSize() + 4); rerender()">+</button>
+
+				<span style="width: 20px;"></span>
 				Zoom:
-				<button onclick="setFontSize(getFontSize() + 4); rerender()">
-					+
-				</button>
-				<button onclick="setFontSize(getFontSize() - 4); rerender()">
-					-
-				</button>
+				<input type="range" id="zoom_slider"
+					min="0.25" max="4.0" step="0.01" value="1.0"
+					oninput="applyZoom(parseFloat(this.value))"
+					style="width: 100px; vertical-align: middle;"
+				/>
+				<span id="zoom_label" style="min-width: 40px; display: inline-block; text-align: center;">100%</span>
 
 				<span style="width: 20px;"></span>
 				Parser:
@@ -204,6 +209,43 @@
 
 				// console.log('drag', e)
 			}
+
+			// ---- Zoom handler (transform-based, no re-layout) ----
+
+			function applyZoom(newLevel) {
+				var oldZoom = getZoomLevel()
+
+				setZoomLevel(newLevel)
+				var zoom = getZoomLevel() // read back clamped value
+
+				// Update slider and label to match the (clamped) value
+				var slider = document.getElementById('zoom_slider')
+				var label  = document.getElementById('zoom_label')
+				if (slider) slider.value = zoom
+				if (label)  label.textContent = Math.round(zoom * 100) + '%'
+
+				// Center-preserving scroll: keep the same score-space point at
+				// the viewport center before and after zoom.
+				// centerScore = (scrollLeft + clientWidth/2) / oldZoom
+				// newScrollLeft = centerScore * newZoom - clientWidth/2
+				var cx = (scoreElm.scrollLeft + scoreElm.clientWidth  / 2) / oldZoom
+				var cy = (scoreElm.scrollTop  + scoreElm.clientHeight / 2) / oldZoom
+
+				// Resize the invisible_canvas spacer so scroll bounds are correct
+				// before we set the new scroll position.
+				var ic = document.getElementById('invisible_canvas')
+				if (ic && typeof maxCanvasWidth !== 'undefined') {
+					ic.style.width  = (maxCanvasWidth  * zoom) + 'px'
+					ic.style.height = Math.max(maxCanvasHeight * zoom, scoreElm.clientHeight) + 'px'
+				}
+
+				scoreElm.scrollLeft = cx * zoom - scoreElm.clientWidth  / 2
+				scoreElm.scrollTop  = cy * zoom - scoreElm.clientHeight / 2
+
+				quickDraw(null, -scoreElm.scrollLeft, -scoreElm.scrollTop)
+			}
+
+			window.applyZoom = applyZoom
 		</script>
 	</body>
 </html>
