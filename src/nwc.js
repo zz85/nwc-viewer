@@ -369,11 +369,20 @@ function convertFromNewParser(nwcFile) {
 			comments: nwcFile.comment || '',
 		},
 		score: {
+			allowLayering: nwcFile.allowLayering !== false,
 			staves: nwcFile.staffs.map(function(staff) {
 				return {
 					staff_name: staff.name || '',
 					group_name: staff.group || '',
 					channel: staff.channel || 0,
+					// WithNextStaff grouping flags
+					bracketWithNext: !!staff.bracketWithNext,
+					braceWithNext: !!staff.braceWithNext,
+					connectBarsWithNext: !!staff.connectBarsWithNext,
+					layerWithNext: !!staff.layerWithNext,
+					boundaryTop: staff.boundaryTop || 0,
+					boundaryBottom: staff.boundaryBottom || 0,
+					lines: staff.lines || 5,
 					lyrics: (staff.lyrics || []).map(function(lyric) {
 						return Array.isArray(lyric) ? lyric.join('\n') : (lyric || '')
 					}),

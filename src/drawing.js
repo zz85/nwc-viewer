@@ -248,6 +248,19 @@ class Line extends Draw {
 	}
 }
 
+// Arbitrary canvas path drawn via a callback function.
+// Used for complex shapes like curly braces.
+class Path extends Draw {
+	constructor(drawFn) {
+		super()
+		this._drawFn = drawFn
+	}
+
+	draw(ctx) {
+		this._drawFn(ctx)
+	}
+}
+
 var glyphCache = {}
 
 function cacheGet(key, loader) {
@@ -691,6 +704,7 @@ const Claire = {
 	Ledger,
 	Text,
 	Line,
+	Path,
 	Tie,
 }
 

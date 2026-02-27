@@ -374,7 +374,7 @@ function buildStaffYMap(staves, allowLayering) {
 	for (var i = 0; i < staves.length; i++) {
 		staffYMap[i] = y
 		var stave = staves[i]
-		if (stave.layerWithNext && allowLayering !== false) {
+		if ((stave.layerWithNext || stave.bracketWithNext) && allowLayering !== false) {
 			y += layerSpacing
 		} else if (stave.bracketWithNext || stave.braceWithNext || stave.connectBarsWithNext) {
 			y += intraGroupSpacing
