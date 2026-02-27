@@ -170,6 +170,8 @@ function score(dataOrContext) {
 	window.drawing = drawing = new Drawing(ctx)
 
 	const staves = data.score.staves
+	currentStaves = staves
+	buildStaffYMap(staves, data.score.allowLayering)
 	const stavePointers = staves.map(
 		(stave, staveIndex) => new StaveCursor(stave, staveIndex)
 	)
@@ -241,11 +243,69 @@ function score(dataOrContext) {
 		maxCanvasWidth = Math.max(cursor.staveX + 100, maxCanvasWidth)
 	})
 
-	// draw braces
-	var bottom = getStaffY(stavePointers.length - 1) - getFontSize() * 0.5
-	// drawing.add(new Line(20, getStaffY(-1), 20, bottom))
+	// draw braces/brackets
+	var lastStaveY = getStaffY(stavePointers.length - 1)
+	var bottom = lastStaveY + getFontSize() * 1.5
 
 	maxCanvasHeight = bottom + 100
+
+	// Render bracket/brace connectors between grouped staves.
+	// All drawn as Path objects at position (0,0) using absolute coordinates,
+	// because Drawing._draw() applies ctx.translate(el.x, el.y) before calling
+	// el.draw() — using Line would double-apply the position.
+	var fs = getFontSize()
+	var bracketX = fs * 0.3
+	var braceX = fs * 0.15
+	for (var si = 0; si < staves.length; si++) {
+		var stave = staves[si]
+		if (stave.bracketWithNext || stave.braceWithNext) {
+			// Find the last stave in this group (follow chain of same flag)
+			var endSi = si
+			while (endSi < staves.length - 1 &&
+				(stave.bracketWithNext ? staves[endSi].bracketWithNext : staves[endSi].braceWithNext)) {
+				endSi++
+			}
+			var topY = getStaffY(si) - fs - fs * 0.15
+			var botY = getStaffY(endSi) + fs * 0.15
+
+			if (stave.bracketWithNext) {
+				var hookLen = fs * 0.2
+				var lw = fs / 16
+				var bracket = new Claire.Path(function(ctx) {
+					ctx.beginPath()
+					ctx.lineWidth = lw
+					ctx.moveTo(bracketX + hookLen, topY)
+					ctx.lineTo(bracketX, topY)
+					ctx.lineTo(bracketX, botY)
+					ctx.lineTo(bracketX + hookLen, botY)
+					ctx.stroke()
+				})
+				drawing.add(bracket)
+			}
+
+			if (stave.braceWithNext) {
+				var braceH = botY - topY
+				var midY = topY + braceH / 2
+				var curveW = fs * 0.5
+				var bLw = fs / 18
+				var brace = new Claire.Path(function(ctx) {
+					ctx.beginPath()
+					ctx.lineWidth = bLw
+					// Top half
+					ctx.moveTo(braceX + curveW, topY)
+					ctx.bezierCurveTo(braceX + curveW * 0.2, topY + braceH * 0.1,
+						braceX + curveW * 0.4, midY - braceH * 0.05,
+						braceX, midY)
+					// Bottom half
+					ctx.bezierCurveTo(braceX + curveW * 0.4, midY + braceH * 0.05,
+						braceX + curveW * 0.2, botY - braceH * 0.1,
+						braceX + curveW, botY)
+					ctx.stroke()
+				})
+				drawing.add(brace)
+			}
+		}
+	}
 
 	var { title, author, copyright1, copyright2 } = data.info || {}
 
@@ -297,9 +357,39 @@ function score(dataOrContext) {
 	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 }
 
+// Computed Y positions for each stave, respecting WithNextStaff flags.
+// Built once per score() call; consumed by getStaffY().
+var staffYMap = []
+var currentStaves = [] // reference to current staves array for handleToken
+
+function buildStaffYMap(staves, allowLayering) {
+	var fs = getFontSize()
+	var initialOffset = fs * 4
+	var intraGroupSpacing = fs * 1.8   // tighter spacing within a bracket/brace group
+	var interGroupSpacing = fs * 3.5   // wider gap between groups
+	var layerSpacing = 0               // layered staves overlap completely
+
+	staffYMap = []
+	var y = initialOffset
+	for (var i = 0; i < staves.length; i++) {
+		staffYMap[i] = y
+		var stave = staves[i]
+		if (stave.layerWithNext && allowLayering !== false) {
+			y += layerSpacing
+		} else if (stave.bracketWithNext || stave.braceWithNext || stave.connectBarsWithNext) {
+			y += intraGroupSpacing
+		} else if (i < staves.length - 1) {
+			y += interGroupSpacing
+		}
+	}
+}
+
 function getStaffY(staffIndex) {
+	if (staffIndex >= 0 && staffIndex < staffYMap.length) {
+		return staffYMap[staffIndex]
+	}
+	// Fallback for out-of-range (shouldn't happen)
 	return getFontSize() * 4 + getFontSize() * 2.6 * staffIndex
-	// 120 100
 }
 
 function addStave(cursor, staveIndex) {
@@ -404,6 +494,18 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			cursor.posGlyph(s)
 			s._text = info
 			drawing.add(s)
+
+			// Connect barlines to next staff if flagged
+			if (currentStaves[staveIndex] && currentStaves[staveIndex].connectBarsWithNext &&
+				staveIndex < currentStaves.length - 1) {
+				var thisY = getStaffY(staveIndex) + getFontSize() // bottom of this staff
+				var nextY = getStaffY(staveIndex + 1)            // top of next staff
+				if (nextY > thisY) {
+					var connLine = new Claire.Line(cursor.staveX, thisY, cursor.staveX, nextY)
+					connLine.moveTo(0, 0)
+					drawing.add(connLine)
+				}
+			}
 
 			addStave(cursor, staveIndex)
 			cursor.updateBarline()

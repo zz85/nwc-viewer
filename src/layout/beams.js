@@ -117,7 +117,7 @@ function drawBeamGroup(group) {
 	const startY = stemUp ? firstStem.relativePos + firstStem.stemLen : firstStem.relativePos - firstStem.stemLen
 	const endY = stemUp ? lastStem.relativePos + lastStem.stemLen : lastStem.relativePos - lastStem.stemLen
 
-	const beam = new Beam(startY, endY, firstStem.x, lastStem.x, beamCount)
+	const beam = new Beam(startY, endY, 0, lastStem.x - firstStem.x, beamCount)
 	beam.moveTo(firstStem.x, firstStem.y)
 	drawing.add(beam)
 }
