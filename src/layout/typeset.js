@@ -365,6 +365,118 @@ function computeBadness(lineWidth, pageWidth, isLastLine) {
 	return shortfall * shortfall * 10
 }
 
+// Maximum intra-measure stretch factor.  Within each measure, note spacing
+// can expand by up to this factor.  Any remaining extra space beyond the
+// cap is added at barline boundaries.
+const MAX_INTRA_STRETCH = 1.3
+
+/**
+ * Build a justification map for one system.
+ *
+ * Given barline positions (relative to system start) and the total extra
+ * space to distribute, returns a map that computeJustifyX uses to position
+ * each element.
+ *
+ * The algorithm distributes space in two layers:
+ * 1. Intra-measure: proportional stretching within each measure, capped at
+ *    MAX_INTRA_STRETCH.  This widens the gaps between notes evenly.
+ * 2. Barline padding: any remaining space (from capped measures) is added
+ *    as a constant offset at each barline boundary.
+ *
+ * Returns { relBarXs, measureStarts, measureStretchFactors, cumulativeBarPadding }
+ */
+function buildBarlineMap(relBarXs, extraSpace) {
+	if (relBarXs.length === 0 || extraSpace <= 0) {
+		return {
+			relBarXs,
+			measureStarts: [0],
+			measureStretchFactors: [1.0],
+			cumulativeBarPadding: relBarXs.map(() => 0),
+		}
+	}
+
+	// Compute measure widths: [0..bar0], [bar0..bar1], ...
+	var measureStarts = [0]
+	var measureWidths = []
+	for (var i = 0; i < relBarXs.length; i++) {
+		var start = i === 0 ? 0 : relBarXs[i - 1]
+		measureWidths.push(relBarXs[i] - start)
+		if (i < relBarXs.length - 1) measureStarts.push(relBarXs[i])
+	}
+
+	var totalWidth = relBarXs[relBarXs.length - 1] || 1
+
+	// Phase 1: compute ideal per-measure stretch, then cap at MAX_INTRA_STRETCH.
+	// Each measure gets a proportional share of extra space based on its width.
+	var measureStretchFactors = []
+	var usedByStretch = 0
+	for (var i = 0; i < measureWidths.length; i++) {
+		var mw = measureWidths[i]
+		if (mw <= 0) {
+			measureStretchFactors.push(1.0)
+			continue
+		}
+		var idealExtra = extraSpace * (mw / totalWidth)
+		var idealFactor = (mw + idealExtra) / mw
+		var cappedFactor = Math.min(idealFactor, MAX_INTRA_STRETCH)
+		measureStretchFactors.push(cappedFactor)
+		usedByStretch += mw * (cappedFactor - 1.0)
+	}
+
+	// Phase 2: remaining space goes to barline padding.
+	var remainingSpace = extraSpace - usedByStretch
+	var cumulativeBarPadding = []
+	var cumPad = 0
+	for (var i = 0; i < relBarXs.length; i++) {
+		// Distribute remaining padding proportionally across barlines
+		var ratio = relBarXs[i] / totalWidth
+		cumPad = remainingSpace * ratio
+		cumulativeBarPadding.push(cumPad)
+	}
+
+	return { relBarXs, measureStarts, measureStretchFactors, cumulativeBarPadding }
+}
+
+/**
+ * Compute the justified X position for an element at original relX
+ * within a system, given the barline map from buildBarlineMap.
+ *
+ * Returns the new X position (still relative to system left edge, before
+ * leftMargin and courtesyW are added by the caller).
+ */
+function computeJustifyX(relX, barlineMap) {
+	var { relBarXs, measureStarts, measureStretchFactors, cumulativeBarPadding } = barlineMap
+
+	if (relBarXs.length === 0) return relX
+
+	// Find which measure this element is in
+	var mIdx = 0
+	for (var i = 0; i < relBarXs.length; i++) {
+		if (relX >= relBarXs[i]) mIdx = i + 1
+		else break
+	}
+	// Clamp to valid measure range
+	if (mIdx >= measureStretchFactors.length) mIdx = measureStretchFactors.length - 1
+
+	// Position within this measure
+	var measureStart = mIdx < measureStarts.length ? measureStarts[mIdx] : (relBarXs[relBarXs.length - 1] || 0)
+	var posInMeasure = relX - measureStart
+
+	// Apply intra-measure stretch
+	var stretchedPos = posInMeasure * measureStretchFactors[mIdx]
+
+	// Compute the stretched start of this measure (sum of previous measures'
+	// stretched widths + their barline padding)
+	var stretchedMeasureStart = 0
+	for (var i = 0; i < mIdx; i++) {
+		var mw = i < relBarXs.length ? relBarXs[i] - (i === 0 ? 0 : relBarXs[i - 1]) : 0
+		stretchedMeasureStart += mw * measureStretchFactors[i]
+	}
+	var barPad = mIdx > 0 ? cumulativeBarPadding[mIdx - 1] : 0
+
+	return stretchedMeasureStart + barPad + stretchedPos
+}
+
 /* Rerenders all drawing objects */
 function quickDraw(dataOrContext, x, y) {
 	const ctx = dataOrContext?.getContext ? dataOrContext.getContext() : window.ctx
@@ -664,11 +776,11 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}
 
 	// --- Build per-system barline maps for measure-level justification ---
-	// For each system, collect the barline X positions (in original single-line
-	// coords, relative to system start).  Extra space will be distributed at
-	// these boundaries so that note units (head, stem, dots, accidentals)
-	// stay together within each measure.
-	var systemBarlineMaps = [] // array of { relBarXs[], cumulativeOffsets[] } per system
+	// Extra space is distributed both between and within measures:
+	// - Within each measure, spacing between notes is stretched by up to
+	//   MAX_INTRA_STRETCH (e.g. 1.3x) so the score fills out evenly.
+	// - Any remaining space that exceeds the cap is added at barline boundaries.
+	var systemBarlineMaps = []
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
 		var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
 		var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
@@ -688,25 +800,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			}
 		}
 
-		// Distribute extra space proportionally across measures.
-		// Each measure gets extra space proportional to its natural width.
-		// The offset at each barline is the cumulative extra space up to that point.
-		var cumulativeOffsets = [] // offset at each barline index
-		if (relBarXs.length > 0 && extraSpace !== 0) {
-			var totalMeasureSpan = relBarXs[relBarXs.length - 1] || 1
-			var cumOffset = 0
-			for (var mi = 0; mi < relBarXs.length; mi++) {
-				var ratio = relBarXs[mi] / totalMeasureSpan
-				cumOffset = extraSpace * ratio
-				cumulativeOffsets.push(cumOffset)
-			}
-		} else {
-			for (var mi = 0; mi < relBarXs.length; mi++) {
-				cumulativeOffsets.push(0)
-			}
-		}
-
-		systemBarlineMaps.push({ relBarXs, cumulativeOffsets, extraSpace })
+		systemBarlineMaps.push(buildBarlineMap(relBarXs, extraSpace))
 	}
 
 	// --- Reflow all existing drawing elements into systems with justification ---
@@ -724,25 +818,9 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		// Compute relative X within this system
 		var systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
 		var relX = el.x - systemStartX
-
-		// Measure-level justification: find which measure this element is in
-		// and apply the cumulative offset for that measure.  Elements within
-		// the same measure all get the same offset, keeping note units
-		// (notehead, stem, dots, accidentals, beams) together.
 		var courtesyW = courtesyWidths[sysIdx]
-		var barlineMap = systemBarlineMaps[sysIdx]
-		var justifyOffset = 0
-		if (barlineMap.relBarXs.length > 0) {
-			// Find the last barline at or before this element's position
-			var mIdx = -1
-			for (var bi = 0; bi < barlineMap.relBarXs.length; bi++) {
-				if (relX >= barlineMap.relBarXs[bi]) mIdx = bi
-				else break
-			}
-			justifyOffset = mIdx >= 0 ? barlineMap.cumulativeOffsets[mIdx] : 0
-		}
 
-		el.x = relX + justifyOffset + leftMargin + courtesyW
+		el.x = computeJustifyX(relX, systemBarlineMaps[sysIdx]) + leftMargin + courtesyW
 
 		// Shift Y: add the system's vertical offset
 		var yShift = sysIdx * (systemHeight + interSystemGap)
@@ -1353,4 +1431,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score }
+export { score, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX }

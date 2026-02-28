@@ -128,7 +128,7 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Layered staves at zero spacing (complete overlap)
 - [ ] Horizontal note density — currently too generous; should fit approximately 4 measures per system line, matching standard engraving density
 - [ ] Proportional spacing — note spacing should reflect duration (half note gets ~2x quarter note width)
-- [x] Measure-level justification — extra space distributed at barline boundaries so note units (notehead, stem, dots, accidentals, beams) stay together within each measure
+- [x] Measure-level justification — two-layer distribution: intra-measure stretching (capped at 1.3x) fills space between notes evenly, then remaining space pads barline boundaries; note units stay intact
 - [x] Line breaking algorithm — determine optimal points to break into new system lines
 - [ ] Page breaks — support for page-level layout when printing/exporting
 - [ ] **Preset paper sizes** — wrap layout currently uses viewport width; should offer standard paper sizes (A4, Letter, etc.) so the score wraps to a fixed width independent of browser window size
