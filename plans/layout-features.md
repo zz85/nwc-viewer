@@ -116,7 +116,8 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 
 ## Spacing & Layout
 
-- [x] Inter-stave spacing — wider gap between groups (5x fontSize), tighter within groups (1.8x)
+- [ ] Adaptive inter-stave spacing — currently a fixed large gap (5x fontSize) between all stave groups; staves without lyrics between them should stack tighter (e.g. 2.5-3x), only expanding when lyrics need to be rendered in the gap
+- [x] Inter-stave spacing — wider gap between groups, tighter within groups (1.8x)
 - [x] Layered staves at zero spacing (complete overlap)
 - [ ] Horizontal note density — currently too generous; should fit approximately 4 measures per system line, matching standard engraving density
 - [ ] Proportional spacing — note spacing should reflect duration (half note gets ~2x quarter note width)

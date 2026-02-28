@@ -441,7 +441,8 @@ function buildStaffYMap(staves, allowLayering) {
 	var fs = getFontSize()
 	var initialOffset = fs * 4
 	var intraGroupSpacing = fs * 1.8   // tighter spacing within a bracket/brace group
-	var interGroupSpacing = fs * 5     // wider gap between groups for lyrics
+	var interGroupSpacing = fs * 2.8   // default gap between separate stave groups
+	var interGroupWithLyrics = fs * 5  // wider gap when lyrics sit between staves
 	var layerSpacing = 0               // layered staves overlap completely
 
 	staffYMap = []
@@ -454,7 +455,18 @@ function buildStaffYMap(staves, allowLayering) {
 		} else if (stave.bracketWithNext || stave.braceWithNext || stave.connectBarsWithNext) {
 			y += intraGroupSpacing
 		} else if (i < staves.length - 1) {
-			y += interGroupSpacing
+			// Use wider spacing only when lyrics exist on this staff or
+			// any layered staff at the same Y position
+			var hasLyrics = false
+			for (var li = i; li >= 0; li--) {
+				if (li < i && staffYMap[li] !== staffYMap[i]) break
+				var stLyrics = staves[li].lyrics
+				if (stLyrics && stLyrics.length && stLyrics.some(function(l) { return l && l.length > 0 })) {
+					hasLyrics = true
+					break
+				}
+			}
+			y += hasLyrics ? interGroupWithLyrics : interGroupSpacing
 		}
 	}
 }
