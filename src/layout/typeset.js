@@ -359,8 +359,9 @@ function computeBadness(lineWidth, pageWidth, isLastLine) {
 	// Underfull — quadratic penalty on the shortfall
 	const shortfall = 1.0 - ratio
 	if (isLastLine) {
-		// Last line is allowed to be shorter — reduced penalty
-		return shortfall * shortfall * 0.5
+		// Last line is allowed to be slightly shorter, but orphan lines
+		// (very short last systems) should still be strongly discouraged.
+		return shortfall * shortfall * 5
 	}
 	return shortfall * shortfall * 10
 }
@@ -832,8 +833,38 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
 		var relX = el.x - systemStartX
 		var courtesyW = courtesyWidths[sysIdx]
+		var barlineMap = systemBarlineMaps[sysIdx]
 
-		el.x = computeJustifyX(relX, systemBarlineMaps[sysIdx]) + leftMargin + courtesyW
+		// Beam elements store relative startX/endX from their moveTo origin.
+		// Both endpoints need independent justification so the beam spans
+		// correctly after stretching.
+		if (el.startX != null && el.endX != null) {
+			var origStartAbsX = el.x              // absolute X of first stem
+			var origEndAbsX = el.x + el.endX       // absolute X of last stem
+			var relStart = origStartAbsX - systemStartX
+			var relEnd = origEndAbsX - systemStartX
+
+			var justStart = computeJustifyX(relStart, barlineMap) + leftMargin + courtesyW
+			var justEnd = computeJustifyX(relEnd, barlineMap) + leftMargin + courtesyW
+
+			el.x = justStart
+			el.endX = justEnd - justStart
+			// startX stays 0 (relative to moveTo origin)
+		}
+		// Tie elements store width = endx - startx.  Both endpoints may be
+		// at different positions within the system, so recompute the width.
+		else if (el.endx != null && el.width != null) {
+			var origEndAbsX = el.x + el.width
+			var relEnd = origEndAbsX - systemStartX
+
+			el.x = computeJustifyX(relX, barlineMap) + leftMargin + courtesyW
+			var justEnd = computeJustifyX(relEnd, barlineMap) + leftMargin + courtesyW
+			el.width = justEnd - el.x
+			el.endx = justEnd
+		}
+		else {
+			el.x = computeJustifyX(relX, barlineMap) + leftMargin + courtesyW
+		}
 
 		// Shift Y: add the system's vertical offset
 		var yShift = sysIdx * (systemHeight + interSystemGap)

@@ -255,3 +255,110 @@ describe('computeJustifyX', () => {
 		}
 	})
 })
+
+// ---------------------------------------------------------------------------
+// DP balancing — orphan last lines
+// ---------------------------------------------------------------------------
+describe('DP avoids orphan last lines', () => {
+	test('8 even measures prefer 4+4 over 7+1', () => {
+		// 8 measures each 100px wide, pageWidth=450
+		// 4+4 = 400px each (shortfall 0.11) vs 7+1 = 700+100
+		const boundaries = Array.from({ length: 8 }, (_, i) => ({
+			x: (i + 1) * 100,
+			systemBreak: false,
+		}))
+		const breaks = computeSystemBreaks(boundaries, 450, 50)
+		// Should produce 1 break, splitting into two roughly equal halves
+		expect(breaks.length).toBe(1)
+		// The last system should have at least 3 measures (not an orphan)
+		const lastSystemStart = breaks[breaks.length - 1].x
+		const lastSystemMeasures = boundaries.filter(b => b.x > lastSystemStart).length
+		expect(lastSystemMeasures).toBeGreaterThanOrEqual(3)
+	})
+
+	test('9 even measures prefer 5+4 or 4+5 over 8+1', () => {
+		const boundaries = Array.from({ length: 9 }, (_, i) => ({
+			x: (i + 1) * 100,
+			systemBreak: false,
+		}))
+		const breaks = computeSystemBreaks(boundaries, 550, 50)
+		expect(breaks.length).toBe(1)
+		const lastSystemStart = breaks[breaks.length - 1].x
+		const lastSystemMeasures = boundaries.filter(b => b.x > lastSystemStart).length
+		expect(lastSystemMeasures).toBeGreaterThanOrEqual(3)
+	})
+
+	test('last line badness is higher than before for very short lines', () => {
+		// A line at 20% fill should still have significant penalty
+		const shortLineBadness = computeBadness(100, 500, true) // 80% shortfall
+		expect(shortLineBadness).toBeGreaterThan(1) // should be strongly penalized
+	})
+})
+
+// ---------------------------------------------------------------------------
+// Beam/tie endpoint justification
+// ---------------------------------------------------------------------------
+describe('beam and tie endpoint justification', () => {
+	test('beam-like element: both endpoints get independent justification', () => {
+		// Simulate a beam: el.x = first stem X, el.endX = relative distance to last stem
+		const map = buildBarlineMap([200, 400], 40)
+
+		// Beam starts at x=100 (in measure 1), ends at x=350 (in measure 2)
+		const origStartX = 100
+		const origEndAbsX = 350
+
+		const justStart = computeJustifyX(origStartX, map)
+		const justEnd = computeJustifyX(origEndAbsX, map)
+
+		// The justified span should be wider than original (space was added)
+		const origSpan = origEndAbsX - origStartX
+		const justSpan = justEnd - justStart
+		expect(justSpan).toBeGreaterThan(origSpan)
+	})
+
+	test('beam within a single measure: span scales by intra-measure factor', () => {
+		const map = buildBarlineMap([300], 30)
+
+		// Beam entirely within measure 0
+		const justStart = computeJustifyX(50, map)
+		const justEnd = computeJustifyX(250, map)
+
+		const origSpan = 200
+		const justSpan = justEnd - justStart
+
+		// Should be stretched by the intra-measure factor (> 1.0, <= 1.3x)
+		expect(justSpan / origSpan).toBeGreaterThan(1.0)
+		expect(justSpan / origSpan).toBeLessThanOrEqual(1.3)
+	})
+
+	test('tie-like element: width recomputed from justified endpoints', () => {
+		const map = buildBarlineMap([200, 400], 60)
+
+		// Tie starts at x=80, width=140 (ends at 220 — crosses barline at 200)
+		const origX = 80
+		const origWidth = 140
+		const origEndAbsX = origX + origWidth
+
+		const justStart = computeJustifyX(origX, map)
+		const justEnd = computeJustifyX(origEndAbsX, map)
+		const justWidth = justEnd - justStart
+
+		// Width should increase (space added at barline between start and end)
+		expect(justWidth).toBeGreaterThan(origWidth)
+	})
+
+	test('beam endpoints in same measure have consistent stretch', () => {
+		const map = buildBarlineMap([200, 400], 20)
+
+		// Two beams entirely within measure 0
+		const b1Start = computeJustifyX(30, map)
+		const b1End = computeJustifyX(90, map)
+		const b2Start = computeJustifyX(100, map)
+		const b2End = computeJustifyX(180, map)
+
+		// Both should have the same stretch factor
+		const factor1 = (b1End - b1Start) / (90 - 30)
+		const factor2 = (b2End - b2Start) / (180 - 100)
+		expect(factor1).toBeCloseTo(factor2, 4)
+	})
+})
