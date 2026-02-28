@@ -108,11 +108,11 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 
 - [x] Dynamic markings parsed (pp, p, mp, mf, f, ff, fff)
 - [x] Dynamic text rendered below staff
-- [ ] Dynamic positioning — should use `placement` field; currently fixed below staff
+- [x] Dynamic positioning — uses `position` field from file; consistent -(pos+4) conversion
 - [ ] Hairpins (crescendo/diminuendo) — wedge shapes spanning note ranges
-- [ ] Tempo markings — quarter-note = 120 style display above staff
-- [ ] Text expressions — user text annotations at specified positions
-- [ ] Performance directions (e.g. "Legato", "rit.") — parsed but not rendered at correct positions
+- [x] Tempo markings — uses file position; renders BPM value above staff
+- [x] Text expressions — user text annotations at file-specified positions
+- [x] Performance directions (e.g. "Legato", "rit.") — uses file position
 
 ## Spacing & Layout
 
@@ -125,6 +125,97 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [ ] Line breaking algorithm — determine optimal points to break into new system lines
 - [ ] Page breaks — support for page-level layout when printing/exporting
 - [ ] Minimum measure width — very short measures (e.g. pickup bars) should still have readable spacing
+
+## Investigation Notes (adohn.nwc reference)
+
+### "Andante maestoso" placement — Text vs Tempo objects
+
+Reference file: `nwcs/adohn.nwc` (O Holy Night, v1.75)
+
+In NWC, "Andante maestoso" is a **Text** object (type 17), separate from the **Tempo** object (type 6) that stores the BPM. Both sit on Staff-3 (first staff, index 0).
+
+**Parsed values from new parser** (`lib/nwc2xml/objects.js`):
+
+| Object | Type | binary pos | adapter position (after fix) | Other fields |
+|--------|------|-----------|------------------------------|-------------|
+| Tempo  | 6    | -26       | **+26** (above)              | placement=0, value=75 BPM, base=2, text="" |
+| Text   | 17   | -7        | **+7** (above)               | font=0 (StaffSymbols), text="Andante maestoso" |
+
+### NWC position coordinate system
+
+Two conventions exist — the binary storage and the user-facing model:
+
+| Convention | positive | negative | 0 |
+|------------|----------|----------|---|
+| **Binary** (raw `readInt8`) | below center | above center | center line |
+| **NWC user-facing** (adapter output) | above center | below center | center line |
+
+The sign inversion is **not** an endianness issue — positions are single-byte `readInt8()`,
+endianness only applies to multi-byte values. The binary simply uses screen-Y convention
+(positive = downward) while the music convention is positive = upward.
+
+Each unit = half a staff line spacing (0.5 increments).
+
+```
+user pos │  visual location (5-line staff)
+─────────┼────────────────────────────────────
+   +7    │  1.5 spaces above top line  ← "Andante maestoso"
+   +4    │  top staff line (line 1)
+   +2    │  second line
+    0    │  center line (line 3)
+   -2    │  fourth line
+   -4    │  bottom staff line (line 5)
+   -7    │  1.5 spaces below bottom line
+  -14    │  below staff (e.g. piano dynamic mf)
+```
+
+### Adapter position handling (FIXED)
+
+**Problem**: only Notes negated the binary pos; all other objects passed through raw.
+
+**Fix** (`src/nwc.js`): all positioned objects now negate to user convention:
+- Cases 6 (Tempo), 7 (Dynamic), 11 (Pedal), 12 (Flow), 14 (TempoVariance),
+  15 (DynamicVariance), 16 (PerformanceStyle), 17 (Text):
+  `token.position = -(obj.pos || 0)`
+- Case 8 (Note): `position: -obj.pos` (already correct)
+- Property name standardized to `token.position` (was `token.pos` for cases 11-16)
+
+### Our layout coordinate system
+
+The stave is drawn bottom-up from a reference Y (`getStaffY()`):
+
+```
+(drawing.js Stave.draw)
+  i=0  ty =  0.0 * fs  →  bottom line  (user pos -4)
+  i=1  ty = -0.25 * fs  →  4th line    (user pos -2)
+  i=2  ty = -0.50 * fs  →  center line (user pos  0)
+  i=3  ty = -0.75 * fs  →  2nd line    (user pos +2)
+  i=4  ty = -1.00 * fs  →  top line    (user pos +4)
+```
+
+Conversion: `positionY(userPos + 4)` maps user convention to rendering pixels
+(+4 shifts origin from center line to bottom line).
+
+Notes apply this as: `relativePos = token.position + 4` → `Glyph(sym, relativePos)`.
+Text applies this as: `new Text(str, -(pos + 4))` (the Text constructor internally negates).
+
+Verified: Note and Text now produce identical pixel offsets for the same NWC position.
+
+### Renderer — all positioned objects use file position (FIXED)
+
+Previously Tempo, Dynamic, PerformanceStyle used hardcoded positions. Now all four
+text-like token types in `typeset.js` use `token.position` with the same `-(pos + 4)`
+conversion, falling back to sensible defaults:
+
+| Token type | Default (user pos) | Equivalent old hardcode |
+|------------|-------------------|------------------------|
+| Text | +11 | was -11 raw |
+| PerformanceStyle | +9 | was -13 raw |
+| Tempo | +11 | was -15 raw |
+| Dynamic | -13 | was +9 raw |
+
+The nwctxt mapper (`mapTokens`) also standardized: Tempo now uses `token.position`
+(was `token.pos`), consistent with Dynamic/PerformanceStyle/Text.
 
 ## Testing
 

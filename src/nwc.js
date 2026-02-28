@@ -224,14 +224,15 @@ function adaptObject(obj) {
 			break
 
 		case 6: // Tempo
-			token.position = obj.pos || 0
+			// NWC binary: positive=below, negative=above; negate to user convention (positive=above)
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.duration = obj.value || obj.getSpeed?.() || 120
 			token.note = obj.base || 2
 			break
 
 		case 7: // Dynamic
-			token.position = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.style = obj.style || 0
 			token.dynamic = obj.getStyleName ? obj.getStyleName() : (ADAPTER_DYNAMICS[obj.style & 0x1F] || 'mf')
@@ -275,13 +276,13 @@ function adaptObject(obj) {
 		}
 
 		case 11: // Pedal
-			token.pos = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.sustain = obj.style || 0
 			break
 
 		case 12: // Flow
-			token.pos = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.style = obj.style || 0
 			break
@@ -290,27 +291,27 @@ function adaptObject(obj) {
 			break
 
 		case 14: // TempoVariance
-			token.pos = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.style = obj.style || 0
 			token.delay = obj.delay || 0
 			break
 
 		case 15: // DynamicVariance
-			token.pos = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.style = obj.style || 0
 			break
 
 		case 16: // PerformanceStyle
-			token.pos = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.style = obj.style || 0
 			token.text = ADAPTER_PERF_STYLES[obj.style] || ''
 			break
 
 		case 17: // Text
-			token.position = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.font = obj.font || 0
 			token.text = obj.text || ''
 			break
@@ -626,13 +627,13 @@ function mapTokens(token) {
 		case 'Tempo':
 			token.duration = token.Tempo // note
 			token.note = 1
-			token.pos = token.Pos
+			token.position = +token.Pos || 0
 			// Visibility
 			break
 		case 'PerformanceStyle':
 		case 'Dynamic':
 		case 'Text':
-			token.position = +token.Pos
+			token.position = +token.Pos || 0
 			token.text = token.Text
 			if (token.Style) token.text = token.dynamic = token.Style
 			// Justify, Visibility Font

@@ -644,32 +644,35 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			drawForNote(token, cursor, token)
 			break
 		case 'Text':
-			var pos = token.position !== undefined ? token.position : -11
-			var text = new Text(token.text, pos)
+			// token.position is user-facing NWC convention (positive=above, 0=center).
+			// Convert to rendering coords: pass -(pos + 4) so Text's internal
+			// negation yields positionY(pos + 4)  — same mapping notes use.
+			var pos = token.position !== undefined ? token.position : 11
+			var text = new Text(token.text, -(pos + 4))
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break
 		case 'PerformanceStyle':
-			// Fixed position: always above the top staff line to avoid colliding with lyrics
-			var text = new Text(token.text, -13, {
+			var pos = token.position !== undefined ? token.position : 9
+			var text = new Text(token.text, -(pos + 4), {
 				font: "italic 11px Arial, 'Segoe UI', sans-serif",
 			})
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break
 		case 'Tempo':
-			// Fixed position: above the staff, slightly offset right of the barline
+			var pos = token.position !== undefined ? token.position : 11
 			var text = new Text(
 				`(${token.duration})`,
-				-15,
+				-(pos + 4),
 				{ font: "11px Arial, 'Segoe UI', sans-serif" }
 			)
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break
 		case 'Dynamic':
-			// Fixed position: below the bottom staff line
-			var text = new Text(token.dynamic, 9, {
+			var pos = token.position !== undefined ? token.position : -13
+			var text = new Text(token.dynamic, -(pos + 4), {
 				font: "italic bold 12px Arial, 'Segoe UI', sans-serif",
 			})
 			cursor.posGlyph(text)
