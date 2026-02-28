@@ -239,8 +239,58 @@ function score(dataOrContext) {
 	layoutTies(drawing, data)
 
 	/* Layout staves */
+	// endingBar staff property → BarStyle mapping
+	var endingBarStyles = [3, 7, 0, 1, 8] // SectionClose, MasterClose, Single, Double, Hidden
 	stavePointers.forEach((cursor, staveIndex) => {
 		addStave(cursor, staveIndex)
+
+		// Draw the staff-level ending barline after the last measure
+		var stave = staves[staveIndex]
+		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
+		if (ebStyle !== 8) { // not hidden
+			cursor.incStaveX(spacerWidth() * 2)
+			var eb = new Barline(0, 8, ebStyle)
+			cursor.posGlyph(eb)
+			drawing.add(eb)
+
+			// Connect ending barline between staves if appropriate
+			// Skip if lyrics exist between staves (same logic as regular barlines)
+			var hasEndLyrics = false
+			for (var elsi = staveIndex; elsi < staves.length - 1; elsi++) {
+				if (getStaffY(elsi) !== getStaffY(staveIndex) && elsi !== staveIndex) break
+				var elLyrics = staves[elsi].lyrics
+				if (elLyrics && elLyrics.length && elLyrics.some(function(l) { return l && l.length > 0 })) {
+					hasEndLyrics = true
+					break
+				}
+			}
+			var shouldConnectEnd = stave && !hasEndLyrics && staveIndex < staves.length - 1 && (
+				stave.connectBarsWithNext ||
+				((stave.layerWithNext || stave.bracketWithNext) && currentAllowLayering)
+			)
+			if (shouldConnectEnd) {
+				var nextSi = staveIndex + 1
+				while (nextSi < staves.length - 1 && getStaffY(nextSi) === getStaffY(staveIndex)) {
+					nextSi++
+				}
+				let thisY = getStaffY(staveIndex) + getFontSize()
+				let nextY = getStaffY(nextSi)
+				if (nextY > thisY) {
+					let barX = cursor.staveX
+					let lw = ebStyle === 3 || ebStyle === 5 || ebStyle === 7
+						? getFontSize() / 8 : getFontSize() / 24
+					var connPath = new Claire.Path(function(ctx) {
+						ctx.beginPath()
+						ctx.lineWidth = lw
+						ctx.moveTo(barX, thisY)
+						ctx.lineTo(barX, nextY)
+						ctx.stroke()
+					})
+					drawing.add(connPath)
+				}
+			}
+		}
+
 		maxCanvasWidth = Math.max(cursor.staveX + 100, maxCanvasWidth)
 	})
 
@@ -255,8 +305,8 @@ function score(dataOrContext) {
 	// because Drawing._draw() applies ctx.translate(el.x, el.y) before calling
 	// el.draw() — using Line would double-apply the position.
 	var fs = getFontSize()
-	var bracketX = fs * 0.08
-	var braceX = fs * 0.04
+	var bracketX = fs * 0.55
+	var braceX = fs * 0.35
 
 	// Collect visible staff Y positions (deduplicate layered staves at same Y)
 	var visibleYs = []
@@ -313,6 +363,22 @@ function score(dataOrContext) {
 			})
 			drawing.add(brace)
 		}
+	}
+
+	// Draw staff labels to the left of each visible stave
+	for (var li = 0; li < staves.length; li++) {
+		var label = staves[li].staff_label || ''
+		if (!label) continue
+		// Skip duplicate labels for layered staves at the same Y
+		if (li > 0 && getStaffY(li) === getStaffY(li - 1)) continue
+		var labelY = getStaffY(li) - fs * 0.5 // vertically centered on staff
+		var labelX = fs * 0.05
+		var labelDraw = new Claire.Text(label, 0, {
+			font: Math.round(fs * 0.6) + "px Arial, 'Segoe UI', sans-serif",
+			textAlign: 'left',
+		})
+		labelDraw.moveTo(labelX, labelY)
+		drawing.add(labelDraw)
 	}
 
 	var { title, author, copyright1, copyright2 } = data.info || {}
@@ -499,15 +565,29 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 
 		case 'Barline':
-			s = new Barline()
+			s = new Barline(0, 8, token.barline || 0)
 			cursor.posGlyph(s)
 			s._text = info
 			drawing.add(s)
 
 			// Connect barlines to next staff if flagged, or if staves are layered
 			// (layered grand staves implicitly share barlines, matching NWC Viewer)
+			// BUT skip connection when lyrics exist between the staves — the
+			// barline would draw across the lyrics text which looks wrong.
 			var staveData = currentStaves[staveIndex]
-			var shouldConnect = staveData && staveIndex < currentStaves.length - 1 && (
+			var hasLyricsBetween = false
+			if (staveData) {
+				// Check if any staff from current to the next visible one has lyrics
+				for (var lsi = staveIndex; lsi < currentStaves.length - 1; lsi++) {
+					if (getStaffY(lsi) !== getStaffY(staveIndex) && lsi !== staveIndex) break
+					var stLyrics = currentStaves[lsi].lyrics
+					if (stLyrics && stLyrics.length && stLyrics.some(function(l) { return l && l.length > 0 })) {
+						hasLyricsBetween = true
+						break
+					}
+				}
+			}
+			var shouldConnect = staveData && !hasLyricsBetween && staveIndex < currentStaves.length - 1 && (
 				staveData.connectBarsWithNext ||
 				((staveData.layerWithNext || staveData.bracketWithNext) && currentAllowLayering)
 			)
@@ -632,10 +712,11 @@ function drawForNote(token, cursor, durToken) {
 	token.drawingNoteHead = noteHead
 
 	if (token.text) {
-		var pos = 10
-		var text = new Text(token.text, pos, {
-			font: "12px Arial, 'Segoe UI', sans-serif",
-			textAlign: 'center',
+		var lyricPos = 12
+		var lyricFontSize = Math.round(getFontSize() * 0.38)
+		var text = new Text(token.text, lyricPos, {
+			font: lyricFontSize + "px Arial, 'Segoe UI', sans-serif",
+			textAlign: 'left',
 		})
 		cursor.posGlyph(text)
 		drawing.add(text)

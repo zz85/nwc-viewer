@@ -373,6 +373,7 @@ function convertFromNewParser(nwcFile) {
 			staves: nwcFile.staffs.map(function(staff) {
 				return {
 					staff_name: staff.name || '',
+					staff_label: staff.label || '',
 					group_name: staff.group || '',
 					channel: staff.channel || 0,
 					// WithNextStaff grouping flags
@@ -382,6 +383,7 @@ function convertFromNewParser(nwcFile) {
 					layerWithNext: !!staff.layerWithNext,
 					boundaryTop: staff.boundaryTop || 0,
 					boundaryBottom: staff.boundaryBottom || 0,
+					endingBar: staff.endingBar || 0,
 					lines: staff.lines || 5,
 					lyrics: (staff.lyrics || []).map(function(lyric) {
 						return Array.isArray(lyric) ? lyric.join('\n') : (lyric || '')
