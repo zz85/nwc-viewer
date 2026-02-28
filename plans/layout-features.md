@@ -31,7 +31,8 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Bracket/brace positioned between staff labels and stave left edge
 - [x] Layered staves share the same Y position (overlap completely)
 - [x] Grouped staves have tighter vertical spacing than separate staves
-- [ ] Multi-system line breaks — currently all measures flow on one infinite line; should wrap to fit canvas/page width
+- [ ] Multi-system line breaks — ~~currently all measures flow on one infinite line; should wrap to fit canvas/page width~~ basic wrap mode implemented with DP-optimal and greedy break algorithms; needs refinement
+- [x] Multi-system line breaks (basic) — wrap mode reflows measures into systems; respects NWC systemBreak flags; DP-optimal (Knuth-Plass style) and greedy algorithms; per-system justification; courtesy clef/key at system starts; scroll/wrap toggle
 - [ ] First-system indent — first system should be indented to leave room for instrument names
 - [ ] Staff visibility — some staves may be hidden; should respect visibility flags
 - [ ] **Viewer/Editor mode toggle** — a view mode that hides invisible items (tokens with Visibility=Never, hidden barlines, etc.) vs editor mode that shows everything with visual indicators
@@ -45,6 +46,7 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [ ] Alto clef (C clef on middle line)
 - [ ] Tenor clef (C clef on fourth line)
 - [ ] Mid-staff clef changes — clef change should appear small, between notes
+- [x] Courtesy clef and key signature at start of each new system line
 - [ ] Courtesy/cautionary key/time signatures at end of system before break
 
 ## Notes & Rests
@@ -126,9 +128,10 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Layered staves at zero spacing (complete overlap)
 - [ ] Horizontal note density — currently too generous; should fit approximately 4 measures per system line, matching standard engraving density
 - [ ] Proportional spacing — note spacing should reflect duration (half note gets ~2x quarter note width)
-- [ ] Measure-level justification — measures should stretch to fill the system width evenly
-- [ ] Line breaking algorithm — determine optimal points to break into new system lines
+- [x] Measure-level justification — measures should stretch to fill the system width evenly
+- [x] Line breaking algorithm — determine optimal points to break into new system lines
 - [ ] Page breaks — support for page-level layout when printing/exporting
+- [ ] **Preset paper sizes** — wrap layout currently uses viewport width; should offer standard paper sizes (A4, Letter, etc.) so the score wraps to a fixed width independent of browser window size
 - [ ] Minimum measure width — very short measures (e.g. pickup bars) should still have readable spacing
 
 ## Investigation Notes (adohn.nwc reference)

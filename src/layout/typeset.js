@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getBreakAlgorithm } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit } from '../drawing.js'
@@ -150,26 +150,96 @@ function collectMeasureBoundaries(staves) {
 }
 
 /**
- * Given measure boundaries and an available width, decide which barlines are
- * system break points.  Respects explicit NWC systemBreak flags; if none are
- * present (or between them), auto-breaks when the next measure would exceed
- * the page width.
+ * For each staff, tracks the running clef and key signature at each barline.
+ * Returns an array (per staff) of { clef, accidentals, clefForKey } representing
+ * the state after all tokens up to each barline boundary.
  *
- * Returns an array of break objects: { x, systemIndex }
- * where `x` is the barline X after which we break to a new system.
- * The first system implicitly starts at x=0.
+ * boundaryTokenIndices — array of token indices from stave[0] where barlines occur.
+ *   We use the *count* of barlines seen (not absolute indices) since different
+ *   staves may have different token indices for the same barline.
+ */
+function collectRunningState(staves) {
+	// For each staff, walk its tokens and record the clef/key state at each barline.
+	const statePerStaff = []
+	for (let si = 0; si < staves.length; si++) {
+		const tokens = staves[si].tokens || []
+		let currentClef = 'treble'
+		let currentAccidentals = []
+		let currentClefForKey = 'treble'
+		const stateAtBarlines = []
+
+		for (let ti = 0; ti < tokens.length; ti++) {
+			const token = tokens[ti]
+			if (token.type === 'Clef') {
+				currentClef = token.clef || 'treble'
+				currentClefForKey = currentClef
+			} else if (token.type === 'KeySignature') {
+				currentAccidentals = token.accidentals || []
+				if (token.clef) currentClefForKey = token.clef
+			} else if (token.type === 'Barline') {
+				stateAtBarlines.push({
+					clef: currentClef,
+					accidentals: currentAccidentals.slice(),
+					clefForKey: currentClefForKey,
+				})
+			}
+		}
+		statePerStaff.push(stateAtBarlines)
+	}
+	return statePerStaff
+}
+
+/**
+ * Creates courtesy clef and key signature drawing objects for a given staff
+ * at a given position.  Returns { elements, totalWidth } where elements is
+ * an array of Draw objects and totalWidth is the horizontal space consumed.
+ */
+function createCourtesyItems(clefStr, accidentals, clefForKey, staffY) {
+	const elements = []
+	let x = 0
+
+	// Courtesy clef
+	const clef = clefFromString(clefStr)
+	clef.moveTo(x, staffY)
+	elements.push(clef)
+	x += clef.width + spacerWidth()
+
+	// Courtesy key signature (only if there are accidentals)
+	if (accidentals && accidentals.length > 0) {
+		const keySig = new KeySignature(accidentals, clefForKey)
+		keySig.moveTo(x, staffY)
+		elements.push(keySig)
+		x += (keySig.width || 0) + spacerWidth()
+	}
+
+	return { elements, totalWidth: x }
+}
+
+/**
+ * Dispatcher — picks greedy or DP break algorithm based on user setting.
  */
 function computeSystemBreaks(boundaries, pageWidth, leftMargin) {
+	if (getBreakAlgorithm() === 'greedy') {
+		return computeSystemBreaksGreedy(boundaries, pageWidth, leftMargin)
+	}
+	return computeSystemBreaksDP(boundaries, pageWidth, leftMargin)
+}
+
+/**
+ * Greedy algorithm: scans left-to-right, breaking whenever the next measure
+ * would overflow the page width.  Simple and fast, but can produce uneven
+ * line lengths (e.g. last line with a single measure).
+ */
+function computeSystemBreaksGreedy(boundaries, pageWidth) {
 	if (boundaries.length === 0) return []
 
-	const breaks = [] // each entry: { x, boundaryIndex }
+	const breaks = []
 	let systemStartX = 0
 	let systemIndex = 0
 
 	for (let i = 0; i < boundaries.length; i++) {
 		const b = boundaries[i]
-		const measureEndX = b.x
-		const measureWidth = measureEndX - systemStartX
+		const measureWidth = b.x - systemStartX
 
 		// Always break on explicit NWC system breaks
 		if (b.systemBreak && i < boundaries.length - 1) {
@@ -183,18 +253,13 @@ function computeSystemBreaks(boundaries, pageWidth, leftMargin) {
 		// break at the *previous* barline (unless this is the first measure
 		// in the system, in which case we must include it regardless).
 		if (measureWidth > pageWidth && i > 0) {
-			// Break at the previous boundary
 			const prevB = boundaries[i - 1]
-			// Only add if we haven't already broken here
 			if (breaks.length === 0 || breaks[breaks.length - 1].x !== prevB.x) {
 				breaks.push({ x: prevB.x, boundaryIndex: i - 1, systemIndex })
 				systemIndex++
 				systemStartX = prevB.x
 			}
-			// Re-check current measure against the new system start
 			if (b.x - systemStartX > pageWidth && i < boundaries.length - 1) {
-				// This single measure is wider than the page — include it anyway
-				// and break after it
 				breaks.push({ x: b.x, boundaryIndex: i, systemIndex })
 				systemIndex++
 				systemStartX = b.x
@@ -206,47 +271,153 @@ function computeSystemBreaks(boundaries, pageWidth, leftMargin) {
 }
 
 /**
- * Repositions all drawing elements from a single-line layout into wrapped
- * systems.  Each system starts at `leftMargin` and elements are shifted
- * vertically by the system's Y offset.
+ * Given measure boundaries and an available width, decide which barlines are
+ * system break points using dynamic programming to minimize total "badness"
+ * across all systems (inspired by Knuth-Plass).
  *
- * `systemBreaks` — array from computeSystemBreaks()
- * `systemHeight` — vertical space per system (all staves + gaps)
- * `staffYMap` — per-stave Y offsets within a system (relative to system top)
- * `drawingSet` — the Drawing.set of all elements
- * `staves` — stave data array
+ * Breaks only occur at barlines.  Explicit NWC systemBreak flags act as
+ * forced breaks that partition the problem into independent segments.
+ *
+ * Badness for a system = ((actual_width - ideal_width) / ideal_width)^2
+ * This penalizes both overfull and underfull lines, with quadratic growth
+ * to strongly discourage very short or very long lines.
+ *
+ * Returns an array of break objects: { x, boundaryIndex, systemIndex }
  */
-function reflowIntoSystems(drawingSet, systemBreaks, systemHeight, numStaves,
-	leftMargin, interSystemGap) {
-	if (systemBreaks.length === 0) return { systemCount: 1, totalHeight: 0 }
+function computeSystemBreaksDP(boundaries, pageWidth, leftMargin) {
+	if (boundaries.length === 0) return []
 
-	// Build a sorted list of break X positions for fast lookup
-	const breakXs = systemBreaks.map(b => b.x)
+	// Split boundaries into segments divided by forced breaks.
+	// Each segment is solved independently via DP, then results are merged.
+	const forcedBreakIndices = []
+	for (let i = 0; i < boundaries.length; i++) {
+		if (boundaries[i].systemBreak && i < boundaries.length - 1) {
+			forcedBreakIndices.push(i)
+		}
+	}
 
-	// For each drawing element, determine which system it belongs to
-	// based on its X position, then shift it.
-	const systemCount = breakXs.length + 1
+	// Build segments: each segment is a range [startIdx, endIdx] of boundaries
+	// that must be broken optimally within, bounded by forced breaks.
+	const segments = []
+	let segStart = 0
+	for (const fbi of forcedBreakIndices) {
+		segments.push({ start: segStart, end: fbi })
+		segStart = fbi + 1
+	}
+	// Final segment from last forced break to end
+	segments.push({ start: segStart, end: boundaries.length - 1 })
 
-	for (const el of drawingSet) {
-		// Determine which system this element belongs to
-		let sysIdx = 0
-		for (let i = 0; i < breakXs.length; i++) {
-			if (el.x > breakXs[i]) sysIdx = i + 1
-			else break
+	const allBreaks = []
+	let systemIndex = 0
+
+	for (const seg of segments) {
+		const segBreaks = dpOptimalBreaks(boundaries, seg.start, seg.end, pageWidth)
+
+		for (const bi of segBreaks) {
+			allBreaks.push({ x: boundaries[bi].x, boundaryIndex: bi, systemIndex })
+			systemIndex++
 		}
 
-		// Shift X: subtract the system start X, add left margin
-		const systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
-		el.x = el.x - systemStartX + leftMargin
-
-		// Shift Y: add the system's vertical offset
-		el.y = el.y + sysIdx * (systemHeight + interSystemGap)
+		// If this segment ended at a forced break, add that break too
+		if (forcedBreakIndices.includes(seg.end)) {
+			allBreaks.push({
+				x: boundaries[seg.end].x,
+				boundaryIndex: seg.end,
+				systemIndex,
+			})
+			systemIndex++
+		}
 	}
 
-	return {
-		systemCount,
-		totalHeight: systemCount * (systemHeight + interSystemGap),
+	return allBreaks
+}
+
+/**
+ * DP solver for optimal line breaks within a contiguous range of boundaries.
+ *
+ * Given boundaries[start..end], find the set of break indices that minimizes
+ * total badness.  A "break at index i" means the system ends at boundaries[i]
+ * and a new system begins after it.
+ *
+ * Returns an array of boundary indices where breaks should occur (NOT including
+ * `end`, which is the final boundary of the segment — no break after the last
+ * measure).
+ */
+function dpOptimalBreaks(boundaries, start, end, pageWidth) {
+	const n = end - start + 1 // number of boundaries in this segment
+	if (n <= 1) return []
+
+	// measureWidths[i] = width of measure i (from previous boundary to this one)
+	// For i=0, the "previous boundary" is the start of the score (x=0 or the
+	// preceding forced-break X).
+	const prevX = start > 0 ? boundaries[start - 1].x : 0
+	const measureWidths = []
+	for (let i = start; i <= end; i++) {
+		const fromX = i === start ? prevX : boundaries[i - 1].x
+		measureWidths.push(boundaries[i].x - fromX)
 	}
+
+	// dp[i] = minimum total badness for laying out measures 0..i
+	// choice[i] = the index of the last break before i (or -1 for start of segment)
+	const INF = 1e18
+	const dp = new Array(n).fill(INF)
+	const choice = new Array(n).fill(-1)
+
+	for (let i = 0; i < n; i++) {
+		// Try putting measures j+1..i on one system (break after j, or j=-1 for start)
+		let lineWidth = 0
+		for (let j = i; j >= 0; j--) {
+			lineWidth += measureWidths[j]
+
+			// If this single line is way too wide (>2x page), stop looking further back
+			if (lineWidth > pageWidth * 2.5 && j < i) break
+
+			const badness = computeBadness(lineWidth, pageWidth, i === n - 1)
+			const prevCost = j > 0 ? dp[j - 1] : 0
+
+			if (prevCost + badness < dp[i]) {
+				dp[i] = prevCost + badness
+				choice[i] = j > 0 ? j - 1 : -1
+			}
+		}
+	}
+
+	// Trace back to find break points
+	const breaks = []
+	let idx = choice[n - 1]
+	while (idx >= 0) {
+		breaks.push(start + idx)
+		idx = choice[idx]
+	}
+	breaks.reverse()
+
+	return breaks
+}
+
+/**
+ * Compute badness (penalty) for a system line of a given width relative to
+ * the target page width.
+ *
+ * - Underfull lines: quadratic penalty based on how much empty space remains.
+ * - Overfull lines: steep penalty (we strongly avoid overflow).
+ * - The last line of a segment is penalized less for being underfull (it's
+ *   natural for the final system to be shorter).
+ */
+function computeBadness(lineWidth, pageWidth, isLastLine) {
+	const ratio = lineWidth / pageWidth
+
+	if (ratio > 1.0) {
+		// Overfull — steep penalty to avoid overflow
+		return (ratio - 1.0) * (ratio - 1.0) * 100
+	}
+
+	// Underfull — quadratic penalty on the shortfall
+	const shortfall = 1.0 - ratio
+	if (isLastLine) {
+		// Last line is allowed to be shorter — reduced penalty
+		return shortfall * shortfall * 0.5
+	}
+	return shortfall * shortfall * 10
 }
 
 /* Rerenders all drawing objects */
@@ -514,7 +685,40 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}
 	toRemove.forEach(s => drawing.remove(s))
 
-	// --- Reflow all existing drawing elements into systems ---
+	// --- Collect running clef/key state for courtesy items ---
+	var runningState = collectRunningState(staves)
+
+	// For each system break, determine the courtesy width needed (clef + key sig).
+	// System 0 has no courtesy items (the original clef/key are already there).
+	// Use the first staff's courtesy items to measure the width (all staves
+	// get the same horizontal shift even though their clefs may differ).
+	var courtesyWidths = [0] // system 0: no courtesy
+	for (let sysIdx = 1; sysIdx < systemCount; sysIdx++) {
+		// The break before this system is breakXs[sysIdx-1], corresponding
+		// to boundary index systemBreaks[sysIdx-1].boundaryIndex.
+		// The running state at that boundary tells us the active clef/key.
+		var breakBoundaryIdx = systemBreaks[sysIdx - 1].boundaryIndex
+		var maxCourtesyWidth = 0
+		for (let si = 0; si < staves.length; si++) {
+			var state = runningState[si][breakBoundaryIdx]
+			if (!state) continue
+			var { totalWidth } = createCourtesyItems(
+				state.clef, state.accidentals, state.clefForKey, 0
+			)
+			maxCourtesyWidth = Math.max(maxCourtesyWidth, totalWidth)
+		}
+		courtesyWidths.push(maxCourtesyWidth + spacerWidth())
+	}
+
+	// --- Compute per-system natural widths and stretch factors ---
+	var systemNaturalWidths = []
+	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+		var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
+		systemNaturalWidths.push(sysEndX - sysStartX)
+	}
+
+	// --- Reflow all existing drawing elements into systems with justification ---
 	for (const el of drawing.set) {
 		// Skip elements without position (shouldn't happen, but be safe)
 		if (el.x == null || el.y == null) continue
@@ -526,33 +730,78 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			else break
 		}
 
-		// Shift X: subtract the system start X, add left margin
+		// Compute relative X within this system (before justification)
 		var systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
-		el.x = el.x - systemStartX + leftMargin
+		var relX = el.x - systemStartX
+
+		// Available width for music content = pageWidth minus courtesy space
+		var courtesyW = courtesyWidths[sysIdx]
+		var contentWidth = pageWidth - courtesyW
+
+		// Justify: stretch X proportionally so the system fills the available width.
+		// Don't stretch the last system if it's significantly short.
+		var naturalWidth = systemNaturalWidths[sysIdx]
+		var isLastSystem = sysIdx === systemCount - 1
+		var stretchFactor = 1.0
+		if (naturalWidth > 0 && contentWidth > 0) {
+			var fillRatio = naturalWidth / contentWidth
+			if (!isLastSystem || fillRatio > 0.6) {
+				stretchFactor = contentWidth / naturalWidth
+			}
+		}
+
+		el.x = relX * stretchFactor + leftMargin + courtesyW
 
 		// Shift Y: add the system's vertical offset
 		var yShift = sysIdx * (systemHeight + interSystemGap)
 		el.y = el.y + yShift
 
-		// For Tie objects, also shift the absolute end-Y coordinate
-		// (Tie.draw uses this.endy - this.y for the relative endpoint)
+		// For Tie objects, also shift the absolute end-Y coordinate and
+		// adjust the width for the new stretch factor
 		if (el.endy != null) {
 			el.endy = el.endy + yShift
 		}
+		// Ties store width = endx - startx (in original coords).
+		// After stretching, the width needs to scale by the same factor.
+		if (el.endx != null && el.width != null && stretchFactor !== 1.0) {
+			el.width = el.width * stretchFactor
+			el.endx = el.x + el.width
+		}
 	}
 
-	// --- Draw per-system stave lines ---
-	// For each system, we need stave lines spanning the full width of that system.
+	// --- Draw per-system stave lines, brackets, braces, labels, and courtesy items ---
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
-		var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
-		var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
-		var sysWidth = sysEndX - sysStartX
+		var naturalWidth = systemNaturalWidths[sysIdx]
+		var isLastSystem = sysIdx === systemCount - 1
+		var courtesyW = courtesyWidths[sysIdx]
+		var contentWidth = pageWidth - courtesyW
+		var fillRatio = naturalWidth / contentWidth
+		var justifiedWidth = (!isLastSystem || fillRatio > 0.6)
+			? pageWidth : naturalWidth + courtesyW
 		var yOffset = sysIdx * (systemHeight + interSystemGap)
 
 		for (var si = 0; si < staves.length; si++) {
-			var staveEl = new Stave(sysWidth)
+			var staveEl = new Stave(justifiedWidth)
 			staveEl.moveTo(leftMargin, getStaffY(si) + yOffset)
 			drawing.add(staveEl)
+		}
+
+		// Draw courtesy clef + key signature for systems after the first
+		if (sysIdx > 0) {
+			var breakBoundaryIdx = systemBreaks[sysIdx - 1].boundaryIndex
+			for (var si = 0; si < staves.length; si++) {
+				var state = runningState[si][breakBoundaryIdx]
+				if (!state) continue
+				var { elements } = createCourtesyItems(
+					state.clef, state.accidentals, state.clefForKey,
+					getStaffY(si) + yOffset
+				)
+				for (var cei = 0; cei < elements.length; cei++) {
+					// Position courtesy items after the left margin
+					elements[cei].x += leftMargin
+					drawing.add(elements[cei])
+				}
+			}
 		}
 
 		// Draw brackets, braces, and labels for each system

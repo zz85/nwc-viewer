@@ -457,7 +457,10 @@ const LAYOUT_STORAGE_KEY = 'nwc_layout_mode'
 
 function updateLayoutButton() {
 	const btn = document.getElementById('layout_toggle')
+	const breaksBtn = document.getElementById('breaks_toggle')
 	if (btn) btn.textContent = getLayoutMode() === 'wrap' ? 'Wrap' : 'Scroll'
+	// Show/hide breaks toggle — only relevant in wrap mode
+	if (breaksBtn) breaksBtn.style.display = getLayoutMode() === 'wrap' ? '' : 'none'
 }
 
 window.toggleLayout = function () {
@@ -474,3 +477,26 @@ if (storedLayout === 'wrap' || storedLayout === 'scroll') {
 	setLayoutMode(storedLayout)
 }
 updateLayoutButton()
+
+// ---- Break algorithm toggle (greedy vs optimal) ----
+
+const BREAKS_STORAGE_KEY = 'nwc_break_algorithm'
+
+function updateBreaksButton() {
+	const btn = document.getElementById('breaks_toggle')
+	if (btn) btn.textContent = getBreakAlgorithm() === 'optimal' ? 'Optimal' : 'Greedy'
+}
+
+window.toggleBreaks = function () {
+	const next = getBreakAlgorithm() === 'optimal' ? 'greedy' : 'optimal'
+	setBreakAlgorithm(next)
+	localStorage.setItem(BREAKS_STORAGE_KEY, next)
+	updateBreaksButton()
+	if (getLayoutMode() === 'wrap') rerender()
+}
+
+const storedBreaks = localStorage.getItem(BREAKS_STORAGE_KEY)
+if (storedBreaks === 'greedy' || storedBreaks === 'optimal') {
+	setBreakAlgorithm(storedBreaks)
+}
+updateBreaksButton()
