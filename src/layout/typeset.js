@@ -687,7 +687,9 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 }
 
 function drawForNote(token, cursor, durToken) {
-	const duration = durToken.duration
+	// Use the individual note's duration if available (split-stem chords),
+	// otherwise fall back to the chord/token-level duration.
+	const duration = token.duration || durToken.duration
 	const durValue = durToken.durValue
 
 	const sym =

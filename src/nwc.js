@@ -265,10 +265,20 @@ function adaptObject(obj) {
 				var first = noteChildren[0]
 				var firstAttrs = adaptNoteAttrs(first)
 				Object.assign(token, firstAttrs)
-				// Build notes array for all children
+				// Build notes array for all children — each keeps its own duration
+				// (split-stem chords have per-note durations)
 				for (var ci = 0; ci < noteChildren.length; ci++) {
 					notes.push(adaptNoteAttrs(noteChildren[ci]))
 				}
+			}
+			// Token-level duration comes from the parent NoteCMObj for timing/spacing.
+			// This represents the chord's tick advance (typically the shortest voice).
+			// Individual note durations in notes[] may differ (split-stem chords).
+			if (typeof obj.getDuration === 'function') {
+				var chordDt = typeof obj.getDurationType === 'function' ? obj.getDurationType() : 0
+				token.duration = ADAPTER_DURATIONS[obj.getDuration()] || 4
+				token.dots = (chordDt & 0x02) ? 2 : (chordDt & 0x01) ? 1 : 0
+				token.triplet = (chordDt >> 2) & 3
 			}
 			token.chords = noteChildren.length
 			token.notes = notes

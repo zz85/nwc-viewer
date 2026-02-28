@@ -34,6 +34,7 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [ ] Multi-system line breaks — currently all measures flow on one infinite line; should wrap to fit canvas/page width
 - [ ] First-system indent — first system should be indented to leave room for instrument names
 - [ ] Staff visibility — some staves may be hidden; should respect visibility flags
+- [ ] **Viewer/Editor mode toggle** — a view mode that hides invisible items (tokens with Visibility=Never, hidden barlines, etc.) vs editor mode that shows everything with visual indicators
 
 ## Clefs & Key/Time Signatures
 
@@ -103,6 +104,7 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [ ] Melisma/extender lines — underscores should render as horizontal lines extending the syllable
 - [ ] Lyric syllable attachment control — `AttachLyricSyllable` flag (Always/Never/Default) not respected
 - [ ] Top-aligned lyrics — `LyricAlignment: Top` should place lyrics above the staff
+- [ ] **Do not assign `-` (hyphen) as lyrics to notes** — hyphens are continuation markers between syllables, not standalone lyric text to render
 
 ## Dynamics & Expressions
 
@@ -116,6 +118,9 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 
 ## Spacing & Layout
 
+- [ ] **Staff boundary properties for layout** — NWC stores `boundaryTop` / `boundaryBottom` in staff properties (visual extent above/below center); should use these to compute inter-stave spacing instead of fixed gaps
+- [ ] **Staff labels shift stave X origin** — rendering of staff labels currently doesn't offset where notes/staves begin; labels should push the stave start rightward
+- [ ] **Lyrics-aware vertical spacing** — Y positioning of staves should account for the height of lyrics (number of verses × line height) rather than a fixed gap
 - [ ] Adaptive inter-stave spacing — currently a fixed large gap (5x fontSize) between all stave groups; staves without lyrics between them should stack tighter (e.g. 2.5-3x), only expanding when lyrics need to be rendered in the gap
 - [x] Inter-stave spacing — wider gap between groups, tighter within groups (1.8x)
 - [x] Layered staves at zero spacing (complete overlap)
@@ -216,6 +221,34 @@ conversion, falling back to sensible defaults:
 
 The nwctxt mapper (`mapTokens`) also standardized: Tempo now uses `token.position`
 (was `token.pos`), consistent with Dynamic/PerformanceStyle/Text.
+
+### Chord duration: split-stem / two-voice chords (FIXED)
+
+In NWC, a NoteCM (chord) can represent **split-stem chords** where notes have
+different durations and stem directions (two voices on one staff). Each child NoteObj
+stores its own duration, stem direction, and beam state.
+
+The parent `data1[0] & 0x0F` stores the chord's **timing advance** (typically the
+shortest voice), used for beat tracking and horizontal spacing. Individual note
+durations in `notes[]` may differ.
+
+Example — `adohn.nwc` Staff-1 bar 1, chord [9]:
+```
+token.duration = 4 (quarter)  ← parent NoteCMObj (timing advance)
+  notes[0]: D4  dur=2 (half)     stem=down  ← lower voice
+  notes[1]: A4  dur=4 (quarter)  stem=up    ← upper voice
+```
+
+**Fix** (`lib/nwc2xml/objects.js`): added `getDuration()` and `getDurationType()` to
+`NoteCMObj`, reading from `data1` (same byte layout as NoteObj).
+
+**Fix** (`src/nwc.js` adapter, case 10): `token.duration` comes from the parent
+NoteCMObj (timing advance); each note in `notes[]` keeps its own duration from the
+child NoteObj.
+
+**Fix** (`src/layout/typeset.js` `drawForNote`): uses individual note's duration for
+notehead selection (`token.duration || durToken.duration`), so half notes in a
+split-stem chord correctly render as open noteheads while quarter notes render filled.
 
 ## Testing
 
