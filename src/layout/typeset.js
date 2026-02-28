@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getBreakAlgorithm } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit } from '../drawing.js'
@@ -216,64 +216,9 @@ function createCourtesyItems(clefStr, accidentals, clefForKey, staffY) {
 }
 
 /**
- * Dispatcher — picks greedy or DP break algorithm based on user setting.
- */
-function computeSystemBreaks(boundaries, pageWidth, leftMargin) {
-	if (getBreakAlgorithm() === 'greedy') {
-		return computeSystemBreaksGreedy(boundaries, pageWidth, leftMargin)
-	}
-	return computeSystemBreaksDP(boundaries, pageWidth, leftMargin)
-}
-
-/**
- * Greedy algorithm: scans left-to-right, breaking whenever the next measure
- * would overflow the page width.  Simple and fast, but can produce uneven
- * line lengths (e.g. last line with a single measure).
- */
-function computeSystemBreaksGreedy(boundaries, pageWidth) {
-	if (boundaries.length === 0) return []
-
-	const breaks = []
-	let systemStartX = 0
-	let systemIndex = 0
-
-	for (let i = 0; i < boundaries.length; i++) {
-		const b = boundaries[i]
-		const measureWidth = b.x - systemStartX
-
-		// Always break on explicit NWC system breaks
-		if (b.systemBreak && i < boundaries.length - 1) {
-			breaks.push({ x: b.x, boundaryIndex: i, systemIndex })
-			systemIndex++
-			systemStartX = b.x
-			continue
-		}
-
-		// Auto-break: if this measure pushes past the page width,
-		// break at the *previous* barline (unless this is the first measure
-		// in the system, in which case we must include it regardless).
-		if (measureWidth > pageWidth && i > 0) {
-			const prevB = boundaries[i - 1]
-			if (breaks.length === 0 || breaks[breaks.length - 1].x !== prevB.x) {
-				breaks.push({ x: prevB.x, boundaryIndex: i - 1, systemIndex })
-				systemIndex++
-				systemStartX = prevB.x
-			}
-			if (b.x - systemStartX > pageWidth && i < boundaries.length - 1) {
-				breaks.push({ x: b.x, boundaryIndex: i, systemIndex })
-				systemIndex++
-				systemStartX = b.x
-			}
-		}
-	}
-
-	return breaks
-}
-
-/**
  * Given measure boundaries and an available width, decide which barlines are
  * system break points using dynamic programming to minimize total "badness"
- * across all systems (inspired by Knuth-Plass).
+ * across all systems (Knuth-Plass style).
  *
  * Breaks only occur at barlines.  Explicit NWC systemBreak flags act as
  * forced breaks that partition the problem into independent segments.
@@ -284,7 +229,7 @@ function computeSystemBreaksGreedy(boundaries, pageWidth) {
  *
  * Returns an array of break objects: { x, boundaryIndex, systemIndex }
  */
-function computeSystemBreaksDP(boundaries, pageWidth, leftMargin) {
+function computeSystemBreaks(boundaries, pageWidth, leftMargin) {
 	if (boundaries.length === 0) return []
 
 	// Split boundaries into segments divided by forced breaks.
@@ -710,12 +655,58 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		courtesyWidths.push(maxCourtesyWidth + spacerWidth())
 	}
 
-	// --- Compute per-system natural widths and stretch factors ---
+	// --- Compute per-system natural widths ---
 	var systemNaturalWidths = []
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
 		var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
 		var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
 		systemNaturalWidths.push(sysEndX - sysStartX)
+	}
+
+	// --- Build per-system barline maps for measure-level justification ---
+	// For each system, collect the barline X positions (in original single-line
+	// coords, relative to system start).  Extra space will be distributed at
+	// these boundaries so that note units (head, stem, dots, accidentals)
+	// stay together within each measure.
+	var systemBarlineMaps = [] // array of { relBarXs[], cumulativeOffsets[] } per system
+	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+		var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
+		var naturalWidth = systemNaturalWidths[sysIdx]
+		var courtesyW = courtesyWidths[sysIdx]
+		var contentWidth = pageWidth - courtesyW
+		var isLastSystem = sysIdx === systemCount - 1
+		var shouldJustify = !isLastSystem || (naturalWidth / contentWidth > 0.6)
+		var extraSpace = shouldJustify ? contentWidth - naturalWidth : 0
+
+		// Collect barline X positions within this system (relative to sysStartX)
+		var relBarXs = []
+		for (var bi = 0; bi < boundaries.length; bi++) {
+			var bx = boundaries[bi].x
+			if (bx > sysStartX && bx <= sysEndX) {
+				relBarXs.push(bx - sysStartX)
+			}
+		}
+
+		// Distribute extra space proportionally across measures.
+		// Each measure gets extra space proportional to its natural width.
+		// The offset at each barline is the cumulative extra space up to that point.
+		var cumulativeOffsets = [] // offset at each barline index
+		if (relBarXs.length > 0 && extraSpace !== 0) {
+			var totalMeasureSpan = relBarXs[relBarXs.length - 1] || 1
+			var cumOffset = 0
+			for (var mi = 0; mi < relBarXs.length; mi++) {
+				var ratio = relBarXs[mi] / totalMeasureSpan
+				cumOffset = extraSpace * ratio
+				cumulativeOffsets.push(cumOffset)
+			}
+		} else {
+			for (var mi = 0; mi < relBarXs.length; mi++) {
+				cumulativeOffsets.push(0)
+			}
+		}
+
+		systemBarlineMaps.push({ relBarXs, cumulativeOffsets, extraSpace })
 	}
 
 	// --- Reflow all existing drawing elements into systems with justification ---
@@ -730,42 +721,36 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			else break
 		}
 
-		// Compute relative X within this system (before justification)
+		// Compute relative X within this system
 		var systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
 		var relX = el.x - systemStartX
 
-		// Available width for music content = pageWidth minus courtesy space
+		// Measure-level justification: find which measure this element is in
+		// and apply the cumulative offset for that measure.  Elements within
+		// the same measure all get the same offset, keeping note units
+		// (notehead, stem, dots, accidentals, beams) together.
 		var courtesyW = courtesyWidths[sysIdx]
-		var contentWidth = pageWidth - courtesyW
-
-		// Justify: stretch X proportionally so the system fills the available width.
-		// Don't stretch the last system if it's significantly short.
-		var naturalWidth = systemNaturalWidths[sysIdx]
-		var isLastSystem = sysIdx === systemCount - 1
-		var stretchFactor = 1.0
-		if (naturalWidth > 0 && contentWidth > 0) {
-			var fillRatio = naturalWidth / contentWidth
-			if (!isLastSystem || fillRatio > 0.6) {
-				stretchFactor = contentWidth / naturalWidth
+		var barlineMap = systemBarlineMaps[sysIdx]
+		var justifyOffset = 0
+		if (barlineMap.relBarXs.length > 0) {
+			// Find the last barline at or before this element's position
+			var mIdx = -1
+			for (var bi = 0; bi < barlineMap.relBarXs.length; bi++) {
+				if (relX >= barlineMap.relBarXs[bi]) mIdx = bi
+				else break
 			}
+			justifyOffset = mIdx >= 0 ? barlineMap.cumulativeOffsets[mIdx] : 0
 		}
 
-		el.x = relX * stretchFactor + leftMargin + courtesyW
+		el.x = relX + justifyOffset + leftMargin + courtesyW
 
 		// Shift Y: add the system's vertical offset
 		var yShift = sysIdx * (systemHeight + interSystemGap)
 		el.y = el.y + yShift
 
-		// For Tie objects, also shift the absolute end-Y coordinate and
-		// adjust the width for the new stretch factor
+		// For Tie objects, also shift the absolute end-Y coordinate
 		if (el.endy != null) {
 			el.endy = el.endy + yShift
-		}
-		// Ties store width = endx - startx (in original coords).
-		// After stretching, the width needs to scale by the same factor.
-		if (el.endx != null && el.width != null && stretchFactor !== 1.0) {
-			el.width = el.width * stretchFactor
-			el.endx = el.x + el.width
 		}
 	}
 

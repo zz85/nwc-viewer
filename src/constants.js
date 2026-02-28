@@ -28,18 +28,6 @@ function getLayoutMode() {
 	return layoutMode
 }
 
-// Line-breaking algorithm — 'greedy' breaks when the next measure overflows;
-// 'optimal' uses DP to minimize total badness across all systems (Knuth-Plass style).
-let breakAlgorithm = 'optimal'
-
-function setBreakAlgorithm(algo) {
-	if (algo === 'greedy' || algo === 'optimal') breakAlgorithm = algo
-}
-
-function getBreakAlgorithm() {
-	return breakAlgorithm
-}
-
 // Visual zoom level — applied as a canvas transform in quickDraw().
 // This does NOT trigger a re-layout; it simply scales the rendered output.
 // Use setFontSize() to change the actual music engraving size (requires re-layout).
@@ -75,8 +63,6 @@ Object.assign(!isBrowser() ? global : window, {
 	ZOOM_MAX,
 	setLayoutMode,
 	getLayoutMode,
-	setBreakAlgorithm,
-	getBreakAlgorithm,
 })
 
 export {
@@ -84,5 +70,4 @@ export {
 	FONT_SIZE, setFontSize, getFontSize,
 	setZoomLevel, getZoomLevel, ZOOM_MIN, ZOOM_MAX,
 	setLayoutMode, getLayoutMode,
-	setBreakAlgorithm, getBreakAlgorithm,
 }
