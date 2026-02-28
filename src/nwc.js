@@ -204,6 +204,7 @@ function adaptObject(obj) {
 		case 2: // Barline
 			token.barline = obj.getStyle ? obj.getStyle() : (obj.style & 0x7F)
 			token.repeat = obj.repeatCount || 2
+			token.systemBreak = obj.systemBreak ? obj.systemBreak() : false
 			break
 
 		case 3: // Ending
@@ -619,6 +620,10 @@ function mapTokens(token) {
 			break
 		case 'Bar':
 			token.type = 'Barline'
+			// Map nwctxt barline style names to numeric style codes
+			var barStyles = { Single: 0, Double: 1, SectionOpen: 2, SectionClose: 3, LocalRepeatOpen: 4, LocalRepeatClose: 5, MasterRepeatOpen: 6, MasterRepeatClose: 7 }
+			if (token.Style) token.barline = barStyles[token.Style] || 0
+			if (token.SysBreak === 'Y') token.systemBreak = true
 			break
 		case 'Rest':
 			return Object.assign(

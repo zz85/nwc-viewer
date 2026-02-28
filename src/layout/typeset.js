@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit } from '../drawing.js'
@@ -127,6 +127,128 @@ let absCounter = 0
 let drawing // placeholder for drawing system
 let info // running debug info
 
+/**
+ * Collects barline X positions from the first staff to identify measure boundaries.
+ * Returns an array of { x, tokenIndex, systemBreak } for each barline.
+ */
+function collectMeasureBoundaries(staves) {
+	// Use the first stave (index 0) as the reference for measure boundaries.
+	// All staves share the same barline positions due to TickTracker alignment.
+	const tokens = staves[0]?.tokens || []
+	const boundaries = []
+	for (let i = 0; i < tokens.length; i++) {
+		const token = tokens[i]
+		if (token.type === 'Barline' && token.drawingBarline) {
+			boundaries.push({
+				x: token.drawingBarline.x,
+				tokenIndex: i,
+				systemBreak: !!token.systemBreak,
+			})
+		}
+	}
+	return boundaries
+}
+
+/**
+ * Given measure boundaries and an available width, decide which barlines are
+ * system break points.  Respects explicit NWC systemBreak flags; if none are
+ * present (or between them), auto-breaks when the next measure would exceed
+ * the page width.
+ *
+ * Returns an array of break objects: { x, systemIndex }
+ * where `x` is the barline X after which we break to a new system.
+ * The first system implicitly starts at x=0.
+ */
+function computeSystemBreaks(boundaries, pageWidth, leftMargin) {
+	if (boundaries.length === 0) return []
+
+	const breaks = [] // each entry: { x, boundaryIndex }
+	let systemStartX = 0
+	let systemIndex = 0
+
+	for (let i = 0; i < boundaries.length; i++) {
+		const b = boundaries[i]
+		const measureEndX = b.x
+		const measureWidth = measureEndX - systemStartX
+
+		// Always break on explicit NWC system breaks
+		if (b.systemBreak && i < boundaries.length - 1) {
+			breaks.push({ x: b.x, boundaryIndex: i, systemIndex })
+			systemIndex++
+			systemStartX = b.x
+			continue
+		}
+
+		// Auto-break: if this measure pushes past the page width,
+		// break at the *previous* barline (unless this is the first measure
+		// in the system, in which case we must include it regardless).
+		if (measureWidth > pageWidth && i > 0) {
+			// Break at the previous boundary
+			const prevB = boundaries[i - 1]
+			// Only add if we haven't already broken here
+			if (breaks.length === 0 || breaks[breaks.length - 1].x !== prevB.x) {
+				breaks.push({ x: prevB.x, boundaryIndex: i - 1, systemIndex })
+				systemIndex++
+				systemStartX = prevB.x
+			}
+			// Re-check current measure against the new system start
+			if (b.x - systemStartX > pageWidth && i < boundaries.length - 1) {
+				// This single measure is wider than the page — include it anyway
+				// and break after it
+				breaks.push({ x: b.x, boundaryIndex: i, systemIndex })
+				systemIndex++
+				systemStartX = b.x
+			}
+		}
+	}
+
+	return breaks
+}
+
+/**
+ * Repositions all drawing elements from a single-line layout into wrapped
+ * systems.  Each system starts at `leftMargin` and elements are shifted
+ * vertically by the system's Y offset.
+ *
+ * `systemBreaks` — array from computeSystemBreaks()
+ * `systemHeight` — vertical space per system (all staves + gaps)
+ * `staffYMap` — per-stave Y offsets within a system (relative to system top)
+ * `drawingSet` — the Drawing.set of all elements
+ * `staves` — stave data array
+ */
+function reflowIntoSystems(drawingSet, systemBreaks, systemHeight, numStaves,
+	leftMargin, interSystemGap) {
+	if (systemBreaks.length === 0) return { systemCount: 1, totalHeight: 0 }
+
+	// Build a sorted list of break X positions for fast lookup
+	const breakXs = systemBreaks.map(b => b.x)
+
+	// For each drawing element, determine which system it belongs to
+	// based on its X position, then shift it.
+	const systemCount = breakXs.length + 1
+
+	for (const el of drawingSet) {
+		// Determine which system this element belongs to
+		let sysIdx = 0
+		for (let i = 0; i < breakXs.length; i++) {
+			if (el.x > breakXs[i]) sysIdx = i + 1
+			else break
+		}
+
+		// Shift X: subtract the system start X, add left margin
+		const systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+		el.x = el.x - systemStartX + leftMargin
+
+		// Shift Y: add the system's vertical offset
+		el.y = el.y + sysIdx * (systemHeight + interSystemGap)
+	}
+
+	return {
+		systemCount,
+		totalHeight: systemCount * (systemHeight + interSystemGap),
+	}
+}
+
 /* Rerenders all drawing objects */
 function quickDraw(dataOrContext, x, y) {
 	const ctx = dataOrContext?.getContext ? dataOrContext.getContext() : window.ctx
@@ -238,6 +360,23 @@ function score(dataOrContext) {
 	/* Layout Ties */
 	layoutTies(drawing, data)
 
+	// ---- Wrap mode: reflow into systems ----
+	const isWrapMode = getLayoutMode() === 'wrap'
+
+	if (isWrapMode) {
+		scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas)
+	} else {
+		scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas)
+	}
+}
+
+/**
+ * Original single-line (scroll) layout — draws staves, brackets, braces, labels,
+ * title/author, and sizes the spacer for horizontal scrolling.
+ */
+function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
+	var fs = getFontSize()
+
 	/* Layout staves */
 	// endingBar staff property → BarStyle mapping
 	var endingBarStyles = [3, 7, 0, 1, 8] // SectionClose, MasterClose, Single, Double, Hidden
@@ -300,18 +439,149 @@ function score(dataOrContext) {
 
 	maxCanvasHeight = bottom + 100
 
-	// Render bracket/brace connectors between grouped staves.
-	// All drawn as Path objects at position (0,0) using absolute coordinates,
-	// because Drawing._draw() applies ctx.translate(el.x, el.y) before calling
-	// el.draw() — using Line would double-apply the position.
+	drawBracketsAndBraces(drawing, staves, 0)
+	drawStaffLabels(drawing, staves, 0)
+	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
+	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
+}
+
+/**
+ * Multi-system (wrap) layout — reflows the single-line layout into wrapped
+ * systems that fit the available canvas/page width.
+ */
+function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var fs = getFontSize()
-	var bracketX = fs * 0.55
-	var braceX = fs * 0.35
+	var scoreElm = document.getElementById('score')
+
+	// Determine the available page width (in score-space, before zoom).
+	// Use the viewport width minus small margins.
+	var zoom = getZoomLevel()
+	var pageWidth = (scoreElm?.clientWidth || 800) / zoom - fs * 1.5
+
+	// Calculate system height: distance from top of first stave to bottom
+	// of last stave, plus some padding.
+	var firstStaffY = getStaffY(0)
+	var lastStaffY = getStaffY(staves.length - 1)
+	var systemHeight = (lastStaffY - firstStaffY) + fs  // top-of-first to bottom-of-last
+
+	var leftMargin = fs * 0.9  // space for brackets/braces/labels
+	var interSystemGap = fs * 1.5  // vertical gap between systems
+
+	// First, draw the ending barline on each stave in the single-line layout
+	// (so it gets reflowed with everything else).
+	var endingBarStyles = [3, 7, 0, 1, 8]
+	stavePointers.forEach((cursor, staveIndex) => {
+		// Add the final stave segment
+		addStave(cursor, staveIndex)
+
+		var stave = staves[staveIndex]
+		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
+		if (ebStyle !== 8) {
+			cursor.incStaveX(spacerWidth() * 2)
+			var eb = new Barline(0, 8, ebStyle)
+			cursor.posGlyph(eb)
+			drawing.add(eb)
+		}
+	})
+
+	// Track the single-line total width before reflow
+	var singleLineWidth = 0
+	stavePointers.forEach(cursor => {
+		singleLineWidth = Math.max(cursor.staveX, singleLineWidth)
+	})
+
+	// Collect measure boundaries from barline positions on the first stave
+	var boundaries = collectMeasureBoundaries(staves)
+
+	// Compute system breaks
+	// The single-line layout starts content at ~fs from the left (StaveCursor
+	// initial staveX).  Account for this so the first system's width is
+	// measured correctly relative to the page width.
+	var systemBreaks = computeSystemBreaks(boundaries, pageWidth, leftMargin)
+
+	// Build the break X list for the reflow
+	var breakXs = systemBreaks.map(b => b.x)
+	var systemCount = breakXs.length + 1
+
+	// --- Remove single-line stave segments and Path objects (they'll be redrawn per-system) ---
+	// Stave segments from the inline layout need to be redrawn per-system.
+	// Path objects (barline connectors, etc.) use absolute coordinates in their
+	// draw callbacks, so they can't be repositioned — remove and let per-system
+	// bracket/brace drawing handle connectors.
+	var toRemove = []
+	for (const el of drawing.set) {
+		if (el instanceof Stave || el instanceof Claire.Path) toRemove.push(el)
+	}
+	toRemove.forEach(s => drawing.remove(s))
+
+	// --- Reflow all existing drawing elements into systems ---
+	for (const el of drawing.set) {
+		// Skip elements without position (shouldn't happen, but be safe)
+		if (el.x == null || el.y == null) continue
+
+		// Determine which system this element belongs to based on original X
+		let sysIdx = 0
+		for (let i = 0; i < breakXs.length; i++) {
+			if (el.x > breakXs[i]) sysIdx = i + 1
+			else break
+		}
+
+		// Shift X: subtract the system start X, add left margin
+		var systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+		el.x = el.x - systemStartX + leftMargin
+
+		// Shift Y: add the system's vertical offset
+		var yShift = sysIdx * (systemHeight + interSystemGap)
+		el.y = el.y + yShift
+
+		// For Tie objects, also shift the absolute end-Y coordinate
+		// (Tie.draw uses this.endy - this.y for the relative endpoint)
+		if (el.endy != null) {
+			el.endy = el.endy + yShift
+		}
+	}
+
+	// --- Draw per-system stave lines ---
+	// For each system, we need stave lines spanning the full width of that system.
+	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+		var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
+		var sysWidth = sysEndX - sysStartX
+		var yOffset = sysIdx * (systemHeight + interSystemGap)
+
+		for (var si = 0; si < staves.length; si++) {
+			var staveEl = new Stave(sysWidth)
+			staveEl.moveTo(leftMargin, getStaffY(si) + yOffset)
+			drawing.add(staveEl)
+		}
+
+		// Draw brackets, braces, and labels for each system
+		drawBracketsAndBraces(drawing, staves, yOffset, leftMargin)
+		drawStaffLabels(drawing, staves, yOffset, leftMargin)
+	}
+
+	// Calculate canvas dimensions for wrapped layout
+	var totalHeight = systemCount * (systemHeight + interSystemGap) + firstStaffY
+	maxCanvasWidth = pageWidth + leftMargin + fs
+	maxCanvasHeight = totalHeight + fs * 2
+
+	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
+	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
+}
+
+/**
+ * Draw system bracket and per-group braces at a given Y offset.
+ * Used once per system in wrap mode, once total in scroll mode.
+ */
+function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
+	var fs = getFontSize()
+	var bracketX = leftMarginOverride !== undefined ? leftMarginOverride * 0.6 : fs * 0.55
+	var braceX = leftMarginOverride !== undefined ? leftMarginOverride * 0.4 : fs * 0.35
 
 	// Collect visible staff Y positions (deduplicate layered staves at same Y)
 	var visibleYs = []
 	for (var vi = 0; vi < staves.length; vi++) {
-		var vy = getStaffY(vi)
+		var vy = getStaffY(vi) + yOffset
 		if (visibleYs.length === 0 || visibleYs[visibleYs.length - 1] !== vy) {
 			visibleYs.push(vy)
 		}
@@ -343,8 +613,8 @@ function score(dataOrContext) {
 			while (endSi < staves.length - 1 && staves[endSi].braceWithNext) {
 				endSi++
 			}
-			let topY = getStaffY(si) - fs * 0.15
-			let botY = getStaffY(endSi) + fs * 1.05
+			let topY = getStaffY(si) + yOffset - fs * 0.15
+			let botY = getStaffY(endSi) + yOffset + fs * 1.05
 			let braceH = botY - topY
 			let midY = topY + braceH / 2
 			let curveW = fs * 0.5
@@ -364,15 +634,20 @@ function score(dataOrContext) {
 			drawing.add(brace)
 		}
 	}
+}
 
-	// Draw staff labels to the left of each visible stave
+/**
+ * Draw staff labels to the left of each visible stave.
+ */
+function drawStaffLabels(drawing, staves, yOffset, leftMarginOverride) {
+	var fs = getFontSize()
 	for (var li = 0; li < staves.length; li++) {
 		var label = staves[li].staff_label || ''
 		if (!label) continue
 		// Skip duplicate labels for layered staves at the same Y
 		if (li > 0 && getStaffY(li) === getStaffY(li - 1)) continue
-		var labelY = getStaffY(li) - fs * 0.5 // vertically centered on staff
-		var labelX = fs * 0.05
+		var labelY = getStaffY(li) + yOffset - fs * 0.5 // vertically centered on staff
+		var labelX = leftMarginOverride !== undefined ? leftMarginOverride * 0.05 : fs * 0.05
 		var labelDraw = new Claire.Text(label, 0, {
 			font: Math.round(fs * 0.6) + "px Arial, 'Segoe UI', sans-serif",
 			textAlign: 'left',
@@ -380,17 +655,20 @@ function score(dataOrContext) {
 		labelDraw.moveTo(labelX, labelY)
 		drawing.add(labelDraw)
 	}
+}
 
+/**
+ * Draw title and author centered above the score.
+ */
+function drawTitleAndAuthor(drawing, data, canvasWidth) {
 	var { title, author, copyright1, copyright2 } = data.info || {}
 
-	// Use canvas width (set after resize) for centering — not window.innerWidth
-	// which can differ in headless/embedded contexts.
-	var middle = maxCanvasWidth / 2
+	var middle = canvasWidth / 2
 	if (title) {
 		const titleDrawing = new Claire.Text(title, 0, {
 			font: "bold 20px Arial, 'Segoe UI', sans-serif",
 			textAlign: 'center',
-		}) // italic bold
+		})
 		titleDrawing.moveTo(middle, 40)
 		drawing.add(titleDrawing)
 	}
@@ -399,35 +677,31 @@ function score(dataOrContext) {
 		const authorDrawing = new Claire.Text(author, 0, {
 			font: "italic 14px Arial, 'Segoe UI', sans-serif",
 			textAlign: 'center',
-		}) // italic bold
+		})
 		authorDrawing.moveTo(middle, 60)
 		drawing.add(authorDrawing)
 	}
-	footer.innerText = copyright1 + '\n' + copyright2
+	var footerEl = document.getElementById('footer')
+	if (footerEl) footerEl.innerText = (copyright1 || '') + '\n' + (copyright2 || '')
+}
 
-	// Size the invisible_canvas spacer BEFORE rendering so the browser can
-	// clamp scrollLeft / scrollTop to the new content bounds (e.g. after zoom
-	// changes the score dimensions).  The spacer dimensions are in screen-space
-	// (score-space × zoom) so the scrollbar range matches the zoomed extent.
+/**
+ * Size the invisible_canvas spacer and trigger the initial render.
+ */
+function sizeSpacerAndRender(canvas, canvasWidth, canvasHeight) {
 	var invisible_canvas = document.getElementById('invisible_canvas')
 	var scoreElm = document.getElementById('score')
 	var zoom = getZoomLevel()
-	invisible_canvas.style.width = `${maxCanvasWidth * zoom}px`
+	invisible_canvas.style.width = `${canvasWidth * zoom}px`
 	invisible_canvas.style.height = `${Math.max(
-		maxCanvasHeight * zoom,
+		canvasHeight * zoom,
 		scoreElm.clientHeight
 	)}px`
 
-	// Virtual rendering: keep the canvas at viewport size and let the
-	// invisible_canvas spacer provide the scrollable area.  On each scroll
-	// frame quickDraw() re-renders only the visible portion via
-	// ctx.translate() + viewport culling in Drawing._draw().
 	if (canvas) {
 		resizeToFit()
 	}
 
-	// Draw the visible portion of the score, offset by the current scroll
-	// position (now correctly clamped by the spacer resize above).
 	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 }
 
@@ -581,6 +855,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			cursor.posGlyph(s)
 			s._text = info
 			drawing.add(s)
+			token.drawingBarline = s
 
 			// Connect barlines to next staff if flagged, or if staves are layered
 			// (layered grand staves implicitly share barlines, matching NWC Viewer)

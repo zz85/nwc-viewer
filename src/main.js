@@ -1,4 +1,5 @@
 import './constants.js'
+import { getLayoutMode } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { interpret } from './interpreter.js'
@@ -15,9 +16,14 @@ import { MusicContext } from './context.js'
  **********************/
 
 window.addEventListener('resize', () => {
-	resizeToFit()
-	var scoreElm = document.getElementById('score')
-	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+	if (getLayoutMode() === 'wrap') {
+		// In wrap mode, the layout depends on viewport width — must re-layout
+		rerender()
+	} else {
+		resizeToFit()
+		var scoreElm = document.getElementById('score')
+		quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+	}
 })
 
 if (location.hostname === 'localhost') {
@@ -444,3 +450,27 @@ if (storedParser !== null) {
 	setUseNewParser(storedParser === 'true')
 }
 updateParserButton()
+
+// ---- Layout mode toggle (scroll vs wrap) ----
+
+const LAYOUT_STORAGE_KEY = 'nwc_layout_mode'
+
+function updateLayoutButton() {
+	const btn = document.getElementById('layout_toggle')
+	if (btn) btn.textContent = getLayoutMode() === 'wrap' ? 'Wrap' : 'Scroll'
+}
+
+window.toggleLayout = function () {
+	const next = getLayoutMode() === 'scroll' ? 'wrap' : 'scroll'
+	setLayoutMode(next)
+	localStorage.setItem(LAYOUT_STORAGE_KEY, next)
+	updateLayoutButton()
+	rerender()
+}
+
+// Restore persisted layout preference
+const storedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY)
+if (storedLayout === 'wrap' || storedLayout === 'scroll') {
+	setLayoutMode(storedLayout)
+}
+updateLayoutButton()

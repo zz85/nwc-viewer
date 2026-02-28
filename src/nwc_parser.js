@@ -120,9 +120,11 @@ function parseKeySignature(reader) {
 }
 
 function parseBarline(reader) {
+	var styleByte = reader.readByte()
 	return new Token({
 		type: 'Barline',
-		barline: reader.readByte() & 15,
+		barline: styleByte & 0x7F,
+		systemBreak: (styleByte & 0x80) !== 0,
 		repeat: reader.readByte(),
 	})
 }
