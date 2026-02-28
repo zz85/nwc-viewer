@@ -3,6 +3,65 @@ import { Stem, Glyph, Beam } from '../drawing.js'
 
 let drawing, data
 
+/**
+ * Pure function: given an array of duration values (8, 16, 32, ...),
+ * compute the primary beam count and which notes need sub-beams.
+ *
+ * Returns { primaryBeamCount, subBeams } where subBeams is an array of
+ * { index, extraBeams, stubStartIdx, stubEndIdx } describing each partial
+ * beam segment to draw.
+ */
+function computeBeamLayout(durations) {
+	if (durations.length < 2) return { primaryBeamCount: 0, subBeams: [] }
+
+	const minDuration = Math.min(...durations)
+	const primaryBeamCount = Math.floor(Math.log2(minDuration / 4))
+	const subBeams = []
+
+	// For each beam level beyond the primary, find contiguous runs of notes
+	// at that level and emit one segment per run (avoids double-drawing).
+	const maxBeams = Math.floor(Math.log2(Math.max(...durations) / 4))
+	for (let level = primaryBeamCount + 1; level <= maxBeams; level++) {
+		// Walk through notes, collecting runs at this level
+		let runStart = -1
+		for (let i = 0; i <= durations.length; i++) {
+			const noteBeams = i < durations.length
+				? Math.floor(Math.log2(durations[i] / 4))
+				: 0
+			if (noteBeams >= level) {
+				if (runStart === -1) runStart = i
+			} else {
+				if (runStart !== -1) {
+					const runEnd = i - 1
+					if (runStart === runEnd) {
+						// Isolated note — stub toward nearest neighbor
+						const prevIdx = runStart > 0 ? runStart - 1 : null
+						const nextIdx = runStart < durations.length - 1 ? runStart + 1 : null
+						subBeams.push({
+							level,
+							startIdx: runStart,
+							endIdx: runStart,
+							stub: true,
+							neighborIdx: nextIdx !== null ? nextIdx : prevIdx
+						})
+					} else {
+						// Run of 2+ notes — full beam across the run
+						subBeams.push({
+							level,
+							startIdx: runStart,
+							endIdx: runEnd,
+							stub: false
+						})
+					}
+					runStart = -1
+				}
+			}
+		}
+	}
+
+	return { primaryBeamCount, subBeams }
+}
+
 function groupBeamableNotes(tokens) {
 	const groups = []
 	let currentGroup = []
@@ -57,17 +116,25 @@ function groupBeamableNotes(tokens) {
 function drawBeamGroup(group) {
 	if (group.length < 2) return
 
-	// Determine stem direction for the group
-	const avgPosition = group.reduce((sum, token) => {
-		if (token.type === 'Chord') {
-			const notes = token.notes
-			const avg = notes.reduce((s, n) => s + n.position, 0) / notes.length
-			return sum + avg
-		}
-		return sum + token.position
-	}, 0) / group.length
-
-	const stemUp = avgPosition >= 0
+	// Use the stored stem direction from the NWC file if available.
+	// stem: 1 = up, 2 = down.  Fall back to average-position heuristic.
+	const firstStemDir = group[0].stem
+	let stemUp
+	if (firstStemDir === 1) {
+		stemUp = true
+	} else if (firstStemDir === 2) {
+		stemUp = false
+	} else {
+		const avgPosition = group.reduce((sum, token) => {
+			if (token.type === 'Chord') {
+				const notes = token.notes
+				const avg = notes.reduce((s, n) => s + n.position, 0) / notes.length
+				return sum + avg
+			}
+			return sum + token.position
+		}, 0) / group.length
+		stemUp = avgPosition >= 0
+	}
 
 	// Calculate stem endpoints for each note
 	const stemData = group.map(token => {
@@ -109,17 +176,50 @@ function drawBeamGroup(group) {
 		drawing.add(stem)
 	})
 
-	// Draw beams
-	const beamCount = Math.floor(Math.log2(stemData[0].duration / 4))
+	// Draw beams using computeBeamLayout to avoid double-drawing sub-beams.
+	const durations = stemData.map(d => d.duration)
+	const { primaryBeamCount, subBeams } = computeBeamLayout(durations)
 	const firstStem = stemData[0]
 	const lastStem = stemData[stemData.length - 1]
 
 	const startY = stemUp ? firstStem.relativePos + firstStem.stemLen : firstStem.relativePos - firstStem.stemLen
 	const endY = stemUp ? lastStem.relativePos + lastStem.stemLen : lastStem.relativePos - lastStem.stemLen
 
-	const beam = new Beam(startY, endY, 0, lastStem.x - firstStem.x, beamCount)
-	beam.moveTo(firstStem.x, firstStem.y)
-	drawing.add(beam)
+	const primaryBeam = new Beam(startY, endY, 0, lastStem.x - firstStem.x, primaryBeamCount)
+	primaryBeam.stemUp = stemUp
+	primaryBeam.moveTo(firstStem.x, firstStem.y)
+	drawing.add(primaryBeam)
+
+	// Draw sub-beams (partial/full segments for finer-duration notes).
+	const totalX = lastStem.x - firstStem.x || 1
+	for (const seg of subBeams) {
+		let segStartX, segEndX
+		if (seg.stub) {
+			// Isolated fine note — 60% stub toward nearest neighbor
+			const curr = stemData[seg.startIdx]
+			const neighbor = stemData[seg.neighborIdx]
+			if (!neighbor) continue
+			const gap = neighbor.x - curr.x
+			segStartX = curr.x - firstStem.x
+			segEndX = segStartX + gap * 0.4
+		} else {
+			// Full sub-beam across a run of fine notes
+			segStartX = stemData[seg.startIdx].x - firstStem.x
+			segEndX = stemData[seg.endIdx].x - firstStem.x
+		}
+
+		// Interpolate Y along the primary beam line
+		const segStartRatio = segStartX / totalX
+		const segEndRatio = segEndX / totalX
+		const segStartY = startY + (endY - startY) * segStartRatio
+		const segEndY = startY + (endY - startY) * segEndRatio
+
+		const subBeam = new Beam(segStartY, segEndY, segStartX, segEndX, 1)
+		subBeam.stemUp = stemUp
+		subBeam._beamOffset = seg.level
+		subBeam.moveTo(firstStem.x, firstStem.y)
+		drawing.add(subBeam)
+	}
 }
 
 var beam_handler = {
@@ -249,4 +349,4 @@ function layoutBeaming(_drawing, _data) {
 	})
 }
 
-export { layoutBeaming }
+export { layoutBeaming, computeBeamLayout, groupBeamableNotes }

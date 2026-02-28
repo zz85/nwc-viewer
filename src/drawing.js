@@ -518,10 +518,14 @@ class Beam extends Draw {
 
 	draw(ctx) {
 		const beamThickness = getFontSize() / 10
-		const beamSpacing = getFontSize() / 4
+		const beamSpacing = beamThickness * 1.0
+		// Stems-up: additional beams stack downward (toward noteheads) → positive offset.
+		// Stems-down: additional beams stack upward (toward noteheads) → negative offset.
+		const dir = this.stemUp === false ? -1 : 1
+		const baseOffset = (this._beamOffset || 0) * beamSpacing * dir
 
 		for (let i = 0; i < this.count; i++) {
-			const offsetY = i * beamSpacing
+			const offsetY = baseOffset + i * beamSpacing * dir
 			ctx.beginPath()
 			ctx.moveTo(this.startX, this.unitsToY(this.startY) + offsetY)
 			ctx.lineTo(this.endX, this.unitsToY(this.endY) + offsetY)

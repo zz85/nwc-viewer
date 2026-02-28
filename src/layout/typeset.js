@@ -171,6 +171,7 @@ function score(dataOrContext) {
 
 	const staves = data.score.staves
 	currentStaves = staves
+	currentAllowLayering = data.score.allowLayering !== false
 	buildStaffYMap(staves, data.score.allowLayering)
 	const stavePointers = staves.map(
 		(stave, staveIndex) => new StaveCursor(stave, staveIndex)
@@ -254,56 +255,63 @@ function score(dataOrContext) {
 	// because Drawing._draw() applies ctx.translate(el.x, el.y) before calling
 	// el.draw() — using Line would double-apply the position.
 	var fs = getFontSize()
-	var bracketX = fs * 0.3
-	var braceX = fs * 0.15
+	var bracketX = fs * 0.08
+	var braceX = fs * 0.04
+
+	// Collect visible staff Y positions (deduplicate layered staves at same Y)
+	var visibleYs = []
+	for (var vi = 0; vi < staves.length; vi++) {
+		var vy = getStaffY(vi)
+		if (visibleYs.length === 0 || visibleYs[visibleYs.length - 1] !== vy) {
+			visibleYs.push(vy)
+		}
+	}
+
+	// Draw a system bracket when there are multiple visible staves
+	if (visibleYs.length > 1) {
+		let topY = visibleYs[0] - fs
+		let botY = visibleYs[visibleYs.length - 1]
+		let hookLen = fs * 0.25
+		let lw = fs / 12
+		var sysBracket = new Claire.Path(function(ctx) {
+			ctx.beginPath()
+			ctx.lineWidth = lw
+			ctx.moveTo(bracketX + hookLen, topY)
+			ctx.lineTo(bracketX, topY)
+			ctx.lineTo(bracketX, botY)
+			ctx.lineTo(bracketX + hookLen, botY)
+			ctx.stroke()
+		})
+		drawing.add(sysBracket)
+	}
+
+	// Draw per-group braces for explicit braceWithNext flags
 	for (var si = 0; si < staves.length; si++) {
 		var stave = staves[si]
-		if (stave.bracketWithNext || stave.braceWithNext) {
-			// Find the last stave in this group (follow chain of same flag)
+		if (stave.braceWithNext) {
 			var endSi = si
-			while (endSi < staves.length - 1 &&
-				(stave.bracketWithNext ? staves[endSi].bracketWithNext : staves[endSi].braceWithNext)) {
+			while (endSi < staves.length - 1 && staves[endSi].braceWithNext) {
 				endSi++
 			}
-			var topY = getStaffY(si) - fs - fs * 0.15
-			var botY = getStaffY(endSi) + fs * 0.15
-
-			if (stave.bracketWithNext) {
-				var hookLen = fs * 0.2
-				var lw = fs / 16
-				var bracket = new Claire.Path(function(ctx) {
-					ctx.beginPath()
-					ctx.lineWidth = lw
-					ctx.moveTo(bracketX + hookLen, topY)
-					ctx.lineTo(bracketX, topY)
-					ctx.lineTo(bracketX, botY)
-					ctx.lineTo(bracketX + hookLen, botY)
-					ctx.stroke()
-				})
-				drawing.add(bracket)
-			}
-
-			if (stave.braceWithNext) {
-				var braceH = botY - topY
-				var midY = topY + braceH / 2
-				var curveW = fs * 0.5
-				var bLw = fs / 18
-				var brace = new Claire.Path(function(ctx) {
-					ctx.beginPath()
-					ctx.lineWidth = bLw
-					// Top half
-					ctx.moveTo(braceX + curveW, topY)
-					ctx.bezierCurveTo(braceX + curveW * 0.2, topY + braceH * 0.1,
-						braceX + curveW * 0.4, midY - braceH * 0.05,
-						braceX, midY)
-					// Bottom half
-					ctx.bezierCurveTo(braceX + curveW * 0.4, midY + braceH * 0.05,
-						braceX + curveW * 0.2, botY - braceH * 0.1,
-						braceX + curveW, botY)
-					ctx.stroke()
-				})
-				drawing.add(brace)
-			}
+			let topY = getStaffY(si) - fs * 0.15
+			let botY = getStaffY(endSi) + fs * 1.05
+			let braceH = botY - topY
+			let midY = topY + braceH / 2
+			let curveW = fs * 0.5
+			let bLw = fs / 18
+			var brace = new Claire.Path(function(ctx) {
+				ctx.beginPath()
+				ctx.lineWidth = bLw
+				ctx.moveTo(braceX + curveW, topY)
+				ctx.bezierCurveTo(braceX + curveW * 0.2, topY + braceH * 0.1,
+					braceX + curveW * 0.4, midY - braceH * 0.05,
+					braceX, midY)
+				ctx.bezierCurveTo(braceX + curveW * 0.4, midY + braceH * 0.05,
+					braceX + curveW * 0.2, botY - braceH * 0.1,
+					braceX + curveW, botY)
+				ctx.stroke()
+			})
+			drawing.add(brace)
 		}
 	}
 
@@ -361,12 +369,13 @@ function score(dataOrContext) {
 // Built once per score() call; consumed by getStaffY().
 var staffYMap = []
 var currentStaves = [] // reference to current staves array for handleToken
+var currentAllowLayering = true // file-level allowLayering flag
 
 function buildStaffYMap(staves, allowLayering) {
 	var fs = getFontSize()
 	var initialOffset = fs * 4
 	var intraGroupSpacing = fs * 1.8   // tighter spacing within a bracket/brace group
-	var interGroupSpacing = fs * 3.5   // wider gap between groups
+	var interGroupSpacing = fs * 5     // wider gap between groups for lyrics
 	var layerSpacing = 0               // layered staves overlap completely
 
 	staffYMap = []
@@ -495,15 +504,32 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s._text = info
 			drawing.add(s)
 
-			// Connect barlines to next staff if flagged
-			if (currentStaves[staveIndex] && currentStaves[staveIndex].connectBarsWithNext &&
-				staveIndex < currentStaves.length - 1) {
-				var thisY = getStaffY(staveIndex) + getFontSize() // bottom of this staff
-				var nextY = getStaffY(staveIndex + 1)            // top of next staff
+			// Connect barlines to next staff if flagged, or if staves are layered
+			// (layered grand staves implicitly share barlines, matching NWC Viewer)
+			var staveData = currentStaves[staveIndex]
+			var shouldConnect = staveData && staveIndex < currentStaves.length - 1 && (
+				staveData.connectBarsWithNext ||
+				((staveData.layerWithNext || staveData.bracketWithNext) && currentAllowLayering)
+			)
+			if (shouldConnect) {
+				// Find the next non-layered staff (skip staves at the same Y)
+				var nextSi = staveIndex + 1
+				while (nextSi < currentStaves.length - 1 && getStaffY(nextSi) === getStaffY(staveIndex)) {
+					nextSi++
+				}
+				let thisY = getStaffY(staveIndex) + getFontSize() // bottom of this staff
+				let nextY = getStaffY(nextSi)                    // top of next visible staff
 				if (nextY > thisY) {
-					var connLine = new Claire.Line(cursor.staveX, thisY, cursor.staveX, nextY)
-					connLine.moveTo(0, 0)
-					drawing.add(connLine)
+					let barX = cursor.staveX
+					let lw = getFontSize() / 24
+					var connPath = new Claire.Path(function(ctx) {
+						ctx.beginPath()
+						ctx.lineWidth = lw
+						ctx.moveTo(barX, thisY)
+						ctx.lineTo(barX, nextY)
+						ctx.stroke()
+					})
+					drawing.add(connPath)
 				}
 			}
 
