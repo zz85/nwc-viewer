@@ -721,11 +721,30 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// Collect measure boundaries from barline positions on the first stave
 	var boundaries = collectMeasureBoundaries(staves)
 
-	// Compute system breaks
-	// The single-line layout starts content at ~fs from the left (StaveCursor
-	// initial staveX).  Account for this so the first system's width is
-	// measured correctly relative to the page width.
-	var systemBreaks = computeSystemBreaks(boundaries, pageWidth, leftMargin)
+	// --- Collect running clef/key state for courtesy items ---
+	var runningState = collectRunningState(staves)
+
+	// Estimate courtesy width before computing breaks.  Systems > 0 will have
+	// courtesy clef + key signature at the start, reducing the available width
+	// for actual music content.  Use the state at the first barline as a
+	// representative estimate (clef/key rarely changes mid-piece).
+	var estimatedCourtesyWidth = 0
+	if (boundaries.length > 0) {
+		for (let si = 0; si < staves.length; si++) {
+			var state = runningState[si][0]
+			if (!state) continue
+			var { totalWidth } = createCourtesyItems(
+				state.clef, state.accidentals, state.clefForKey, 0
+			)
+			estimatedCourtesyWidth = Math.max(estimatedCourtesyWidth, totalWidth)
+		}
+		estimatedCourtesyWidth += spacerWidth()
+	}
+
+	// Compute system breaks using reduced page width that accounts for
+	// courtesy items on systems > 0.
+	var effectivePageWidth = pageWidth - estimatedCourtesyWidth
+	var systemBreaks = computeSystemBreaks(boundaries, effectivePageWidth, leftMargin)
 
 	// Build the break X list for the reflow
 	var breakXs = systemBreaks.map(b => b.x)
@@ -742,13 +761,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}
 	toRemove.forEach(s => drawing.remove(s))
 
-	// --- Collect running clef/key state for courtesy items ---
-	var runningState = collectRunningState(staves)
-
-	// For each system break, determine the courtesy width needed (clef + key sig).
-	// System 0 has no courtesy items (the original clef/key are already there).
-	// Use the first staff's courtesy items to measure the width (all staves
-	// get the same horizontal shift even though their clefs may differ).
+	// For each system break, determine the exact courtesy width needed.
 	var courtesyWidths = [0] // system 0: no courtesy
 	for (let sysIdx = 1; sysIdx < systemCount; sysIdx++) {
 		// The break before this system is breakXs[sysIdx-1], corresponding
