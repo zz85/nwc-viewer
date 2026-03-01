@@ -150,6 +150,24 @@ function collectMeasureBoundaries(staves) {
 }
 
 /**
+ * Collect note/rest/chord X positions as anchor points for justification.
+ * Returns an array of X positions (absolute, in single-line coords) sorted
+ * in ascending order.  These are the points between which extra space
+ * should be distributed — elements at the same anchor position move together.
+ */
+function collectAnchors(staves) {
+	const tokens = staves[0]?.tokens || []
+	const anchors = []
+	for (let i = 0; i < tokens.length; i++) {
+		const token = tokens[i]
+		if (token.drawingNoteHead && (token.type === 'Note' || token.type === 'Chord' || token.type === 'Rest')) {
+			anchors.push(token.drawingNoteHead.x)
+		}
+	}
+	return anchors
+}
+
+/**
  * For each staff, tracks the running clef and key signature at each barline.
  * Returns an array (per staff) of { clef, accidentals, clefForKey } representing
  * the state after all tokens up to each barline boundary.
@@ -366,116 +384,146 @@ function computeBadness(lineWidth, pageWidth, isLastLine) {
 	return shortfall * shortfall * 10
 }
 
-// Maximum intra-measure stretch factor.  Within each measure, note spacing
-// can expand by up to this factor.  Any remaining extra space beyond the
-// cap is added at barline boundaries.
-const MAX_INTRA_STRETCH = 1.3
+// Maximum stretch factor per gap between adjacent anchors (note positions).
+// Keeps note spacing from becoming unnaturally wide.
+const MAX_INTRA_STRETCH = 5.0
 
 /**
- * Build a justification map for one system.
+ * Build a justification map for one system using anchor points.
  *
- * Given barline positions (relative to system start) and the total extra
- * space to distribute, returns a map that computeJustifyX uses to position
- * each element.
+ * Anchors are note/rest X positions within the system — the natural spacing
+ * points.  Extra space is distributed at anchor gaps (between consecutive
+ * notes) so that elements belonging to the same note unit (head, stem,
+ * dot, accidental, beam endpoint) all receive the same offset and stay
+ * together.
  *
- * The algorithm distributes space in two layers:
- * 1. Intra-measure: proportional stretching within each measure, capped at
- *    MAX_INTRA_STRETCH.  This widens the gaps between notes evenly.
- * 2. Barline padding: any remaining space (from capped measures) is added
- *    as a constant offset at each barline boundary.
+ * relBarXs — barline positions relative to system start
+ * extraSpace — total extra px to distribute
+ * anchors — sorted array of note/rest X positions relative to system start
  *
- * Returns { relBarXs, measureStarts, measureStretchFactors, cumulativeBarPadding }
+ * Returns { anchors, anchorOffsets, relBarXs, barlineOffsets }
  */
-function buildBarlineMap(relBarXs, extraSpace) {
-	if (relBarXs.length === 0 || extraSpace <= 0) {
+function buildBarlineMap(relBarXs, extraSpace, anchors) {
+	// Degenerate cases
+	if (extraSpace <= 0 || (anchors || []).length < 2) {
 		return {
+			anchors: anchors || [],
+			anchorOffsets: (anchors || []).map(() => 0),
 			relBarXs,
-			measureStarts: [0],
-			measureStretchFactors: [1.0],
-			cumulativeBarPadding: relBarXs.map(() => 0),
+			barlineOffsets: relBarXs.map(() => 0),
 		}
 	}
 
-	// Compute measure widths: [0..bar0], [bar0..bar1], ...
-	var measureStarts = [0]
-	var measureWidths = []
-	for (var i = 0; i < relBarXs.length; i++) {
-		var start = i === 0 ? 0 : relBarXs[i - 1]
-		measureWidths.push(relBarXs[i] - start)
-		if (i < relBarXs.length - 1) measureStarts.push(relBarXs[i])
+	// Phase 1: compute per-gap ideal extra, capped at MAX_INTRA_STRETCH.
+	// A "gap" is the space between two consecutive anchors.
+	var gaps = []
+	for (var i = 1; i < anchors.length; i++) {
+		gaps.push(anchors[i] - anchors[i - 1])
 	}
+	var totalGapWidth = gaps.reduce((s, g) => s + g, 0) || 1
 
-	var totalWidth = relBarXs[relBarXs.length - 1] || 1
-
-	// Phase 1: compute ideal per-measure stretch, then cap at MAX_INTRA_STRETCH.
-	// Each measure gets a proportional share of extra space based on its width.
-	var measureStretchFactors = []
 	var usedByStretch = 0
-	for (var i = 0; i < measureWidths.length; i++) {
-		var mw = measureWidths[i]
-		if (mw <= 0) {
-			measureStretchFactors.push(1.0)
+	var gapExtras = []
+	for (var i = 0; i < gaps.length; i++) {
+		var gap = gaps[i]
+		if (gap <= 0) {
+			gapExtras.push(0)
 			continue
 		}
-		var idealExtra = extraSpace * (mw / totalWidth)
-		var idealFactor = (mw + idealExtra) / mw
-		var cappedFactor = Math.min(idealFactor, MAX_INTRA_STRETCH)
-		measureStretchFactors.push(cappedFactor)
-		usedByStretch += mw * (cappedFactor - 1.0)
+		var idealExtra = extraSpace * (gap / totalGapWidth)
+		var maxExtra = gap * (MAX_INTRA_STRETCH - 1.0)
+		var actual = Math.min(idealExtra, maxExtra)
+		gapExtras.push(actual)
+		usedByStretch += actual
 	}
 
 	// Phase 2: remaining space goes to barline padding.
 	var remainingSpace = extraSpace - usedByStretch
-	var cumulativeBarPadding = []
-	var cumPad = 0
-	for (var i = 0; i < relBarXs.length; i++) {
-		// Distribute remaining padding proportionally across barlines
-		var ratio = relBarXs[i] / totalWidth
-		cumPad = remainingSpace * ratio
-		cumulativeBarPadding.push(cumPad)
+	var totalBarSpan = relBarXs.length > 0 ? (relBarXs[relBarXs.length - 1] || 1) : 1
+	var barlineOffsets = relBarXs.map(function(bx) {
+		return remainingSpace * (bx / totalBarSpan)
+	})
+
+	// Build cumulative anchor offsets (how much each anchor shifts right).
+	// Anchor 0 gets offset 0 (it's the system start reference).
+	// Anchor i gets the sum of gapExtras[0..i-1].
+	var anchorOffsets = [0]
+	var cumExtra = 0
+	for (var i = 0; i < gapExtras.length; i++) {
+		cumExtra += gapExtras[i]
+		anchorOffsets.push(cumExtra)
 	}
 
-	return { relBarXs, measureStarts, measureStretchFactors, cumulativeBarPadding }
+	return { anchors, anchorOffsets, relBarXs, barlineOffsets }
 }
 
 /**
  * Compute the justified X position for an element at original relX
  * within a system, given the barline map from buildBarlineMap.
  *
- * Returns the new X position (still relative to system left edge, before
- * leftMargin and courtesyW are added by the caller).
+ * Uses piecewise-constant offsets between anchors: elements at or near
+ * an anchor position get that anchor's offset.  Elements between two
+ * anchors are interpolated so spacing is smooth.  Elements before the
+ * first anchor or after the last get the nearest anchor's offset.
+ *
+ * Returns the new X position (relative to system left edge).
  */
 function computeJustifyX(relX, barlineMap) {
-	var { relBarXs, measureStarts, measureStretchFactors, cumulativeBarPadding } = barlineMap
+	var { anchors, anchorOffsets, relBarXs, barlineOffsets } = barlineMap
 
-	if (relBarXs.length === 0) return relX
+	if (!anchors || anchors.length < 2) {
+		// No anchors — fall back to barline-only padding
+		if (relBarXs && relBarXs.length > 0) {
+			var bIdx = -1
+			for (var i = 0; i < relBarXs.length; i++) {
+				if (relX >= relBarXs[i]) bIdx = i
+				else break
+			}
+			return relX + (bIdx >= 0 ? barlineOffsets[bIdx] : 0)
+		}
+		return relX
+	}
 
-	// Find which measure this element is in
-	var mIdx = 0
+	// Find the anchor bracket: the two anchors surrounding relX.
+	// Elements before the first anchor get anchor 0's offset.
+	// Elements after the last anchor get the last anchor's offset.
+	if (relX <= anchors[0]) {
+		return relX + anchorOffsets[0] + barlinePadAt(relX, relBarXs, barlineOffsets)
+	}
+	if (relX >= anchors[anchors.length - 1]) {
+		return relX + anchorOffsets[anchors.length - 1] + barlinePadAt(relX, relBarXs, barlineOffsets)
+	}
+
+	// Binary-ish search for bracket (anchors are sorted)
+	var lo = 0
+	for (var i = 0; i < anchors.length - 1; i++) {
+		if (relX >= anchors[i] && relX < anchors[i + 1]) {
+			lo = i
+			break
+		}
+	}
+
+	// Interpolate offset within the anchor gap
+	var gapStart = anchors[lo]
+	var gapEnd = anchors[lo + 1]
+	var gapWidth = gapEnd - gapStart
+	var t = gapWidth > 0 ? (relX - gapStart) / gapWidth : 0
+	var offset = anchorOffsets[lo] + t * (anchorOffsets[lo + 1] - anchorOffsets[lo])
+
+	return relX + offset + barlinePadAt(relX, relBarXs, barlineOffsets)
+}
+
+/**
+ * Get the cumulative barline padding at a given relX.
+ */
+function barlinePadAt(relX, relBarXs, barlineOffsets) {
+	if (!relBarXs || relBarXs.length === 0) return 0
+	var bIdx = -1
 	for (var i = 0; i < relBarXs.length; i++) {
-		if (relX >= relBarXs[i]) mIdx = i + 1
+		if (relX >= relBarXs[i]) bIdx = i
 		else break
 	}
-	// Clamp to valid measure range
-	if (mIdx >= measureStretchFactors.length) mIdx = measureStretchFactors.length - 1
-
-	// Position within this measure
-	var measureStart = mIdx < measureStarts.length ? measureStarts[mIdx] : (relBarXs[relBarXs.length - 1] || 0)
-	var posInMeasure = relX - measureStart
-
-	// Apply intra-measure stretch
-	var stretchedPos = posInMeasure * measureStretchFactors[mIdx]
-
-	// Compute the stretched start of this measure (sum of previous measures'
-	// stretched widths + their barline padding)
-	var stretchedMeasureStart = 0
-	for (var i = 0; i < mIdx; i++) {
-		var mw = i < relBarXs.length ? relBarXs[i] - (i === 0 ? 0 : relBarXs[i - 1]) : 0
-		stretchedMeasureStart += mw * measureStretchFactors[i]
-	}
-	var barPad = mIdx > 0 ? cumulativeBarPadding[mIdx - 1] : 0
-
-	return stretchedMeasureStart + barPad + stretchedPos
+	return bIdx >= 0 ? barlineOffsets[bIdx] : 0
 }
 
 /* Rerenders all drawing objects */
@@ -789,10 +837,13 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		systemNaturalWidths.push(sysEndX - sysStartX)
 	}
 
+	// --- Collect all note/rest anchor positions (single-line coords) ---
+	var allAnchors = collectAnchors(staves)
+
 	// --- Build per-system barline maps for measure-level justification ---
 	// Extra space is distributed both between and within measures:
 	// - Within each measure, spacing between notes is stretched by up to
-	//   MAX_INTRA_STRETCH (e.g. 1.3x) so the score fills out evenly.
+	//   MAX_INTRA_STRETCH so the score fills out evenly.
 	// - Any remaining space that exceeds the cap is added at barline boundaries.
 	var systemBarlineMaps = []
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
@@ -814,7 +865,12 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			}
 		}
 
-		systemBarlineMaps.push(buildBarlineMap(relBarXs, extraSpace))
+		// Collect anchor positions within this system (relative to sysStartX)
+		var relAnchors = allAnchors
+			.filter(ax => ax >= sysStartX && ax <= sysEndX)
+			.map(ax => ax - sysStartX)
+
+		systemBarlineMaps.push(buildBarlineMap(relBarXs, extraSpace, relAnchors))
 	}
 
 	// --- Reflow all existing drawing elements into systems with justification ---
@@ -837,19 +893,23 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 		// Beam elements store relative startX/endX from their moveTo origin.
 		// Both endpoints need independent justification so the beam spans
-		// correctly after stretching.
+		// correctly after stretching.  Sub-beams may have non-zero startX.
 		if (el.startX != null && el.endX != null) {
-			var origStartAbsX = el.x              // absolute X of first stem
-			var origEndAbsX = el.x + el.endX       // absolute X of last stem
+			// Recover absolute X positions of both beam endpoints
+			var origStartAbsX = el.x + el.startX
+			var origEndAbsX = el.x + el.endX
 			var relStart = origStartAbsX - systemStartX
 			var relEnd = origEndAbsX - systemStartX
+			// Also justify the beam origin (el.x) itself
+			var relOrigin = el.x - systemStartX
 
+			var justOrigin = computeJustifyX(relOrigin, barlineMap) + leftMargin + courtesyW
 			var justStart = computeJustifyX(relStart, barlineMap) + leftMargin + courtesyW
 			var justEnd = computeJustifyX(relEnd, barlineMap) + leftMargin + courtesyW
 
-			el.x = justStart
-			el.endX = justEnd - justStart
-			// startX stays 0 (relative to moveTo origin)
+			el.x = justOrigin
+			el.startX = justStart - justOrigin
+			el.endX = justEnd - justOrigin
 		}
 		// Tie elements store width = endx - startx.  Both endpoints may be
 		// at different positions within the system, so recompute the width.
@@ -1201,6 +1261,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			cursor.posGlyph(s)
 			s._text = info
 			drawing.add(s)
+			token.drawingNoteHead = s  // reuse same field as notes for anchor collection
 
 			cursor.incStaveX(s.width * 1)
 			cursor.tokenPadRight(s.width * calculatePadding(token.durValue))
