@@ -140,119 +140,145 @@ describe('computeSystemBreaks', () => {
 })
 
 // ---------------------------------------------------------------------------
-// buildBarlineMap
+// buildBarlineMap (anchor-based)
 // ---------------------------------------------------------------------------
 describe('buildBarlineMap', () => {
-	test('no barlines — identity map', () => {
-		const map = buildBarlineMap([], 100)
-		expect(map.relBarXs).toEqual([])
-		expect(map.measureStretchFactors).toEqual([1.0])
+	test('no anchors — returns zero offsets', () => {
+		const map = buildBarlineMap([100, 200], 50)
+		expect(map.anchorOffsets).toEqual([])
+		expect(map.barlineOffsets).toEqual([0, 0])
 	})
 
-	test('no extra space — all factors are 1.0', () => {
-		const map = buildBarlineMap([100, 200, 300], 0)
-		expect(map.cumulativeBarPadding).toEqual([0, 0, 0])
-		map.measureStretchFactors.forEach(f => expect(f).toBe(1.0))
+	test('fewer than 2 anchors — returns zero offsets', () => {
+		const map = buildBarlineMap([100, 200], 50, [50])
+		expect(map.anchorOffsets).toEqual([0])
+		expect(map.barlineOffsets).toEqual([0, 0])
 	})
 
-	test('small extra space — distributed within measures', () => {
-		// 3 measures: [0-100, 100-200, 200-300], natural width=300, extra=30
-		// 10% extra → factor should be ~1.1 (under 1.3 cap)
-		const map = buildBarlineMap([100, 200, 300], 30)
-		map.measureStretchFactors.forEach(f => {
-			expect(f).toBeGreaterThan(1.0)
-			expect(f).toBeLessThanOrEqual(1.3)
-		})
-		// All extra should be absorbed by intra-measure stretch (no bar padding)
-		map.cumulativeBarPadding.forEach(p => {
-			expect(Math.abs(p)).toBeLessThan(0.01)
-		})
+	test('no extra space — all offsets are 0', () => {
+		const map = buildBarlineMap([100, 200, 300], 0, [30, 70, 130, 170, 230, 270])
+		map.anchorOffsets.forEach(o => expect(o).toBe(0))
+		map.barlineOffsets.forEach(o => expect(o).toBe(0))
 	})
 
-	test('large extra space — capped at MAX_INTRA_STRETCH, rest goes to barlines', () => {
-		// 3 measures: [0-100, 100-200, 200-300], natural width=300, extra=200
-		// 66% extra → uncapped factor=1.66 > 1.3 cap
-		const map = buildBarlineMap([100, 200, 300], 200)
-		map.measureStretchFactors.forEach(f => {
-			expect(f).toBeLessThanOrEqual(1.3)
-		})
-		// Bar padding should be non-zero (remaining space after capping)
-		const lastPadding = map.cumulativeBarPadding[map.cumulativeBarPadding.length - 1]
-		expect(lastPadding).toBeGreaterThan(0)
+	test('extra space is distributed across anchor gaps', () => {
+		// 4 anchors at 0, 100, 200, 300 — 3 equal gaps of 100
+		// extra = 30 → each gap gets 10 extra
+		const anchors = [0, 100, 200, 300]
+		const map = buildBarlineMap([300], 30, anchors)
+		// First anchor offset is 0
+		expect(map.anchorOffsets[0]).toBe(0)
+		// Each subsequent anchor gets 10 more offset
+		expect(map.anchorOffsets[1]).toBeCloseTo(10, 1)
+		expect(map.anchorOffsets[2]).toBeCloseTo(20, 1)
+		expect(map.anchorOffsets[3]).toBeCloseTo(30, 1)
 	})
 
-	test('measures get proportional share of extra space', () => {
-		// Measure 1 = 200px, measure 2 = 100px — wider measure gets more extra
-		const map = buildBarlineMap([200, 300], 30)
-		// Stretch factors should be equal (proportional share means same %)
-		expect(map.measureStretchFactors[0]).toBeCloseTo(map.measureStretchFactors[1], 2)
+	test('gaps are capped at MAX_INTRA_STRETCH, remainder goes to barlines', () => {
+		// 2 anchors at 0 and 10, gap = 10
+		// MAX_INTRA_STRETCH = 5.0, so maxExtra = 10 * 4.0 = 40
+		// extra = 100 → only 40 absorbed by stretch, 60 to barlines
+		const anchors = [0, 10]
+		const map = buildBarlineMap([100], 100, anchors)
+		expect(map.anchorOffsets[1]).toBe(40) // 10 * (5.0 - 1.0)
+		expect(map.barlineOffsets[0]).toBeCloseTo(60, 1)
+	})
+
+	test('unequal gaps get proportional share', () => {
+		// Gap 1 = 100, Gap 2 = 200. totalGap = 300, extra = 30
+		// Gap 1 ideal = 30*(100/300) = 10, Gap 2 ideal = 30*(200/300) = 20
+		const anchors = [0, 100, 300]
+		const map = buildBarlineMap([300], 30, anchors)
+		expect(map.anchorOffsets[0]).toBe(0)
+		expect(map.anchorOffsets[1]).toBeCloseTo(10, 1)
+		expect(map.anchorOffsets[2]).toBeCloseTo(30, 1)
+	})
+
+	test('zero-width gaps get 0 extra', () => {
+		// Two anchors at same position (e.g. chord notes)
+		const anchors = [0, 0, 100]
+		const map = buildBarlineMap([100], 20, anchors)
+		expect(map.anchorOffsets[0]).toBe(0)
+		expect(map.anchorOffsets[1]).toBe(0) // zero gap, zero extra
+		expect(map.anchorOffsets[2]).toBeCloseTo(20, 1)
 	})
 })
 
 // ---------------------------------------------------------------------------
-// computeJustifyX
+// computeJustifyX (anchor-based)
 // ---------------------------------------------------------------------------
 describe('computeJustifyX', () => {
-	test('no barlines — returns relX unchanged', () => {
+	test('no anchors — returns relX unchanged', () => {
 		const map = buildBarlineMap([], 0)
 		expect(computeJustifyX(75, map)).toBe(75)
 	})
 
 	test('no extra space — returns relX unchanged', () => {
-		const map = buildBarlineMap([100, 200], 0)
+		const map = buildBarlineMap([100, 200], 0, [50, 150])
 		expect(computeJustifyX(50, map)).toBe(50)
 		expect(computeJustifyX(150, map)).toBe(150)
 	})
 
-	test('elements within a measure stay proportionally spaced', () => {
-		// 2 equal measures [0-200, 200-400], extra=40
-		const map = buildBarlineMap([200, 400], 40)
-
-		// Two elements in the first measure at 100 and 112 (simulating notehead + dot)
-		const x1 = computeJustifyX(100, map)
-		const x2 = computeJustifyX(112, map)
-
-		// Their gap should be stretched by the intra-measure factor, not arbitrarily
-		const originalGap = 12
-		const newGap = x2 - x1
-		const factor = newGap / originalGap
-
-		// Factor should be between 1.0 and 1.3 (MAX_INTRA_STRETCH)
-		expect(factor).toBeGreaterThanOrEqual(1.0)
-		expect(factor).toBeLessThanOrEqual(1.3)
+	test('element at anchor position gets exact anchor offset', () => {
+		const anchors = [0, 100, 200, 300]
+		const map = buildBarlineMap([300], 30, anchors)
+		// Anchor at 100 should get offset ~10
+		const jx = computeJustifyX(100, map)
+		expect(jx).toBeCloseTo(110, 1)
 	})
 
-	test('elements in different measures get different offsets', () => {
-		const map = buildBarlineMap([200, 400], 100)
-
-		// Element in measure 1 at relX=100
-		const x1 = computeJustifyX(100, map)
-		// Element in measure 2 at relX=300 (same relative position within its measure)
-		const x2 = computeJustifyX(300, map)
-
-		// x2 should be shifted more than x1 (cumulative spacing)
-		expect(x2 - 300).toBeGreaterThan(x1 - 100)
+	test('element between anchors gets interpolated offset', () => {
+		const anchors = [0, 100, 200]
+		const map = buildBarlineMap([200], 20, anchors)
+		// Offset at anchor 0 = 0, offset at anchor 1 = 10
+		// Element at 50 (midpoint) should get offset ~5
+		const jx = computeJustifyX(50, map)
+		expect(jx).toBeCloseTo(55, 1)
 	})
 
-	test('barline element gets correct offset', () => {
-		const map = buildBarlineMap([200, 400], 40)
+	test('element before first anchor gets first anchor offset', () => {
+		const anchors = [50, 150]
+		const map = buildBarlineMap([200], 20, anchors)
+		// Element at x=10 (before first anchor at 50) gets anchorOffsets[0] = 0
+		const jx = computeJustifyX(10, map)
+		expect(jx).toBeCloseTo(10, 1) // offset 0 + barlinePad
+	})
 
-		// An element exactly at the first barline (x=200)
-		const xAtBar = computeJustifyX(200, map)
-
-		// Should be displaced rightward from 200
-		expect(xAtBar).toBeGreaterThan(200)
+	test('element after last anchor gets last anchor offset', () => {
+		const anchors = [50, 150]
+		const map = buildBarlineMap([200], 20, anchors)
+		// Element at x=180 (after last anchor at 150) gets anchorOffsets[1]
+		const jx = computeJustifyX(180, map)
+		const lastOffset = map.anchorOffsets[map.anchorOffsets.length - 1]
+		expect(jx).toBeGreaterThanOrEqual(180 + lastOffset)
 	})
 
 	test('justified positions are monotonically increasing', () => {
-		const map = buildBarlineMap([150, 300, 450], 90)
+		const anchors = [0, 50, 120, 200, 280, 350]
+		const map = buildBarlineMap([150, 350], 60, anchors)
 
 		var prev = -1
-		for (var x = 0; x <= 450; x += 10) {
+		for (var x = 0; x <= 350; x += 5) {
 			var jx = computeJustifyX(x, map)
 			expect(jx).toBeGreaterThanOrEqual(prev)
 			prev = jx
 		}
+	})
+
+	test('elements within same anchor gap stay proportionally spaced', () => {
+		// Two elements close together between the same pair of anchors
+		const anchors = [0, 100, 200, 300]
+		const map = buildBarlineMap([300], 30, anchors)
+
+		// Two elements in the gap [100, 200]: at 110 and 120
+		const x1 = computeJustifyX(110, map)
+		const x2 = computeJustifyX(120, map)
+		const gap = x2 - x1
+
+		// Original gap was 10. With uniform stretch the gap should scale
+		// by the same factor across the gap. Check it's close to 10 * stretch.
+		expect(gap).toBeGreaterThan(0)
+		expect(gap).toBeCloseTo(10 * (1 + 10 / 100), 0) // ~11
 	})
 })
 
@@ -300,10 +326,10 @@ describe('DP avoids orphan last lines', () => {
 // ---------------------------------------------------------------------------
 describe('beam and tie endpoint justification', () => {
 	test('beam-like element: both endpoints get independent justification', () => {
-		// Simulate a beam: el.x = first stem X, el.endX = relative distance to last stem
-		const map = buildBarlineMap([200, 400], 40)
+		// Beam starts at x=100, ends at x=350 — anchors span both regions
+		const anchors = [0, 50, 100, 150, 200, 250, 300, 350, 400]
+		const map = buildBarlineMap([200, 400], 40, anchors)
 
-		// Beam starts at x=100 (in measure 1), ends at x=350 (in measure 2)
 		const origStartX = 100
 		const origEndAbsX = 350
 
@@ -316,23 +342,24 @@ describe('beam and tie endpoint justification', () => {
 		expect(justSpan).toBeGreaterThan(origSpan)
 	})
 
-	test('beam within a single measure: span scales by intra-measure factor', () => {
-		const map = buildBarlineMap([300], 30)
+	test('beam within a single measure: span stretches', () => {
+		const anchors = [0, 50, 100, 150, 200, 250, 300]
+		const map = buildBarlineMap([300], 30, anchors)
 
-		// Beam entirely within measure 0
+		// Beam entirely within the system
 		const justStart = computeJustifyX(50, map)
 		const justEnd = computeJustifyX(250, map)
 
 		const origSpan = 200
 		const justSpan = justEnd - justStart
 
-		// Should be stretched by the intra-measure factor (> 1.0, <= 1.3x)
-		expect(justSpan / origSpan).toBeGreaterThan(1.0)
-		expect(justSpan / origSpan).toBeLessThanOrEqual(1.3)
+		// Should be stretched
+		expect(justSpan).toBeGreaterThan(origSpan)
 	})
 
 	test('tie-like element: width recomputed from justified endpoints', () => {
-		const map = buildBarlineMap([200, 400], 60)
+		const anchors = [0, 50, 100, 150, 200, 250, 300, 350, 400]
+		const map = buildBarlineMap([200, 400], 60, anchors)
 
 		// Tie starts at x=80, width=140 (ends at 220 — crosses barline at 200)
 		const origX = 80
@@ -343,22 +370,93 @@ describe('beam and tie endpoint justification', () => {
 		const justEnd = computeJustifyX(origEndAbsX, map)
 		const justWidth = justEnd - justStart
 
-		// Width should increase (space added at barline between start and end)
+		// Width should increase (space added between start and end)
 		expect(justWidth).toBeGreaterThan(origWidth)
 	})
 
-	test('beam endpoints in same measure have consistent stretch', () => {
-		const map = buildBarlineMap([200, 400], 20)
+	test('beam endpoints in same anchor gap have consistent stretch', () => {
+		const anchors = [0, 100, 200, 300, 400]
+		const map = buildBarlineMap([200, 400], 20, anchors)
 
-		// Two beams entirely within measure 0
+		// Two beams within the same anchor gap [0, 100]
 		const b1Start = computeJustifyX(30, map)
 		const b1End = computeJustifyX(90, map)
-		const b2Start = computeJustifyX(100, map)
-		const b2End = computeJustifyX(180, map)
+		const b2Start = computeJustifyX(10, map)
+		const b2End = computeJustifyX(80, map)
 
-		// Both should have the same stretch factor
+		// Both should have the same stretch factor within the gap
 		const factor1 = (b1End - b1Start) / (90 - 30)
-		const factor2 = (b2End - b2Start) / (180 - 100)
+		const factor2 = (b2End - b2Start) / (80 - 10)
 		expect(factor1).toBeCloseTo(factor2, 4)
+	})
+})
+
+// ---------------------------------------------------------------------------
+// Last-line barline alignment
+// ---------------------------------------------------------------------------
+describe('last system final barline alignment', () => {
+	test('justified last system: final barline aligns to page edge', () => {
+		// Simulate a last system that fills > 60% of contentWidth.
+		// Natural width = 400, pageWidth = 500 → fillRatio = 0.8 → should justify.
+		// The last barline is at relX = 400 (natural end of content).
+		// After justification, it should land at contentWidth = 500.
+		const naturalWidth = 400
+		const contentWidth = 500
+		const extraSpace = contentWidth - naturalWidth // 100
+
+		// Anchors evenly spaced across the system
+		const anchors = [0, 50, 100, 150, 200, 250, 300, 350, 400]
+		const relBarXs = [200, 400]
+
+		const map = buildBarlineMap(relBarXs, extraSpace, anchors)
+
+		// The last barline (at relX = 400) is also the last anchor.
+		// Its justified position should be naturalWidth + totalOffset = contentWidth.
+		const justifiedEnd = computeJustifyX(400, map)
+		expect(justifiedEnd).toBeCloseTo(contentWidth, 0)
+	})
+
+	test('unjustified last system: stave width matches natural width', () => {
+		// Natural width = 200, pageWidth = 500 → fillRatio = 0.4 → should NOT justify.
+		// extraSpace = 0, so barline stays at its natural position.
+		const naturalWidth = 200
+		const extraSpace = 0
+
+		const anchors = [0, 50, 100, 150, 200]
+		const relBarXs = [100, 200]
+
+		const map = buildBarlineMap(relBarXs, extraSpace, anchors)
+
+		const justifiedEnd = computeJustifyX(200, map)
+		expect(justifiedEnd).toBe(200) // no shift
+	})
+
+	test('justified system: total anchor offset equals extraSpace absorbed', () => {
+		// When all extra space can be absorbed by anchor gaps (no cap overflow),
+		// the last anchor's offset should equal the full extraSpace.
+		const anchors = [0, 100, 200, 300]
+		const extraSpace = 30 // 10% of total gap span (300) — well under cap
+		const map = buildBarlineMap([300], extraSpace, anchors)
+
+		const lastOffset = map.anchorOffsets[map.anchorOffsets.length - 1]
+		// With no barline overflow, last anchor offset should be ~ extraSpace
+		expect(lastOffset).toBeCloseTo(extraSpace, 1)
+	})
+
+	test('justified system with barline overflow: anchor + barline offsets sum correctly', () => {
+		// Tiny anchor gap that caps quickly, forcing overflow to barlines.
+		const anchors = [0, 10]
+		const extraSpace = 100
+		const map = buildBarlineMap([100], extraSpace, anchors)
+
+		// At the last barline (relX = 100, which is after last anchor),
+		// the total shift should be anchorOffset + barlinePad.
+		const justifiedBarline = computeJustifyX(100, map)
+		const totalShift = justifiedBarline - 100
+		// anchorOffset for last anchor + barlineOffset at barline 100
+		const anchorShift = map.anchorOffsets[map.anchorOffsets.length - 1]
+		const barShift = map.barlineOffsets[map.barlineOffsets.length - 1]
+		expect(totalShift).toBeCloseTo(anchorShift + barShift, 1)
+		expect(totalShift).toBeCloseTo(extraSpace, 1)
 	})
 })
