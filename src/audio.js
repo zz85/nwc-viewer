@@ -204,15 +204,21 @@ function ticksToSeconds(tick, tempoMap) {
 
 // ── PlaybackController ─────────────────────────────────────────────────────
 
+const SOUNDFONT_PATH = 'soundfonts/Creative(emu10k1)8MBGMSFX.sf2'
+
 /**
  * Manages a SoundFontEngine + MidiScheduler lifecycle and exposes a simple
  * transport API for the UI.
+ *
+ * Uses OxiSynth with a GM soundfont for full instrument support, falling back
+ * to the built-in wavetable piano if loading fails.
  */
 export class PlaybackController {
 	constructor() {
 		this._engine = null
 		this._scheduler = null
 		this._initialized = false
+		this._soundfontLoaded = false
 		this._onTime = null
 		this._onEnd = null
 		this._onStateChange = null
@@ -234,8 +240,15 @@ export class PlaybackController {
 	async _ensureInit() {
 		if (this._initialized) return
 
+		const vendorPath = new URL(
+			'../vendor/soundfont-engine/vendor',
+			import.meta.url
+		).href
+
+		// Start with oxisynth for full GM instrument support
 		this._engine = new SoundFontEngine({
-			backend: 'wavetable',
+			backend: 'oxisynth',
+			vendorPath,
 		})
 
 		this._scheduler = new MidiScheduler(this._engine, {
@@ -257,6 +270,22 @@ export class PlaybackController {
 		})
 
 		this._initialized = true
+
+		// Load the soundfont in the background — don't block init
+		this._loadSoundfont()
+	}
+
+	async _loadSoundfont() {
+		if (this._soundfontLoaded) return
+		try {
+			console.log('[audio] Loading soundfont:', SOUNDFONT_PATH)
+			await this._engine.loadSoundFont(SOUNDFONT_PATH)
+			this._soundfontLoaded = true
+			console.log('[audio] Soundfont loaded successfully')
+		} catch (err) {
+			console.warn('[audio] Failed to load soundfont, falling back to wavetable:', err)
+			this._engine.setBackend('wavetable')
+		}
 	}
 
 	/**
@@ -265,6 +294,10 @@ export class PlaybackController {
 	 */
 	async load(data) {
 		await this._ensureInit()
+		// Wait for soundfont if it hasn't loaded yet
+		if (!this._soundfontLoaded) {
+			await this._loadSoundfont()
+		}
 		// Ensure tokens have been interpreted (name, octave, tickValue, etc.)
 		interpret(data)
 		const { notes } = buildNoteEvents(data)
@@ -298,5 +331,6 @@ export class PlaybackController {
 		this._scheduler = null
 		this._engine = null
 		this._initialized = false
+		this._soundfontLoaded = false
 	}
 }
