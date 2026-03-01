@@ -461,10 +461,12 @@ function buildBarlineMap(relBarXs, extraSpace, anchors) {
  * Compute the justified X position for an element at original relX
  * within a system, given the barline map from buildBarlineMap.
  *
- * Uses piecewise-constant offsets between anchors: elements at or near
- * an anchor position get that anchor's offset.  Elements between two
- * anchors are interpolated so spacing is smooth.  Elements before the
- * first anchor or after the last get the nearest anchor's offset.
+ * Uses piecewise-constant offsets: each element snaps to the offset of
+ * its nearest anchor.  This keeps note units (head, stem, dot, beam
+ * endpoint, accidental) rigid — they all share the same anchor and
+ * therefore the same offset.  The jump between offsets happens at the
+ * midpoint between consecutive anchors, so barlines and other
+ * inter-note elements land on a reasonable offset too.
  *
  * Returns the new X position (relative to system left edge).
  */
@@ -484,17 +486,16 @@ function computeJustifyX(relX, barlineMap) {
 		return relX
 	}
 
-	// Find the anchor bracket: the two anchors surrounding relX.
 	// Elements before the first anchor get anchor 0's offset.
-	// Elements after the last anchor get the last anchor's offset.
 	if (relX <= anchors[0]) {
 		return relX + anchorOffsets[0] + barlinePadAt(relX, relBarXs, barlineOffsets)
 	}
+	// Elements after the last anchor get the last anchor's offset.
 	if (relX >= anchors[anchors.length - 1]) {
 		return relX + anchorOffsets[anchors.length - 1] + barlinePadAt(relX, relBarXs, barlineOffsets)
 	}
 
-	// Binary-ish search for bracket (anchors are sorted)
+	// Find the bracket: the two anchors surrounding relX.
 	var lo = 0
 	for (var i = 0; i < anchors.length - 1; i++) {
 		if (relX >= anchors[i] && relX < anchors[i + 1]) {
@@ -503,12 +504,14 @@ function computeJustifyX(relX, barlineMap) {
 		}
 	}
 
-	// Interpolate offset within the anchor gap
+	// Snap to nearest anchor's offset (piecewise-constant).
+	// The jump between offsets[lo] and offsets[lo+1] occurs at the
+	// midpoint of the gap, so note-unit elements clustered near their
+	// anchor all receive the same offset.
 	var gapStart = anchors[lo]
 	var gapEnd = anchors[lo + 1]
-	var gapWidth = gapEnd - gapStart
-	var t = gapWidth > 0 ? (relX - gapStart) / gapWidth : 0
-	var offset = anchorOffsets[lo] + t * (anchorOffsets[lo + 1] - anchorOffsets[lo])
+	var mid = (gapStart + gapEnd) / 2
+	var offset = relX < mid ? anchorOffsets[lo] : anchorOffsets[lo + 1]
 
 	return relX + offset + barlinePadAt(relX, relBarXs, barlineOffsets)
 }
@@ -548,6 +551,54 @@ function quickDraw(dataOrContext, x, y) {
 }
 
 window.quickDraw = quickDraw
+
+/**
+ * Draw lyric continuation dashes between syllables of the same word.
+ * Scans each stave's tokens for notes whose lyric text ends in '-' and
+ * draws a centered dash between that note and the next lyric-bearing note.
+ */
+function layoutLyricDashes(drawing, staves) {
+	var fs = getFontSize()
+	var lyricFontSize = Math.round(fs * 0.38)
+	var lyricPos = 12
+
+	for (var si = 0; si < staves.length; si++) {
+		var tokens = staves[si].tokens
+		if (!tokens) continue
+
+		for (var i = 0; i < tokens.length; i++) {
+			var token = tokens[i]
+			// Only notes/chords with a hyphen-terminated lyric
+			if (!token.text || !token.text.endsWith('-')) continue
+			if (!token.drawingNoteHead) continue
+
+			// Find the next note/chord with a drawingNoteHead (the next lyric target)
+			var nextHead = null
+			for (var j = i + 1; j < tokens.length; j++) {
+				var nt = tokens[j]
+				if (nt.drawingNoteHead && (nt.type === 'Note' || nt.type === 'Chord' || nt.type === 'Rest')) {
+					nextHead = nt.drawingNoteHead
+					break
+				}
+			}
+			if (!nextHead) continue
+
+			var startX = token.drawingNoteHead.x + (token.drawingNoteHead.width || 0)
+			var endX = nextHead.x
+			if (endX <= startX) continue
+
+			var midX = (startX + endX) / 2
+			var dashY = getStaffY(si)
+
+			var dash = new Text('\u2013', lyricPos, {
+				font: lyricFontSize + "px Arial, 'Segoe UI', sans-serif",
+				textAlign: 'center',
+			})
+			dash.moveTo(midX, dashY)
+			drawing.add(dash)
+		}
+	}
+}
 
 window.everyStaveTokens = () => {
 	const staves = data.score.staves
@@ -636,6 +687,8 @@ function score(dataOrContext) {
 	layoutBeaming(drawing, data)
 	/* Layout Ties */
 	layoutTies(drawing, data)
+	/* Layout lyric continuation dashes (hyphens between syllables) */
+	layoutLyricDashes(drawing, staves)
 
 	// ---- Wrap mode: reflow into systems ----
 	const isWrapMode = getLayoutMode() === 'wrap'
@@ -853,7 +906,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var courtesyW = courtesyWidths[sysIdx]
 		var contentWidth = pageWidth - courtesyW
 		var isLastSystem = sysIdx === systemCount - 1
-		var shouldJustify = !isLastSystem || (naturalWidth / contentWidth > 0.6)
+		var shouldJustify = !isLastSystem || (naturalWidth / contentWidth > 0.2)
 		var extraSpace = shouldJustify ? contentWidth - naturalWidth : 0
 
 		// Collect barline X positions within this system (relative to sysStartX)
@@ -943,7 +996,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var courtesyW = courtesyWidths[sysIdx]
 		var contentWidth = pageWidth - courtesyW
 		var fillRatio = naturalWidth / contentWidth
-		var justifiedWidth = (!isLastSystem || fillRatio > 0.6)
+		var justifiedWidth = (!isLastSystem || fillRatio > 0.2)
 			? pageWidth : naturalWidth + courtesyW
 		var yOffset = sysIdx * (systemHeight + interSystemGap)
 
@@ -1421,14 +1474,19 @@ function drawForNote(token, cursor, durToken) {
 	token.drawingNoteHead = noteHead
 
 	if (token.text) {
-		var lyricPos = 12
-		var lyricFontSize = Math.round(getFontSize() * 0.38)
-		var text = new Text(token.text, lyricPos, {
-			font: lyricFontSize + "px Arial, 'Segoe UI', sans-serif",
-			textAlign: 'left',
-		})
-		cursor.posGlyph(text)
-		drawing.add(text)
+		// Strip trailing hyphens for display — NWC draws hyphens as dashes
+		// centered between note positions, not on the syllable text itself.
+		var displayText = token.text.replace(/-$/, '')
+		if (displayText) {
+			var lyricPos = 12
+			var lyricFontSize = Math.round(getFontSize() * 0.38)
+			var text = new Text(displayText, lyricPos, {
+				font: lyricFontSize + "px Arial, 'Segoe UI', sans-serif",
+				textAlign: 'left',
+			})
+			cursor.posGlyph(text)
+			drawing.add(text)
+		}
 	}
 
 	/*

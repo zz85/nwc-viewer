@@ -100,13 +100,18 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Syllables assigned to note tokens via tokenizer
 - [x] Rendered left-aligned to note X position
 - [x] Font size proportional to staff height (38% of fontSize)
+- [x] Trailing hyphens stripped from display text — NWC renders hyphens as dashes centered between note positions
 - [ ] Vertical position tuning — should sit centered in the gap between top and bottom staves
-- [ ] Multi-verse lyrics — only the first lyric line is rendered; NWC supports multiple verses stacked vertically
-- [ ] Hyphen continuation — hyphens between syllables of a word should be drawn as dashes between note positions
+- [ ] Multi-verse lyrics — only the first lyric line is rendered; NWC supports up to 8 verses stacked vertically
+- [x] Hyphen continuation — hyphens between syllables of a word drawn as en-dashes centered between note positions
 - [ ] Melisma/extender lines — underscores should render as horizontal lines extending the syllable
 - [ ] Lyric syllable attachment control — `AttachLyricSyllable` flag (Always/Never/Default) not respected
 - [ ] Top-aligned lyrics — `LyricAlignment: Top` should place lyrics above the staff
-- [ ] **Do not assign `-` (hyphen) as lyrics to notes** — hyphens are continuation markers between syllables, not standalone lyric text to render
+- [ ] Underscore-as-space — NWC's "Underscore shown as space" option replaces `_` with space in display
+- [ ] Lyric alignment mode — NWC supports "Start of Accidental/Note" and "Standard Rules" (center under note, left-align for multi-note phrases)
+- [ ] Slur/tie lyric skip — notes that are the target of a slur or tie should not consume a lyric syllable (partially implemented for slur start/tie)
+- [ ] Rest lyric skip — rests should never consume a lyric syllable
+- [x] **Do not assign `-` (hyphen) as lyrics to notes** — tokenizer skips leading/standalone hyphens; interpreter filters bare continuation markers before assignment
 
 ## Dynamics & Expressions
 
@@ -128,8 +133,8 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Layered staves at zero spacing (complete overlap)
 - [ ] Horizontal note density — currently too generous; should fit approximately 4 measures per system line, matching standard engraving density
 - [ ] Proportional spacing — note spacing should reflect duration (half note gets ~2x quarter note width)
-- [x] Measure-level justification — anchor-point stretching distributes extra space at note/rest gaps (capped at MAX_INTRA_STRETCH), overflow goes to barline padding; note units stay rigid
-- [x] Last-line barline alignment — justified systems stretch the final barline to the page edge; unjustified last systems (fill < 60%) keep natural width
+- [x] Measure-level justification — anchor-point stretching distributes extra space at note/rest gaps (capped at MAX_INTRA_STRETCH), overflow goes to barline padding; piecewise-constant offsets keep note units (head, stem, dot, beam, accidental) rigid
+- [x] Last-line barline alignment — justified systems stretch the final barline to the page edge; unjustified last systems (fill < 20%) keep natural width
 - [x] Line breaking algorithm — determine optimal points to break into new system lines
 - [ ] Page breaks — support for page-level layout when printing/exporting
 - [ ] **Preset paper sizes** — wrap layout currently uses viewport width; should offer standard paper sizes (A4, Letter, etc.) so the score wraps to a fixed width independent of browser window size

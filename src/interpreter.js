@@ -129,7 +129,6 @@ SightReader.prototype.read = function (staves) {
 		lyricsToken = null
 		var lyrics = staff.lyrics
 		if (lyrics && lyrics.length) {
-			console.log('lyrics!', lyrics.length)
 			// Use the first lyric line for note assignment
 			lyricsToken = tokenizeLyrics(lyrics[0])
 		}
@@ -358,7 +357,17 @@ SightReader.prototype.Note = function (token) {
 	// match lyricss
 	if (lyricsToken && lyricsToken.length) {
 		//  && token.slur !== 2 || token.tieEnd
-		token.text = lyricsToken.shift()
+		var syllable = lyricsToken.shift()
+
+		// Skip bare continuation markers (hyphens, underscores) that shouldn't
+		// render as lyric text.  They indicate syllable continuation, not content.
+		while (syllable && /^[-_]$/.test(syllable) && lyricsToken.length) {
+			syllable = lyricsToken.shift()
+		}
+		// Don't assign bare markers as lyric text
+		if (syllable && !/^[-_]$/.test(syllable)) {
+			token.text = syllable
+		}
 
 		if (token.slur === 1 || token.tie) {
 			lyricsToken.unshift('')

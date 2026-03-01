@@ -227,13 +227,17 @@ describe('computeJustifyX', () => {
 		expect(jx).toBeCloseTo(110, 1)
 	})
 
-	test('element between anchors gets interpolated offset', () => {
+	test('element between anchors snaps to nearest anchor offset', () => {
 		const anchors = [0, 100, 200]
 		const map = buildBarlineMap([200], 20, anchors)
 		// Offset at anchor 0 = 0, offset at anchor 1 = 10
-		// Element at 50 (midpoint) should get offset ~5
-		const jx = computeJustifyX(50, map)
-		expect(jx).toBeCloseTo(55, 1)
+		// Element at 40 (closer to anchor 0) should get anchor 0's offset = 0
+		const jxNear0 = computeJustifyX(40, map)
+		expect(jxNear0).toBeCloseTo(40, 1) // offset 0
+
+		// Element at 60 (closer to anchor 1) should get anchor 1's offset = 10
+		const jxNear1 = computeJustifyX(60, map)
+		expect(jxNear1).toBeCloseTo(70, 1) // offset 10
 	})
 
 	test('element before first anchor gets first anchor offset', () => {
@@ -253,32 +257,33 @@ describe('computeJustifyX', () => {
 		expect(jx).toBeGreaterThanOrEqual(180 + lastOffset)
 	})
 
-	test('justified positions are monotonically increasing', () => {
+	test('justified positions are monotonically non-decreasing', () => {
 		const anchors = [0, 50, 120, 200, 280, 350]
 		const map = buildBarlineMap([150, 350], 60, anchors)
 
-		var prev = -1
-		for (var x = 0; x <= 350; x += 5) {
+		var prev = -Infinity
+		for (var x = 0; x <= 350; x += 1) {
 			var jx = computeJustifyX(x, map)
 			expect(jx).toBeGreaterThanOrEqual(prev)
 			prev = jx
 		}
 	})
 
-	test('elements within same anchor gap stay proportionally spaced', () => {
-		// Two elements close together between the same pair of anchors
+	test('note-unit elements near same anchor get identical offset (rigid)', () => {
+		// Two elements close together on the same side of the midpoint
+		// between anchors [100, 200] — both snap to anchor 100's offset.
 		const anchors = [0, 100, 200, 300]
 		const map = buildBarlineMap([300], 30, anchors)
 
-		// Two elements in the gap [100, 200]: at 110 and 120
-		const x1 = computeJustifyX(110, map)
-		const x2 = computeJustifyX(120, map)
-		const gap = x2 - x1
+		// Notehead at 100, stem at 115, dot at 125 — all closer to anchor 100
+		// than to anchor 200 (midpoint is 150)
+		const xHead = computeJustifyX(100, map)
+		const xStem = computeJustifyX(115, map)
+		const xDot = computeJustifyX(125, map)
 
-		// Original gap was 10. With uniform stretch the gap should scale
-		// by the same factor across the gap. Check it's close to 10 * stretch.
-		expect(gap).toBeGreaterThan(0)
-		expect(gap).toBeCloseTo(10 * (1 + 10 / 100), 0) // ~11
+		// All should get anchor 100's offset, preserving original gaps
+		expect(xStem - xHead).toBe(15) // stem - head gap preserved
+		expect(xDot - xHead).toBe(25)  // dot - head gap preserved
 	})
 })
 
@@ -325,69 +330,62 @@ describe('DP avoids orphan last lines', () => {
 // Beam/tie endpoint justification
 // ---------------------------------------------------------------------------
 describe('beam and tie endpoint justification', () => {
-	test('beam-like element: both endpoints get independent justification', () => {
-		// Beam starts at x=100, ends at x=350 — anchors span both regions
+	test('beam endpoints at different anchors: span widens', () => {
+		// Beam starts at anchor x=100, ends at anchor x=350
 		const anchors = [0, 50, 100, 150, 200, 250, 300, 350, 400]
 		const map = buildBarlineMap([200, 400], 40, anchors)
 
-		const origStartX = 100
-		const origEndAbsX = 350
+		const justStart = computeJustifyX(100, map)
+		const justEnd = computeJustifyX(350, map)
 
-		const justStart = computeJustifyX(origStartX, map)
-		const justEnd = computeJustifyX(origEndAbsX, map)
-
-		// The justified span should be wider than original (space was added)
-		const origSpan = origEndAbsX - origStartX
+		// The justified span should be wider than original (space was added between anchors)
+		const origSpan = 350 - 100
 		const justSpan = justEnd - justStart
 		expect(justSpan).toBeGreaterThan(origSpan)
 	})
 
-	test('beam within a single measure: span stretches', () => {
+	test('beam within a single measure: span stretches across anchors', () => {
+		// Beam at two different anchor positions
 		const anchors = [0, 50, 100, 150, 200, 250, 300]
 		const map = buildBarlineMap([300], 30, anchors)
 
-		// Beam entirely within the system
 		const justStart = computeJustifyX(50, map)
 		const justEnd = computeJustifyX(250, map)
 
 		const origSpan = 200
 		const justSpan = justEnd - justStart
 
-		// Should be stretched
+		// Should be stretched (different anchors → different offsets)
 		expect(justSpan).toBeGreaterThan(origSpan)
 	})
 
-	test('tie-like element: width recomputed from justified endpoints', () => {
+	test('tie-like element: width grows when endpoints are at different anchors', () => {
+		// Tie start at anchor 50, end near anchor 250
 		const anchors = [0, 50, 100, 150, 200, 250, 300, 350, 400]
 		const map = buildBarlineMap([200, 400], 60, anchors)
 
-		// Tie starts at x=80, width=140 (ends at 220 — crosses barline at 200)
-		const origX = 80
-		const origWidth = 140
-		const origEndAbsX = origX + origWidth
+		const origX = 50
+		const origWidth = 200
+		const origEndAbsX = origX + origWidth // 250
 
 		const justStart = computeJustifyX(origX, map)
 		const justEnd = computeJustifyX(origEndAbsX, map)
 		const justWidth = justEnd - justStart
 
-		// Width should increase (space added between start and end)
+		// Width should increase (space added between anchors)
 		expect(justWidth).toBeGreaterThan(origWidth)
 	})
 
-	test('beam endpoints in same anchor gap have consistent stretch', () => {
+	test('beam endpoints in same anchor half get same offset (rigid)', () => {
 		const anchors = [0, 100, 200, 300, 400]
 		const map = buildBarlineMap([200, 400], 20, anchors)
 
-		// Two beams within the same anchor gap [0, 100]
-		const b1Start = computeJustifyX(30, map)
-		const b1End = computeJustifyX(90, map)
-		const b2Start = computeJustifyX(10, map)
-		const b2End = computeJustifyX(80, map)
+		// Two elements both closer to anchor 0 (within [0, 50) midpoint)
+		const b1Start = computeJustifyX(10, map)
+		const b1End = computeJustifyX(40, map)
 
-		// Both should have the same stretch factor within the gap
-		const factor1 = (b1End - b1Start) / (90 - 30)
-		const factor2 = (b2End - b2Start) / (80 - 10)
-		expect(factor1).toBeCloseTo(factor2, 4)
+		// Gap should be preserved exactly (both get anchor 0's offset)
+		expect(b1End - b1Start).toBe(30)
 	})
 })
 
@@ -396,7 +394,7 @@ describe('beam and tie endpoint justification', () => {
 // ---------------------------------------------------------------------------
 describe('last system final barline alignment', () => {
 	test('justified last system: final barline aligns to page edge', () => {
-		// Simulate a last system that fills > 60% of contentWidth.
+		// Simulate a last system that fills > 20% of contentWidth.
 		// Natural width = 400, pageWidth = 500 → fillRatio = 0.8 → should justify.
 		// The last barline is at relX = 400 (natural end of content).
 		// After justification, it should land at contentWidth = 500.
@@ -417,18 +415,18 @@ describe('last system final barline alignment', () => {
 	})
 
 	test('unjustified last system: stave width matches natural width', () => {
-		// Natural width = 200, pageWidth = 500 → fillRatio = 0.4 → should NOT justify.
+		// Natural width = 90, pageWidth = 500 → fillRatio = 0.18 → should NOT justify.
 		// extraSpace = 0, so barline stays at its natural position.
-		const naturalWidth = 200
+		const naturalWidth = 90
 		const extraSpace = 0
 
-		const anchors = [0, 50, 100, 150, 200]
-		const relBarXs = [100, 200]
+		const anchors = [0, 30, 60, 90]
+		const relBarXs = [45, 90]
 
 		const map = buildBarlineMap(relBarXs, extraSpace, anchors)
 
-		const justifiedEnd = computeJustifyX(200, map)
-		expect(justifiedEnd).toBe(200) // no shift
+		const justifiedEnd = computeJustifyX(90, map)
+		expect(justifiedEnd).toBe(90) // no shift
 	})
 
 	test('justified system: total anchor offset equals extraSpace absorbed', () => {
