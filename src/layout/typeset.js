@@ -23,10 +23,10 @@ class StaveCursor {
 	constructor(stave, staveIndex) {
 		this.tokenIndex = -1
 		this.staveIndex = staveIndex
-		this.staveX = getFontSize() // 60
+		this.staveX = getLayoutMode() === 'wrap' ? 0 : getFontSize()
 		this.stave = stave
 		this.tokens = stave.tokens
-		this.lastBarline = 40
+		this.lastBarline = getLayoutMode() === 'wrap' ? 0 : getFontSize()
 	}
 
 	peek() {
@@ -605,7 +605,7 @@ function layoutLyricDashes(drawing, staves) {
 
 			var midX = (startX + endX) / 2
 
-			var dash = new Text('\u2013', 0, {
+			var dash = new Text('-', 0, {
 				font: lyricFontSize + "px Arial, 'Segoe UI', sans-serif",
 				textAlign: 'center',
 			})
@@ -742,7 +742,7 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			// Skip if lyrics exist between staves (same logic as regular barlines)
 			var hasEndLyrics = false
 			for (var elsi = staveIndex; elsi < staves.length - 1; elsi++) {
-				if (getStaffY(elsi) !== getStaffY(staveIndex) && elsi !== staveIndex) break
+				if (elsi > staveIndex && getStaffY(elsi) !== getStaffY(staveIndex)) break
 				var elLyrics = staves[elsi].lyrics
 				if (elLyrics && elLyrics.length && elLyrics.some(function(l) { return l && l.length > 0 })) {
 					hasEndLyrics = true
@@ -1055,7 +1055,11 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 }
 
 /**
- * Draw system bracket and per-group braces at a given Y offset.
+ * Draw orchestral brackets and per-group braces at a given Y offset.
+ * Brackets span from the first to last visible stave in each bracketWithNext
+ * chain.  When allowLayering is on, adjacent bracket groups that are layered
+ * onto the same Y are merged into one visual bracket spanning all of them.
+ * Braces are drawn for chains of staves linked by braceWithNext.
  * Used once per system in wrap mode, once total in scroll mode.
  */
 function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
@@ -1063,17 +1067,24 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 	var bracketX = leftMarginOverride !== undefined ? leftMarginOverride * 0.6 : fs * 0.55
 	var braceX = leftMarginOverride !== undefined ? leftMarginOverride * 0.4 : fs * 0.35
 
-	// Collect visible staff Y positions (deduplicate layered staves at same Y)
+	function visibleStaffY(si) {
+		return getStaffY(si) + yOffset
+	}
+
+	// Collect unique visible Y positions for the system bracket.
+	// A system bracket is drawn when there are multiple distinct visible stave
+	// positions AND at least one bracketWithNext flag is set.
 	var visibleYs = []
+	var hasBracket = false
 	for (var vi = 0; vi < staves.length; vi++) {
-		var vy = getStaffY(vi) + yOffset
+		var vy = visibleStaffY(vi)
 		if (visibleYs.length === 0 || visibleYs[visibleYs.length - 1] !== vy) {
 			visibleYs.push(vy)
 		}
+		if (staves[vi].bracketWithNext) hasBracket = true
 	}
 
-	// Draw a system bracket when there are multiple visible staves
-	if (visibleYs.length > 1) {
+	if (hasBracket && visibleYs.length > 1) {
 		let topY = visibleYs[0] - fs
 		let botY = visibleYs[visibleYs.length - 1]
 		let hookLen = fs * 0.25
@@ -1090,7 +1101,7 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 		drawing.add(sysBracket)
 	}
 
-	// Draw per-group braces for explicit braceWithNext flags
+	// Draw per-group braces for braceWithNext chains
 	for (var si = 0; si < staves.length; si++) {
 		var stave = staves[si]
 		if (stave.braceWithNext) {
@@ -1098,8 +1109,8 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 			while (endSi < staves.length - 1 && staves[endSi].braceWithNext) {
 				endSi++
 			}
-			let topY = getStaffY(si) + yOffset - fs * 0.15
-			let botY = getStaffY(endSi) + yOffset + fs * 1.05
+			let topY = visibleStaffY(si) - fs * 0.15
+			let botY = visibleStaffY(endSi) + fs * 1.05
 			let braceH = botY - topY
 			let midY = topY + braceH / 2
 			let curveW = fs * 0.5
@@ -1198,24 +1209,40 @@ var currentAllowLayering = true // file-level allowLayering flag
 
 function buildStaffYMap(staves, allowLayering) {
 	var fs = getFontSize()
+	var halfSpace = fs / 8  // 1 NWC staff position = half a space = fontSize/8 px
 	var initialOffset = fs * 4
-	var intraGroupSpacing = fs * 1.8   // tighter spacing within a bracket/brace group
-	var interGroupSpacing = fs * 2.8   // default gap between separate stave groups
-	var interGroupWithLyrics = fs * 5  // wider gap when lyrics sit between staves
 	var layerSpacing = 0               // layered staves overlap completely
 
 	staffYMap = []
 	var y = initialOffset
 	for (var i = 0; i < staves.length; i++) {
 		staffYMap[i] = y
+		if (i >= staves.length - 1) continue
 		var stave = staves[i]
+		var nextStave = staves[i + 1]
+
+		// Layered staves collapse to the same Y position.
+		// layerWithNext is the explicit flag; bracketWithNext also triggers
+		// layering when the file-level allowLayering is true (SATB choral scores).
 		if ((stave.layerWithNext || stave.bracketWithNext) && allowLayering !== false) {
 			y += layerSpacing
-		} else if (stave.bracketWithNext || stave.braceWithNext || stave.connectBarsWithNext) {
-			y += intraGroupSpacing
-		} else if (i < staves.length - 1) {
-			// Use wider spacing only when lyrics exist on this staff or
-			// any layered staff at the same Y position
+			continue
+		}
+
+		// Compute spacing from boundaries.
+		// boundaryBottom = how far below the bottom staff line (positive, in half-spaces)
+		// boundaryTop = how far above the top staff line (negative, in half-spaces)
+		// Inter-stave gap = boundaryBottom[i] + |boundaryTop[i+1]|
+		var botBound = stave.boundaryBottom || 0
+		var topBound = nextStave.boundaryTop || 0
+		// boundaryTop is stored as negative, so negate to get positive distance
+		var gapHalfSpaces = botBound + Math.abs(topBound)
+
+		if (gapHalfSpaces > 0) {
+			y += gapHalfSpaces * halfSpace
+		} else {
+			// Fallback when boundaries are not set (both 0):
+			// Use wider spacing if lyrics exist between these staves
 			var hasLyrics = false
 			for (var li = i; li >= 0; li--) {
 				if (li < i && staffYMap[li] !== staffYMap[i]) break
@@ -1225,7 +1252,7 @@ function buildStaffYMap(staves, allowLayering) {
 					break
 				}
 			}
-			y += hasLyrics ? interGroupWithLyrics : interGroupSpacing
+			y += hasLyrics ? fs * 5 : fs * 2.8
 		}
 	}
 }
@@ -1343,16 +1370,17 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			drawing.add(s)
 			token.drawingBarline = s
 
-			// Connect barlines to next staff if flagged, or if staves are layered
-			// (layered grand staves implicitly share barlines, matching NWC Viewer)
+			// Connect barlines to next staff if flagged
+			// bracketWithNext or layerWithNext cause connection when allowLayering is on;
+			// connectBarsWithNext always causes connection.
 			// BUT skip connection when lyrics exist between the staves — the
 			// barline would draw across the lyrics text which looks wrong.
 			var staveData = currentStaves[staveIndex]
 			var hasLyricsBetween = false
 			if (staveData) {
-				// Check if any staff from current to the next visible one has lyrics
+				// Check if any staff at the current Y position (including layered) has lyrics
 				for (var lsi = staveIndex; lsi < currentStaves.length - 1; lsi++) {
-					if (getStaffY(lsi) !== getStaffY(staveIndex) && lsi !== staveIndex) break
+					if (lsi > staveIndex && getStaffY(lsi) !== getStaffY(staveIndex)) break
 					var stLyrics = currentStaves[lsi].lyrics
 					if (stLyrics && stLyrics.length && stLyrics.some(function(l) { return l && l.length > 0 })) {
 						hasLyricsBetween = true

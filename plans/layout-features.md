@@ -16,7 +16,8 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 
 - [x] Multi-staff scores
 - [x] Staff grouping flags: `bracketWithNext`, `braceWithNext`, `connectBarsWithNext`, `layerWithNext`
-- [x] `allowLayering` file-level flag — discriminates bracket-as-layer (SATB choral) vs visual-only bracket
+- [x] `allowLayering` file-level flag — controls whether `layerWithNext` collapses staves to same Y
+- [x] Staff boundary properties: `boundaryTop`, `boundaryBottom` parsed and used for vertical spacing
 - [x] Staff labels rendered to the left of the system bracket (e.g. "s", "t")
 - [x] Title centered above score
 - [x] Author/composer displayed
@@ -26,11 +27,12 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 ## Staves & Systems
 
 - [x] 5-line staff rendering
-- [x] System bracket — `[` shape spanning all visible staves in a system
+- [x] System bracket — `[` shape drawn for `bracketWithNext` chains (not unconditional)
 - [x] Curly brace — `{` shape for piano/organ grand staff groups (`braceWithNext`)
 - [x] Bracket/brace positioned between staff labels and stave left edge
 - [x] Layered staves share the same Y position (overlap completely)
-- [x] Grouped staves have tighter vertical spacing than separate staves
+- [x] Boundary-based vertical spacing — `boundaryTop`/`boundaryBottom` staff properties control inter-stave gaps
+- [x] Barline connections respect `bracketWithNext`, `connectBarsWithNext`, `layerWithNext` flags
 - [ ] Multi-system line breaks — ~~currently all measures flow on one infinite line; should wrap to fit canvas/page width~~ basic wrap mode implemented with DP-optimal and greedy break algorithms; needs refinement
 - [x] Multi-system line breaks (basic) — wrap mode reflows measures into systems; respects NWC systemBreak flags; DP-optimal (Knuth-Plass style) and greedy algorithms; per-system justification; courtesy clef/key at system starts; scroll/wrap toggle
 - [ ] First-system indent — first system should be indented to leave room for instrument names

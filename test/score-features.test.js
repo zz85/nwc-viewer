@@ -239,3 +239,45 @@ describe('Ending barline style mapping', () => {
 		expect(endingBarStyles[4]).toBe(8)
 	})
 })
+
+describe('Staff visual properties pass-through (WhatChildIsThis)', () => {
+	const contents = readFileSync('samples/WhatChildIsThis.nwc')
+	const data = decodeNwcArrayBuffer(contents)
+
+	test('boundaryTop values match parsed data', () => {
+		// Staff 0 (s): Upper Boundary = 12 (stored as -12)
+		expect(data.score.staves[0].boundaryTop).toBe(-12)
+		// Staff 2 (t): Upper Boundary = 16 (stored as -16)
+		expect(data.score.staves[2].boundaryTop).toBe(-16)
+	})
+
+	test('boundaryBottom values match parsed data', () => {
+		// Staff 0 (s): Lower Boundary = 16
+		expect(data.score.staves[0].boundaryBottom).toBe(16)
+		// Staff 2 (t): Lower Boundary = 18
+		expect(data.score.staves[2].boundaryBottom).toBe(18)
+	})
+
+	test('bracketWithNext flags match parsed data', () => {
+		// Staff 0 (s): Orchestral Bracket = checked
+		expect(data.score.staves[0].bracketWithNext).toBe(true)
+		// Staff 1 (a): Orchestral Bracket = not checked (end of bracket group)
+		expect(data.score.staves[1].bracketWithNext).toBe(false)
+		// Staff 2 (t): Orchestral Bracket = checked
+		expect(data.score.staves[2].bracketWithNext).toBe(true)
+		// Staff 3 (b): not checked
+		expect(data.score.staves[3].bracketWithNext).toBe(false)
+	})
+
+	test('layerWithNext flags default to false in this file', () => {
+		data.score.staves.forEach(stave => {
+			expect(stave.layerWithNext).toBe(false)
+		})
+	})
+
+	test('lines defaults to 5 for all staves', () => {
+		data.score.staves.forEach(stave => {
+			expect(stave.lines).toBe(5)
+		})
+	})
+})
