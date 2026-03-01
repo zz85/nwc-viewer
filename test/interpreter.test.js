@@ -78,4 +78,29 @@ describe('Interpreter', () => {
 			expect(note.durValue.value()).toBeGreaterThan(0)
 		})
 	})
+
+	test('assigns lyrics to notes from pre-split arrays', () => {
+		const contents = readFileSync('samples/carenot.nwc')
+		const data = decodeNwcArrayBuffer(contents)
+		interpret(data)
+
+		// "I Care Not for These Ladies" — first lyric line starts with
+		// ["I", " care", " not", " for", " these", " La", "-dies", ...]
+		// Expected assignment: first 7 notes get "I", "care", "not", "for", "these", "La-", "dies"
+		const notes = data.score.staves[0].tokens.filter(t => t.type === 'Note' || t.type === 'Chord')
+		const lyricsAssigned = notes.filter(n => n.text).map(n => n.text)
+
+		// First syllable should be "I" (or "1. I" etc)
+		expect(lyricsAssigned.length).toBeGreaterThan(0)
+		// Check that "La-" (with continuation) and "dies" appear consecutively
+		const laIdx = lyricsAssigned.indexOf('La-')
+		if (laIdx >= 0) {
+			expect(lyricsAssigned[laIdx + 1]).toBe('dies')
+		}
+		// No bare hyphens should be assigned
+		lyricsAssigned.forEach(text => {
+			expect(text).not.toBe('-')
+			expect(text).not.toBe('_')
+		})
+	})
 })

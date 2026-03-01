@@ -16,6 +16,18 @@ function getFontSize() {
 	return FONT_SIZE
 }
 
+// Layout mode — 'scroll' renders all measures on one infinite horizontal line;
+// 'wrap' breaks measures into systems that fit the available page/canvas width.
+let layoutMode = 'wrap'
+
+function setLayoutMode(mode) {
+	if (mode === 'scroll' || mode === 'wrap') layoutMode = mode
+}
+
+function getLayoutMode() {
+	return layoutMode
+}
+
 // Visual zoom level — applied as a canvas transform in quickDraw().
 // This does NOT trigger a re-layout; it simply scales the rendered output.
 // Use setFontSize() to change the actual music engraving size (requires re-layout).
@@ -49,10 +61,13 @@ Object.assign(!isBrowser() ? global : window, {
 	getZoomLevel,
 	ZOOM_MIN,
 	ZOOM_MAX,
+	setLayoutMode,
+	getLayoutMode,
 })
 
 export {
 	isNode, isBrowser,
 	FONT_SIZE, setFontSize, getFontSize,
 	setZoomLevel, getZoomLevel, ZOOM_MIN, ZOOM_MAX,
+	setLayoutMode, getLayoutMode,
 }

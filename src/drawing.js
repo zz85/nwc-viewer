@@ -248,6 +248,19 @@ class Line extends Draw {
 	}
 }
 
+// Arbitrary canvas path drawn via a callback function.
+// Used for complex shapes like curly braces.
+class Path extends Draw {
+	constructor(drawFn) {
+		super()
+		this._drawFn = drawFn
+	}
+
+	draw(ctx) {
+		this._drawFn(ctx)
+	}
+}
+
 var glyphCache = {}
 
 function cacheGet(key, loader) {
@@ -471,18 +484,118 @@ class Stem extends Draw {
 	}
 }
 
+// Barline styles (from NWC BarStyle constants):
+// 0=Single, 1=Double, 2=SectionOpen, 3=SectionClose,
+// 4=LocalOpen, 5=LocalClose, 6=MasterOpen, 7=MasterClose, 8=Hidden
 class Barline extends Draw {
-	constructor(start, len) {
+	constructor(start, len, style) {
 		super()
 		this.len = len || 8
+		this.style = style || 0
 	}
 
 	draw(ctx) {
-		ctx.beginPath()
-		ctx.lineWidth = getFontSize() / 30 // 1.2
-		ctx.moveTo(0, 0)
-		ctx.lineTo(0, this.unitsToY(this.len))
-		ctx.stroke()
+		const fs = getFontSize()
+		const thinLw = fs / 30
+		const thickLw = fs / 8
+		const gap = fs / 10
+		const top = 0
+		const bot = this.unitsToY(this.len)
+		const dotR = fs / 12
+		// Dots are placed at 1/3 and 2/3 of the staff height
+		const dotY1 = top + (bot - top) * 0.37
+		const dotY2 = top + (bot - top) * 0.63
+
+		switch (this.style) {
+		case 8: // Hidden
+			break
+
+		case 1: // Double — two thin lines
+			ctx.beginPath()
+			ctx.lineWidth = thinLw
+			ctx.moveTo(-gap, top)
+			ctx.lineTo(-gap, bot)
+			ctx.stroke()
+			ctx.beginPath()
+			ctx.moveTo(0, top)
+			ctx.lineTo(0, bot)
+			ctx.stroke()
+			break
+
+		case 2: // SectionOpen — thick then thin (heavy-light)
+			ctx.beginPath()
+			ctx.lineWidth = thickLw
+			ctx.moveTo(0, top)
+			ctx.lineTo(0, bot)
+			ctx.stroke()
+			ctx.beginPath()
+			ctx.lineWidth = thinLw
+			ctx.moveTo(gap + thickLw / 2, top)
+			ctx.lineTo(gap + thickLw / 2, bot)
+			ctx.stroke()
+			break
+
+		case 3: // SectionClose — thin then thick (light-heavy, final barline)
+			ctx.beginPath()
+			ctx.lineWidth = thinLw
+			ctx.moveTo(-gap - thickLw / 2, top)
+			ctx.lineTo(-gap - thickLw / 2, bot)
+			ctx.stroke()
+			ctx.beginPath()
+			ctx.lineWidth = thickLw
+			ctx.moveTo(0, top)
+			ctx.lineTo(0, bot)
+			ctx.stroke()
+			break
+
+		case 4: // LocalOpen — thick + thin + dots (repeat start)
+		case 6: // MasterOpen — same visual
+			ctx.beginPath()
+			ctx.lineWidth = thickLw
+			ctx.moveTo(0, top)
+			ctx.lineTo(0, bot)
+			ctx.stroke()
+			ctx.beginPath()
+			ctx.lineWidth = thinLw
+			ctx.moveTo(gap + thickLw / 2, top)
+			ctx.lineTo(gap + thickLw / 2, bot)
+			ctx.stroke()
+			ctx.beginPath()
+			ctx.arc(gap + thickLw / 2 + gap + dotR, dotY1, dotR, 0, Math.PI * 2)
+			ctx.fill()
+			ctx.beginPath()
+			ctx.arc(gap + thickLw / 2 + gap + dotR, dotY2, dotR, 0, Math.PI * 2)
+			ctx.fill()
+			break
+
+		case 5: // LocalClose — dots + thin + thick (repeat end)
+		case 7: // MasterClose — same visual
+			ctx.beginPath()
+			ctx.arc(-gap - thickLw / 2 - gap - dotR, dotY1, dotR, 0, Math.PI * 2)
+			ctx.fill()
+			ctx.beginPath()
+			ctx.arc(-gap - thickLw / 2 - gap - dotR, dotY2, dotR, 0, Math.PI * 2)
+			ctx.fill()
+			ctx.beginPath()
+			ctx.lineWidth = thinLw
+			ctx.moveTo(-gap - thickLw / 2, top)
+			ctx.lineTo(-gap - thickLw / 2, bot)
+			ctx.stroke()
+			ctx.beginPath()
+			ctx.lineWidth = thickLw
+			ctx.moveTo(0, top)
+			ctx.lineTo(0, bot)
+			ctx.stroke()
+			break
+
+		default: // Single (0) or fallback
+			ctx.beginPath()
+			ctx.lineWidth = thinLw
+			ctx.moveTo(0, top)
+			ctx.lineTo(0, bot)
+			ctx.stroke()
+			break
+		}
 	}
 }
 
@@ -505,10 +618,14 @@ class Beam extends Draw {
 
 	draw(ctx) {
 		const beamThickness = getFontSize() / 10
-		const beamSpacing = getFontSize() / 4
+		const beamSpacing = beamThickness * 1.0
+		// Stems-up: additional beams stack downward (toward noteheads) → positive offset.
+		// Stems-down: additional beams stack upward (toward noteheads) → negative offset.
+		const dir = this.stemUp === false ? -1 : 1
+		const baseOffset = (this._beamOffset || 0) * beamSpacing * dir
 
 		for (let i = 0; i < this.count; i++) {
-			const offsetY = i * beamSpacing
+			const offsetY = baseOffset + i * beamSpacing * dir
 			ctx.beginPath()
 			ctx.moveTo(this.startX, this.unitsToY(this.startY) + offsetY)
 			ctx.lineTo(this.endX, this.unitsToY(this.endY) + offsetY)
@@ -691,6 +808,7 @@ const Claire = {
 	Ledger,
 	Text,
 	Line,
+	Path,
 	Tie,
 }
 

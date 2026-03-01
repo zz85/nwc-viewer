@@ -1,6 +1,6 @@
 {
   "name": "nwc-viewer",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "description": "Viewer for Noteworthy Composer files",
   "main": "index.js",
   "type": "module",

@@ -1,5 +1,4 @@
 function tokenizeLyrics(lyrics) {
-	// lyrics = lyrics.split('\n').join('')
 	var len = lyrics.length
 
 	var cursor = 0
@@ -9,9 +8,8 @@ function tokenizeLyrics(lyrics) {
 
 	while (cursor < len) {
 		var char = lyrics[cursor]
-		// /char == ' ' || char == '\t' ||
 		if (/\s+/m.exec(char)) {
-			/* white space */
+			/* white space — word boundary */
 			if (marker > -1 && cursor > marker) {
 				tokens.push(lyrics.substring(marker, cursor))
 			}
@@ -25,14 +23,19 @@ function tokenizeLyrics(lyrics) {
 			char == '_' ||
 			char == ','
 		) {
-			/* divider tokens */
-			if (marker === -1) marker = cursor
+			/* divider tokens — append divider to the preceding text */
+			if (marker === -1) {
+				// Divider at start of a token (e.g. "-ald" from NWC).
+				// This is a continuation marker, not a standalone syllable.
+				// Skip it — the next characters form the real syllable.
+				cursor++
+				continue
+			}
 			tokens.push(lyrics.substring(marker, cursor + 1))
 			cursor++
-			marker = cursor
-			cursor++
+			marker = -1
 		} else {
-			// move the marker
+			// Regular character — start or continue accumulating
 			if (marker == -1) {
 				marker = cursor
 			}
@@ -45,24 +48,7 @@ function tokenizeLyrics(lyrics) {
 		tokens.push(lyrics.substring(marker, len))
 	}
 
-	console.log('lyrics tokens', JSON.parse(JSON.stringify(tokens)))
-
 	return tokens
 }
-
-// var ret = tokenizeLyrics('test 1  2    3 4 5')
-// var ret = tokenizeLyrics('test hello- arr a-b-c-d  yoz-do  meh-3 4 5 a;b;c')
-// var test = `"Hark! The Her-ald An-gels sing,
-// "Glo-ry to the new-born King;
-// Peace on earth, and mer-cy mild,
-// God and sin-ners re-con-ciled!"
-// Joy-ful, all ye na-tions, rise.
-// Join the tri-umph of the skies.
-// With th' An-gel-ic Hosts pro-claim,
-// "Christ is born in Beth-le-hem!"
-// Hark! the her-ald an-gels sing,
-// "Glo-ry to the new-born King."`
-// var ret = tokenizeLyrics(test)
-// console.log(ret);
 
 export default tokenizeLyrics

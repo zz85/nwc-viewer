@@ -95,11 +95,17 @@
 
 					<select id="samples"></select>
 
-					<button id="play">Play</button>
+				<button id="play" title="Play / Pause">Play</button>
+				<button id="stop" title="Stop">Stop</button>
+				<span id="playback_time" style="font-size: 12px; min-width: 90px; display: inline-block; text-align: center; vertical-align: middle;">0:00 / 0:00</span>
+				<input type="range" id="progress_bar"
+					min="0" max="1" step="0.001" value="0"
+					style="width: 140px; vertical-align: middle; cursor: pointer;"
+				/>
 
-					<a href="nwc2xml_converter.html" style="margin-left: 20px;">
-						<button>NWC to MusicXML</button>
-					</a>
+				<a href="nwc2xml_converter.html" style="margin-left: 20px;">
+					<button>NWC to MusicXML</button>
+				</a>
 
 				<span style="width: 50px;"></span>
 				Size:
@@ -118,6 +124,10 @@
 				<span style="width: 20px;"></span>
 				Parser:
 				<button id="parser_toggle" onclick="toggleParser()">New</button>
+
+				<span style="width: 20px;"></span>
+				Layout:
+				<button id="layout_toggle" onclick="toggleLayout()">Scroll</button>
 
 					<div id="debug_tools" style="display: none;">
 						<button
@@ -155,7 +165,6 @@
 
 		<!-- vendor dependencies -->
 		<script src="vendor/inflate.min.js"></script>
-		<script src="vendor/musical.js"></script>
 		<script src="vendor/opentype.min.js"></script>
 
 		<!-- rollup build -->

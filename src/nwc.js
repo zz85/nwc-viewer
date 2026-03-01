@@ -167,6 +167,11 @@ function adaptNoteAttrs(obj) {
 	if (attr & 0x080) result.crescendo = 1
 	if (attr & 0x100) result.diminuendo = 1
 	if (attr & 0x200000) result.fermata = 1
+	// Lyric Syllable: 0=Default, 1=Always, 2=Never
+	if (obj.getLyricSyllable) {
+		var ls = obj.getLyricSyllable()
+		if (ls) result.lyricSyllable = ls
+	}
 	return result
 }
 
@@ -204,6 +209,7 @@ function adaptObject(obj) {
 		case 2: // Barline
 			token.barline = obj.getStyle ? obj.getStyle() : (obj.style & 0x7F)
 			token.repeat = obj.repeatCount || 2
+			token.systemBreak = obj.systemBreak ? obj.systemBreak() : false
 			break
 
 		case 3: // Ending
@@ -224,14 +230,15 @@ function adaptObject(obj) {
 			break
 
 		case 6: // Tempo
-			token.position = obj.pos || 0
+			// NWC binary: positive=below, negative=above; negate to user convention (positive=above)
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.duration = obj.value || obj.getSpeed?.() || 120
 			token.note = obj.base || 2
 			break
 
 		case 7: // Dynamic
-			token.position = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.style = obj.style || 0
 			token.dynamic = obj.getStyleName ? obj.getStyleName() : (ADAPTER_DYNAMICS[obj.style & 0x1F] || 'mf')
@@ -264,10 +271,20 @@ function adaptObject(obj) {
 				var first = noteChildren[0]
 				var firstAttrs = adaptNoteAttrs(first)
 				Object.assign(token, firstAttrs)
-				// Build notes array for all children
+				// Build notes array for all children — each keeps its own duration
+				// (split-stem chords have per-note durations)
 				for (var ci = 0; ci < noteChildren.length; ci++) {
 					notes.push(adaptNoteAttrs(noteChildren[ci]))
 				}
+			}
+			// Token-level duration comes from the parent NoteCMObj for timing/spacing.
+			// This represents the chord's tick advance (typically the shortest voice).
+			// Individual note durations in notes[] may differ (split-stem chords).
+			if (typeof obj.getDuration === 'function') {
+				var chordDt = typeof obj.getDurationType === 'function' ? obj.getDurationType() : 0
+				token.duration = ADAPTER_DURATIONS[obj.getDuration()] || 4
+				token.dots = (chordDt & 0x02) ? 2 : (chordDt & 0x01) ? 1 : 0
+				token.triplet = (chordDt >> 2) & 3
 			}
 			token.chords = noteChildren.length
 			token.notes = notes
@@ -275,13 +292,13 @@ function adaptObject(obj) {
 		}
 
 		case 11: // Pedal
-			token.pos = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.sustain = obj.style || 0
 			break
 
 		case 12: // Flow
-			token.pos = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.style = obj.style || 0
 			break
@@ -290,27 +307,27 @@ function adaptObject(obj) {
 			break
 
 		case 14: // TempoVariance
-			token.pos = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.style = obj.style || 0
 			token.delay = obj.delay || 0
 			break
 
 		case 15: // DynamicVariance
-			token.pos = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.style = obj.style || 0
 			break
 
 		case 16: // PerformanceStyle
-			token.pos = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.style = obj.style || 0
 			token.text = ADAPTER_PERF_STYLES[obj.style] || ''
 			break
 
 		case 17: // Text
-			token.position = obj.pos || 0
+			token.position = -(obj.pos || 0)
 			token.font = obj.font || 0
 			token.text = obj.text || ''
 			break
@@ -369,13 +386,27 @@ function convertFromNewParser(nwcFile) {
 			comments: nwcFile.comment || '',
 		},
 		score: {
+			allowLayering: nwcFile.allowLayering !== false,
 			staves: nwcFile.staffs.map(function(staff) {
 				return {
 					staff_name: staff.name || '',
+					staff_label: staff.label || '',
 					group_name: staff.group || '',
 					channel: staff.channel || 0,
+					// WithNextStaff grouping flags
+					bracketWithNext: !!staff.bracketWithNext,
+					braceWithNext: !!staff.braceWithNext,
+					connectBarsWithNext: !!staff.connectBarsWithNext,
+					layerWithNext: !!staff.layerWithNext,
+					boundaryTop: staff.boundaryTop || 0,
+					boundaryBottom: staff.boundaryBottom || 0,
+					endingBar: staff.endingBar || 0,
+					lines: staff.lines || 5,
 					lyrics: (staff.lyrics || []).map(function(lyric) {
-						return Array.isArray(lyric) ? lyric.join('\n') : (lyric || '')
+						// New parser produces pre-split syllable arrays where each
+						// element maps 1:1 to notes.  Pass them through directly.
+						// Old parser produces raw strings that need tokenizing.
+						return Array.isArray(lyric) ? lyric : (lyric || '')
 					}),
 					tokens: (staff.objects || []).map(adaptObject)
 				}
@@ -597,6 +628,10 @@ function mapTokens(token) {
 			break
 		case 'Bar':
 			token.type = 'Barline'
+			// Map nwctxt barline style names to numeric style codes
+			var barStyles = { Single: 0, Double: 1, SectionOpen: 2, SectionClose: 3, LocalRepeatOpen: 4, LocalRepeatClose: 5, MasterRepeatOpen: 6, MasterRepeatClose: 7 }
+			if (token.Style) token.barline = barStyles[token.Style] || 0
+			if (token.SysBreak === 'Y') token.systemBreak = true
 			break
 		case 'Rest':
 			return Object.assign(
@@ -615,13 +650,13 @@ function mapTokens(token) {
 		case 'Tempo':
 			token.duration = token.Tempo // note
 			token.note = 1
-			token.pos = token.Pos
+			token.position = +token.Pos || 0
 			// Visibility
 			break
 		case 'PerformanceStyle':
 		case 'Dynamic':
 		case 'Text':
-			token.position = +token.Pos
+			token.position = +token.Pos || 0
 			token.text = token.Text
 			if (token.Style) token.text = token.dynamic = token.Style
 			// Justify, Visibility Font
