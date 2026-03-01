@@ -4,10 +4,11 @@ import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { interpret } from './interpreter.js'
 import { setup, resizeToFit } from './drawing.js'
-import { exportAbc, exportLilypond } from './exporter.js'
+import { exportLilypond } from './exporter.js'
 import { score } from './layout/typeset.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
+import { PlaybackController } from './audio.js'
 
 /**********************
  *
@@ -343,27 +344,71 @@ const test_dot_quaver = {
 }
 
 /**
- * Playback
+ * Playback — soundfont-engine
  */
 
-const play = () => {
-	// Select a timbre that sounds like a piano.
-	const inst = new Instrument({ wave: 'piano', detune: 0 })
+const playback = new PlaybackController()
 
-	// inst.on('noteon', e => console.log('noteon', e))
-	// inst.on('noteoff', e => console.log('noteoff', e))
-
-	// The song below is written in ABC notation.  More on abc
-	// notation can be found at http://abcnotation.com/.
-	var song = exportAbc()
-
-	// Play a song from a string in ABC notation.
-	inst.play(song, () => {
-		console.log('(Done playing.)')
-	})
+function formatTime(sec) {
+	if (!isFinite(sec) || sec < 0) sec = 0
+	const m = Math.floor(sec / 60)
+	const s = Math.floor(sec % 60)
+	return m + ':' + String(s).padStart(2, '0')
 }
 
-document.getElementById('play').onclick = play
+const playBtn = document.getElementById('play')
+const stopBtn = document.getElementById('stop')
+const progressBar = document.getElementById('progress_bar')
+const timeLabel = document.getElementById('playback_time')
+
+let _seeking = false
+
+playback.onTime((t, dur) => {
+	if (!_seeking) {
+		progressBar.value = dur > 0 ? t / dur : 0
+	}
+	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(dur)
+})
+
+playback.onStateChange((playing) => {
+	playBtn.textContent = playing ? 'Pause' : 'Play'
+})
+
+playback.onEnd(() => {
+	playBtn.textContent = 'Play'
+	progressBar.value = 0
+	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
+})
+
+async function togglePlayPause() {
+	if (playback.playing) {
+		playback.pause()
+	} else {
+		// Load current score data before playing
+		const data = scoreManager.getData()
+		await playback.load(data)
+		await playback.play()
+	}
+}
+
+playBtn.onclick = togglePlayPause
+
+stopBtn.onclick = () => {
+	playback.stop()
+	progressBar.value = 0
+	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
+}
+
+progressBar.addEventListener('pointerdown', () => { _seeking = true })
+progressBar.addEventListener('pointerup', () => {
+	_seeking = false
+	const t = parseFloat(progressBar.value) * playback.duration
+	playback.seek(t)
+})
+progressBar.addEventListener('input', () => {
+	const t = parseFloat(progressBar.value) * playback.duration
+	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(playback.duration)
+})
 
 const rerender = () => {
 	try {

@@ -1,0 +1,35 @@
+{
+  "name": "soundfont-engine",
+  "version": "0.1.0",
+  "description": "SoundFont synthesizer engine with multiple WASM backends and MIDI scheduling",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "types": "./types/index.d.ts"
+    },
+    "./backends/*": {
+      "import": "./src/backends/*.js"
+    },
+    "./scheduler-worklet": {
+      "import": "./src/scheduler-worklet.js"
+    }
+  },
+  "main": "./src/index.js",
+  "types": "./types/index.d.ts",
+  "files": [
+    "src/",
+    "types/",
+    "vendor/"
+  ],
+  "keywords": [
+    "soundfont",
+    "sf2",
+    "sf3",
+    "midi",
+    "synthesizer",
+    "web-audio",
+    "wasm"
+  ],
+  "license": "MIT"
+}
