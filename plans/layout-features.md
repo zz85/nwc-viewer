@@ -105,7 +105,7 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [ ] Multi-verse lyrics — only the first lyric line is rendered; NWC supports up to 8 verses stacked vertically
 - [x] Hyphen continuation — hyphens between syllables of a word drawn as en-dashes centered between note positions
 - [ ] Melisma/extender lines — underscores should render as horizontal lines extending the syllable
-- [ ] Lyric syllable attachment control — `AttachLyricSyllable` flag (Always/Never/Default) not respected
+- [x] Lyric syllable attachment control — `AttachLyricSyllable` (Default/Always/Never) extracted from binary data and respected during assignment
 - [ ] Top-aligned lyrics — `LyricAlignment: Top` should place lyrics above the staff
 - [ ] Underscore-as-space — NWC's "Underscore shown as space" option replaces `_` with space in display
 - [ ] Lyric alignment mode — NWC supports "Start of Accidental/Note" and "Standard Rules" (center under note, left-align for multi-note phrases)

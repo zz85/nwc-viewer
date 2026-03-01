@@ -328,6 +328,7 @@ SightReader.prototype.Chord = function (token) {
 	// --- Lyric assignment for chords (NWC rules) ---
 	// Chords get a syllable unless they contain tied notes from previous notes.
 	// A chord with both rest+note is considered audible and gets a syllable.
+	// lyricSyllable overrides: Always(1) forces, Never(2) skips.
 	if (lyricsToken && lyricsToken.length) {
 		var isSlurBeneficiary = token.slur === 2 || token.slur === 3
 		var isTieBeneficiary = !!token.tieEnd
@@ -337,7 +338,17 @@ SightReader.prototype.Chord = function (token) {
 			isTieBeneficiary = token.notes.some(function(n) { return !!n.tieEnd })
 		}
 
-		if (!isSlurBeneficiary && !isTieBeneficiary) {
+		var lyricSyl = token.lyricSyllable || 0
+		var shouldAssign
+		if (lyricSyl === 2) {
+			shouldAssign = false
+		} else if (lyricSyl === 1) {
+			shouldAssign = true
+		} else {
+			shouldAssign = !isSlurBeneficiary && !isTieBeneficiary
+		}
+
+		if (shouldAssign) {
 			var syllable = lyricsToken.shift()
 			while (syllable && /^[-_]$/.test(syllable) && lyricsToken.length) {
 				syllable = lyricsToken.shift()
@@ -414,12 +425,23 @@ SightReader.prototype.Note = function (token) {
 	// - "Beneficiary" = slur end (2), slur mid (3), or tie end.
 	// - Rests are ignored (handled in Rest handler, not here).
 	// - Slur start (1) and tie start get a syllable normally.
+	// - lyricSyllable: 0=Default (use rules above), 1=Always, 2=Never
 	if (lyricsToken && lyricsToken.length) {
-		// Check if this note is a slur/tie beneficiary (should NOT get a syllable)
 		var isSlurBeneficiary = token.slur === 2 || token.slur === 3
 		var isTieBeneficiary = !!token.tieEnd
 
-		if (!isSlurBeneficiary && !isTieBeneficiary) {
+		// lyricSyllable overrides: Always(1) forces assignment, Never(2) forces skip
+		var lyricSyl = token.lyricSyllable || 0
+		var shouldAssign
+		if (lyricSyl === 2) {
+			shouldAssign = false // Never
+		} else if (lyricSyl === 1) {
+			shouldAssign = true  // Always
+		} else {
+			shouldAssign = !isSlurBeneficiary && !isTieBeneficiary // Default
+		}
+
+		if (shouldAssign) {
 			var syllable = lyricsToken.shift()
 
 			// Skip bare continuation markers (hyphens, underscores) that shouldn't

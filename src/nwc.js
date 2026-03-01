@@ -167,6 +167,11 @@ function adaptNoteAttrs(obj) {
 	if (attr & 0x080) result.crescendo = 1
 	if (attr & 0x100) result.diminuendo = 1
 	if (attr & 0x200000) result.fermata = 1
+	// Lyric Syllable: 0=Default, 1=Always, 2=Never
+	if (obj.getLyricSyllable) {
+		var ls = obj.getLyricSyllable()
+		if (ls) result.lyricSyllable = ls
+	}
 	return result
 }
 
