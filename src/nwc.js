@@ -398,7 +398,10 @@ function convertFromNewParser(nwcFile) {
 					endingBar: staff.endingBar || 0,
 					lines: staff.lines || 5,
 					lyrics: (staff.lyrics || []).map(function(lyric) {
-						return Array.isArray(lyric) ? lyric.join('\n') : (lyric || '')
+						// New parser produces pre-split syllable arrays where each
+						// element maps 1:1 to notes.  Pass them through directly.
+						// Old parser produces raw strings that need tokenizing.
+						return Array.isArray(lyric) ? lyric : (lyric || '')
 					}),
 					tokens: (staff.objects || []).map(adaptObject)
 				}

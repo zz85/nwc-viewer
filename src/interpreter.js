@@ -129,8 +129,38 @@ SightReader.prototype.read = function (staves) {
 		lyricsToken = null
 		var lyrics = staff.lyrics
 		if (lyrics && lyrics.length) {
-			// Use the first lyric line for note assignment
-			lyricsToken = tokenizeLyrics(lyrics[0])
+			var firstLine = lyrics[0]
+			if (Array.isArray(firstLine)) {
+				// New parser: pre-split syllable array — each element maps 1:1 to
+				// a note.  Prefix conventions:
+				//   ' ' (space)    = word boundary
+				//   '-' (hyphen)   = syllable continuation within a word
+				//   '\r' (CR)      = new phrase/line
+				// We strip whitespace/CR prefixes but keep '-' prefix so the
+				// renderer can detect continuations and draw inter-note dashes.
+				// A leading '-' becomes a trailing '-' on the previous syllable
+				// (equivalent to the tokenizer's 'Glo-' format).
+				lyricsToken = []
+				for (var li = 0; li < firstLine.length; li++) {
+					var raw = firstLine[li]
+					var trimmed = raw.replace(/^[\s\r]+/, '')
+					if (trimmed.startsWith('-')) {
+						// Continuation syllable: mark previous token with trailing hyphen
+						// and strip the leading hyphen from this syllable.
+						if (lyricsToken.length > 0) {
+							var prev = lyricsToken[lyricsToken.length - 1]
+							if (!prev.endsWith('-')) {
+								lyricsToken[lyricsToken.length - 1] = prev + '-'
+							}
+						}
+						trimmed = trimmed.slice(1)
+					}
+					lyricsToken.push(trimmed)
+				}
+			} else {
+				// Old parser: raw string that needs tokenizing
+				lyricsToken = tokenizeLyrics(firstLine)
+			}
 		}
 		staff.tokens.forEach((token) => {
 			var type = token.type

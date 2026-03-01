@@ -560,11 +560,27 @@ window.quickDraw = quickDraw
 function layoutLyricDashes(drawing, staves) {
 	var fs = getFontSize()
 	var lyricFontSize = Math.round(fs * 0.38)
-	var lyricPos = 12
 
 	for (var si = 0; si < staves.length; si++) {
 		var tokens = staves[si].tokens
 		if (!tokens) continue
+
+		// Compute lyric Y offset for this stave (same logic as drawForNote)
+		var thisStaveY = getStaffY(si)
+		var nextStaveY = null
+		for (var nsi = si + 1; nsi < staves.length; nsi++) {
+			if (getStaffY(nsi) !== thisStaveY) {
+				nextStaveY = getStaffY(nsi)
+				break
+			}
+		}
+		var lyricOffsetY
+		if (nextStaveY !== null) {
+			var gap = nextStaveY - thisStaveY
+			lyricOffsetY = gap / 2 - fs / 2
+		} else {
+			lyricOffsetY = fs * 1.5
+		}
 
 		for (var i = 0; i < tokens.length; i++) {
 			var token = tokens[i]
@@ -588,13 +604,13 @@ function layoutLyricDashes(drawing, staves) {
 			if (endX <= startX) continue
 
 			var midX = (startX + endX) / 2
-			var dashY = getStaffY(si)
 
-			var dash = new Text('\u2013', lyricPos, {
+			var dash = new Text('\u2013', 0, {
 				font: lyricFontSize + "px Arial, 'Segoe UI', sans-serif",
 				textAlign: 'center',
 			})
-			dash.moveTo(midX, dashY)
+			dash.moveTo(midX, thisStaveY)
+			dash.offsetY = lyricOffsetY
 			drawing.add(dash)
 		}
 	}
@@ -1478,13 +1494,36 @@ function drawForNote(token, cursor, durToken) {
 		// centered between note positions, not on the syllable text itself.
 		var displayText = token.text.replace(/-$/, '')
 		if (displayText) {
-			var lyricPos = 12
 			var lyricFontSize = Math.round(getFontSize() * 0.38)
-			var text = new Text(displayText, lyricPos, {
+
+			// Compute lyric Y to center in the gap between this staff and the
+			// next non-layered staff below it.
+			var staveIndex = cursor.staveIndex
+			var thisStaveY = getStaffY(staveIndex)
+			var nextStaveY = null
+			for (var nsi = staveIndex + 1; nsi < currentStaves.length; nsi++) {
+				if (getStaffY(nsi) !== thisStaveY) {
+					nextStaveY = getStaffY(nsi)
+					break
+				}
+			}
+			var lyricOffsetY
+			if (nextStaveY !== null) {
+				// Center in the gap: midpoint between bottom of this staff and
+				// top of next staff.  Bottom line = staveY, top line of next = nextStaveY - fs.
+				var gap = nextStaveY - thisStaveY
+				lyricOffsetY = gap / 2 - getFontSize() / 2
+			} else {
+				// No staff below — fall back to fixed offset
+				lyricOffsetY = getFontSize() * 1.5
+			}
+
+			var text = new Text(displayText, 0, {
 				font: lyricFontSize + "px Arial, 'Segoe UI', sans-serif",
 				textAlign: 'left',
 			})
 			cursor.posGlyph(text)
+			text.offsetY = lyricOffsetY
 			drawing.add(text)
 		}
 	}
