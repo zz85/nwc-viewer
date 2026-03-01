@@ -7,11 +7,21 @@ And if you like this project, you can also chat me up [@blurspline on twitter](h
 
 ### [Try it](http://zz85.github.io/nwc-viewer/)
 
-![screen shot](https://user-images.githubusercontent.com/314997/34420095-94df3818-ec42-11e7-9987-2d0bbe0cbdff.png)
+![screen shot](screenshots/notably-v2.2.png)
 
 ## Changelog
 
-#### 14 January 2026
+### v2.2 - March 2026
+- **Wrap layout** with DP-optimal line breaking and anchor-point justification
+- **Lyrics** — syllable assignment respecting slur/tie/LyricSyllable rules, inter-syllable dashes
+- **Staff visual properties** — boundary-based spacing, bracket/brace chains, layering
+- **SoundFont playback** — OxiSynth (Rust/WASM) with GM SoundFont, replacing musical.js
+- **Playback controls** — play/pause, stop, progress bar, time display
+- Beam, tie, and barline connector fixes
+- Virtual viewport rendering with transform-based zoom
+- 285 unit tests
+
+### v2.0 - January 2026
 - Refactored global variables to MusicContext pattern for better modularity
 - Implemented proper beam support respecting NWC file beam markers
 - Improved tie and slur rendering with better matching logic
@@ -21,7 +31,7 @@ And if you like this project, you can also chat me up [@blurspline on twitter](h
 - Fixed dotted note spacing for stem-up notes with flags
 - Fixed quickDraw resize handling
 
-#### 5 May 2020
+### 5 May 2020
 - Add support for loading nwc v1.55
 - lyrics rendering
 - add zoom scaling
@@ -35,13 +45,6 @@ And if you like this project, you can also chat me up [@blurspline on twitter](h
 - musicial alignment
 - music playback via musical.js with abc export
 - more accurate font loading via opentype.js
-
-#### Possible Upcoming
-- better scroll management
-- better playback controls (stop, seek, highlight notes)
-- simple exporting to lilypond and abc notation
-- better nwc compatibility? (lyrics)
-- midi keyboard output
 
 ### v0 "POC" 20 Nov 2017
 Porting nwc2ly.py to js, basic notation rendering
@@ -92,53 +95,6 @@ See [lib/nwc2xml/README.md](lib/nwc2xml/README.md) for more details.
 - **[index.html](index.html)** - Music viewer and player for NWC files
 - **[nwc2xml_converter.html](nwc2xml_converter.html)** - NWC to MusicXML converter with drag-and-drop interface
 
-## Progress
-
-### NWC Parsing
-- [x] 1.75
-- [x] 2.75 (nwctext)
-
-- [x] Convert to JSON format
-
-### Typesetting (Layout)
-- [x] Interpret JSON format and map to drawing symbols
-- [x] Position by Note Value
-
-### Toolbar
-- open library
-
-
-### Drawing
-- [x] Clefs
-- [x] Time Signatures
-- [x] Key Signatures
-- [x] Noteheads
-- [x] Staves
-- [x] Accidentals
-- [x] Stems & Flags
-- [x] Barlines
-- [x] Dots
-- [x] Text
-- [ ] Beams
-- [ ] Dynamics
-- [ ] Tempo
-- [ ] Harpins
-- [ ] Slurs
-- [ ] Braces
-- [ ] Ending Barlines
-- [ ] Ties
-
-### Technical Road Map
-- [ ] Audio Playback
-- [ ] Note Editing
-- [x] Font loader
-
-## Current API
-1. NWC file format parsing
-2. Musical intepretation of tokens
-3. Notation representation of data
-4. Rendering
-
 ## Internals
 
 ```
@@ -175,32 +131,11 @@ decodeNwcArrayBuffer(bytearray)
 #### 4. Rendering
 (drawing.js) takes the graphical objects and renders them to a canvas target.
 
-```
-interpret(data)
-|- SightReader. assign start/end music/display time to tokens
-  |- tokens
-    |- tickValue is musical duration
-    |- tabValue is display duration
-  |- keeps running keysig, time sig, clef, barlines
-
-score(data)
-|- Scoring
-  |- convert staves to StaveCursors
-    |- ask for new tokens from staves
-      |- position stuff of the same tab value to the furthest
-```
-
-The layout is currently done on a fixed, time based top, left constrained algorithm. The goal would be to move to a move generic, flexible layout model.
-
-## NWC File Format
-I wrote a nwc parser/converter back in 2005 [nwc2ly.py](https://github.com/zz85/nwc2ly.py) using the "french cafe approach". The decoder used here was initially a port of the python version with additions to support versions 2.7 and nwctext.
-
-## Music Notation Rendering
-Although the purpose of this project is not solely music notation, my intention is to build a simple, basic but functional renderer for my own education purposes. Perhaps parts of it can be repurpose if there are intentions to extend the functionality of it.
-
-
 ### External Libs
 - inflate.js - zlib inflating for nwc binary format
 - bravura font - smufl music font
-- musical.js - simple web audio wavetable audio library
+- soundfont-engine - SoundFont synthesizer with OxiSynth (Rust/WASM) backend
 - opentype.js - font loading
+
+## NWC File Format
+I wrote a nwc parser/converter back in 2005 [nwc2ly.py](https://github.com/zz85/nwc2ly.py) using the "french cafe approach". The decoder used here was initially a port of the python version with additions to support versions 2.7 and nwctext.
