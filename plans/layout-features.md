@@ -109,8 +109,8 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [ ] Top-aligned lyrics — `LyricAlignment: Top` should place lyrics above the staff
 - [ ] Underscore-as-space — NWC's "Underscore shown as space" option replaces `_` with space in display
 - [ ] Lyric alignment mode — NWC supports "Start of Accidental/Note" and "Standard Rules" (center under note, left-align for multi-note phrases)
-- [ ] Slur/tie lyric skip — notes that are the target of a slur or tie should not consume a lyric syllable (partially implemented for slur start/tie)
-- [ ] Rest lyric skip — rests should never consume a lyric syllable
+- [x] Slur/tie lyric skip — notes that are the target of a slur (end/mid) or tie (tieEnd) do not consume a lyric syllable; chords with tied child notes also skipped
+- [x] Rest lyric skip — rests never consume a lyric syllable (Rest handler has no lyric logic)
 - [x] **Do not assign `-` (hyphen) as lyrics to notes** — tokenizer skips leading/standalone hyphens; interpreter filters bare continuation markers before assignment
 
 ## Dynamics & Expressions
