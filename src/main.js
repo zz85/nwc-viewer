@@ -5,10 +5,11 @@ import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js
 import { interpret } from './interpreter.js'
 import { setup, resizeToFit } from './drawing.js'
 import { exportLilypond } from './exporter.js'
-import { score } from './layout/typeset.js'
+import { score, setPlaybackHighlighter } from './layout/typeset.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
 import { PlaybackController } from './audio.js'
+import { PlaybackHighlighter } from './playback-highlight.js'
 
 /**********************
  *
@@ -348,6 +349,8 @@ const test_dot_quaver = {
  */
 
 const playback = new PlaybackController()
+const highlighter = new PlaybackHighlighter(document.getElementById('score'))
+setPlaybackHighlighter(highlighter)
 
 function formatTime(sec) {
 	if (!isFinite(sec) || sec < 0) sec = 0
@@ -368,16 +371,23 @@ playback.onTime((t, dur) => {
 		progressBar.value = dur > 0 ? t / dur : 0
 	}
 	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(dur)
+	highlighter.updateTime(t)
 })
+
+playback.onNoteOn((ev) => highlighter.onNoteOn(ev))
+playback.onNoteOff((ev) => highlighter.onNoteOff(ev))
 
 playback.onStateChange((playing) => {
 	playBtn.textContent = playing ? 'Pause' : 'Play'
+	if (playing) highlighter.start()
+	else highlighter.stop()
 })
 
 playback.onEnd(() => {
 	playBtn.textContent = 'Play'
 	progressBar.value = 0
 	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
+	highlighter.stop()
 })
 
 async function togglePlayPause() {
@@ -395,11 +405,22 @@ playBtn.onclick = togglePlayPause
 
 stopBtn.onclick = () => {
 	playback.stop()
+	highlighter.stop()
 	progressBar.value = 0
 	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
 }
 
 progressBar.addEventListener('pointerdown', () => { _seeking = true })
+
+// Highlight style toggle
+const highlightBtn = document.getElementById('highlight_toggle')
+if (highlightBtn) {
+	highlightBtn.onclick = () => {
+		const newStyle = highlighter.toggleStyle()
+		highlightBtn.textContent = 'Highlight: ' + (newStyle === 'glow' ? 'Glow' : 'Color')
+	}
+}
+
 progressBar.addEventListener('pointerup', () => {
 	_seeking = false
 	const t = parseFloat(progressBar.value) * playback.duration
@@ -420,6 +441,9 @@ const rerender = () => {
 				interpret(musicContext)
 				score(musicContext)
 				window.__renderComplete = { ts: Date.now(), file: window.__currentFile }
+
+				// Update highlighter with new layout positions
+				highlighter.setScore(data)
 			},
 			null,
 			(canvas) => {

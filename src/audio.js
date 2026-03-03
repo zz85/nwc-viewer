@@ -81,6 +81,9 @@ export function buildNoteEvents(data) {
 					duration: durationSec,
 					velocity: 0.7,
 					channel,
+					staffIndex: si,
+					tokenIndex: ti,
+					token: tok,
 				})
 			} else if (tok.type === 'Chord' && tok.notes) {
 				// Main chord voice
@@ -92,6 +95,9 @@ export function buildNoteEvents(data) {
 						duration: durationSec,
 						velocity: 0.7,
 						channel,
+						staffIndex: si,
+						tokenIndex: ti,
+						token: tok,
 					})
 				}
 				// Additional chord notes
@@ -105,6 +111,10 @@ export function buildNoteEvents(data) {
 						duration: durationSec,
 						velocity: 0.7,
 						channel,
+						staffIndex: si,
+						tokenIndex: ti,
+						token: tok,
+						noteRef: n,
 					})
 				}
 			}
@@ -144,7 +154,7 @@ function findNextTied(tokens, idx) {
  * Build a tempo map: array of { tick, bpm } sorted by tick.
  * Tick values are in whole-note units (matching tickValue from interpreter).
  */
-function buildTempoMap(staves) {
+export function buildTempoMap(staves) {
 	const entries = []
 
 	// Scan all staves for Tempo tokens (they usually appear on stave 0)
@@ -183,7 +193,7 @@ function buildTempoMap(staves) {
  * A quarter note = 0.25 in whole-note units, so:
  *   seconds_per_whole_note = (4 / bpm) * 60 = 240 / bpm
  */
-function ticksToSeconds(tick, tempoMap) {
+export function ticksToSeconds(tick, tempoMap) {
 	let seconds = 0
 	let prevTick = 0
 	let bpm = tempoMap[0].bpm
@@ -222,6 +232,8 @@ export class PlaybackController {
 		this._onTime = null
 		this._onEnd = null
 		this._onStateChange = null
+		this._onNoteOn = null
+		this._onNoteOff = null
 	}
 
 	/** Register a callback for time updates: fn(currentTime, duration) */
@@ -232,6 +244,12 @@ export class PlaybackController {
 
 	/** Register a callback for play/pause state changes: fn(playing) */
 	onStateChange(fn) { this._onStateChange = fn }
+
+	/** Register a callback for note-on events: fn(noteEvent) */
+	onNoteOn(fn) { this._onNoteOn = fn }
+
+	/** Register a callback for note-off events: fn(noteEvent) */
+	onNoteOff(fn) { this._onNoteOff = fn }
 
 	get playing() { return this._scheduler?.playing ?? false }
 	get currentTime() { return this._scheduler?.currentTime ?? 0 }
@@ -262,6 +280,14 @@ export class PlaybackController {
 
 		this._scheduler.on('time', (t) => {
 			this._onTime?.(t, this._scheduler.duration)
+		})
+
+		this._scheduler.on('noteOn', (note) => {
+			this._onNoteOn?.(note)
+		})
+
+		this._scheduler.on('noteOff', (note) => {
+			this._onNoteOff?.(note)
 		})
 
 		this._scheduler.on('end', () => {

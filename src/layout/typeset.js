@@ -547,10 +547,24 @@ function quickDraw(dataOrContext, x, y) {
 	var zoom = getZoomLevel()
 	if (zoom !== 1) ctx.scale(zoom, zoom)
 	drawing.draw(ctx)
+	// Draw playback highlights on top of the score (cursor + active notes).
+	// The highlighter is set externally via setPlaybackHighlighter().
+	if (_playbackHighlighter) {
+		_playbackHighlighter.drawHighlights(ctx)
+	}
 	ctx.restore()
 }
 
 window.quickDraw = quickDraw
+
+// Playback highlighter reference — set by main.js to allow quickDraw to
+// paint highlights after the score without a circular import.
+let _playbackHighlighter = null
+
+/** Register the playback highlighter so quickDraw can call drawHighlights(). */
+function setPlaybackHighlighter(highlighter) {
+	_playbackHighlighter = highlighter
+}
 
 /**
  * Draw lyric continuation dashes between syllables of the same word.
@@ -1277,6 +1291,9 @@ function spacerWidth() {
 }
 
 function handleToken(token, tokenIndex, staveIndex, cursor) {
+	// Store staff index on the token for playback highlight lookups
+	token.staffIndex = staveIndex
+
 	// info = tokenIndex
 	// info = absCounter++ + ' : ' + tokenIndex
 	let info = ''
@@ -1661,4 +1678,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX }
+export { score, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter }
