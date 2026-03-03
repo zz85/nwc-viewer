@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit } from '../drawing.js'
@@ -546,6 +546,10 @@ function quickDraw(dataOrContext, x, y) {
 	ctx.translate(x || 0, y || 0)
 	var zoom = getZoomLevel()
 	if (zoom !== 1) ctx.scale(zoom, zoom)
+	// Draw page backgrounds (in page mode) before the score elements
+	if (_pageGeometry) {
+		_drawPageBackgrounds(ctx, _pageGeometry)
+	}
 	drawing.draw(ctx)
 	// Draw playback highlights on top of the score (cursor + active notes).
 	// The highlighter is set externally via setPlaybackHighlighter().
@@ -560,6 +564,10 @@ window.quickDraw = quickDraw
 // Playback highlighter reference — set by main.js to allow quickDraw to
 // paint highlights after the score without a circular import.
 let _playbackHighlighter = null
+
+// Page layout geometry — set by scorePageLayout(), read by quickDraw()
+// to draw page backgrounds before the score elements.
+let _pageGeometry = null
 
 /** Register the playback highlighter so quickDraw can call drawHighlights(). */
 function setPlaybackHighlighter(highlighter) {
@@ -722,8 +730,11 @@ function score(dataOrContext) {
 
 	// ---- Wrap mode: reflow into systems ----
 	const isWrapMode = getLayoutMode() === 'wrap'
+	const isPageMode = getLayoutMode() === 'page'
 
-	if (isWrapMode) {
+	if (isPageMode) {
+		scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas)
+	} else if (isWrapMode) {
 		scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas)
 	} else {
 		scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas)
@@ -798,6 +809,9 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var bottom = lastStaveY + getFontSize() * 1.5
 
 	maxCanvasHeight = bottom + 100
+
+	// Clear page geometry (not in page mode)
+	_pageGeometry = null
 
 	drawBracketsAndBraces(drawing, staves, 0)
 	drawStaffLabels(drawing, staves, 0)
@@ -1064,7 +1078,331 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	maxCanvasWidth = pageWidth + leftMargin + fs
 	maxCanvasHeight = totalHeight + fs * 2
 
+	// Clear page geometry (not in page mode)
+	_pageGeometry = null
+
 	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
+	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
+}
+
+/**
+ * Draw page background rectangles (white pages with drop shadows on gray).
+ * Called from quickDraw() before drawing.draw(ctx).
+ */
+function _drawPageBackgrounds(ctx, pg) {
+	var shadowOffset = 4
+	var shadowColor = 'rgba(0,0,0,0.25)'
+
+	for (var p = 0; p < pg.pageCount; p++) {
+		var pageY = pg.interPageGap + p * (pg.pageHeight + pg.interPageGap)
+		var pageX = pg.horizontalPad
+
+		// Drop shadow
+		ctx.fillStyle = shadowColor
+		ctx.fillRect(pageX + shadowOffset, pageY + shadowOffset, pg.pageWidth, pg.pageHeight)
+
+		// White page
+		ctx.fillStyle = '#ffffff'
+		ctx.fillRect(pageX, pageY, pg.pageWidth, pg.pageHeight)
+	}
+}
+
+/**
+ * Page layout — renders the score onto fixed-size pages (Letter or A4) with
+ * margins, page breaks, and a PDF-viewer appearance.
+ *
+ * Reuses the wrap-mode horizontal line-breaking algorithm, then assigns
+ * systems to pages based on available vertical space.
+ */
+function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
+	var fs = getFontSize()
+	var pageDim = getPageDimensions()
+	var margins = getPageMargins()
+
+	var PAGE_W = pageDim.width
+	var PAGE_H = pageDim.height
+	var contentW = PAGE_W - margins.left - margins.right
+	var contentH = PAGE_H - margins.top - margins.bottom
+
+	// Calculate system height (same as wrap mode)
+	var firstStaffY = getStaffY(0)
+	var lastStaffY = getStaffY(staves.length - 1)
+	var systemHeight = (lastStaffY - firstStaffY) + fs
+	var interSystemGap = fs * 1.5
+	var leftMargin = margins.left
+
+	// --- Draw ending barlines (same as wrap mode) ---
+	var endingBarStyles = [3, 7, 0, 1, 8]
+	stavePointers.forEach((cursor, staveIndex) => {
+		addStave(cursor, staveIndex)
+		var stave = staves[staveIndex]
+		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
+		if (ebStyle !== 8) {
+			cursor.incStaveX(spacerWidth() * 2)
+			var eb = new Barline(0, 8, ebStyle)
+			cursor.posGlyph(eb)
+			drawing.add(eb)
+		}
+	})
+
+	var singleLineWidth = 0
+	stavePointers.forEach(cursor => {
+		singleLineWidth = Math.max(cursor.staveX, singleLineWidth)
+	})
+
+	// --- Horizontal line breaking (reuse wrap mode algorithm) ---
+	var boundaries = collectMeasureBoundaries(staves)
+	var runningState = collectRunningState(staves)
+
+	// Estimate courtesy width
+	var estimatedCourtesyWidth = 0
+	if (boundaries.length > 0) {
+		for (let si = 0; si < staves.length; si++) {
+			var state = runningState[si][0]
+			if (!state) continue
+			var { totalWidth } = createCourtesyItems(
+				state.clef, state.accidentals, state.clefForKey, 0
+			)
+			estimatedCourtesyWidth = Math.max(estimatedCourtesyWidth, totalWidth)
+		}
+		estimatedCourtesyWidth += spacerWidth()
+	}
+
+	var effectiveContentW = contentW - estimatedCourtesyWidth
+	var systemBreaks = computeSystemBreaks(boundaries, effectiveContentW, leftMargin)
+	var breakXs = systemBreaks.map(b => b.x)
+	var systemCount = breakXs.length + 1
+
+	// --- Remove single-line stave segments and Path objects ---
+	var toRemove = []
+	for (const el of drawing.set) {
+		if (el instanceof Stave || el instanceof Claire.Path) toRemove.push(el)
+	}
+	toRemove.forEach(s => drawing.remove(s))
+
+	// --- Per-system courtesy widths ---
+	var courtesyWidths = [0]
+	for (let sysIdx = 1; sysIdx < systemCount; sysIdx++) {
+		var breakBoundaryIdx = systemBreaks[sysIdx - 1].boundaryIndex
+		var maxCourtesyWidth = 0
+		for (let si = 0; si < staves.length; si++) {
+			var state = runningState[si][breakBoundaryIdx]
+			if (!state) continue
+			var { totalWidth } = createCourtesyItems(
+				state.clef, state.accidentals, state.clefForKey, 0
+			)
+			maxCourtesyWidth = Math.max(maxCourtesyWidth, totalWidth)
+		}
+		courtesyWidths.push(maxCourtesyWidth + spacerWidth())
+	}
+
+	// --- Per-system natural widths ---
+	var systemNaturalWidths = []
+	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+		var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
+		systemNaturalWidths.push(sysEndX - sysStartX)
+	}
+
+	// --- Collect anchors and build per-system barline maps (same as wrap) ---
+	var allAnchors = collectAnchors(staves)
+	var systemBarlineMaps = []
+	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+		var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
+		var naturalWidth = systemNaturalWidths[sysIdx]
+		var courtesyW = courtesyWidths[sysIdx]
+		var sysContentW = contentW - courtesyW
+		var isLastSystem = sysIdx === systemCount - 1
+		var shouldJustify = !isLastSystem || (naturalWidth / sysContentW > 0.2)
+		var extraSpace = shouldJustify ? sysContentW - naturalWidth : 0
+
+		var relBarXs = []
+		for (var bi = 0; bi < boundaries.length; bi++) {
+			var bx = boundaries[bi].x
+			if (bx > sysStartX && bx <= sysEndX) {
+				relBarXs.push(bx - sysStartX)
+			}
+		}
+
+		var relAnchors = allAnchors
+			.filter(ax => ax >= sysStartX && ax <= sysEndX)
+			.map(ax => ax - sysStartX)
+
+		systemBarlineMaps.push(buildBarlineMap(relBarXs, extraSpace, relAnchors))
+	}
+
+	// --- Assign systems to pages ---
+	// Title/author consumes space on page 1
+	var titleHeight = 0
+	if (data.info?.title) titleHeight += 30
+	if (data.info?.author) titleHeight += 20
+	if (titleHeight > 0) titleHeight += 15  // gap after title block
+
+	var pages = []        // [{systemStart, systemEnd}]
+	var currentPage = 0
+	var currentPageY = titleHeight  // start after title on page 1
+	var pageStart = 0
+
+	for (var sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		var sysH = systemHeight
+		// Would this system fit on the current page?
+		if (currentPageY + sysH > contentH && sysIdx > pageStart) {
+			// Finish current page
+			pages.push({ systemStart: pageStart, systemEnd: sysIdx - 1 })
+			currentPage++
+			currentPageY = 0
+			pageStart = sysIdx
+		}
+		currentPageY += sysH + interSystemGap
+	}
+	// Last page
+	pages.push({ systemStart: pageStart, systemEnd: systemCount - 1 })
+	var pageCount = pages.length
+
+	// --- Compute per-system absolute Y position ---
+	var interPageGap = 24
+	var horizontalPad = 40
+
+	var systemYOffsets = new Array(systemCount)
+	for (var pi = 0; pi < pageCount; pi++) {
+		var page = pages[pi]
+		var pageTopY = interPageGap + pi * (PAGE_H + interPageGap) + margins.top
+		var localY = (pi === 0) ? titleHeight : 0
+
+		for (var si = page.systemStart; si <= page.systemEnd; si++) {
+			systemYOffsets[si] = pageTopY + localY
+			localY += systemHeight + interSystemGap
+		}
+	}
+
+	// --- Reflow drawing elements ---
+	for (const el of drawing.set) {
+		if (el.x == null || el.y == null) continue
+
+		let sysIdx = 0
+		for (let i = 0; i < breakXs.length; i++) {
+			if (el.x > breakXs[i]) sysIdx = i + 1
+			else break
+		}
+
+		var systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+		var relX = el.x - systemStartX
+		var courtesyW = courtesyWidths[sysIdx]
+		var barlineMap = systemBarlineMaps[sysIdx]
+
+		// X justification
+		if (el.startX != null && el.endX != null) {
+			var origStartAbsX = el.x + el.startX
+			var origEndAbsX = el.x + el.endX
+			var relStart = origStartAbsX - systemStartX
+			var relEnd = origEndAbsX - systemStartX
+			var relOrigin = el.x - systemStartX
+
+			var justOrigin = computeJustifyX(relOrigin, barlineMap) + leftMargin + courtesyW + horizontalPad
+			var justStart = computeJustifyX(relStart, barlineMap) + leftMargin + courtesyW + horizontalPad
+			var justEnd = computeJustifyX(relEnd, barlineMap) + leftMargin + courtesyW + horizontalPad
+
+			el.x = justOrigin
+			el.startX = justStart - justOrigin
+			el.endX = justEnd - justOrigin
+		} else if (el.endx != null && el.width != null) {
+			var origEndAbsX = el.x + el.width
+			var relEnd = origEndAbsX - systemStartX
+
+			el.x = computeJustifyX(relX, barlineMap) + leftMargin + courtesyW + horizontalPad
+			var justEnd = computeJustifyX(relEnd, barlineMap) + leftMargin + courtesyW + horizontalPad
+			el.width = justEnd - el.x
+			el.endx = justEnd
+		} else {
+			el.x = computeJustifyX(relX, barlineMap) + leftMargin + courtesyW + horizontalPad
+		}
+
+		// Y: offset from single-line staff Y to absolute page position
+		var yShift = systemYOffsets[sysIdx] - firstStaffY
+		el.y = el.y + yShift
+
+		if (el.endy != null) {
+			el.endy = el.endy + yShift
+		}
+	}
+
+	// --- Draw per-system stave lines, brackets, braces, labels, courtesy items ---
+	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		var naturalWidth = systemNaturalWidths[sysIdx]
+		var isLastSystem = sysIdx === systemCount - 1
+		var courtesyW = courtesyWidths[sysIdx]
+		var sysContentW = contentW - courtesyW
+		var fillRatio = naturalWidth / sysContentW
+		var justifiedWidth = (!isLastSystem || fillRatio > 0.2)
+			? contentW : naturalWidth + courtesyW
+		var yOffset = systemYOffsets[sysIdx] - firstStaffY
+
+		for (var si = 0; si < staves.length; si++) {
+			var staveEl = new Stave(justifiedWidth)
+			staveEl.moveTo(leftMargin + horizontalPad, getStaffY(si) + yOffset)
+			drawing.add(staveEl)
+		}
+
+		// Courtesy clef + key signature
+		if (sysIdx > 0) {
+			var breakBoundaryIdx = systemBreaks[sysIdx - 1].boundaryIndex
+			for (var si = 0; si < staves.length; si++) {
+				var state = runningState[si][breakBoundaryIdx]
+				if (!state) continue
+				var { elements } = createCourtesyItems(
+					state.clef, state.accidentals, state.clefForKey,
+					getStaffY(si) + yOffset
+				)
+				for (var cei = 0; cei < elements.length; cei++) {
+					elements[cei].x += leftMargin + horizontalPad
+					drawing.add(elements[cei])
+				}
+			}
+		}
+
+		drawBracketsAndBraces(drawing, staves, yOffset, leftMargin + horizontalPad)
+		drawStaffLabels(drawing, staves, yOffset, leftMargin + horizontalPad)
+	}
+
+	// --- Title and author on page 1 ---
+	var page1TopY = interPageGap + margins.top
+	var titleCenterX = horizontalPad + PAGE_W / 2
+	if (data.info?.title) {
+		const titleDraw = new Claire.Text(data.info.title, 0, {
+			font: "bold 20px Arial, 'Segoe UI', sans-serif",
+			textAlign: 'center',
+		})
+		titleDraw.moveTo(titleCenterX, page1TopY + 10)
+		drawing.add(titleDraw)
+	}
+	if (data.info?.author) {
+		const authorDraw = new Claire.Text(data.info.author, 0, {
+			font: "italic 14px Arial, 'Segoe UI', sans-serif",
+			textAlign: 'center',
+		})
+		authorDraw.moveTo(titleCenterX, page1TopY + 30)
+		drawing.add(authorDraw)
+	}
+
+	// --- Footer ---
+	var { copyright1, copyright2 } = data.info || {}
+	var footerEl = document.getElementById('footer')
+	if (footerEl) footerEl.innerText = (copyright1 || '') + '\n' + (copyright2 || '')
+
+	// --- Store page geometry for quickDraw background rendering ---
+	_pageGeometry = {
+		pageCount,
+		pageWidth: PAGE_W,
+		pageHeight: PAGE_H,
+		interPageGap,
+		horizontalPad,
+	}
+
+	// --- Canvas sizing ---
+	maxCanvasWidth = PAGE_W + horizontalPad * 2
+	maxCanvasHeight = pageCount * (PAGE_H + interPageGap) + interPageGap
+
 	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
 }
 

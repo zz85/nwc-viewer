@@ -1,5 +1,5 @@
 import './constants.js'
-import { getLayoutMode } from './constants.js'
+import { getLayoutMode, setPageSize, getPageSize } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { interpret } from './interpreter.js'
@@ -22,6 +22,7 @@ window.addEventListener('resize', () => {
 		// In wrap mode, the layout depends on viewport width — must re-layout
 		rerender()
 	} else {
+		// scroll and page modes: fixed width, just repaint
 		resizeToFit()
 		var scoreElm = document.getElementById('score')
 		quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
@@ -520,26 +521,58 @@ if (storedParser !== null) {
 }
 updateParserButton()
 
-// ---- Layout mode toggle (scroll vs wrap) ----
+// ---- Layout mode toggle (scroll → wrap → page) ----
 
 const LAYOUT_STORAGE_KEY = 'nwc_layout_mode'
+const PAGE_SIZE_STORAGE_KEY = 'nwc_page_size'
 
 function updateLayoutButton() {
 	const btn = document.getElementById('layout_toggle')
-	if (btn) btn.textContent = getLayoutMode() === 'wrap' ? 'Wrap' : 'Scroll'
+	const mode = getLayoutMode()
+	if (btn) btn.textContent = mode === 'wrap' ? 'Wrap' : mode === 'page' ? 'Page' : 'Scroll'
+
+	// Show/hide page size selector
+	const pageSizeSelect = document.getElementById('page_size')
+	if (pageSizeSelect) pageSizeSelect.style.display = mode === 'page' ? 'inline' : 'none'
+
+	// Toggle background color for page mode (gray vs white canvas)
+	const scoreDiv = document.getElementById('score')
+	const canvasEl = window.canvas
+	if (mode === 'page') {
+		if (scoreDiv) scoreDiv.style.background = '#888'
+		if (canvasEl) canvasEl.style.background = 'transparent'
+	} else {
+		if (scoreDiv) scoreDiv.style.background = ''
+		if (canvasEl) canvasEl.style.background = '#fff'
+	}
 }
 
 window.toggleLayout = function () {
-	const next = getLayoutMode() === 'scroll' ? 'wrap' : 'scroll'
+	const modes = ['scroll', 'wrap', 'page']
+	const idx = modes.indexOf(getLayoutMode())
+	const next = modes[(idx + 1) % modes.length]
 	setLayoutMode(next)
 	localStorage.setItem(LAYOUT_STORAGE_KEY, next)
 	updateLayoutButton()
 	rerender()
 }
 
-// Restore persisted layout preference
+// Page size selector
+const pageSizeSelect = document.getElementById('page_size')
+if (pageSizeSelect) {
+	pageSizeSelect.onchange = function () {
+		setPageSize(pageSizeSelect.value)
+		localStorage.setItem(PAGE_SIZE_STORAGE_KEY, pageSizeSelect.value)
+		if (getLayoutMode() === 'page') rerender()
+	}
+}
+
+// Restore persisted preferences
 const storedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY)
-if (storedLayout === 'wrap' || storedLayout === 'scroll') {
+if (storedLayout === 'wrap' || storedLayout === 'scroll' || storedLayout === 'page') {
 	setLayoutMode(storedLayout)
 }
+const storedPageSize = localStorage.getItem(PAGE_SIZE_STORAGE_KEY)
+if (storedPageSize) setPageSize(storedPageSize)
+if (pageSizeSelect) pageSizeSelect.value = getPageSize()
 updateLayoutButton()
