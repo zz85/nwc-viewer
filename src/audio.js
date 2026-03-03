@@ -234,6 +234,14 @@ export class PlaybackController {
 		this._onStateChange = null
 		this._onNoteOn = null
 		this._onNoteOff = null
+
+		// Solo/mute state per staff
+		// _soloStaves: Set of staff indices with solo enabled (empty = no solo = all play)
+		// _muteStaves: Set of staff indices that are muted
+		this._soloStaves = new Set()
+		this._muteStaves = new Set()
+		this._allNotes = []   // unfiltered notes from last load
+		this._scoreData = null // last loaded score data
 	}
 
 	/** Register a callback for time updates: fn(currentTime, duration) */
@@ -250,6 +258,67 @@ export class PlaybackController {
 
 	/** Register a callback for note-off events: fn(noteEvent) */
 	onNoteOff(fn) { this._onNoteOff = fn }
+
+	// ── Solo / Mute ───────────────────────────────────────────────────────
+
+	/** Solo a staff index — only soloed staves will play. */
+	setSolo(staffIndex, enabled) {
+		if (enabled) this._soloStaves.add(staffIndex)
+		else this._soloStaves.delete(staffIndex)
+	}
+
+	/** Mute a staff index — muted staves won't play. */
+	setMute(staffIndex, enabled) {
+		if (enabled) this._muteStaves.add(staffIndex)
+		else this._muteStaves.delete(staffIndex)
+	}
+
+	/** Check if a staff is soloed. */
+	isSoloed(staffIndex) { return this._soloStaves.has(staffIndex) }
+
+	/** Check if a staff is muted. */
+	isMuted(staffIndex) { return this._muteStaves.has(staffIndex) }
+
+	/** Get all soloed staff indices. */
+	get soloStaves() { return this._soloStaves }
+
+	/** Get all muted staff indices. */
+	get muteStaves() { return this._muteStaves }
+
+	/** Clear all solo/mute state. */
+	clearSoloMute() {
+		this._soloStaves.clear()
+		this._muteStaves.clear()
+	}
+
+	/**
+	 * Filter notes based on current solo/mute state.
+	 * - If any staves are soloed, only those staves play (mute is ignored for soloed).
+	 * - Otherwise, muted staves are excluded.
+	 */
+	_filterNotes(notes) {
+		const hasSolo = this._soloStaves.size > 0
+		return notes.filter(n => {
+			if (hasSolo) return this._soloStaves.has(n.staffIndex)
+			return !this._muteStaves.has(n.staffIndex)
+		})
+	}
+
+	/**
+	 * Re-load the scheduler with filtered notes based on current solo/mute.
+	 * Preserves playback position if currently playing.
+	 */
+	async _reloadFiltered() {
+		if (!this._scheduler || this._allNotes.length === 0) return
+		const wasPlaying = this.playing
+		const pos = this.currentTime
+		const filtered = this._filterNotes(this._allNotes)
+		this._scheduler.load({ notes: filtered })
+		if (wasPlaying) {
+			this._scheduler.seek(pos)
+			this._scheduler.play()
+		}
+	}
 
 	get playing() { return this._scheduler?.playing ?? false }
 	get currentTime() { return this._scheduler?.currentTime ?? 0 }
@@ -327,7 +396,10 @@ export class PlaybackController {
 		// Ensure tokens have been interpreted (name, octave, tickValue, etc.)
 		interpret(data)
 		const { notes } = buildNoteEvents(data)
-		this._scheduler.load({ notes })
+		this._allNotes = notes
+		this._scoreData = data
+		const filtered = this._filterNotes(notes)
+		this._scheduler.load({ notes: filtered })
 	}
 
 	async play() {

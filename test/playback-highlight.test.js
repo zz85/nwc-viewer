@@ -308,4 +308,103 @@ describe('PlaybackHighlighter', () => {
 		expect(s2).toBe('colored')
 		expect(h._style).toBe('colored')
 	})
+
+	test('auto-scroll is enabled by default', () => {
+		const h = new PlaybackHighlighter(mockElement)
+		expect(h.autoScrollEnabled).toBe(true)
+	})
+
+	test('toggleAutoScroll toggles and returns new state', () => {
+		const h = new PlaybackHighlighter(mockElement)
+		const r1 = h.toggleAutoScroll()
+		expect(r1).toBe(false)
+		expect(h.autoScrollEnabled).toBe(false)
+		const r2 = h.toggleAutoScroll()
+		expect(r2).toBe(true)
+		expect(h.autoScrollEnabled).toBe(true)
+	})
+})
+
+// ── Solo / Mute filtering tests ────────────────────────────────────────────
+
+import { PlaybackController } from '../src/audio.js'
+
+describe('PlaybackController solo/mute', () => {
+	function makeFakeNote(staffIndex, midi = 60) {
+		return { midi, time: 0, duration: 1, velocity: 0.7, channel: 0, staffIndex }
+	}
+
+	test('no solo/mute passes all notes through', () => {
+		const pc = new PlaybackController()
+		const notes = [makeFakeNote(0), makeFakeNote(1), makeFakeNote(2)]
+		const filtered = pc._filterNotes(notes)
+		expect(filtered.length).toBe(3)
+	})
+
+	test('solo a single staff filters to only that staff', () => {
+		const pc = new PlaybackController()
+		pc.setSolo(1, true)
+		const notes = [makeFakeNote(0), makeFakeNote(1), makeFakeNote(2)]
+		const filtered = pc._filterNotes(notes)
+		expect(filtered.length).toBe(1)
+		expect(filtered[0].staffIndex).toBe(1)
+	})
+
+	test('solo multiple staves includes all soloed', () => {
+		const pc = new PlaybackController()
+		pc.setSolo(0, true)
+		pc.setSolo(2, true)
+		const notes = [makeFakeNote(0), makeFakeNote(1), makeFakeNote(2)]
+		const filtered = pc._filterNotes(notes)
+		expect(filtered.length).toBe(2)
+		expect(filtered.map(n => n.staffIndex).sort()).toEqual([0, 2])
+	})
+
+	test('mute a staff excludes it', () => {
+		const pc = new PlaybackController()
+		pc.setMute(1, true)
+		const notes = [makeFakeNote(0), makeFakeNote(1), makeFakeNote(2)]
+		const filtered = pc._filterNotes(notes)
+		expect(filtered.length).toBe(2)
+		expect(filtered.every(n => n.staffIndex !== 1)).toBe(true)
+	})
+
+	test('solo takes precedence over mute', () => {
+		const pc = new PlaybackController()
+		pc.setSolo(1, true)
+		pc.setMute(1, true) // muted AND soloed — solo wins
+		const notes = [makeFakeNote(0), makeFakeNote(1), makeFakeNote(2)]
+		const filtered = pc._filterNotes(notes)
+		expect(filtered.length).toBe(1)
+		expect(filtered[0].staffIndex).toBe(1)
+	})
+
+	test('clearSoloMute resets both', () => {
+		const pc = new PlaybackController()
+		pc.setSolo(0, true)
+		pc.setMute(1, true)
+		pc.clearSoloMute()
+		expect(pc.soloStaves.size).toBe(0)
+		expect(pc.muteStaves.size).toBe(0)
+		const notes = [makeFakeNote(0), makeFakeNote(1)]
+		expect(pc._filterNotes(notes).length).toBe(2)
+	})
+
+	test('isSoloed / isMuted return correct state', () => {
+		const pc = new PlaybackController()
+		pc.setSolo(2, true)
+		pc.setMute(3, true)
+		expect(pc.isSoloed(2)).toBe(true)
+		expect(pc.isSoloed(0)).toBe(false)
+		expect(pc.isMuted(3)).toBe(true)
+		expect(pc.isMuted(0)).toBe(false)
+	})
+
+	test('setSolo(idx, false) removes solo', () => {
+		const pc = new PlaybackController()
+		pc.setSolo(1, true)
+		pc.setSolo(1, false)
+		expect(pc.isSoloed(1)).toBe(false)
+		expect(pc.soloStaves.size).toBe(0)
+	})
 })

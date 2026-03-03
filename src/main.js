@@ -10,6 +10,7 @@ import { blank } from './editing.js'
 import { MusicContext } from './context.js'
 import { PlaybackController } from './audio.js'
 import { PlaybackHighlighter } from './playback-highlight.js'
+import { PianoKeyboard } from './piano-keyboard.js'
 
 /**********************
  *
@@ -353,6 +354,14 @@ const playback = new PlaybackController()
 const highlighter = new PlaybackHighlighter(document.getElementById('score'))
 setPlaybackHighlighter(highlighter)
 
+// Piano keyboard — placed between the score and the footer
+const pianoKeyboard = new PianoKeyboard(document.getElementById('container'))
+// The constructor appends at the end; move it before #footer
+const _pianoFooter = document.getElementById('footer')
+if (_pianoFooter && pianoKeyboard._el) {
+	pianoKeyboard._el.parentElement.insertBefore(pianoKeyboard._el, _pianoFooter)
+}
+
 function formatTime(sec) {
 	if (!isFinite(sec) || sec < 0) sec = 0
 	const m = Math.floor(sec / 60)
@@ -375,13 +384,22 @@ playback.onTime((t, dur) => {
 	highlighter.updateTime(t)
 })
 
-playback.onNoteOn((ev) => highlighter.onNoteOn(ev))
-playback.onNoteOff((ev) => highlighter.onNoteOff(ev))
+playback.onNoteOn((ev) => {
+	highlighter.onNoteOn(ev)
+	pianoKeyboard.noteOn(ev)
+})
+playback.onNoteOff((ev) => {
+	highlighter.onNoteOff(ev)
+	pianoKeyboard.noteOff(ev)
+})
 
 playback.onStateChange((playing) => {
 	playBtn.textContent = playing ? 'Pause' : 'Play'
 	if (playing) highlighter.start()
-	else highlighter.stop()
+	else {
+		highlighter.stop()
+		pianoKeyboard.clear()
+	}
 })
 
 playback.onEnd(() => {
@@ -389,6 +407,7 @@ playback.onEnd(() => {
 	progressBar.value = 0
 	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
 	highlighter.stop()
+	pianoKeyboard.clear()
 })
 
 async function togglePlayPause() {
@@ -407,6 +426,7 @@ playBtn.onclick = togglePlayPause
 stopBtn.onclick = () => {
 	playback.stop()
 	highlighter.stop()
+	pianoKeyboard.clear()
 	progressBar.value = 0
 	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
 }
@@ -428,6 +448,48 @@ if (autoScrollBtn) {
 	autoScrollBtn.onclick = () => {
 		const enabled = highlighter.toggleAutoScroll()
 		autoScrollBtn.textContent = 'Auto-scroll: ' + (enabled ? 'On' : 'Off')
+	}
+}
+
+// Solo staff selector
+const soloSelect = document.getElementById('solo_staff')
+
+function updateSoloStaffOptions(data) {
+	if (!soloSelect) return
+	// Clear existing options (keep "All")
+	soloSelect.innerHTML = '<option value="all">All Staves</option>'
+	const staves = data?.score?.staves
+	if (!staves) return
+	for (let i = 0; i < staves.length; i++) {
+		const opt = document.createElement('option')
+		opt.value = String(i)
+		const name = staves[i].staff_name || staves[i].staff_label || `Staff ${i + 1}`
+		opt.textContent = `${i + 1}: ${name}`
+		soloSelect.appendChild(opt)
+	}
+	// Restore selection (clear solo if staves changed)
+	soloSelect.value = 'all'
+	playback.clearSoloMute()
+}
+
+if (soloSelect) {
+	soloSelect.onchange = async () => {
+		const val = soloSelect.value
+		playback.clearSoloMute()
+		if (val !== 'all') {
+			playback.setSolo(parseInt(val, 10), true)
+		}
+		// Re-filter and reload if we have notes loaded
+		await playback._reloadFiltered()
+	}
+}
+
+// Piano keyboard toggle
+const pianoToggleBtn = document.getElementById('piano_toggle')
+if (pianoToggleBtn) {
+	pianoToggleBtn.onclick = () => {
+		const visible = pianoKeyboard.toggle()
+		pianoToggleBtn.textContent = 'Piano: ' + (visible ? 'On' : 'Off')
 	}
 }
 
@@ -475,8 +537,7 @@ window.exportLilypond = exportLilypond
 
 function setDataAndRender(_data) {
 	scoreManager.setData(_data)
-	// data = _data;
-	// window.data = data;
+	updateSoloStaffOptions(_data)
 	rerender()
 }
 
