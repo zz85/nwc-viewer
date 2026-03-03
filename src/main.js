@@ -422,6 +422,15 @@ if (highlightBtn) {
 	}
 }
 
+// Auto-scroll toggle
+const autoScrollBtn = document.getElementById('autoscroll_toggle')
+if (autoScrollBtn) {
+	autoScrollBtn.onclick = () => {
+		const enabled = highlighter.toggleAutoScroll()
+		autoScrollBtn.textContent = 'Auto-scroll: ' + (enabled ? 'On' : 'Off')
+	}
+}
+
 progressBar.addEventListener('pointerup', () => {
 	_seeking = false
 	const t = parseFloat(progressBar.value) * playback.duration

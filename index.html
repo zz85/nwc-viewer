@@ -98,6 +98,7 @@
 				<button id="play" title="Play / Pause">Play</button>
 				<button id="stop" title="Stop">Stop</button>
 				<button id="highlight_toggle" title="Toggle highlight style (colored / glow)">Highlight: Color</button>
+				<button id="autoscroll_toggle" title="Toggle auto-scroll during playback">Auto-scroll: On</button>
 				<span id="playback_time" style="font-size: 12px; min-width: 90px; display: inline-block; text-align: center; vertical-align: middle;">0:00 / 0:00</span>
 				<input type="range" id="progress_bar"
 					min="0" max="1" step="0.001" value="0"
@@ -110,8 +111,8 @@
 
 				<span style="width: 50px;"></span>
 				Size:
-				<button onclick="setFontSize(getFontSize() - 4); rerender()">-</button>
-				<button onclick="setFontSize(getFontSize() + 4); rerender()">+</button>
+				<button onclick="setFontSize(getFontSize() - 4); console.log('Font size:', getFontSize()); rerender()">-</button>
+				<button onclick="setFontSize(getFontSize() + 4); console.log('Font size:', getFontSize()); rerender()">+</button>
 
 				<span style="width: 20px;"></span>
 				Zoom:

@@ -13,7 +13,7 @@ import { buildTempoMap, ticksToSeconds } from './audio.js'
 
 // ── Highlight colors ───────────────────────────────────────────────────────
 
-const HIGHLIGHT_COLOR = 'rgba(30, 120, 255, 0.85)'   // blue notehead fill
+const HIGHLIGHT_COLOR = 'rgba(255, 235, 59, 0.5)'     // translucent yellow overlay (highlighter pen)
 const GLOW_COLOR = 'rgba(30, 120, 255, 0.35)'        // soft blue glow
 const GLOW_RADIUS_FACTOR = 2.5                        // glow radius = noteWidth * factor
 const CURSOR_COLOR = 'rgba(30, 120, 255, 0.4)'        // vertical cursor line
@@ -41,6 +41,9 @@ export class PlaybackHighlighter {
 
 		// Highlight style: 'colored' or 'glow'
 		this._style = 'colored'
+
+		// Auto-scroll: enabled by default
+		this._autoScrollEnabled = true
 	}
 
 	// ── Score data binding ─────────────────────────────────────────────────
@@ -148,6 +151,17 @@ export class PlaybackHighlighter {
 		return this._style
 	}
 
+	// ── Auto-scroll ───────────────────────────────────────────────────────
+
+	/** Toggle auto-scroll on/off. Returns the new state. */
+	toggleAutoScroll() {
+		this._autoScrollEnabled = !this._autoScrollEnabled
+		return this._autoScrollEnabled
+	}
+
+	/** Whether auto-scroll is currently enabled. */
+	get autoScrollEnabled() { return this._autoScrollEnabled }
+
 	// ── Render loop ────────────────────────────────────────────────────────
 
 	/** Whether the highlighter is actively running (for quickDraw to check). */
@@ -175,7 +189,7 @@ export class PlaybackHighlighter {
 	_tick() {
 		if (!this._running) return
 		this._repaintScore()
-		this._autoScroll()
+		if (this._autoScrollEnabled) this._autoScroll()
 		this._rafId = requestAnimationFrame(() => this._tick())
 	}
 
@@ -307,6 +321,8 @@ export class PlaybackHighlighter {
 
 	/**
 	 * Draw a single notehead highlight at the glyph's position.
+	 * Uses a translucent overlay rectangle (like a highlighter pen) so the
+	 * original black notehead shows through.
 	 * @param {CanvasRenderingContext2D} ctx
 	 * @param {object} glyph - A Glyph drawing object with x, y, offsetX, offsetY, path, width
 	 */
@@ -315,34 +331,47 @@ export class PlaybackHighlighter {
 
 		const x = glyph.x + (glyph.offsetX || 0)
 		const y = glyph.y + (glyph.offsetY || 0)
+		const w = glyph.width || getFontSize() * 0.3
+		const fs = getFontSize()
 
 		ctx.save()
 		ctx.translate(x, y)
 
 		if (this._style === 'glow') {
 			// Glow / halo effect: draw a blurred circle behind the notehead
-			const r = (glyph.width || getFontSize() * 0.3) * GLOW_RADIUS_FACTOR
+			const r = w * GLOW_RADIUS_FACTOR
 			ctx.save()
 			ctx.filter = `blur(${r * 0.4}px)`
 			ctx.beginPath()
-			ctx.arc((glyph.width || 0) / 2, 0, r, 0, Math.PI * 2)
+			ctx.arc(w / 2, 0, r, 0, Math.PI * 2)
 			ctx.fillStyle = GLOW_COLOR
 			ctx.fill()
 			ctx.restore()
 		}
 
-		// Draw the notehead glyph path with highlight color.
-		// glyph.path is an opentype.js Path object with a .draw(ctx) method.
+		// Translucent overlay rectangle — like a highlighter pen.
+		// Slightly larger than the notehead so the highlight is clearly visible.
+		const pad = w * 0.3
+		const rectH = fs * 0.35   // tall enough to cover the notehead
 		ctx.fillStyle = HIGHLIGHT_COLOR
-		if (glyph.path && typeof glyph.path.draw === 'function') {
-			glyph.path.draw(ctx)
-		} else {
-			// Fallback: draw a colored circle over the notehead area
-			const w = glyph.width || getFontSize() * 0.3
-			ctx.beginPath()
-			ctx.arc(w / 2, 0, w * 0.6, 0, Math.PI * 2)
-			ctx.fill()
-		}
+		ctx.beginPath()
+		const rx = -pad
+		const ry = -rectH / 2
+		const rw = w + pad * 2
+		const rh = rectH
+		const radius = Math.min(rh / 2, 4)
+		// Rounded rectangle
+		ctx.moveTo(rx + radius, ry)
+		ctx.lineTo(rx + rw - radius, ry)
+		ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + radius)
+		ctx.lineTo(rx + rw, ry + rh - radius)
+		ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - radius, ry + rh)
+		ctx.lineTo(rx + radius, ry + rh)
+		ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - radius)
+		ctx.lineTo(rx, ry + radius)
+		ctx.quadraticCurveTo(rx, ry, rx + radius, ry)
+		ctx.closePath()
+		ctx.fill()
 
 		ctx.restore()
 	}
