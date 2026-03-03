@@ -29,6 +29,7 @@ export class PlaybackHighlighter {
 		this._container = scoreContainer
 		this._rafId = null
 		this._running = false
+		this._paused = false  // true when paused (highlights stay visible)
 
 		// Active notes: Set of token objects currently sounding
 		this._activeTokens = new Set()
@@ -171,18 +172,32 @@ export class PlaybackHighlighter {
 	start() {
 		if (this._running) return
 		this._running = true
+		this._paused = false
 		this._tick()
 	}
 
 	/** Stop the render loop and clear highlights on next paint. */
 	stop() {
 		this._running = false
+		this._paused = false
 		if (this._rafId != null) {
 			cancelAnimationFrame(this._rafId)
 			this._rafId = null
 		}
 		this._activeTokens.clear()
 		// Repaint once without highlights to clear them
+		this._repaintScore()
+	}
+
+	/** Pause the render loop but keep highlights visible (frozen in place). */
+	pause() {
+		this._running = false
+		this._paused = true
+		if (this._rafId != null) {
+			cancelAnimationFrame(this._rafId)
+			this._rafId = null
+		}
+		// Repaint once to show the frozen highlights
 		this._repaintScore()
 	}
 
@@ -211,7 +226,7 @@ export class PlaybackHighlighter {
 	 * @param {CanvasRenderingContext2D} ctx - The score canvas context
 	 */
 	drawHighlights(ctx) {
-		if (!this._running) return
+		if (!this._running && !this._paused) return
 
 		// Draw position cursor
 		this._drawCursor(ctx)

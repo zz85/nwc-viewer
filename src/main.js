@@ -396,10 +396,7 @@ playback.onNoteOff((ev) => {
 playback.onStateChange((playing) => {
 	playBtn.textContent = playing ? 'Pause' : 'Play'
 	if (playing) highlighter.start()
-	else {
-		highlighter.stop()
-		pianoKeyboard.clear()
-	}
+	else highlighter.pause()  // keep highlights frozen on pause
 })
 
 playback.onEnd(() => {
