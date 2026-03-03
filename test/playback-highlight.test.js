@@ -119,8 +119,8 @@ describe('buildNoteEvents token references', () => {
 			score: { staves: [makeStave([chord])] }
 		}
 		const { notes } = buildNoteEvents(data)
-		// Main voice + 2 chord notes = 3 events total
-		expect(notes.length).toBe(3)
+		// Only child notes produce events (no duplicate from parent)
+		expect(notes.length).toBe(2)
 		for (const ev of notes) {
 			expect(ev.token).toBe(chord)
 			expect(ev.staffIndex).toBe(0)
@@ -134,11 +134,10 @@ describe('buildNoteEvents token references', () => {
 			score: { staves: [makeStave([chord])] }
 		}
 		const { notes } = buildNoteEvents(data)
-		// First event is the main voice (no noteRef), rest are children
-		const children = notes.filter(n => n.noteRef)
-		expect(children.length).toBe(2)
-		expect(children[0].noteRef).toBe(chord.notes[0])
-		expect(children[1].noteRef).toBe(chord.notes[1])
+		// All events are children with noteRef
+		expect(notes.length).toBe(2)
+		expect(notes[0].noteRef).toBe(chord.notes[0])
+		expect(notes[1].noteRef).toBe(chord.notes[1])
 	})
 
 	test('multi-staff events have correct staffIndex', () => {

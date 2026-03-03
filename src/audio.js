@@ -86,21 +86,10 @@ export function buildNoteEvents(data) {
 					token: tok,
 				})
 			} else if (tok.type === 'Chord' && tok.notes) {
-				// Main chord voice
-				if (tok.name != null) {
-					const midi = toMidi(tok.name, tok.octave, tok.accidentalValue)
-					notes.push({
-						midi,
-						time: startSec,
-						duration: durationSec,
-						velocity: 0.7,
-						channel,
-						staffIndex: si,
-						tokenIndex: ti,
-						token: tok,
-					})
-				}
-				// Additional chord notes
+				// Each child note has its own resolved accidentalValue from the
+				// interpreter.  The parent chord token copies the first child's
+				// name/octave but NOT accidentalValue, so we must use child notes
+				// exclusively to get correct MIDI pitches.
 				for (const n of tok.notes) {
 					if (n.name == null) continue
 					if (n.tieEnd) continue
