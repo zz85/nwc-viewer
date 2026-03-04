@@ -14,6 +14,61 @@
 		/>
 		<meta name="author" content="Joshua Koo" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<style>
+			/* Companion text fonts for each SMuFL music font */
+			@font-face {
+				font-family: 'BravuraText';
+				src: url('vendor/bravura-1.211/otf/BravuraText.otf') format('opentype');
+			}
+			@font-face {
+				font-family: 'LelandText';
+				src: url('vendor/fonts/LelandText.otf') format('opentype');
+			}
+			@font-face {
+				font-family: 'PetalumaText';
+				src: url('vendor/fonts/PetalumaText.otf') format('opentype');
+			}
+			@font-face {
+				font-family: 'SebastianText';
+				src: url('vendor/fonts/SebastianText.otf') format('opentype');
+			}
+			@font-face {
+				font-family: 'FinaleMaestroText';
+				font-weight: normal;
+				font-style: normal;
+				src: url('vendor/fonts/FinaleMaestroText-Regular.otf') format('opentype');
+			}
+			@font-face {
+				font-family: 'FinaleMaestroText';
+				font-weight: bold;
+				font-style: normal;
+				src: url('vendor/fonts/FinaleMaestroText-Bold.otf') format('opentype');
+			}
+			@font-face {
+				font-family: 'FinaleMaestroText';
+				font-weight: normal;
+				font-style: italic;
+				src: url('vendor/fonts/FinaleMaestroText-Italic.otf') format('opentype');
+			}
+			@font-face {
+				font-family: 'FinaleMaestroText';
+				font-weight: bold;
+				font-style: italic;
+				src: url('vendor/fonts/FinaleMaestroText-BoldItalic.otf') format('opentype');
+			}
+			@font-face {
+				font-family: 'FinaleBroadwayText';
+				src: url('vendor/fonts/FinaleBroadwayText.otf') format('opentype');
+			}
+			@font-face {
+				font-family: 'FinaleAshText';
+				src: url('vendor/fonts/FinaleAshText.otf') format('opentype');
+			}
+			@font-face {
+				font-family: 'FinaleJazzText';
+				src: url('vendor/fonts/FinaleJazzText.otf') format('opentype');
+			}
+		</style>
 	</head>
 	<body>
 		<style>
@@ -126,6 +181,23 @@
 					style="width: 100px; vertical-align: middle;"
 				/>
 				<span id="zoom_label" style="min-width: 40px; display: inline-block; text-align: center;">100%</span>
+
+				<span style="width: 20px;"></span>
+				Font:
+				<select id="music_font">
+					<option value="bravura">Bravura</option>
+					<option value="petaluma">Petaluma</option>
+					<option value="leland">Leland</option>
+					<option value="sebastian">Sebastian</option>
+					<option value="goldenage">Golden Age</option>
+					<option value="leipzig">Leipzig</option>
+					<option value="maestro">Finale Maestro</option>
+					<option value="broadway">Finale Broadway</option>
+					<option value="ash">Finale Ash</option>
+					<option value="engraver">Finale Engraver</option>
+					<option value="jazz">Finale Jazz</option>
+					<option value="legacy">Finale Legacy</option>
+				</select>
 
 				<span style="width: 20px;"></span>
 				Parser:

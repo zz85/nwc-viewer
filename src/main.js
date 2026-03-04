@@ -1,9 +1,9 @@
 import './constants.js'
-import { getLayoutMode, setPageSize, getPageSize } from './constants.js'
+import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { interpret } from './interpreter.js'
-import { setup, resizeToFit } from './drawing.js'
+import { setup, resizeToFit, changeFont } from './drawing.js'
 import { exportLilypond } from './exporter.js'
 import { score, setPlaybackHighlighter } from './layout/typeset.js'
 import { blank } from './editing.js'
@@ -643,3 +643,22 @@ const storedPageSize = localStorage.getItem(PAGE_SIZE_STORAGE_KEY)
 if (storedPageSize) setPageSize(storedPageSize)
 if (pageSizeSelect) pageSizeSelect.value = getPageSize()
 updateLayoutButton()
+
+// ---- Music font selector ----
+
+const MUSIC_FONT_STORAGE_KEY = 'nwc_music_font'
+const musicFontSelect = document.getElementById('music_font')
+
+if (musicFontSelect) {
+	musicFontSelect.onchange = function () {
+		setMusicFont(musicFontSelect.value)
+		localStorage.setItem(MUSIC_FONT_STORAGE_KEY, musicFontSelect.value)
+		// Load the new font file (async), then re-render when ready.
+		changeFont(rerender)
+	}
+}
+
+// Restore persisted music font preference
+const storedMusicFont = localStorage.getItem(MUSIC_FONT_STORAGE_KEY)
+if (storedMusicFont) setMusicFont(storedMusicFont)
+if (musicFontSelect) musicFontSelect.value = getMusicFont()

@@ -1,6 +1,6 @@
 import './constants.js'
 import { ajax } from './loaders.js'
-import { getFontSize, getZoomLevel } from './constants.js'
+import { getFontSize, getZoomLevel, getMusicFontPath, getMusicTextFamily } from './constants.js'
 
 const fontMap = {
 	// barlines
@@ -79,14 +79,30 @@ const fontMap = {
 
 	textBlackNoteShortStem: 'E1F0',
 	textAugmentationDot: 'E1FC',
+	augmentationDot: 'E1E7',
 	textTuplet3ShortStem: 'E1FF',
 
 	// Dynamics (U+E520–U+E54F)
+	// Individual letter glyphs
 	dynamicPiano: 'E520',
 	dynamicMezzo: 'E521',
 	dynamicForte: 'E522',
 	dynamicRinforzando: 'E523',
 	dynamicSforzando: 'E524',
+	dynamicZ: 'E525',
+	dynamicNiente: 'E526',
+
+	// Pre-composed dynamic combinations
+	dynamicPPP: 'E52A',
+	dynamicPP: 'E52B',
+	dynamicMP: 'E52C',
+	dynamicMF: 'E52D',
+	dynamicPF: 'E52E',
+	dynamicFF: 'E52F',
+	dynamicFFF: 'E530',
+	dynamicFP: 'E534',
+	dynamicSF: 'E536',
+	dynamicSFZ: 'E539',
 
 	// Common ornaments (U+E560–U+E56F)
 }
@@ -142,7 +158,7 @@ function setup(render, path, ok) {
 		return
 	}
 
-	path = path || 'vendor/bravura-1.211/'
+	path = path || getMusicFontPath()
 
 	const { canvas, ctx } = setupCanvas()
 	loadFont(render, path)
@@ -151,16 +167,36 @@ function setup(render, path, ok) {
 }
 
 var notableLoaded = false
+// Track which font file is currently loaded so we can detect changes.
+var _loadedFontPath = null
 
-function loadFont(cb, path) {
-	ajax(`${path}otf/Bravura.otf`, (buffer) => {
+function loadFont(cb, fontPath) {
+	ajax(fontPath, (buffer) => {
 		var font = window.opentype.parse(buffer)
 		// if (err) return console.log('Error, font cannot be loaded', err)
 
 		notableLoaded = true
+		_loadedFontPath = fontPath
 		window.smuflFont = font
+		// Clear the glyph cache — paths/widths from the old font are invalid.
+		glyphCache = {}
 		cb && cb()
 	})
+}
+
+/**
+ * Switch to a different SMuFL font and re-render.  Called from the UI when
+ * the user picks a new font from the dropdown.  `renderCb` is the rerender
+ * function that rebuilds the score with the new font glyphs.
+ */
+function changeFont(renderCb) {
+	const newPath = getMusicFontPath()
+	if (newPath === _loadedFontPath) {
+		// Same font — just re-render (e.g. if font size changed).
+		renderCb && renderCb()
+		return
+	}
+	loadFont(renderCb, newPath)
 }
 
 class Draw {
@@ -276,14 +312,22 @@ function cacheGet(key, loader) {
 function glyphWidthGet(char, fontSize) {
 	var key = char + ':width:' + fontSize
 	return cacheGet(key, () => {
-		return window.smuflFont.getAdvanceWidth(char, fontSize)
+		// Look up the glyph object directly by codepoint to avoid the
+		// stringToGlyphs → layout.scripts shaping pipeline, which crashes
+		// on fonts missing GSUB/GPOS tables (e.g. Leipzig, Petaluma).
+		var font = window.smuflFont
+		var glyph = font.charToGlyph(char)
+		var scale = fontSize / font.unitsPerEm
+		return (glyph.advanceWidth || 0) * scale
 	})
 }
 
 function glyphPathGet(char, fontSize) {
 	var key = char + ':path:' + fontSize
 	return cacheGet(key, () => {
-		return window.smuflFont.getPath(char, 0, 0, fontSize)
+		var font = window.smuflFont
+		var glyph = font.charToGlyph(char)
+		return glyph.getPath(0, 0, fontSize)
 	})
 }
 
@@ -601,8 +645,85 @@ class Barline extends Draw {
 
 class Dot extends Glyph {
 	constructor(pos) {
-		super('textAugmentationDot', pos)
+		super('augmentationDot', pos)
 		this.offsetX = 5
+	}
+}
+
+/**
+ * Maps NWC dynamic text strings (e.g. 'mf', 'pp') to SMuFL pre-composed
+ * glyph names.  For strings without a pre-composed glyph, we compose from
+ * individual letter glyphs.
+ */
+const DYNAMIC_GLYPH_MAP = {
+	ppp: 'dynamicPPP',
+	pp:  'dynamicPP',
+	p:   'dynamicPiano',
+	mp:  'dynamicMP',
+	mf:  'dynamicMF',
+	f:   'dynamicForte',
+	ff:  'dynamicFF',
+	fff: 'dynamicFFF',
+	fp:  'dynamicFP',
+	sf:  'dynamicSF',
+	sfz: 'dynamicSFZ',
+	pf:  'dynamicPF',
+}
+
+// Individual letter map for composing unknown dynamics from parts.
+const DYNAMIC_LETTER_MAP = {
+	p: 'dynamicPiano',
+	m: 'dynamicMezzo',
+	f: 'dynamicForte',
+	r: 'dynamicRinforzando',
+	s: 'dynamicSforzando',
+	z: 'dynamicZ',
+	n: 'dynamicNiente',
+}
+
+/**
+ * A dynamic marking rendered using SMuFL glyphs from the music font.
+ * Uses a pre-composed glyph if available, otherwise composes from
+ * individual letter glyphs placed side by side.
+ */
+class DynamicMarking extends Draw {
+	constructor(dynamicText, adjustY) {
+		super()
+		this.dynamicText = dynamicText || 'mf'
+		this.fontSize = getFontSize()
+		if (adjustY) this.positionY(adjustY)
+
+		// Try pre-composed glyph first
+		const precomposed = DYNAMIC_GLYPH_MAP[this.dynamicText]
+		if (precomposed && fontMap[precomposed]) {
+			const char = getCode(precomposed)
+			this._glyphs = [{ char, path: glyphPathGet(char, this.fontSize), width: glyphWidthGet(char, this.fontSize), x: 0 }]
+			this.width = this._glyphs[0].width
+		} else {
+			// Compose from individual letters
+			this._glyphs = []
+			var x = 0
+			for (const ch of this.dynamicText) {
+				const glyphName = DYNAMIC_LETTER_MAP[ch]
+				if (!glyphName || !fontMap[glyphName]) continue
+				const char = getCode(glyphName)
+				const w = glyphWidthGet(char, this.fontSize)
+				const path = glyphPathGet(char, this.fontSize)
+				this._glyphs.push({ char, path, width: w, x })
+				x += w
+			}
+			this.width = x
+		}
+	}
+
+	draw(ctx) {
+		ctx.fillStyle = '#000'
+		for (const g of this._glyphs) {
+			ctx.save()
+			ctx.translate(g.x, 0)
+			g.path.draw(ctx)
+			ctx.restore()
+		}
 	}
 }
 
@@ -624,13 +745,21 @@ class Beam extends Draw {
 		const dir = this.stemUp === false ? -1 : 1
 		const baseOffset = (this._beamOffset || 0) * beamSpacing * dir
 
+		ctx.fillStyle = '#000'
 		for (let i = 0; i < this.count; i++) {
 			const offsetY = baseOffset + i * beamSpacing * dir
+			const y1 = this.unitsToY(this.startY) + offsetY
+			const y2 = this.unitsToY(this.endY) + offsetY
+			// Draw a filled parallelogram — constant vertical thickness
+			// regardless of beam angle. Top edge runs from (startX, y1)
+			// to (endX, y2); bottom edge is offset by beamThickness.
 			ctx.beginPath()
-			ctx.moveTo(this.startX, this.unitsToY(this.startY) + offsetY)
-			ctx.lineTo(this.endX, this.unitsToY(this.endY) + offsetY)
-			ctx.lineWidth = beamThickness
-			ctx.stroke()
+			ctx.moveTo(this.startX, y1)
+			ctx.lineTo(this.endX, y2)
+			ctx.lineTo(this.endX, y2 + beamThickness)
+			ctx.lineTo(this.startX, y1 + beamThickness)
+			ctx.closePath()
+			ctx.fill()
 		}
 	}
 }
@@ -649,7 +778,7 @@ class Text extends Draw {
 	}
 
 	draw(ctx) {
-		ctx.font = this.font || "italic bold 12px Arial, 'Segoe UI', sans-serif"
+		ctx.font = this.font || ('italic bold 12px ' + getMusicTextFamily())
 		if (this.textAlign) ctx.textAlign = this.textAlign
 		ctx.fillText(this.text, 0, 0)
 	}
@@ -711,7 +840,7 @@ class Drawing {
 	constructor(ctx) {
 		this.set = new Set()
 
-		ctx.font = `${getFontSize()}px Arial, 'Segoe UI', sans-serif`
+		ctx.font = `${getFontSize()}px ${getMusicTextFamily()}`
 		ctx.textBaseline = 'alphabetic' // alphabetic  bottom top
 		ctx.fillStyle = '#000'
 	}
@@ -748,7 +877,7 @@ class Drawing {
 			el.draw(ctx)
 
 			if (el._text) {
-				ctx.font = "8px Arial, 'Segoe UI', sans-serif"
+				ctx.font = '8px ' + getMusicTextFamily()
 				ctx.fillText(el._text, 0, 50)
 			}
 
@@ -773,7 +902,7 @@ class Drawing {
 
 		// Restore default font/baseline — canvas resets wipe context state
 		// (e.g. after resizeToFit()), so re-apply on every draw pass.
-		ctx.font = `${getFontSize()}px Arial, 'Segoe UI', sans-serif`
+		ctx.font = `${getFontSize()}px ${getMusicTextFamily()}`
 		ctx.textBaseline = 'alphabetic'
 		ctx.fillStyle = '#000'
 
@@ -805,6 +934,7 @@ const Claire = {
 	Stem,
 	Barline,
 	Dot,
+	DynamicMarking,
 	Ledger,
 	Text,
 	Line,
@@ -812,7 +942,7 @@ const Claire = {
 	Tie,
 }
 
-Object.assign(Claire, { Drawing, setup, Claire, resize, resizeToFit })
+Object.assign(Claire, { Drawing, setup, Claire, resize, resizeToFit, changeFont })
 Object.assign(window, Claire)
 
-export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, Beam }
+export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, Beam, DynamicMarking, changeFont }

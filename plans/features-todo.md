@@ -29,7 +29,9 @@ Planned features and improvements, roughly prioritized.
 - [x] Courtesy clef + key signature at start of each new system line
 - [x] Lyrics — syllable tokenizer, assignment respecting LyricSyllable/slur/tie rules, inter-syllable dashes
 - [x] Staff visual properties — boundary-based spacing, bracket chains, layering, barline connector suppression near lyrics
-- [ ] Additional music fonts — SMuFL-compliant fonts (e.g. [Leland](https://github.com/MuseScoreFonts/Leland), [Sebastian](https://github.com/fkretlow/sebastian), [GoldenAge](https://github.com/benwiggy/GoldenAge)), see [Verovio SMuFL docs](https://book.verovio.org/advanced-topics/smufl.html)
+- [x] Additional music fonts — SMuFL-compliant fonts: Bravura (default), [Petaluma](https://github.com/steinbergmedia/petaluma), [Leland](https://github.com/MuseScoreFonts/Leland), [Sebastian](https://github.com/fkretlow/sebastian), [Golden Age](https://github.com/benwiggy/GoldenAge), [Leipzig](https://github.com/rism-digital/leipzig); dynamic switching via dropdown with localStorage persistence
+- [x] Companion text fonts — BravuraText, LelandText, PetalumaText, SebastianText loaded via @font-face; all text elements (lyrics, titles, tempo, staff labels) use the matching text font; GoldenAge/Leipzig fall back to serif
+- [x] Dynamic markings rendered as SMuFL glyphs — pre-composed glyphs (pp, mp, mf, ff, etc.) from the music font instead of italic text; falls back to individual letter glyph composition for unknown combinations
 - [ ] Landscape / portrait page orientation toggle (page layout mode)
 - [ ] Multi-page rendering — display all pages vertically like a PDF viewer (currently only lays out pages but rendering may clip)
 - [ ] Page navigation — jump to page N (page indicator + input or prev/next buttons)

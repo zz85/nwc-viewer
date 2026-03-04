@@ -56,6 +56,51 @@ function getPageMargins() {
 	return PAGE_MARGINS
 }
 
+// Music font selection — which SMuFL-compliant font to use for engraving.
+// Each entry maps a display name to its OTF file path and optional companion
+// text font CSS family name (loaded via @font-face in index.html).
+// Fonts without a dedicated text companion fall back to serif.
+const MUSIC_FONTS = {
+	bravura:    { label: 'Bravura',    path: 'vendor/bravura-1.211/otf/Bravura.otf', textFamily: 'BravuraText' },
+	petaluma:   { label: 'Petaluma',   path: 'vendor/fonts/Petaluma.otf',             textFamily: 'PetalumaText' },
+	leland:     { label: 'Leland',     path: 'vendor/fonts/Leland.otf',               textFamily: 'LelandText' },
+	sebastian:  { label: 'Sebastian',  path: 'vendor/fonts/Sebastian.otf',            textFamily: 'SebastianText' },
+	goldenage:  { label: 'Golden Age', path: 'vendor/fonts/GoldenAge.otf',            textFamily: null },
+	leipzig:    { label: 'Leipzig',    path: 'vendor/fonts/Leipzig.otf',              textFamily: null },
+	maestro:    { label: 'Finale Maestro',   path: 'vendor/fonts/FinaleMaestro.otf',   textFamily: 'FinaleMaestroText' },
+	broadway:   { label: 'Finale Broadway',  path: 'vendor/fonts/FinaleBroadway.otf',  textFamily: 'FinaleBroadwayText' },
+	ash:        { label: 'Finale Ash',       path: 'vendor/fonts/FinaleAsh.otf',       textFamily: 'FinaleAshText' },
+	engraver:   { label: 'Finale Engraver',  path: 'vendor/fonts/FinaleEngraver.otf',  textFamily: null },
+	jazz:       { label: 'Finale Jazz',      path: 'vendor/fonts/FinaleJazz.otf',      textFamily: 'FinaleJazzText' },
+	legacy:     { label: 'Finale Legacy',    path: 'vendor/fonts/FinaleLegacy.otf',    textFamily: null },
+}
+
+// Fallback stack used when a music font has no companion text font.
+const TEXT_FONT_FALLBACK = "serif"
+
+let musicFont = 'bravura'
+
+function setMusicFont(id) {
+	if (id in MUSIC_FONTS) musicFont = id
+}
+
+function getMusicFont() {
+	return musicFont
+}
+
+function getMusicFontPath() {
+	return MUSIC_FONTS[musicFont].path
+}
+
+/**
+ * Returns the CSS font-family string for text elements (lyrics, titles, etc.)
+ * that should match the current music font's style.
+ */
+function getMusicTextFamily() {
+	const tf = MUSIC_FONTS[musicFont].textFamily
+	return tf ? `'${tf}', ${TEXT_FONT_FALLBACK}` : TEXT_FONT_FALLBACK
+}
+
 // Visual zoom level — applied as a canvas transform in quickDraw().
 // This does NOT trigger a re-layout; it simply scales the rendered output.
 // Use setFontSize() to change the actual music engraving size (requires re-layout).
@@ -96,6 +141,11 @@ Object.assign(!isBrowser() ? global : window, {
 	getPageSize,
 	getPageDimensions,
 	getPageMargins,
+	MUSIC_FONTS,
+	setMusicFont,
+	getMusicFont,
+	getMusicFontPath,
+	getMusicTextFamily,
 })
 
 export {
@@ -104,4 +154,5 @@ export {
 	setZoomLevel, getZoomLevel, ZOOM_MIN, ZOOM_MAX,
 	setLayoutMode, getLayoutMode,
 	PAGE_SIZES, setPageSize, getPageSize, getPageDimensions, getPageMargins,
+	MUSIC_FONTS, setMusicFont, getMusicFont, getMusicFontPath, getMusicTextFamily,
 }

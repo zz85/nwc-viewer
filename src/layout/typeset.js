@@ -1,7 +1,7 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
-import { resizeToFit } from '../drawing.js'
+import { resizeToFit, DynamicMarking } from '../drawing.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
@@ -628,9 +628,10 @@ function layoutLyricDashes(drawing, staves) {
 			var midX = (startX + endX) / 2
 
 			var dash = new Text('-', 0, {
-				font: lyricFontSize + "px Arial, 'Segoe UI', sans-serif",
-				textAlign: 'center',
-			})
+			font: lyricFontSize + 'px ' + getMusicTextFamily(),
+			textAlign: 'center',
+		})
+
 			dash.moveTo(midX, thisStaveY)
 			dash.offsetY = lyricOffsetY
 			drawing.add(dash)
@@ -1370,7 +1371,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var titleCenterX = horizontalPad + PAGE_W / 2
 	if (data.info?.title) {
 		const titleDraw = new Claire.Text(data.info.title, 0, {
-			font: "bold 20px Arial, 'Segoe UI', sans-serif",
+			font: 'bold 20px ' + getMusicTextFamily(),
 			textAlign: 'center',
 		})
 		titleDraw.moveTo(titleCenterX, page1TopY + 10)
@@ -1378,7 +1379,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}
 	if (data.info?.author) {
 		const authorDraw = new Claire.Text(data.info.author, 0, {
-			font: "italic 14px Arial, 'Segoe UI', sans-serif",
+			font: 'italic 14px ' + getMusicTextFamily(),
 			textAlign: 'center',
 		})
 		authorDraw.moveTo(titleCenterX, page1TopY + 30)
@@ -1497,7 +1498,7 @@ function drawStaffLabels(drawing, staves, yOffset, leftMarginOverride) {
 		var labelY = getStaffY(li) + yOffset - fs * 0.5 // vertically centered on staff
 		var labelX = leftMarginOverride !== undefined ? leftMarginOverride * 0.05 : fs * 0.05
 		var labelDraw = new Claire.Text(label, 0, {
-			font: Math.round(fs * 0.6) + "px Arial, 'Segoe UI', sans-serif",
+			font: Math.round(fs * 0.6) + 'px ' + getMusicTextFamily(),
 			textAlign: 'left',
 		})
 		labelDraw.moveTo(labelX, labelY)
@@ -1514,7 +1515,7 @@ function drawTitleAndAuthor(drawing, data, canvasWidth) {
 	var middle = canvasWidth / 2
 	if (title) {
 		const titleDrawing = new Claire.Text(title, 0, {
-			font: "bold 20px Arial, 'Segoe UI', sans-serif",
+			font: 'bold 20px ' + getMusicTextFamily(),
 			textAlign: 'center',
 		})
 		titleDrawing.moveTo(middle, 40)
@@ -1523,7 +1524,7 @@ function drawTitleAndAuthor(drawing, data, canvasWidth) {
 
 	if (author) {
 		const authorDrawing = new Claire.Text(author, 0, {
-			font: "italic 14px Arial, 'Segoe UI', sans-serif",
+			font: 'italic 14px ' + getMusicTextFamily(),
 			textAlign: 'center',
 		})
 		authorDrawing.moveTo(middle, 60)
@@ -1799,7 +1800,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 		case 'PerformanceStyle':
 			var pos = token.position !== undefined ? token.position : 9
 			var text = new Text(token.text, -(pos + 4), {
-				font: "italic 11px Arial, 'Segoe UI', sans-serif",
+				font: 'italic 11px ' + getMusicTextFamily(),
 			})
 			cursor.posGlyph(text)
 			drawing.add(text)
@@ -1809,18 +1810,16 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			var text = new Text(
 				`(${token.duration})`,
 				-(pos + 4),
-				{ font: "11px Arial, 'Segoe UI', sans-serif" }
+				{ font: '11px ' + getMusicTextFamily() }
 			)
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break
 		case 'Dynamic':
 			var pos = token.position !== undefined ? token.position : -13
-			var text = new Text(token.dynamic, -(pos + 4), {
-				font: "italic bold 12px Arial, 'Segoe UI', sans-serif",
-			})
-			cursor.posGlyph(text)
-			drawing.add(text)
+			var dynGlyph = new DynamicMarking(token.dynamic, -(pos + 4))
+			cursor.posGlyph(dynGlyph)
+			drawing.add(dynGlyph)
 			break
 		case 'moo':
 			console.log('as', token)
@@ -1902,7 +1901,7 @@ function drawForNote(token, cursor, durToken) {
 			}
 
 			var text = new Text(displayText, 0, {
-				font: lyricFontSize + "px Arial, 'Segoe UI', sans-serif",
+				font: lyricFontSize + 'px ' + getMusicTextFamily(),
 				textAlign: 'left',
 			})
 			cursor.posGlyph(text)
