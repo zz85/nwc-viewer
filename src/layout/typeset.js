@@ -1817,7 +1817,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 		case 'Dynamic':
 			var pos = token.position !== undefined ? token.position : -13
-			var dynGlyph = new DynamicMarking(token.dynamic, -(pos + 4))
+			var dynGlyph = new DynamicMarking(token.dynamic, pos + 4)
 			cursor.posGlyph(dynGlyph)
 			drawing.add(dynGlyph)
 			break
