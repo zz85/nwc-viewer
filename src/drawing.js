@@ -1042,6 +1042,54 @@ class Tie extends Draw {
 	}
 }
 
+/**
+ * A partial tie arc for cross-system ties.
+ * 'trailing' mode: starts at a note and curves off to the right edge.
+ * 'leading' mode: curves in from the left edge to a note.
+ */
+class PartialTie extends Draw {
+	constructor(noteGlyph, arcWidth, mode) {
+		super()
+		this.mode = mode  // 'trailing' or 'leading'
+		this.size = getFontSize()
+		this.height = getFontSize() * 0.5
+
+		if (mode === 'trailing') {
+			// Start at the note, arc curves rightward
+			this.x = noteGlyph.x + noteGlyph.width / 2
+			this.y = noteGlyph.y
+			this.width = arcWidth
+		} else {
+			// End at the note, arc curves leftward from system start
+			this.x = noteGlyph.x + noteGlyph.width / 2 - arcWidth
+			this.y = noteGlyph.y
+			this.width = arcWidth
+		}
+		this.endx = this.x + this.width
+		this.endy = this.y  // same pitch, same Y
+	}
+
+	draw(ctx) {
+		ctx.fillStyle = '#000'
+		var w = this.width
+		var h = this.height
+
+		ctx.beginPath()
+		if (this.mode === 'trailing') {
+			// Draw right half of an arc: from (0,0) curving down-right
+			ctx.moveTo(0, 0)
+			ctx.quadraticCurveTo(w * 0.6, h - getFontSize() / 10, w, 0)
+			ctx.quadraticCurveTo(w * 0.6, h, 0, 0)
+		} else {
+			// Draw left half of an arc: curving down-left into (w, 0)
+			ctx.moveTo(w, 0)
+			ctx.quadraticCurveTo(w * 0.4, h - getFontSize() / 10, 0, 0)
+			ctx.quadraticCurveTo(w * 0.4, h, w, 0)
+		}
+		ctx.fill()
+	}
+}
+
 class Drawing {
 	constructor(ctx) {
 		this.set = new Set()
@@ -1150,9 +1198,10 @@ const Claire = {
 	Line,
 	Path,
 	Tie,
+	PartialTie,
 }
 
 Object.assign(Claire, { Drawing, setup, Claire, resize, resizeToFit, changeFont })
 Object.assign(window, Claire)
 
-export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, Beam, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, changeFont }
+export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, PartialTie, Beam, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, changeFont }

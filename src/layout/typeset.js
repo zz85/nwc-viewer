@@ -1,7 +1,7 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily, getSpacingModel } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
-import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph } from '../drawing.js'
+import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie } from '../drawing.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
@@ -14,7 +14,7 @@ import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, T
  * - triplets
  * - dynamics
  */
-const X_STRETCH = 0.5
+const X_STRETCH = 1.0
 
 /**
  * StaveCursor keeps score of something ?
@@ -101,12 +101,10 @@ class TickTracker {
 	}
 
 	alignWithMax(token, cursor) {
-		// console.log('alignWithMax', token, cursor);
-
 		let moveX = cursor.staveX
 
 		if (cursor.lastPadRight) {
-			moveX += cursor.lastPadRight * 4
+			moveX += cursor.lastPadRight * X_STRETCH
 		}
 
 		// increments staveX or align with item which already contains staveX for tabValue
@@ -152,18 +150,25 @@ function collectMeasureBoundaries(staves) {
 /**
  * Collect note/rest/chord X positions as anchor points for justification.
  * Returns an array of X positions (absolute, in single-line coords) sorted
- * in ascending order.  These are the points between which extra space
- * should be distributed — elements at the same anchor position move together.
+ * in ascending order.  Merges across ALL staves so that anchors from any
+ * staff contribute to justification.  Positions within 0.5px are deduplicated.
  */
 function collectAnchors(staves) {
-	const tokens = staves[0]?.tokens || []
-	const anchors = []
-	for (let i = 0; i < tokens.length; i++) {
-		const token = tokens[i]
-		if (token.drawingNoteHead && (token.type === 'Note' || token.type === 'Chord' || token.type === 'Rest')) {
-			anchors.push(token.drawingNoteHead.x)
+	var anchorSet = new Set()
+	for (var si = 0; si < staves.length; si++) {
+		var tokens = staves[si]?.tokens || []
+		for (var i = 0; i < tokens.length; i++) {
+			var token = tokens[i]
+			if (token.drawingNoteHead && (token.type === 'Note' || token.type === 'Chord' || token.type === 'Rest')) {
+				// Round to 0.5px to deduplicate positions that are effectively
+				// the same (TickTracker aligns cross-staff, but floating-point
+				// rounding can produce tiny differences).
+				anchorSet.add(Math.round(token.drawingNoteHead.x * 2) / 2)
+			}
 		}
 	}
+	var anchors = Array.from(anchorSet)
+	anchors.sort(function(a, b) { return a - b })
 	return anchors
 }
 
@@ -387,6 +392,179 @@ function computeBadness(lineWidth, pageWidth, isLastLine) {
 // Maximum stretch factor per gap between adjacent anchors (note positions).
 // Keeps note spacing from becoming unnaturally wide.
 const MAX_INTRA_STRETCH = 5.0
+
+// ---------------------------------------------------------------------------
+// Spring-Rod Spacing Model
+// ---------------------------------------------------------------------------
+// Ross/Gould duration-to-space ratios (quarter note = 1.0).
+// Based on Ted Ross "Teach Yourself the Art of Music Engraving" and
+// Elaine Gould "Behind Bars" — the standard professional engraving tables.
+// Doubling duration adds ~40%, not 100% (logarithmic, not linear).
+const ROSS_RATIOS = [
+	[1/64, 0.35], [1/32, 0.45], [1/16, 0.55], [1/8, 0.70],
+	[1/4, 1.00],  [3/8, 1.15],  [1/2, 1.40],  [3/4, 1.60],
+	[1/1, 1.90],  [2/1, 2.20],
+]
+
+/**
+ * Look up the Ross/Gould spring width for a given duration value.
+ * Returns the ideal spring length in pixels (at current font size).
+ * Quarter note = 0.75 * fontSize; other durations scale per Ross table.
+ */
+function rossSpringWidth(durValue) {
+	var val = durValue ? durValue.value() : 0.25
+	var ratio = ROSS_RATIOS[ROSS_RATIOS.length - 1][1] // default to longest
+	for (var i = 0; i < ROSS_RATIOS.length; i++) {
+		if (val <= ROSS_RATIOS[i][0]) {
+			ratio = ROSS_RATIOS[i][1]
+			break
+		}
+	}
+	// Base unit: a quarter-note spring = 0.75 * fontSize
+	return ratio * getFontSize() * 0.75
+}
+
+// Minimum spring factor — prevents notes from overlapping.
+const SPRING_FACTOR_MIN = 0.3
+// Maximum spring factor — prevents excessive stretching.
+const SPRING_FACTOR_MAX = 3.0
+
+/**
+ * Build a spring justification map for one system.
+ *
+ * For each note/rest anchor in the system, we know:
+ * - _rod: the rigid physical width of the note unit (notehead + accidental + dots + flag)
+ * - _spring: the ideal elastic gap after the note (Ross/Gould table)
+ *
+ * We compute a single spring factor for the entire system that compresses
+ * or stretches all springs uniformly to fill the target width.
+ *
+ * Returns { anchors, anchorOffsets, factor } or null if insufficient data.
+ */
+function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
+	// Collect rod/spring data from ALL staves.  For each anchor position
+	// (beat), take the max rod across staves — the widest note unit at
+	// that beat determines the minimum space.  Spring uses max too so
+	// the longest duration at a beat drives the gap.
+	var entryMap = {}  // key: rounded anchorX → { anchorX, rod, spring }
+	for (var si = 0; si < staves.length; si++) {
+		var tokens = staves[si]?.tokens || []
+		for (var i = 0; i < tokens.length; i++) {
+			var token = tokens[i]
+			if (!token.drawingNoteHead) continue
+			if (token.type !== 'Note' && token.type !== 'Chord' && token.type !== 'Rest') continue
+			var ax = token.drawingNoteHead.x
+			if (ax < systemStartX || ax > systemEndX) continue
+			// Round to 0.5px to group cross-staff positions at the same beat
+			var key = Math.round((ax - systemStartX) * 2) / 2
+			var rod = token._rod || 0
+			var spring = token._spring || getFontSize() * 0.75
+			var existing = entryMap[key]
+			if (!existing) {
+				entryMap[key] = { anchorX: key, rod: rod, spring: spring }
+			} else {
+				// Take max rod and max spring across staves at the same beat
+				existing.rod = Math.max(existing.rod, rod)
+				existing.spring = Math.max(existing.spring, spring)
+			}
+		}
+	}
+
+	// Convert to sorted array
+	var entries = Object.values(entryMap)
+	entries.sort(function(a, b) { return a.anchorX - b.anchorX })
+	if (entries.length < 2) return null
+
+	var totalRods = 0
+	var totalSprings = 0
+	for (var i = 0; i < entries.length; i++) {
+		totalRods += entries[i].rod
+		totalSprings += entries[i].spring
+	}
+
+	// Natural width of this system's content
+	var naturalWidth = systemEndX - systemStartX
+	// Fixed space = everything that isn't rod or spring (clefs, barlines, key sigs, etc.)
+	var fixedSpace = naturalWidth - totalRods - totalSprings
+	// Space available for springs after rods and fixed elements
+	var availableForSprings = targetWidth - totalRods - fixedSpace
+
+	var factor = totalSprings > 0
+		? Math.max(SPRING_FACTOR_MIN, Math.min(SPRING_FACTOR_MAX, availableForSprings / totalSprings))
+		: 1.0
+
+	// Build cumulative anchor offsets.
+	// For each gap between consecutive anchors:
+	//   naturalGap = distance in single-line layout
+	//   springPortion = the spring of the left anchor's note
+	//   rodPortion = naturalGap - springPortion (the non-spring part of the gap)
+	//   newGap = rodPortion + springPortion * factor
+	//   offset delta = newGap - naturalGap
+	var anchors = []
+	var anchorOffsets = [0]
+	anchors.push(entries[0].anchorX)
+	var cumOffset = 0
+	for (var i = 1; i < entries.length; i++) {
+		anchors.push(entries[i].anchorX)
+		var naturalGap = entries[i].anchorX - entries[i - 1].anchorX
+		var springPortion = entries[i - 1].spring
+		// Clamp springPortion to not exceed the natural gap
+		if (springPortion > naturalGap) springPortion = naturalGap
+		var rodPortion = naturalGap - springPortion
+		var newGap = rodPortion + springPortion * factor
+		cumOffset += (newGap - naturalGap)
+		anchorOffsets.push(cumOffset)
+	}
+
+	// Add a virtual end anchor at the system boundary so that the last
+	// note's spring is also stretched, pushing the trailing barline to
+	// the right edge of the system.
+	var lastEntry = entries[entries.length - 1]
+	var trailingNatural = naturalWidth - lastEntry.anchorX
+	if (trailingNatural > 0) {
+		var trailingSpring = lastEntry.spring
+		if (trailingSpring > trailingNatural) trailingSpring = trailingNatural
+		var trailingRod = trailingNatural - trailingSpring
+		var trailingNew = trailingRod + trailingSpring * factor
+		var endOffset = cumOffset + (trailingNew - trailingNatural)
+		anchors.push(naturalWidth)
+		anchorOffsets.push(endOffset)
+	}
+
+	return { anchors, anchorOffsets, factor }
+}
+
+/**
+ * Compute the spring-justified X position for an element.
+ * Uses the same piecewise-constant snap as computeJustifyX — elements
+ * near an anchor get that anchor's offset, keeping note units rigid.
+ */
+function springJustifyX(relX, springMap) {
+	if (!springMap) return relX
+	var { anchors, anchorOffsets } = springMap
+	if (!anchors || anchors.length < 2) return relX
+
+	// Before first anchor
+	if (relX <= anchors[0]) {
+		return relX + anchorOffsets[0]
+	}
+	// After last anchor
+	if (relX >= anchors[anchors.length - 1]) {
+		return relX + anchorOffsets[anchors.length - 1]
+	}
+
+	// Find bracket and snap to nearest anchor's offset
+	var lo = 0
+	for (var i = 0; i < anchors.length - 1; i++) {
+		if (relX >= anchors[i] && relX < anchors[i + 1]) {
+			lo = i
+			break
+		}
+	}
+	var mid = (anchors[lo] + anchors[lo + 1]) / 2
+	var offset = relX < mid ? anchorOffsets[lo] : anchorOffsets[lo + 1]
+	return relX + offset
+}
 
 /**
  * Build a justification map for one system using anchor points.
@@ -694,7 +872,68 @@ function layoutTripletBrackets(drawing, staves) {
 }
 
 /**
- * Adjust hairpin span widths to reach from the token's X to the next
+ * Split ties/slurs that cross system breaks into two partial arcs.
+ * Called AFTER the reflow pass has repositioned all elements.
+ *
+ * Detection: after reflow, a cross-system tie will have its start and end
+ * on different system Y positions.  The endY will be offset by at least
+ * one system height from the startY.
+ *
+ * systemHeight — the vertical distance of one system (top staff to bottom + gap)
+ * leftEdgeX — the X coordinate of the system left edge (for leading arcs)
+ * rightEdgeXs — per-system right edge X (for trailing arcs), array indexed by system
+ * systemYOffsets — per-system Y offset (for mapping Y back to system index)
+ */
+function splitCrossSystemTies(drawing, systemHeight, interSystemGap) {
+	if (systemHeight <= 0) return
+
+	var toRemove = []
+	var toAdd = []
+	var fs = getFontSize()
+	var arcWidth = fs * 2  // width of the partial arc
+
+	for (var el of drawing.set) {
+		// Identify Tie objects: they have endx, endy, and width properties
+		if (el.endx == null || el.endy == null || el.width == null) continue
+		// Skip PartialTie objects (they don't have the same structure)
+		if (el instanceof PartialTie) continue
+
+		// Check if start and end are on different systems by comparing Y positions.
+		// Within the same system, Y difference is at most the staff spread.
+		// Across systems, the difference is at least (systemHeight + interSystemGap).
+		var yDiff = Math.abs(el.endy - el.y)
+		if (yDiff < systemHeight * 0.8) continue  // same system — skip
+
+		// This tie crosses a system break.  Replace with two partial arcs.
+		toRemove.push(el)
+
+		// Trailing arc: from the start note, curving to the right
+		var trailing = new PartialTie(
+			{ x: el.x, y: el.y, width: 0 },  // synthetic glyph-like object
+			arcWidth, 'trailing'
+		)
+		// Position: already at el.x, el.y from the constructor
+		trailing.x = el.x
+		trailing.y = el.y
+
+		// Leading arc: curving in from the left to the end note
+		var leading = new PartialTie(
+			{ x: el.endx, y: el.endy, width: 0 },
+			arcWidth, 'leading'
+		)
+		leading.x = el.endx - arcWidth
+		leading.y = el.endy
+
+		toAdd.push(trailing)
+		toAdd.push(leading)
+	}
+
+	for (var i = 0; i < toRemove.length; i++) drawing.remove(toRemove[i])
+	for (var i = 0; i < toAdd.length; i++) drawing.add(toAdd[i])
+}
+
+/**
+ * Adjust hairpin wedge widths to span from the DynamicVariance token to the next
  * dynamic-related token or the next barline.
  */
 function layoutHairpinSpans(drawing, staves) {
@@ -1134,6 +1373,25 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		systemBarlineMaps.push(buildBarlineMap(relBarXs, extraSpace, relAnchors))
 	}
 
+	// --- Build per-system spring maps (if spring-rod spacing is active) ---
+	var useSpring = getSpacingModel() === 'spring'
+	var systemSpringMaps = []
+	if (useSpring) {
+		for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+			var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+			var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
+			var courtesyW = courtesyWidths[sysIdx]
+			var contentWidth = pageWidth - courtesyW
+			var isLastSystem = sysIdx === systemCount - 1
+			var naturalWidth = systemNaturalWidths[sysIdx]
+			// Only justify if it's not the last system or it fills enough of the line
+			var shouldJustify = !isLastSystem || (naturalWidth / contentWidth > 0.2)
+			systemSpringMaps.push(shouldJustify
+				? buildSpringMap(staves, sysStartX, sysEndX, contentWidth)
+				: null)
+		}
+	}
+
 	// --- Reflow all existing drawing elements into systems with justification ---
 	for (const el of drawing.set) {
 		// Skip elements without position (shouldn't happen, but be safe)
@@ -1152,6 +1410,12 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var courtesyW = courtesyWidths[sysIdx]
 		var barlineMap = systemBarlineMaps[sysIdx]
 
+		// Choose justification function: spring-rod or legacy anchor-gap
+		var springMap = useSpring ? systemSpringMaps[sysIdx] : null
+		var justify = springMap
+			? function(rx) { return springJustifyX(rx, springMap) }
+			: function(rx) { return computeJustifyX(rx, barlineMap) }
+
 		// Beam elements store relative startX/endX from their moveTo origin.
 		// Both endpoints need independent justification so the beam spans
 		// correctly after stretching.  Sub-beams may have non-zero startX.
@@ -1164,9 +1428,9 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			// Also justify the beam origin (el.x) itself
 			var relOrigin = el.x - systemStartX
 
-			var justOrigin = computeJustifyX(relOrigin, barlineMap) + leftMargin + courtesyW
-			var justStart = computeJustifyX(relStart, barlineMap) + leftMargin + courtesyW
-			var justEnd = computeJustifyX(relEnd, barlineMap) + leftMargin + courtesyW
+			var justOrigin = justify(relOrigin) + leftMargin + courtesyW
+			var justStart = justify(relStart) + leftMargin + courtesyW
+			var justEnd = justify(relEnd) + leftMargin + courtesyW
 
 			el.x = justOrigin
 			el.startX = justStart - justOrigin
@@ -1178,13 +1442,13 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var origEndAbsX = el.x + el.width
 			var relEnd = origEndAbsX - systemStartX
 
-			el.x = computeJustifyX(relX, barlineMap) + leftMargin + courtesyW
-			var justEnd = computeJustifyX(relEnd, barlineMap) + leftMargin + courtesyW
+			el.x = justify(relX) + leftMargin + courtesyW
+			var justEnd = justify(relEnd) + leftMargin + courtesyW
 			el.width = justEnd - el.x
 			el.endx = justEnd
 		}
 		else {
-			el.x = computeJustifyX(relX, barlineMap) + leftMargin + courtesyW
+			el.x = justify(relX) + leftMargin + courtesyW
 		}
 
 		// Shift Y: add the system's vertical offset
@@ -1241,6 +1505,9 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var totalHeight = systemCount * (systemHeight + interSystemGap) + firstStaffY
 	maxCanvasWidth = pageWidth + leftMargin + fs
 	maxCanvasHeight = totalHeight + fs * 2
+
+	// Split ties/slurs that cross system breaks into partial arcs
+	splitCrossSystemTies(drawing, systemHeight, interSystemGap)
 
 	// Clear page geometry (not in page mode)
 	_pageGeometry = null
@@ -1396,6 +1663,24 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		systemBarlineMaps.push(buildBarlineMap(relBarXs, extraSpace, relAnchors))
 	}
 
+	// --- Build per-system spring maps (if spring-rod spacing is active) ---
+	var useSpringPage = getSpacingModel() === 'spring'
+	var systemSpringMapsPage = []
+	if (useSpringPage) {
+		for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+			var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+			var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
+			var courtesyW = courtesyWidths[sysIdx]
+			var sysContentW = contentW - courtesyW
+			var isLastSystem = sysIdx === systemCount - 1
+			var naturalWidth = systemNaturalWidths[sysIdx]
+			var shouldJustify = !isLastSystem || (naturalWidth / sysContentW > 0.2)
+			systemSpringMapsPage.push(shouldJustify
+				? buildSpringMap(staves, sysStartX, sysEndX, sysContentW)
+				: null)
+		}
+	}
+
 	// --- Assign systems to pages ---
 	// Title/author consumes space on page 1
 	var titleHeight = 0
@@ -1455,6 +1740,12 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var courtesyW = courtesyWidths[sysIdx]
 		var barlineMap = systemBarlineMaps[sysIdx]
 
+		// Choose justification function: spring-rod or legacy anchor-gap
+		var springMapP = useSpringPage ? systemSpringMapsPage[sysIdx] : null
+		var justifyP = springMapP
+			? function(rx) { return springJustifyX(rx, springMapP) }
+			: function(rx) { return computeJustifyX(rx, barlineMap) }
+
 		// X justification
 		if (el.startX != null && el.endX != null) {
 			var origStartAbsX = el.x + el.startX
@@ -1463,9 +1754,9 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var relEnd = origEndAbsX - systemStartX
 			var relOrigin = el.x - systemStartX
 
-			var justOrigin = computeJustifyX(relOrigin, barlineMap) + leftMargin + courtesyW + horizontalPad
-			var justStart = computeJustifyX(relStart, barlineMap) + leftMargin + courtesyW + horizontalPad
-			var justEnd = computeJustifyX(relEnd, barlineMap) + leftMargin + courtesyW + horizontalPad
+			var justOrigin = justifyP(relOrigin) + leftMargin + courtesyW + horizontalPad
+			var justStart = justifyP(relStart) + leftMargin + courtesyW + horizontalPad
+			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad
 
 			el.x = justOrigin
 			el.startX = justStart - justOrigin
@@ -1474,12 +1765,12 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var origEndAbsX = el.x + el.width
 			var relEnd = origEndAbsX - systemStartX
 
-			el.x = computeJustifyX(relX, barlineMap) + leftMargin + courtesyW + horizontalPad
-			var justEnd = computeJustifyX(relEnd, barlineMap) + leftMargin + courtesyW + horizontalPad
+			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad
+			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad
 			el.width = justEnd - el.x
 			el.endx = justEnd
 		} else {
-			el.x = computeJustifyX(relX, barlineMap) + leftMargin + courtesyW + horizontalPad
+			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad
 		}
 
 		// Y: offset from single-line staff Y to absolute page position
@@ -1566,6 +1857,9 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// --- Canvas sizing ---
 	maxCanvasWidth = PAGE_W + horizontalPad * 2
 	maxCanvasHeight = pageCount * (PAGE_H + interPageGap) + interPageGap
+
+	// Split ties/slurs that cross system breaks into partial arcs
+	splitCrossSystemTies(drawing, systemHeight, interSystemGap)
 
 	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
 }
@@ -1868,6 +2162,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				4: 'restQuarter',
 				8: 'rest8th',
 				16: 'rest16th',
+				32: 'rest32nd',
+				64: 'rest64th',
 			}[duration]
 
 			if (!sym) console.log('FAIL REST', token, duration)
@@ -1880,9 +2176,17 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 			cursor.incStaveX(s.width * 1)
 			cursor.tokenPadRight(s.width * calculatePadding(token.durValue))
+
+			// Record rod/spring for spring-rod model
+			token._rod = s.width
+			token._spring = rossSpringWidth(token.durValue)
 			break
 
 		case 'Barline':
+			// Add breathing room before the barline (traditional engraving:
+			// ~0.5 staff spaces between the last note and the barline).
+			cursor.incStaveX(spacerWidth() * 0.5)
+
 			s = new Barline(0, 8, token.barline || 0)
 			cursor.posGlyph(s)
 			s._text = info
@@ -2116,8 +2420,14 @@ function drawForNote(token, cursor, durToken) {
 
 	if (token.accidental) {
 		var acc = new Accidental(token.accidental, relativePos)
+		// Reserve horizontal space for the accidental before the notehead.
+		// Traditional engraving places the accidental immediately left of the
+		// notehead with a small gap — we advance the cursor so subsequent
+		// notes don't collide with it.
+		var accReserve = acc.width * 1.2 * graceScale
+		cursor.incStaveX(accReserve)
 		cursor.posGlyph(acc)
-		acc.offsetX = -acc.width * 1.2 * graceScale
+		acc.offsetX = -accReserve
 		if (isGrace) acc._graceScale = graceScale
 		drawing.add(acc)
 	}
@@ -2171,13 +2481,25 @@ function drawForNote(token, cursor, durToken) {
 				lyricOffsetY = getFontSize() * 1.5
 			}
 
+			var lyricFont = lyricFontSize + 'px ' + getMusicTextFamily()
 			var text = new Text(displayText, 0, {
-				font: lyricFontSize + 'px ' + getMusicTextFamily(),
+				font: lyricFont,
 				textAlign: 'left',
 			})
 			cursor.posGlyph(text)
 			text.offsetY = lyricOffsetY
 			drawing.add(text)
+
+			// Measure lyric text width for spring-rod spacing.
+			// The rod of a note should be at least as wide as its lyric
+			// so syllables don't overlap when springs compress.
+			var ctx = window.ctx
+			if (ctx) {
+				ctx.save()
+				ctx.font = lyricFont
+				token._lyricWidth = ctx.measureText(displayText).width
+				ctx.restore()
+			}
 		}
 	}
 
@@ -2279,6 +2601,40 @@ function drawForNote(token, cursor, durToken) {
 	} else {
 		var spaceMultiplier = calculatePadding(durValue || token.durValue)
 		cursor.tokenPadRight(noteHead.width * spaceMultiplier + stemBuffer)
+	}
+
+	// --- Record rod (rigid width) and spring (elastic gap) for spring-rod model ---
+	// Rod = physical width of the note unit that cannot be compressed.
+	// Spring = ideal duration-proportional gap after the note.
+	// For chords, durToken is the parent chord; rod accumulates across children
+	// but we take the max since chord notes share horizontal space.
+	var accWidth = token.accidental ? (acc.width * 1.2 * graceScale) : 0
+	var dotTotalWidth = 0
+	for (let di = 0; di < token.dots; di++) dotTotalWidth += getFontSize() * 0.15
+	var flagExtraWidth = (hasStem && hasFlag && stemUp) ? spacerWidth() : 0
+	var thisRod = accWidth + noteHeadWidth + dotTotalWidth + flagExtraWidth
+
+	// If this note carries a lyric syllable, the rod must be at least as
+	// wide as the text so adjacent syllables don't overlap when springs
+	// compress.  Add a small gap (half spacerWidth) for breathing room.
+	var lyricW = token._lyricWidth || 0
+	if (lyricW > 0) {
+		thisRod = Math.max(thisRod, lyricW + spacerWidth() * 0.5)
+	}
+
+	// For chords (durToken !== token), take the max rod across child notes
+	if (durToken !== token) {
+		durToken._rod = Math.max(durToken._rod || 0, thisRod)
+	} else {
+		durToken._rod = thisRod
+	}
+	if (!isGrace) {
+		durToken._spring = rossSpringWidth(durValue || token.durValue)
+	} else {
+		// Grace notes: duration-proportional spring scaled to 40% — tight
+		// but not fixed, so different grace-note durations still get
+		// slightly different spacing.
+		durToken._spring = rossSpringWidth(durValue || token.durValue) * 0.4
 	}
 }
 

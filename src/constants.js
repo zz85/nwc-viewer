@@ -101,6 +101,20 @@ function getMusicTextFamily() {
 	return tf ? `'${tf}', ${TEXT_FONT_FALLBACK}` : TEXT_FONT_FALLBACK
 }
 
+// Spacing model — 'current' uses the legacy sqrt-based spacing with anchor
+// gap stretching; 'spring' uses Ross/Gould-based spring-rod justification
+// where each note has a rigid rod (physical width) and an elastic spring
+// (duration-proportional gap) that compresses or stretches to fill the system.
+let spacingModel = 'spring'
+
+function setSpacingModel(m) {
+	if (m === 'current' || m === 'spring') spacingModel = m
+}
+
+function getSpacingModel() {
+	return spacingModel
+}
+
 // Visual zoom level — applied as a canvas transform in quickDraw().
 // This does NOT trigger a re-layout; it simply scales the rendered output.
 // Use setFontSize() to change the actual music engraving size (requires re-layout).
@@ -130,6 +144,8 @@ Object.assign(!isBrowser() ? global : window, {
 	FONT_SIZE,
 	setFontSize,
 	getFontSize,
+	setSpacingModel,
+	getSpacingModel,
 	setZoomLevel,
 	getZoomLevel,
 	ZOOM_MIN,
@@ -151,6 +167,7 @@ Object.assign(!isBrowser() ? global : window, {
 export {
 	isNode, isBrowser,
 	FONT_SIZE, setFontSize, getFontSize,
+	setSpacingModel, getSpacingModel,
 	setZoomLevel, getZoomLevel, ZOOM_MIN, ZOOM_MAX,
 	setLayoutMode, getLayoutMode,
 	PAGE_SIZES, setPageSize, getPageSize, getPageDimensions, getPageMargins,

@@ -1,5 +1,5 @@
 import './constants.js'
-import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont } from './constants.js'
+import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont, getSpacingModel, setSpacingModel } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -668,3 +668,27 @@ if (musicFontSelect) {
 const storedMusicFont = localStorage.getItem(MUSIC_FONT_STORAGE_KEY)
 if (storedMusicFont) setMusicFont(storedMusicFont)
 if (musicFontSelect) musicFontSelect.value = getMusicFont()
+
+// ---- Spacing model toggle (current ↔ spring) ----
+
+const SPACING_STORAGE_KEY = 'nwc_spacing_model'
+
+function updateSpacingButton() {
+	var btn = document.getElementById('spacing_toggle')
+	if (btn) btn.textContent = getSpacingModel() === 'spring' ? 'Spring' : 'Fixed'
+}
+
+window.toggleSpacing = function () {
+	var next = getSpacingModel() === 'spring' ? 'current' : 'spring'
+	setSpacingModel(next)
+	localStorage.setItem(SPACING_STORAGE_KEY, next)
+	updateSpacingButton()
+	rerender()
+}
+
+// Restore persisted spacing preference
+var storedSpacing = localStorage.getItem(SPACING_STORAGE_KEY)
+if (storedSpacing === 'current' || storedSpacing === 'spring') {
+	setSpacingModel(storedSpacing)
+}
+updateSpacingButton()
