@@ -420,14 +420,16 @@ function rossSpringWidth(durValue) {
 			break
 		}
 	}
-	// Base unit: a quarter-note spring = 0.75 * fontSize
-	return ratio * getFontSize() * 0.75
+	// Base unit: a quarter-note spring = 1.5 * fontSize.
+	// Higher values make duration differences more visually prominent
+	// (time-based spacing dominates over visual/rod spacing).
+	return ratio * getFontSize() * 1.5
 }
 
 // Minimum spring factor — prevents notes from overlapping.
-const SPRING_FACTOR_MIN = 0.3
+const SPRING_FACTOR_MIN = 0.2
 // Maximum spring factor — prevents excessive stretching.
-const SPRING_FACTOR_MAX = 3.0
+const SPRING_FACTOR_MAX = 5.0
 
 /**
  * Build a spring justification map for one system.
@@ -482,24 +484,53 @@ function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
 		totalSprings += entries[i].spring
 	}
 
-	// Natural width of this system's content
+	// Natural width of this system's content (from the single-line layout)
 	var naturalWidth = systemEndX - systemStartX
-	// Fixed space = everything that isn't rod or spring (clefs, barlines, key sigs, etc.)
-	var fixedSpace = naturalWidth - totalRods - totalSprings
-	// Space available for springs after rods and fixed elements
-	var availableForSprings = targetWidth - totalRods - fixedSpace
 
+	// How much do springs need to grow (or shrink) to reach the target?
+	// factor = 1.0 means springs stay at natural size.
+	// factor > 1.0 means springs stretch (system was narrower than target).
+	// factor < 1.0 means springs compress (system was wider than target).
+	// We solve: naturalWidth + totalSprings * (factor - 1) = targetWidth
+	//   => factor = 1 + (targetWidth - naturalWidth) / totalSprings
 	var factor = totalSprings > 0
-		? Math.max(SPRING_FACTOR_MIN, Math.min(SPRING_FACTOR_MAX, availableForSprings / totalSprings))
+		? Math.max(SPRING_FACTOR_MIN, Math.min(SPRING_FACTOR_MAX,
+			1.0 + (targetWidth - naturalWidth) / totalSprings))
 		: 1.0
 
 	// Build cumulative anchor offsets.
 	// For each gap between consecutive anchors:
 	//   naturalGap = distance in single-line layout
-	//   springPortion = the spring of the left anchor's note
+	//   springPortion = the spring of the left anchor's note (clamped to gap)
 	//   rodPortion = naturalGap - springPortion (the non-spring part of the gap)
 	//   newGap = rodPortion + springPortion * factor
-	//   offset delta = newGap - naturalGap
+	//   offset delta = newGap - naturalGap = springPortion * (factor - 1)
+	//
+	// First pass: compute effective total springs (after clamping to gap size).
+	// This is needed because the factor formula assumes all spring length is
+	// usable, but springs wider than their gap get clamped.
+	var effectiveSprings = 0
+	for (var i = 1; i < entries.length; i++) {
+		var naturalGap = entries[i].anchorX - entries[i - 1].anchorX
+		var sp = entries[i - 1].spring
+		if (sp > naturalGap) sp = naturalGap
+		effectiveSprings += sp
+	}
+	// Include trailing gap's spring
+	var lastEntry = entries[entries.length - 1]
+	var trailingNatural = naturalWidth - lastEntry.anchorX
+	if (trailingNatural > 0) {
+		var trailSp = lastEntry.spring
+		if (trailSp > trailingNatural) trailSp = trailingNatural
+		effectiveSprings += trailSp
+	}
+
+	// Recompute factor using effective springs
+	var factor = effectiveSprings > 0
+		? Math.max(SPRING_FACTOR_MIN, Math.min(SPRING_FACTOR_MAX,
+			1.0 + (targetWidth - naturalWidth) / effectiveSprings))
+		: 1.0
+
 	var anchors = []
 	var anchorOffsets = [0]
 	anchors.push(entries[0].anchorX)
@@ -519,8 +550,6 @@ function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
 	// Add a virtual end anchor at the system boundary so that the last
 	// note's spring is also stretched, pushing the trailing barline to
 	// the right edge of the system.
-	var lastEntry = entries[entries.length - 1]
-	var trailingNatural = naturalWidth - lastEntry.anchorX
 	if (trailingNatural > 0) {
 		var trailingSpring = lastEntry.spring
 		if (trailingSpring > trailingNatural) trailingSpring = trailingNatural
@@ -2183,10 +2212,6 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 
 		case 'Barline':
-			// Add breathing room before the barline (traditional engraving:
-			// ~0.5 staff spaces between the last note and the barline).
-			cursor.incStaveX(spacerWidth() * 0.5)
-
 			s = new Barline(0, 8, token.barline || 0)
 			cursor.posGlyph(s)
 			s._text = info
@@ -2239,7 +2264,13 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 			addStave(cursor, staveIndex)
 			cursor.updateBarline()
-			cursor.incStaveX(spacerWidth() * 1)
+			// Reserve enough space after the barline for an accidental on the
+			// first note of the next measure.  Accidentals hang left via
+			// offsetX (~fontSize * 0.36), so the gap must be at least that
+			// wide plus comfortable breathing room.  3 spacerWidths
+			// (= 0.75 * fontSize ≈ 3 staff spaces) matches traditional
+			// engraving practice for the first-beat indent.
+			cursor.incStaveX(spacerWidth() * 3)
 			// cursor.tokenPadRight(spacerWidth())
 			// 10
 			break
@@ -2420,14 +2451,12 @@ function drawForNote(token, cursor, durToken) {
 
 	if (token.accidental) {
 		var acc = new Accidental(token.accidental, relativePos)
-		// Reserve horizontal space for the accidental before the notehead.
-		// Traditional engraving places the accidental immediately left of the
-		// notehead with a small gap — we advance the cursor so subsequent
-		// notes don't collide with it.
-		var accReserve = acc.width * 1.2 * graceScale
-		cursor.incStaveX(accReserve)
+		// Accidentals hang to the left of the notehead via offsetX.
+		// No cursor advance — the rod captures accidental width for the
+		// spring-rod model, which prevents collisions with the previous note.
+		// This keeps all noteheads at the same X within chords.
 		cursor.posGlyph(acc)
-		acc.offsetX = -accReserve
+		acc.offsetX = -acc.width * 1.2 * graceScale
 		if (isGrace) acc._graceScale = graceScale
 		drawing.add(acc)
 	}
