@@ -2,6 +2,7 @@ import './constants.js'
 import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
+import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
 import { interpret } from './interpreter.js'
 import { setup, resizeToFit, changeFont } from './drawing.js'
 import { exportLilypond } from './exporter.js'
@@ -543,10 +544,15 @@ function processData(payload, filename) {
 		window._lastPayload = payload
 		window.__currentFile = filename || '(unknown)'
 		window.__renderComplete = null
-		var data = decodeNwcArrayBuffer(payload)
+		var data
+		if (isMidiFile(payload)) {
+			data = decodeMidiArrayBuffer(payload, filename)
+		} else {
+			data = decodeNwcArrayBuffer(payload)
+		}
 		setDataAndRender(data)
 	} catch (error) {
-		console.error('Failed to process NWC file:', error)
+		console.error('Failed to process file:', error)
 		// Log the full stack so the root cause is visible in DevTools, then
 		// surface a user-readable message.  We deliberately do NOT catch errors
 		// from rerender() here — those are caught inside rerender() itself.

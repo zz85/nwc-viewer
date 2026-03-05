@@ -43,7 +43,7 @@ function readFile(file) {
 	reader.onload = function (event) {
 		var arraybuffer = event.target.result
 		console.log(event)
-		processData(arraybuffer)
+		processData(arraybuffer, file.name)
 	}
 	reader.readAsArrayBuffer(file)
 }

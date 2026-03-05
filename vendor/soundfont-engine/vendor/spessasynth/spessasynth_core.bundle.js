@@ -11958,5 +11958,11 @@ var SpessaSynthProcessor3 = class {
 };
 export {
   SoundBankLoader,
-  BasicSoundBank
+  BasicSoundBank,
+  BasicMIDI2 as BasicMIDI,
+  MIDIMessage,
+  MIDITrack,
+  midiMessageTypes,
+  midiControllers,
+  getChannel
 };

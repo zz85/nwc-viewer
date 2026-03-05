@@ -62,7 +62,12 @@ Planned features and improvements, roughly prioritized.
 
 ## Import / Export
 
-- [ ] MIDI import — load .mid files and convert to internal score representation
+- [x] MIDI import — load .mid/.midi files; SpessaSynth binary parser + grid-snap quantization (16th note default) → internal score format with notes, chords, rests, barlines, time/key signatures, tempo, clef detection, beaming. Supports SMF format 0/1, channel-split staffing, dotted/triplet durations, tie splitting at barlines, GM program → staff names.
+  - [ ] Adaptive quantization — multi-pass with multiple grid levels, best-fit selection per note (for rubato/live recordings)
+  - [ ] Expression parsing — Dynamic tokens from velocity changes, sustain pedal (CC64), program change → instrument assignment per staff
+  - [ ] Percussion staff — Channel 10 → percussion clef + GM drum map
+  - [ ] Voice splitting — Detect multiple voices within one MIDI track
+  - [ ] Tuplet detection beyond triplets — quintuplets, septuplets, etc.
 - [ ] MIDI export — export score as Standard MIDI File
 - [ ] MusicXML import — load .musicxml / .mxl files
 - [ ] MuseScore import — load .mscx / .mscz files
