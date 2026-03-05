@@ -20,6 +20,16 @@ Planned features and improvements, roughly prioritized.
 - [ ] Repeat/volta playback support
 - [ ] Tempo changes during playback (rit., accel.)
 
+## Tier 2 — Critical for correct visual rendering (score looks wrong without these)
+
+- [x] **Hairpins (crescendo/diminuendo)** — Hairpin wedges drawn with canvas lines; span auto-sized to reach next dynamic/barline. Rinforzando/Sforzando rendered as dynamic text.
+- [x] **Special endings / volta brackets** — VoltaBracket class draws horizontal bracket with hooks and ending number text. Span auto-sized to reach next ending/barline.
+- [x] **Articulation glyphs** — ArticulationMark class renders SMuFL glyphs for staccato, accent, tenuto, marcato, staccatissimo, fermata. Placed above/below notehead based on stem direction; multiple articulations stack outward.
+- [x] **Triplet/tuplet brackets** — TupletBracket class draws bracket with gap and centered "3" numeral. Post-layout pass scans triplet=1..3 groups and spans bracket across note positions.
+- [x] **Grace notes** — Grace note flag causes 60% scale rendering via `_graceScale` on Glyph/Accidental draw, with reduced horizontal spacing.
+- [x] **Dynamic variance rendering** — DynamicVariance tokens rendered: styles 0-2 as hairpin wedges, Rinforzando as "rfz", Sforzando as "sfz". TempoVariance rendered: Fermata as SMuFL glyph, breath mark as comma, text variants (rit., rall., accel., etc.) as italic text.
+- [x] **Flow direction rendering** — Coda/Segno rendered as SMuFL glyphs; Fine/D.C./D.S./To Coda/etc. rendered as bold italic text.
+
 ## Layout & Rendering
 
 - [x] Wrap layout with DP-optimal line breaking, anchor-point justification, rigid note units
@@ -42,12 +52,12 @@ Planned features and improvements, roughly prioritized.
 - [ ] Multiple lyric verses (currently only verse 1 rendered; NWC supports up to 8)
 - [ ] Grand staff brace rendering (`braceWithNext` parsed but not drawn)
 - [ ] Proportional / spring-and-rod spacing (currently fixed-width-per-duration)
-- [ ] Grace notes
+- [x] Grace notes — drawn at 60% scale with reduced spacing
 - [ ] Ties and slurs (partially implemented)
-- [ ] Triplet/tuplet brackets
+- [x] Triplet/tuplet brackets — TupletBracket class with bracket, hooks, centered numeral
 - [ ] Alto and tenor clef support
-- [ ] Ending brackets (1st/2nd endings)
-- [ ] Hairpins (crescendo/diminuendo)
+- [x] Ending brackets (1st/2nd endings) — VoltaBracket class with ending numbers
+- [x] Hairpins (crescendo/diminuendo) — Hairpin class with auto-spanning
 
 ## UI / UX
 

@@ -104,6 +104,21 @@ const fontMap = {
 	dynamicSF: 'E536',
 	dynamicSFZ: 'E539',
 
+	// Articulations (U+E4A0–U+E4BF)
+	articulationAccent: 'E4A0',            // accent above
+	articulationStaccato: 'E4A2',          // staccato above
+	articulationTenuto: 'E4A4',            // tenuto above
+	articulationMarcato: 'E4AC',           // marcato above (hat)
+	articulationStaccatissimo: 'E4A8',     // staccatissimo above (wedge)
+
+	// Fermatas (U+E4C0–U+E4CF)
+	fermataAbove: 'E4C0',
+	fermataBelow: 'E4C1',
+
+	// Rehearsal / Flow marks (U+E048–U+E04F)
+	coda: 'E048',
+	segno: 'E047',
+
 	// Common ornaments (U+E560–U+E56F)
 }
 
@@ -356,7 +371,15 @@ class Glyph extends Draw {
 	draw(ctx) {
 		ctx.fillStyle = '#000'
 
-		this.path.draw(ctx)
+		// Grace notes are drawn at reduced scale
+		if (this._graceScale && this._graceScale !== 1) {
+			ctx.save()
+			ctx.scale(this._graceScale, this._graceScale)
+			this.path.draw(ctx)
+			ctx.restore()
+		} else {
+			this.path.draw(ctx)
+		}
 
 		if (window._debug_glyph) this.debug(ctx)
 	}
@@ -727,6 +750,189 @@ class DynamicMarking extends Draw {
 	}
 }
 
+/**
+ * Maps note-level articulation flags to SMuFL glyph names.
+ */
+const ARTICULATION_GLYPH_MAP = {
+	staccato: 'articulationStaccato',
+	accent: 'articulationAccent',
+	tenuto: 'articulationTenuto',
+	marcato: 'articulationMarcato',
+	staccatissimo: 'articulationStaccatissimo',
+	fermata: 'fermataAbove',
+}
+
+/**
+ * A single articulation mark drawn using a SMuFL glyph.
+ * Positioned above or below the notehead.
+ */
+class ArticulationMark extends Draw {
+	constructor(articulationType, adjustY) {
+		super()
+		this.articulationType = articulationType
+		this.fontSize = getFontSize()
+		if (adjustY) this.positionY(adjustY)
+
+		const glyphName = ARTICULATION_GLYPH_MAP[articulationType]
+		if (glyphName && fontMap[glyphName]) {
+			this.char = getCode(glyphName)
+			this.path = glyphPathGet(this.char, this.fontSize)
+			this.width = glyphWidthGet(this.char, this.fontSize)
+		} else {
+			this.char = null
+			this.path = null
+			this.width = 0
+		}
+	}
+
+	draw(ctx) {
+		if (this.path) {
+			ctx.fillStyle = '#000'
+			this.path.draw(ctx)
+		}
+	}
+}
+
+/**
+ * A hairpin (crescendo/diminuendo) wedge drawn with canvas lines.
+ * Spans from the token X position to a specified end X.
+ * The wedge opens left-to-right for crescendo, right-to-left for decrescendo.
+ */
+class Hairpin extends Draw {
+	constructor(style, spanWidth, adjustY) {
+		super()
+		this.style = style  // 'Crescendo' or 'Decrescendo'/'Diminuendo'
+		this.spanWidth = spanWidth || getFontSize() * 3
+		this.width = this.spanWidth
+		this.fontSize = getFontSize()
+		if (adjustY) this.positionY(adjustY)
+	}
+
+	draw(ctx) {
+		var fs = this.fontSize
+		var halfOpen = fs * 0.22  // half-height of the open end
+		var lw = fs / 24
+		var w = this.spanWidth
+
+		ctx.beginPath()
+		ctx.lineWidth = lw
+		ctx.strokeStyle = '#000'
+
+		if (this.style === 'Crescendo') {
+			// Point on the left, opening to the right
+			ctx.moveTo(0, -halfOpen)
+			ctx.lineTo(w, -halfOpen * 2)
+			ctx.moveTo(0, halfOpen)
+			ctx.lineTo(w, halfOpen * 2)
+		} else {
+			// Opening on the left, point on the right (decresc/dimin)
+			ctx.moveTo(0, -halfOpen * 2)
+			ctx.lineTo(w, -halfOpen)
+			ctx.moveTo(0, halfOpen * 2)
+			ctx.lineTo(w, halfOpen)
+		}
+		ctx.stroke()
+	}
+}
+
+/**
+ * Volta bracket (1st/2nd ending) drawn with canvas lines.
+ * A horizontal bracket with an optional downward hook on the right end,
+ * and ending number text (e.g., "1.", "2.") at the top left.
+ */
+class VoltaBracket extends Draw {
+	constructor(text, spanWidth, closed, adjustY) {
+		super()
+		this.text = text || '1.'
+		this.spanWidth = spanWidth || getFontSize() * 5
+		this.width = this.spanWidth
+		this.closed = closed  // whether the right side has a downward hook
+		this.fontSize = getFontSize()
+		if (adjustY) this.positionY(adjustY)
+	}
+
+	draw(ctx) {
+		var fs = this.fontSize
+		var lw = fs / 24
+		var hookH = fs * 0.35  // height of the vertical hooks
+		var w = this.spanWidth
+		var textSize = Math.round(fs * 0.35)
+
+		ctx.strokeStyle = '#000'
+		ctx.lineWidth = lw
+
+		// Left vertical hook (downward from top)
+		ctx.beginPath()
+		ctx.moveTo(0, hookH)
+		ctx.lineTo(0, 0)
+
+		// Horizontal line across the top
+		ctx.lineTo(w, 0)
+
+		// Right vertical hook (only if closed)
+		if (this.closed) {
+			ctx.lineTo(w, hookH)
+		}
+		ctx.stroke()
+
+		// Ending number text
+		ctx.fillStyle = '#000'
+		ctx.font = textSize + 'px ' + getMusicTextFamily()
+		ctx.textAlign = 'left'
+		ctx.fillText(this.text, lw + 2, textSize * 0.9)
+	}
+}
+
+/**
+ * Triplet/tuplet bracket with numeral drawn above or below a group of notes.
+ * A horizontal bracket with small hooks on each end and a centered "3".
+ */
+class TupletBracket extends Draw {
+	constructor(numeral, spanWidth, adjustY, below) {
+		super()
+		this.numeral = numeral || '3'
+		this.spanWidth = spanWidth || getFontSize() * 2
+		this.width = this.spanWidth
+		this.below = below || false
+		this.fontSize = getFontSize()
+		if (adjustY) this.positionY(adjustY)
+	}
+
+	draw(ctx) {
+		var fs = this.fontSize
+		var lw = fs / 30
+		var hookH = fs * 0.15 * (this.below ? -1 : 1)
+		var w = this.spanWidth
+		var textSize = Math.round(fs * 0.32)
+		var textW = ctx.measureText ? textSize * 0.6 : 6  // approximate width of "3"
+		var gapHalf = textW * 0.8  // half the gap for the numeral
+		var midX = w / 2
+
+		ctx.strokeStyle = '#000'
+		ctx.lineWidth = lw
+
+		// Left portion: hook + line up to gap
+		ctx.beginPath()
+		ctx.moveTo(0, hookH)
+		ctx.lineTo(0, 0)
+		ctx.lineTo(midX - gapHalf, 0)
+		ctx.stroke()
+
+		// Right portion: gap to end + hook
+		ctx.beginPath()
+		ctx.moveTo(midX + gapHalf, 0)
+		ctx.lineTo(w, 0)
+		ctx.lineTo(w, hookH)
+		ctx.stroke()
+
+		// Centered numeral
+		ctx.fillStyle = '#000'
+		ctx.font = 'italic ' + textSize + 'px ' + getMusicTextFamily()
+		ctx.textAlign = 'center'
+		ctx.fillText(this.numeral, midX, this.below ? -textSize * 0.3 : textSize * 0.35)
+	}
+}
+
 class Beam extends Draw {
 	constructor(startY, endY, startX, endX, count = 1) {
 		super()
@@ -935,6 +1141,10 @@ const Claire = {
 	Barline,
 	Dot,
 	DynamicMarking,
+	ArticulationMark,
+	Hairpin,
+	VoltaBracket,
+	TupletBracket,
 	Ledger,
 	Text,
 	Line,
@@ -945,4 +1155,4 @@ const Claire = {
 Object.assign(Claire, { Drawing, setup, Claire, resize, resizeToFit, changeFont })
 Object.assign(window, Claire)
 
-export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, Beam, DynamicMarking, changeFont }
+export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, Beam, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, changeFont }

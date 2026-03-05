@@ -1,7 +1,7 @@
 import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
-import { resizeToFit, DynamicMarking } from '../drawing.js'
+import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph } from '../drawing.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
@@ -639,6 +639,163 @@ function layoutLyricDashes(drawing, staves) {
 	}
 }
 
+/**
+ * Draw triplet/tuplet brackets above groups of triplet notes.
+ * Scans each stave's tokens for notes with triplet=1 (start) through
+ * triplet=3 (end) and draws a bracket spanning the group.
+ */
+function layoutTripletBrackets(drawing, staves) {
+	var fs = getFontSize()
+
+	for (var si = 0; si < staves.length; si++) {
+		var tokens = staves[si].tokens
+		if (!tokens) continue
+
+		var i = 0
+		while (i < tokens.length) {
+			var token = tokens[i]
+			// Look for triplet start (triplet=1)
+			if ((token.type === 'Note' || token.type === 'Chord' || token.type === 'Rest') &&
+				token.triplet === 1 && token.drawingNoteHead) {
+				var startHead = token.drawingNoteHead
+				var endHead = startHead
+				var startToken = token
+
+				// Find the end of the triplet group (triplet=3 or end of tokens)
+				for (var j = i + 1; j < tokens.length; j++) {
+					var nt = tokens[j]
+					if ((nt.type === 'Note' || nt.type === 'Chord' || nt.type === 'Rest') &&
+						nt.triplet && nt.drawingNoteHead) {
+						endHead = nt.drawingNoteHead
+						if (nt.triplet === 3) break  // triplet end
+					}
+				}
+
+				var startX = startHead.x
+				var endX = endHead.x + (endHead.width || 0)
+				var spanW = endX - startX
+				if (spanW > 0) {
+					// Determine stem direction to place bracket on the opposite side.
+					// Default: stems up → bracket below; stems down → bracket above.
+					var stemUp = startToken.Stem === 'Up' || startToken.stem === 1 ? true :
+						startToken.Stem === 'Down' || startToken.stem === 2 ? false :
+						startToken.position < 0
+					var above = !stemUp
+					var bracketPos = above ? 12 : -4  // staff position offset
+					var bracket = new TupletBracket('3', spanW, bracketPos, !above)
+					bracket.moveTo(startX, getStaffY(si))
+					bracket.positionY(bracketPos)
+					drawing.add(bracket)
+				}
+			}
+			i++
+		}
+	}
+}
+
+/**
+ * Adjust hairpin span widths to reach from the token's X to the next
+ * dynamic-related token or the next barline.
+ */
+function layoutHairpinSpans(drawing, staves) {
+	for (var si = 0; si < staves.length; si++) {
+		var tokens = staves[si].tokens
+		if (!tokens) continue
+
+		for (var i = 0; i < tokens.length; i++) {
+			var token = tokens[i]
+			if (token.type !== 'DynamicVariance' || !token.drawingHairpin) continue
+
+			var hp = token.drawingHairpin
+			var startX = hp.x
+
+			// Find the end point: next Dynamic, DynamicVariance, or Barline
+			var endX = startX + getFontSize() * 3  // default fallback
+			for (var j = i + 1; j < tokens.length; j++) {
+				var nt = tokens[j]
+				if (nt.type === 'Dynamic' || nt.type === 'DynamicVariance') {
+					// End at the start of the next dynamic marking
+					if (nt.drawingHairpin) {
+						endX = nt.drawingHairpin.x - getFontSize() * 0.3
+					} else {
+						// Find the drawing element's X position
+						endX = startX + getFontSize() * 3
+						// Try to find drawing objects at this token's position
+						for (var el of drawing.set) {
+							if (el.x != null && el instanceof DynamicMarking) {
+								// Check if this DynamicMarking is for this token
+								// Simple heuristic: DM near this stave position
+							}
+						}
+					}
+					break
+				}
+				if (nt.type === 'Barline' && nt.drawingBarline) {
+					endX = nt.drawingBarline.x - getFontSize() * 0.3
+					break
+				}
+				// Also end if we hit a note/chord with a drawingNoteHead far enough away
+				if ((nt.type === 'Note' || nt.type === 'Chord') && nt.drawingNoteHead) {
+					endX = nt.drawingNoteHead.x + (nt.drawingNoteHead.width || 0)
+				}
+			}
+
+			var newWidth = Math.max(endX - startX, getFontSize() * 1.5)
+			hp.spanWidth = newWidth
+			hp.width = newWidth
+		}
+	}
+}
+
+/**
+ * Adjust volta bracket widths to span from the Ending token to the next
+ * Ending token or the next barline (whichever comes first).
+ */
+function layoutVoltaSpans(drawing, staves) {
+	// Volta brackets should use the first staff's tokens as reference since
+	// endings are typically on staff 0 only (or duplicated).
+	for (var si = 0; si < staves.length; si++) {
+		var tokens = staves[si].tokens
+		if (!tokens) continue
+
+		for (var i = 0; i < tokens.length; i++) {
+			var token = tokens[i]
+			if (token.type !== 'Ending' || !token.drawingVolta) continue
+
+			var volta = token.drawingVolta
+			var startX = volta.x
+
+			// Find end: next Ending or next Barline (after at least one barline)
+			var endX = startX + getFontSize() * 4
+			var barlineCount = 0
+			for (var j = i + 1; j < tokens.length; j++) {
+				var nt = tokens[j]
+				if (nt.type === 'Ending') {
+					// Next ending bracket starts — end before it
+					if (nt.drawingVolta) {
+						endX = nt.drawingVolta.x - getFontSize() * 0.2
+					}
+					break
+				}
+				if (nt.type === 'Barline' && nt.drawingBarline) {
+					barlineCount++
+					endX = nt.drawingBarline.x
+					// Check if this barline is a repeat close (style 5 or 7)
+					// or section close (style 3) — those end the volta
+					var bStyle = nt.barline || 0
+					if (bStyle === 3 || bStyle === 5 || bStyle === 7) {
+						break
+					}
+				}
+			}
+
+			var newWidth = Math.max(endX - startX, getFontSize() * 2)
+			volta.spanWidth = newWidth
+			volta.width = newWidth
+		}
+	}
+}
+
 window.everyStaveTokens = () => {
 	const staves = data.score.staves
 
@@ -728,6 +885,12 @@ function score(dataOrContext) {
 	layoutTies(drawing, data)
 	/* Layout lyric continuation dashes (hyphens between syllables) */
 	layoutLyricDashes(drawing, staves)
+	/* Layout triplet/tuplet brackets */
+	layoutTripletBrackets(drawing, staves)
+	/* Layout hairpin spans (adjust width to reach the next DynamicVariance or note) */
+	layoutHairpinSpans(drawing, staves)
+	/* Layout volta bracket spans */
+	layoutVoltaSpans(drawing, staves)
 
 	// ---- Wrap mode: reflow into systems ----
 	const isWrapMode = getLayoutMode() === 'wrap'
@@ -1821,6 +1984,109 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			cursor.posGlyph(dynGlyph)
 			drawing.add(dynGlyph)
 			break
+
+		case 'DynamicVariance':
+			// Hairpin wedges (crescendo/diminuendo) and text markings (rfz, sfz)
+			var dvStyles = ['Crescendo', 'Decrescendo', 'Diminuendo', 'Rinforzando', 'Sforzando']
+			var dvStyleName = dvStyles[token.style] || 'Crescendo'
+			var dvPos = token.position !== undefined ? token.position : -13
+			if (dvStyleName === 'Crescendo' || dvStyleName === 'Decrescendo' || dvStyleName === 'Diminuendo') {
+				// Hairpin wedge — estimate span width based on font size
+				// Real span would need the next note's X, but for initial layout
+				// we use a fixed width that gets stretched during justification.
+				var hpWidth = getFontSize() * 3
+				var hp = new Hairpin(dvStyleName, hpWidth, dvPos + 4)
+				cursor.posGlyph(hp)
+				drawing.add(hp)
+				// Store reference for span calculation in post-layout
+				token.drawingHairpin = hp
+			} else {
+				// Rinforzando / Sforzando — render as dynamic text
+				var dynText = dvStyleName === 'Rinforzando' ? 'rfz' : 'sfz'
+				var dvGlyph = new DynamicMarking(dynText, dvPos + 4)
+				cursor.posGlyph(dvGlyph)
+				drawing.add(dvGlyph)
+			}
+			break
+
+		case 'Ending':
+			// Volta brackets (1st/2nd endings).
+			// token.repeat is a bitmask: bit 0 = ending 1, bit 1 = ending 2, etc.
+			// token.style controls the bracket appearance.
+			var endingNums = []
+			for (var ebi = 0; ebi < 8; ebi++) {
+				if (token.repeat & (1 << ebi)) endingNums.push(ebi + 1)
+			}
+			var endingText = endingNums.join(', ') + '.'
+			// Style: 0 = open (no right hook), 1 = closed (right hook)
+			var endingClosed = token.style === 1
+			var voltaWidth = getFontSize() * 4  // initial width, adjusted during reflow
+			var voltaPos = 12  // above the staff
+			var volta = new VoltaBracket(endingText, voltaWidth, endingClosed, voltaPos + 4)
+			cursor.posGlyph(volta)
+			drawing.add(volta)
+			token.drawingVolta = volta
+			break
+
+		case 'Flow':
+			// Flow directions: Coda, Segno, Fine, D.C., D.S., etc.
+			var flowStyles = ['Coda', 'Segno', 'Fine', 'To Coda', 'D.C.', 'D.C. al Coda', 'D.C. al Fine', 'D.S.', 'D.S. al Coda', 'D.S. al Fine']
+			var flowStyleName = flowStyles[token.style] || 'Coda'
+			var flowPos = token.position !== undefined ? token.position : 11
+			if (flowStyleName === 'Coda' || flowStyleName === 'Segno') {
+				// Render as SMuFL glyph + text
+				var flowGlyphName = flowStyleName === 'Coda' ? 'coda' : 'segno'
+				var flowGlyph = new Glyph(flowGlyphName, flowPos + 4)
+				cursor.posGlyph(flowGlyph)
+				drawing.add(flowGlyph)
+				cursor.incStaveX(flowGlyph.width + spacerWidth())
+			} else {
+				// Render as italic text
+				var flowText = new Text(flowStyleName, -(flowPos + 4), {
+					font: 'bold italic 11px ' + getMusicTextFamily(),
+				})
+				cursor.posGlyph(flowText)
+				drawing.add(flowText)
+			}
+			break
+
+		case 'TempoVariance':
+			// Fermata, breath marks, caesura, rit., accel., etc.
+			var tvStyles = ['Breath Mark', 'Caesura', 'Fermata', 'Accelerando', 'Allargando', 'Rallentando', 'Ritardando', 'Ritenuto', 'Rubato', 'Stringendo']
+			var tvStyleName = tvStyles[token.style] || 'Fermata'
+			var tvPos = token.position !== undefined ? token.position : 11
+			if (tvStyleName === 'Fermata') {
+				var fermGlyph = new ArticulationMark('fermata', tvPos + 4)
+				cursor.posGlyph(fermGlyph)
+				drawing.add(fermGlyph)
+			} else if (tvStyleName === 'Breath Mark') {
+				// Render as a comma-like mark above the staff
+				var breathText = new Text(',', -(tvPos + 4), {
+					font: 'bold ' + Math.round(getFontSize() * 0.6) + 'px ' + getMusicTextFamily(),
+				})
+				cursor.posGlyph(breathText)
+				drawing.add(breathText)
+			} else {
+				// Text-based tempo variance (rit., accel., rall., etc.)
+				var tvTextMap = {
+					'Accelerando': 'accel.',
+					'Allargando': 'allarg.',
+					'Rallentando': 'rall.',
+					'Ritardando': 'rit.',
+					'Ritenuto': 'riten.',
+					'Rubato': 'rubato',
+					'Stringendo': 'string.',
+					'Caesura': '//',
+				}
+				var tvDisplayText = tvTextMap[tvStyleName] || tvStyleName
+				var tvText = new Text(tvDisplayText, -(tvPos + 4), {
+					font: 'italic 11px ' + getMusicTextFamily(),
+				})
+				cursor.posGlyph(tvText)
+				drawing.add(tvText)
+			}
+			break
+
 		case 'moo':
 			console.log('as', token)
 			break
@@ -1835,6 +2101,10 @@ function drawForNote(token, cursor, durToken) {
 	const duration = token.duration || durToken.duration
 	const durValue = durToken.durValue
 
+	// Grace note detection — grace notes are drawn at ~60% size with reduced spacing
+	const isGrace = !!(token.grace || durToken.grace)
+	const graceScale = isGrace ? 0.6 : 1.0
+
 	const sym =
 		duration < 2
 			? 'noteheadWhole'
@@ -1847,16 +2117,17 @@ function drawForNote(token, cursor, durToken) {
 	if (token.accidental) {
 		var acc = new Accidental(token.accidental, relativePos)
 		cursor.posGlyph(acc)
-		acc.offsetX = -acc.width * 1.2
+		acc.offsetX = -acc.width * 1.2 * graceScale
+		if (isGrace) acc._graceScale = graceScale
 		drawing.add(acc)
 	}
 
 	// note head
 	const noteHead = new Glyph(sym, relativePos)
 	cursor.posGlyph(noteHead)
-	// noteHead._text = info + '.' // + ':' + token.name;
+	if (isGrace) noteHead._graceScale = graceScale
 	drawing.add(noteHead)
-	const noteHeadWidth = noteHead.width
+	const noteHeadWidth = noteHead.width * graceScale
 
 	// ledger lines
 	if (relativePos < 0) {
@@ -1974,14 +2245,41 @@ function drawForNote(token, cursor, durToken) {
 		cursor.incStaveX(dot.width)
 	}
 
+	// --- Articulation glyphs ---
+	// Articulations are placed above the notehead (stems up) or below (stems down).
+	// Multiple articulations stack outward from the notehead.
+	var articulationFlags = ['staccato', 'accent', 'tenuto', 'marcato', 'staccatissimo', 'fermata']
+	var artOffset = 0
+	for (var ai = 0; ai < articulationFlags.length; ai++) {
+		var artFlag = articulationFlags[ai]
+		if (!token[artFlag] && !(durToken && durToken[artFlag])) continue
+		// Place above if stem down, below if stem up (standard engraving).
+		// Fermata always goes above.
+		var above = artFlag === 'fermata' ? true : !stemUp
+		var artPos = above
+			? relativePos + 10 + artOffset * 3
+			: relativePos - 2 - artOffset * 3
+		var artMark = new ArticulationMark(artFlag, artPos)
+		cursor.posGlyph(artMark)
+		// Center the articulation on the notehead
+		artMark.offsetX = (noteHeadWidth - artMark.width) / 2
+		drawing.add(artMark)
+		artOffset++
+	}
+
 	// cursor.incStaveX(spacerWidth())
 	cursor.tokenPadRight(spacerWidth())
 
 	// Account for stem width on notes that will have stems
 	const stemBuffer = hasStem ? spacerWidth() * 2 : 0
 
-	var spaceMultiplier = calculatePadding(durValue || token.durValue)
-	cursor.tokenPadRight(noteHead.width * spaceMultiplier + stemBuffer)
+	// Grace notes get minimal padding — they should be tight against the next note
+	if (isGrace) {
+		cursor.tokenPadRight(spacerWidth() * 0.5)
+	} else {
+		var spaceMultiplier = calculatePadding(durValue || token.durValue)
+		cursor.tokenPadRight(noteHead.width * spaceMultiplier + stemBuffer)
+	}
 }
 
 function isOnLine(pos) {
