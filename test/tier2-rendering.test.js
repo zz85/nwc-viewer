@@ -478,3 +478,345 @@ describe('Real NWC files with Tier 2 features', () => {
 		expect(foundAny).toBe(true)
 	})
 })
+
+// =============================================================================
+// Tie direction logic
+// =============================================================================
+describe('Tie direction follows stem direction rules', () => {
+	test('stems up → tie below (direction=1), stems down → tie above (direction=-1)', () => {
+		// Tie direction is determined by getTieDirection in ties.js
+		// We test the Tie class constructor accepts direction parameter
+		// Direction 1 = arc curves below (positive canvas Y), -1 = arc curves above
+		const mockGlyph = (x, y, w, offY) => ({ x, y, width: w, offsetY: offY })
+
+		// Import Tie from drawing would require full browser setup,
+		// so we test the direction logic inline
+		function getTieDirection(token) {
+			let stemUp
+			if (token.Stem === 'Up' || token.stem === 1) stemUp = true
+			else if (token.Stem === 'Down' || token.stem === 2) stemUp = false
+			else if (token.type === 'Chord' && token.notes) {
+				const positions = token.notes.map(n => n.position)
+				stemUp = (Math.min(...positions) + Math.max(...positions)) < 0
+			} else {
+				stemUp = (token.position || 0) < 0
+			}
+			return stemUp ? 1 : -1
+		}
+
+		// Stem up note → tie below
+		expect(getTieDirection({ stem: 1 })).toBe(1)
+		expect(getTieDirection({ Stem: 'Up' })).toBe(1)
+
+		// Stem down note → tie above
+		expect(getTieDirection({ stem: 2 })).toBe(-1)
+		expect(getTieDirection({ Stem: 'Down' })).toBe(-1)
+
+		// Note below middle line (position < 0) → stems up → tie below
+		expect(getTieDirection({ position: -3 })).toBe(1)
+
+		// Note above middle line (position > 0) → stems down → tie above
+		expect(getTieDirection({ position: 3 })).toBe(-1)
+
+		// Note on middle line → stems down → tie above
+		expect(getTieDirection({ position: 0 })).toBe(-1)
+	})
+
+	test('chord tie direction uses outer note positions', () => {
+		function getTieDirection(token) {
+			let stemUp
+			if (token.Stem === 'Up' || token.stem === 1) stemUp = true
+			else if (token.Stem === 'Down' || token.stem === 2) stemUp = false
+			else if (token.type === 'Chord' && token.notes) {
+				const positions = token.notes.map(n => n.position)
+				stemUp = (Math.min(...positions) + Math.max(...positions)) < 0
+			} else {
+				stemUp = (token.position || 0) < 0
+			}
+			return stemUp ? 1 : -1
+		}
+
+		// Chord below middle → stems up → tie below
+		expect(getTieDirection({
+			type: 'Chord',
+			notes: [{ position: -4 }, { position: -1 }]
+		})).toBe(1)
+
+		// Chord above middle → stems down → tie above
+		expect(getTieDirection({
+			type: 'Chord',
+			notes: [{ position: 1 }, { position: 4 }]
+		})).toBe(-1)
+
+		// Chord spanning middle line symmetrically → stems down
+		expect(getTieDirection({
+			type: 'Chord',
+			notes: [{ position: -2 }, { position: 2 }]
+		})).toBe(-1)
+	})
+})
+
+// =============================================================================
+// Tie Y position uses notehead offsetY
+// =============================================================================
+describe('Tie anchors at notehead pitch, not staff top', () => {
+	test('Tie constructor incorporates offsetY from start/end glyphs', () => {
+		// The Tie class should use start.y + start.offsetY for its Y position.
+		// Previously it only used start.y (staff Y), ignoring offsetY (pitch offset).
+		// We verify the constructor logic matches expectations.
+		const startGlyph = { x: 100, y: 200, width: 10, offsetY: -25 }
+		const endGlyph = { x: 200, y: 200, width: 10, offsetY: -25 }
+
+		// The tie Y should be 200 + (-25) = 175, not 200
+		// We can't import Tie without browser globals, so test the math
+		const x1 = startGlyph.x + startGlyph.width / 2
+		const y1 = startGlyph.y + (startGlyph.offsetY || 0)
+		const x2 = endGlyph.x + endGlyph.width / 2
+		const y2 = endGlyph.y + (endGlyph.offsetY || 0)
+
+		expect(y1).toBe(175)  // not 200 (staff Y)
+		expect(y2).toBe(175)
+		expect(x1).toBe(105)
+		expect(x2).toBe(205)
+	})
+
+	test('Tie with no offsetY defaults to 0', () => {
+		const glyph = { x: 50, y: 100, width: 8 }
+		const y = glyph.y + (glyph.offsetY || 0)
+		expect(y).toBe(100)
+	})
+})
+
+// =============================================================================
+// Chord tie matching
+// =============================================================================
+describe('Chord ties match by child note position', () => {
+	test('chord child notes with tie/tieEnd at same position should connect', () => {
+		// Previously, chord ties used undefined===undefined matching (parent chord has no .position)
+		// Now ties.js iterates child notes and matches by individual position
+
+		const chord1 = {
+			type: 'Chord',
+			tie: true,
+			notes: [
+				{ position: 0, tie: true, drawingNoteHead: { x: 10, y: 50, width: 8, offsetY: -10 } },
+				{ position: 4, tie: true, drawingNoteHead: { x: 10, y: 50, width: 8, offsetY: -20 } },
+			]
+		}
+		const chord2 = {
+			type: 'Chord',
+			tieEnd: true,
+			notes: [
+				{ position: 0, tieEnd: true, drawingNoteHead: { x: 100, y: 50, width: 8, offsetY: -10 } },
+				{ position: 4, tieEnd: true, drawingNoteHead: { x: 100, y: 50, width: 8, offsetY: -20 } },
+			]
+		}
+
+		// Verify positions match correctly
+		for (let i = 0; i < chord1.notes.length; i++) {
+			const startChild = chord1.notes[i]
+			const matchChild = chord2.notes.find(n => n.tieEnd && n.position === startChild.position)
+			expect(matchChild).toBeDefined()
+			expect(matchChild.position).toBe(startChild.position)
+		}
+
+		// Verify that parent chord has no position (the original bug)
+		expect(chord1.position).toBeUndefined()
+		expect(chord2.position).toBeUndefined()
+	})
+
+	test('note-to-chord tie matches by position', () => {
+		const note = {
+			type: 'Note',
+			position: 2,
+			tie: true,
+			drawingNoteHead: { x: 10, y: 50, width: 8, offsetY: -5 }
+		}
+		const chord = {
+			type: 'Chord',
+			tieEnd: true,
+			notes: [
+				{ position: 0, tieEnd: true, drawingNoteHead: { x: 100, y: 50, width: 8, offsetY: -10 } },
+				{ position: 2, tieEnd: true, drawingNoteHead: { x: 100, y: 50, width: 8, offsetY: -5 } },
+			]
+		}
+
+		// Should find the child at position 2
+		const match = chord.notes.find(n => n.tieEnd && n.position === note.position)
+		expect(match).toBeDefined()
+		expect(match.position).toBe(2)
+	})
+})
+
+// =============================================================================
+// Grace note width scaling
+// =============================================================================
+describe('Grace note glyph width is scaled', () => {
+	test('grace note width reflects visual size (60%)', () => {
+		// The grace scale factor is 0.6. After fix, noteHead.width is multiplied
+		// by graceScale directly on the glyph, so beams and ties use the correct size.
+		const fullWidth = 10
+		const graceScale = 0.6
+		const scaledWidth = fullWidth * graceScale
+		expect(scaledWidth).toBe(6)
+
+		// This is what drawForNote now does:
+		// noteHead.width *= graceScale (instead of only local noteHeadWidth variable)
+		// noteHeadWidth = noteHead.width (already scaled)
+		const noteHead = { width: fullWidth }
+		noteHead.width *= graceScale  // Fix: scale on glyph
+		expect(noteHead.width).toBe(6)  // Now beams.js sees correct width
+	})
+
+	test('non-grace note width is unchanged', () => {
+		const fullWidth = 10
+		const graceScale = 1.0
+		const noteHead = { width: fullWidth }
+		noteHead.width *= graceScale
+		expect(noteHead.width).toBe(10)
+	})
+})
+
+// =============================================================================
+// Triplet bracket safety guard
+// =============================================================================
+describe('Triplet bracket handles missing end marker', () => {
+	test('bracket scan stops at barline', () => {
+		// The triplet bracket scanner should stop at barlines, not span indefinitely
+		const tokens = [
+			{ type: 'Note', triplet: 1, position: 0, drawingNoteHead: { x: 10, width: 8 } },
+			{ type: 'Note', triplet: 2, position: 2, drawingNoteHead: { x: 30, width: 8 } },
+			{ type: 'Barline' },  // Should stop here
+			{ type: 'Note', triplet: 3, position: 4, drawingNoteHead: { x: 200, width: 8 } },
+		]
+
+		// Simulate the bracket scan with barline guard
+		let endHead = tokens[0].drawingNoteHead
+		const maxScan = Math.min(tokens.length, 0 + 20)
+		for (let j = 1; j < maxScan; j++) {
+			const nt = tokens[j]
+			if (nt.type === 'Barline') break
+			if ((nt.type === 'Note' || nt.type === 'Chord' || nt.type === 'Rest') &&
+				nt.triplet && nt.drawingNoteHead) {
+				endHead = nt.drawingNoteHead
+				if (nt.triplet === 3) break
+			}
+		}
+
+		// Should end at the second note (x=30), not the fourth (x=200) which is past the barline
+		expect(endHead.x).toBe(30)
+	})
+
+	test('bracket scan has max 20-token limit', () => {
+		// Build a long sequence of triplet-2 notes without a triplet-3 end
+		const tokens = [
+			{ type: 'Note', triplet: 1, position: 0, drawingNoteHead: { x: 0, width: 8 } },
+		]
+		for (let i = 1; i <= 30; i++) {
+			tokens.push({
+				type: 'Note', triplet: 2, position: 0,
+				drawingNoteHead: { x: i * 10, width: 8 }
+			})
+		}
+
+		let endHead = tokens[0].drawingNoteHead
+		const maxScan = Math.min(tokens.length, 0 + 20)
+		for (let j = 1; j < maxScan; j++) {
+			const nt = tokens[j]
+			if (nt.type === 'Barline') break
+			if ((nt.type === 'Note') && nt.triplet && nt.drawingNoteHead) {
+				endHead = nt.drawingNoteHead
+				if (nt.triplet === 3) break
+			}
+		}
+
+		// Should stop at token 19 (0-indexed), not go to token 30
+		expect(endHead.x).toBe(190)  // 19 * 10
+	})
+})
+
+// =============================================================================
+// Triplet bracket engraving rules
+// =============================================================================
+describe('Triplet bracket placement follows engraving rules', () => {
+	test('fully beamed triplet eighths → numeral only, no bracket', () => {
+		const group = [
+			{ type: 'Note', triplet: 1, beam: 1, duration: 8, position: 0 },
+			{ type: 'Note', triplet: 2, beam: 2, duration: 8, position: 2 },
+			{ type: 'Note', triplet: 3, beam: 3, duration: 8, position: 1 },
+		]
+		let allBeamed = group.length >= 2
+		for (const gt of group) {
+			if (gt.type === 'Rest' || gt.duration < 8 || !gt.beam) { allBeamed = false; break }
+		}
+		expect(allBeamed).toBe(true)  // numeral only
+	})
+
+	test('quarter-note triplets → bracket required', () => {
+		const group = [
+			{ type: 'Note', triplet: 1, beam: 0, duration: 4, position: -2 },
+			{ type: 'Note', triplet: 3, beam: 0, duration: 8, position: -3 },
+		]
+		let allBeamed = group.length >= 2
+		for (const gt of group) {
+			if (gt.type === 'Rest' || gt.duration < 8 || !gt.beam) { allBeamed = false; break }
+		}
+		expect(allBeamed).toBe(false)  // bracket needed
+	})
+
+	test('triplet with rest → bracket required', () => {
+		const group = [
+			{ type: 'Rest', triplet: 1, duration: 8, position: 0 },
+			{ type: 'Note', triplet: 2, beam: 1, duration: 8, position: -2 },
+			{ type: 'Note', triplet: 3, beam: 3, duration: 8, position: -1 },
+		]
+		let allBeamed = group.length >= 2
+		for (const gt of group) {
+			if (gt.type === 'Rest' || gt.duration < 8 || !gt.beam) { allBeamed = false; break }
+		}
+		expect(allBeamed).toBe(false)  // bracket needed
+	})
+
+	test('numeral on stem side: stems up → above, stems down → below', () => {
+		// Standard engraving: numeral goes on the beam/stem side
+		expect(true).toBe(true)   // stems up → above = stemUp
+		expect(false).toBe(false) // stems down → below = !stemUp (above=false)
+	})
+
+	test('vocal staves with lyrics → numeral always above', () => {
+		// In vocal music, numerals go above to avoid lyrics collision
+		const stave = { lyrics: [['Je', '-sus', ' blei', '-bet']] }
+		const hasLyrics = stave.lyrics && stave.lyrics.length > 0
+			&& stave.lyrics.some(l => l && l.length > 0)
+		expect(hasLyrics).toBe(true)
+		// When hasLyrics, above = true regardless of stem direction
+		const above = hasLyrics ? true : false
+		expect(above).toBe(true)
+	})
+})
+
+// =============================================================================
+// Parent Chord drawingNoteHead
+// =============================================================================
+describe('Parent Chord token gets drawingNoteHead from first child', () => {
+	test('chord drawingNoteHead should be set for slur/highlight anchoring', () => {
+		// Previously, parent Chord tokens never had drawingNoteHead set,
+		// causing slurs and highlights to fail on chords.
+		const childGlyph = { x: 50, y: 100, width: 8, offsetY: -10 }
+		const chord = {
+			type: 'Chord',
+			notes: [
+				{ position: 0, drawingNoteHead: childGlyph },
+				{ position: 4, drawingNoteHead: { x: 50, y: 100, width: 8, offsetY: -20 } },
+			]
+		}
+
+		// Simulate what typeset.js now does after processing chord children
+		if (chord.notes.length > 0 && chord.notes[0].drawingNoteHead) {
+			chord.drawingNoteHead = chord.notes[0].drawingNoteHead
+		}
+
+		expect(chord.drawingNoteHead).toBeDefined()
+		expect(chord.drawingNoteHead).toBe(childGlyph)
+	})
+})

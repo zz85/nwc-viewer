@@ -886,14 +886,16 @@ class VoltaBracket extends Draw {
 /**
  * Triplet/tuplet bracket with numeral drawn above or below a group of notes.
  * A horizontal bracket with small hooks on each end and a centered "3".
+ * When numeralOnly=true, draws just the centered numeral without bracket lines.
  */
 class TupletBracket extends Draw {
-	constructor(numeral, spanWidth, adjustY, below) {
+	constructor(numeral, spanWidth, adjustY, below, numeralOnly) {
 		super()
 		this.numeral = numeral || '3'
 		this.spanWidth = spanWidth || getFontSize() * 2
 		this.width = this.spanWidth
 		this.below = below || false
+		this.numeralOnly = numeralOnly || false
 		this.fontSize = getFontSize()
 		if (adjustY) this.positionY(adjustY)
 	}
@@ -901,29 +903,33 @@ class TupletBracket extends Draw {
 	draw(ctx) {
 		var fs = this.fontSize
 		var lw = fs / 30
-		var hookH = fs * 0.15 * (this.below ? -1 : 1)
 		var w = this.spanWidth
 		var textSize = Math.round(fs * 0.32)
-		var textW = ctx.measureText ? textSize * 0.6 : 6  // approximate width of "3"
-		var gapHalf = textW * 0.8  // half the gap for the numeral
 		var midX = w / 2
 
-		ctx.strokeStyle = '#000'
-		ctx.lineWidth = lw
+		if (!this.numeralOnly) {
+			// Full bracket: hooks + lines + gap for numeral
+			var hookH = fs * 0.15 * (this.below ? -1 : 1)
+			var textW = ctx.measureText ? textSize * 0.6 : 6
+			var gapHalf = textW * 0.8
 
-		// Left portion: hook + line up to gap
-		ctx.beginPath()
-		ctx.moveTo(0, hookH)
-		ctx.lineTo(0, 0)
-		ctx.lineTo(midX - gapHalf, 0)
-		ctx.stroke()
+			ctx.strokeStyle = '#000'
+			ctx.lineWidth = lw
 
-		// Right portion: gap to end + hook
-		ctx.beginPath()
-		ctx.moveTo(midX + gapHalf, 0)
-		ctx.lineTo(w, 0)
-		ctx.lineTo(w, hookH)
-		ctx.stroke()
+			// Left portion: hook + line up to gap
+			ctx.beginPath()
+			ctx.moveTo(0, hookH)
+			ctx.lineTo(0, 0)
+			ctx.lineTo(midX - gapHalf, 0)
+			ctx.stroke()
+
+			// Right portion: gap to end + hook
+			ctx.beginPath()
+			ctx.moveTo(midX + gapHalf, 0)
+			ctx.lineTo(w, 0)
+			ctx.lineTo(w, hookH)
+			ctx.stroke()
+		}
 
 		// Centered numeral
 		ctx.fillStyle = '#000'
@@ -991,26 +997,32 @@ class Text extends Draw {
 }
 
 class Tie extends Draw {
-	constructor(start, end) {
+	/**
+	 * @param {Draw} start - Start notehead glyph
+	 * @param {Draw} end - End notehead glyph
+	 * @param {number} direction - 1 = below (arc down), -1 = above (arc up)
+	 */
+	constructor(start, end, direction) {
 		super()
+		// Incorporate offsetY so ties attach at the notehead pitch, not staff top
 		var x1 = start.x + start.width / 2
-		var y1 = start.y
+		var y1 = start.y + (start.offsetY || 0)
 		var x2 = end.x + end.width / 2
-		var y2 = end.y
+		var y2 = end.y + (end.offsetY || 0)
 
-		this.size = getFontSize() // TODO global
+		this.size = getFontSize()
 		this.x = x1
 		this.y = y1
 		this.endx = x2
 		this.endy = y2
-		this.height = getFontSize() * 0.5
+		this.direction = direction || 1
+		this.height = getFontSize() * 0.5 * this.direction
 
 		this.width = this.endx - this.x
 	}
 
 	draw(ctx) {
-		ctx.strokeStyle = '#000'
-		ctx.lineWidth = getFontSize() / 32
+		ctx.fillStyle = '#000'
 
 		ctx.beginPath()
 
@@ -1019,26 +1031,11 @@ class Tie extends Draw {
 		var my = this.height
 		var x2 = this.width
 		var y2 = this.endy - this.y
+		var d = this.direction
 
-		// ctx.lineTo(mx, my);
-		// ctx.lineTo(x2, y2);
-		// ctx.stroke()
-
-		// ctx.rect(0, 0, this.width, this.height)
-		// ctx.fill();
-
-		// ctx.quadraticCurveTo(mx, my, x2, y2)
-		// ctx.stroke()
-
-		ctx.quadraticCurveTo(mx, my - getFontSize() / 10, x2, y2)
+		ctx.quadraticCurveTo(mx, my - getFontSize() / 10 * d, x2, y2)
 		ctx.quadraticCurveTo(mx, my, 0, 0)
 		ctx.fill()
-
-		// var ratio = 0.2
-		// ctx.bezierCurveTo(x2 * ratio, my * 0.5 , x2 * (1 - ratio), my * 0.5, x2, y2)
-		// ctx.stroke()
-
-		// this.debug(ctx);
 	}
 }
 
@@ -1048,21 +1045,23 @@ class Tie extends Draw {
  * 'leading' mode: curves in from the left edge to a note.
  */
 class PartialTie extends Draw {
-	constructor(noteGlyph, arcWidth, mode) {
+	constructor(noteGlyph, arcWidth, mode, direction) {
 		super()
 		this.mode = mode  // 'trailing' or 'leading'
 		this.size = getFontSize()
-		this.height = getFontSize() * 0.5
+		this.direction = direction || 1
+		this.height = getFontSize() * 0.5 * this.direction
 
+		var noteY = noteGlyph.y + (noteGlyph.offsetY || 0)
 		if (mode === 'trailing') {
 			// Start at the note, arc curves rightward
 			this.x = noteGlyph.x + noteGlyph.width / 2
-			this.y = noteGlyph.y
+			this.y = noteY
 			this.width = arcWidth
 		} else {
 			// End at the note, arc curves leftward from system start
 			this.x = noteGlyph.x + noteGlyph.width / 2 - arcWidth
-			this.y = noteGlyph.y
+			this.y = noteY
 			this.width = arcWidth
 		}
 		this.endx = this.x + this.width
@@ -1073,17 +1072,18 @@ class PartialTie extends Draw {
 		ctx.fillStyle = '#000'
 		var w = this.width
 		var h = this.height
+		var d = this.direction
 
 		ctx.beginPath()
 		if (this.mode === 'trailing') {
-			// Draw right half of an arc: from (0,0) curving down-right
+			// Draw right half of an arc
 			ctx.moveTo(0, 0)
-			ctx.quadraticCurveTo(w * 0.6, h - getFontSize() / 10, w, 0)
+			ctx.quadraticCurveTo(w * 0.6, h - getFontSize() / 10 * d, w, 0)
 			ctx.quadraticCurveTo(w * 0.6, h, 0, 0)
 		} else {
-			// Draw left half of an arc: curving down-left into (w, 0)
+			// Draw left half of an arc
 			ctx.moveTo(w, 0)
-			ctx.quadraticCurveTo(w * 0.4, h - getFontSize() / 10, 0, 0)
+			ctx.quadraticCurveTo(w * 0.4, h - getFontSize() / 10 * d, 0, 0)
 			ctx.quadraticCurveTo(w * 0.4, h, w, 0)
 		}
 		ctx.fill()

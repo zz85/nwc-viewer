@@ -847,9 +847,15 @@ function layoutLyricDashes(drawing, staves) {
 }
 
 /**
- * Draw triplet/tuplet brackets above groups of triplet notes.
+ * Draw triplet/tuplet brackets and numerals above groups of triplet notes.
  * Scans each stave's tokens for notes with triplet=1 (start) through
- * triplet=3 (end) and draws a bracket spanning the group.
+ * triplet=3 (end) and draws a bracket or numeral spanning the group.
+ *
+ * Engraving rules:
+ * - Numeral "3" goes on the beam/stem side of the notes (not the notehead side).
+ * - Fully beamed triplets: just the numeral, no bracket (the beam groups them).
+ * - Unbeamed/mixed triplets (quarters, rests): bracket + numeral.
+ * - Vocal staves with lyrics: numeral above to stay clear of lyrics.
  */
 function layoutTripletBrackets(drawing, staves) {
 	var fs = getFontSize()
@@ -858,41 +864,82 @@ function layoutTripletBrackets(drawing, staves) {
 		var tokens = staves[si].tokens
 		if (!tokens) continue
 
+		// Check if this stave has lyrics (vocal music)
+		var hasLyrics = staves[si].lyrics && staves[si].lyrics.length > 0
+			&& staves[si].lyrics.some(function(l) { return l && l.length > 0 })
+
 		var i = 0
 		while (i < tokens.length) {
 			var token = tokens[i]
 			// Look for triplet start (triplet=1)
 			if ((token.type === 'Note' || token.type === 'Chord' || token.type === 'Rest') &&
-				token.triplet === 1 && token.drawingNoteHead) {
-				var startHead = token.drawingNoteHead
-				var endHead = startHead
-				var startToken = token
+				token.triplet === 1) {
 
-				// Find the end of the triplet group (triplet=3 or end of tokens)
-				for (var j = i + 1; j < tokens.length; j++) {
+				// Collect all tokens in this triplet group
+				var groupTokens = [token]
+				var maxScan = Math.min(tokens.length, i + 20)
+				for (var j = i + 1; j < maxScan; j++) {
 					var nt = tokens[j]
+					if (nt.type === 'Barline') break
 					if ((nt.type === 'Note' || nt.type === 'Chord' || nt.type === 'Rest') &&
-						nt.triplet && nt.drawingNoteHead) {
-						endHead = nt.drawingNoteHead
-						if (nt.triplet === 3) break  // triplet end
+						nt.triplet) {
+						groupTokens.push(nt)
+						if (nt.triplet === 3) break
 					}
 				}
 
-				var startX = startHead.x
-				var endX = endHead.x + (endHead.width || 0)
-				var spanW = endX - startX
-				if (spanW > 0) {
-					// Determine stem direction to place bracket on the opposite side.
-					// Default: stems up → bracket below; stems down → bracket above.
-					var stemUp = startToken.Stem === 'Up' || startToken.stem === 1 ? true :
-						startToken.Stem === 'Down' || startToken.stem === 2 ? false :
-						startToken.position < 0
-					var above = !stemUp
-					var bracketPos = above ? 12 : -4  // staff position offset
-					var bracket = new TupletBracket('3', spanW, bracketPos, !above)
-					bracket.moveTo(startX, getStaffY(si))
-					bracket.positionY(bracketPos)
-					drawing.add(bracket)
+				// Find start/end noteheads for positioning
+				var startHead = null, endHead = null
+				for (var gi = 0; gi < groupTokens.length; gi++) {
+					if (groupTokens[gi].drawingNoteHead) {
+						if (!startHead) startHead = groupTokens[gi].drawingNoteHead
+						endHead = groupTokens[gi].drawingNoteHead
+					}
+				}
+
+				if (startHead && endHead) {
+					var startX = startHead.x
+					var endX = endHead.x + (endHead.width || 0)
+					var spanW = endX - startX
+					if (spanW > 0) {
+						// Determine stem direction (check majority of notes in group)
+						var upCount = 0, downCount = 0
+						for (var gi = 0; gi < groupTokens.length; gi++) {
+							var gt = groupTokens[gi]
+							if (gt.type === 'Rest') continue
+							if (gt.Stem === 'Up' || gt.stem === 1) upCount++
+							else if (gt.Stem === 'Down' || gt.stem === 2) downCount++
+							else if ((gt.position || 0) < 0) upCount++
+							else downCount++
+						}
+						var stemUp = upCount >= downCount
+
+						// Check if ALL notes in the group are beamed together.
+						// Fully-beamed triplets get just the numeral; others get bracket + numeral.
+						var allBeamed = groupTokens.length >= 2
+						for (var gi = 0; gi < groupTokens.length; gi++) {
+							var gt = groupTokens[gi]
+							if (gt.type === 'Rest') { allBeamed = false; break }
+							if (gt.duration < 8) { allBeamed = false; break }   // quarter or longer
+							if (!gt.beam) { allBeamed = false; break }          // no beam marker
+						}
+
+						// Placement: numeral goes on the STEM side (beam side).
+						// Exception: vocal staves with lyrics → always above to avoid lyrics.
+						var above
+						if (hasLyrics) {
+							above = true  // vocal music: above to clear lyrics
+						} else {
+							above = stemUp  // stem side: stems up → above, stems down → below
+						}
+
+						var bracketPos = above ? 12 : -4
+						var below = !above
+						var bracket = new TupletBracket('3', spanW, bracketPos, below, allBeamed)
+						bracket.moveTo(startX, getStaffY(si))
+						bracket.positionY(bracketPos)
+						drawing.add(bracket)
+					}
 				}
 			}
 			i++
@@ -935,11 +982,12 @@ function splitCrossSystemTies(drawing, systemHeight, interSystemGap) {
 
 		// This tie crosses a system break.  Replace with two partial arcs.
 		toRemove.push(el)
+		var tieDir = el.direction || 1
 
 		// Trailing arc: from the start note, curving to the right
 		var trailing = new PartialTie(
 			{ x: el.x, y: el.y, width: 0 },  // synthetic glyph-like object
-			arcWidth, 'trailing'
+			arcWidth, 'trailing', tieDir
 		)
 		// Position: already at el.x, el.y from the constructor
 		trailing.x = el.x
@@ -948,7 +996,7 @@ function splitCrossSystemTies(drawing, systemHeight, interSystemGap) {
 		// Leading arc: curving in from the left to the end note
 		var leading = new PartialTie(
 			{ x: el.endx, y: el.endy, width: 0 },
-			arcWidth, 'leading'
+			arcWidth, 'leading', tieDir
 		)
 		leading.x = el.endx - arcWidth
 		leading.y = el.endy
@@ -2281,6 +2329,11 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				cursor.staveX = tmp
 				drawForNote(note, cursor, token)
 			})
+			// Set parent chord's drawingNoteHead for slur/highlight anchoring.
+			// Use the first child's notehead (ties use per-child noteheads directly).
+			if (token.notes.length > 0 && token.notes[0].drawingNoteHead) {
+				token.drawingNoteHead = token.notes[0].drawingNoteHead
+			}
 			break
 
 		case 'Note':
@@ -2464,9 +2517,14 @@ function drawForNote(token, cursor, durToken) {
 	// note head
 	const noteHead = new Glyph(sym, relativePos)
 	cursor.posGlyph(noteHead)
-	if (isGrace) noteHead._graceScale = graceScale
+	if (isGrace) {
+		noteHead._graceScale = graceScale
+		// Scale stored width to match visual size — beams.js and ties.js
+		// use noteHead.width for stem X and tie center calculations.
+		noteHead.width *= graceScale
+	}
 	drawing.add(noteHead)
-	const noteHeadWidth = noteHead.width * graceScale
+	const noteHeadWidth = noteHead.width
 
 	// ledger lines
 	if (relativePos < 0) {

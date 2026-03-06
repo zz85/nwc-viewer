@@ -25,8 +25,8 @@ Planned features and improvements, roughly prioritized.
 - [x] **Hairpins (crescendo/diminuendo)** — Hairpin wedges drawn with canvas lines; span auto-sized to reach next dynamic/barline. Rinforzando/Sforzando rendered as dynamic text.
 - [x] **Special endings / volta brackets** — VoltaBracket class draws horizontal bracket with hooks and ending number text. Span auto-sized to reach next ending/barline.
 - [x] **Articulation glyphs** — ArticulationMark class renders SMuFL glyphs for staccato, accent, tenuto, marcato, staccatissimo, fermata. Placed above/below notehead based on stem direction; multiple articulations stack outward.
-- [x] **Triplet/tuplet brackets** — TupletBracket class draws bracket with gap and centered "3" numeral. Post-layout pass scans triplet=1..3 groups and spans bracket across note positions.
-- [x] **Grace notes** — Grace note flag causes 60% scale rendering via `_graceScale` on Glyph/Accidental draw, with reduced horizontal spacing.
+- [x] **Triplet/tuplet brackets** — TupletBracket class with optional bracket (numeral-only for beamed triplets). Post-layout pass scans triplet=1..3 groups; numeral placed on stem/beam side; vocal staves force numeral above lyrics. Bracket with hooks only shown for unbeamed/mixed groups (rests, quarter notes).
+- [x] **Grace notes** — Grace note flag causes 60% scale rendering via `_graceScale` on Glyph/Accidental draw, with reduced horizontal spacing. Width scaled on glyph object for correct beam/tie calculations.
 - [x] **Dynamic variance rendering** — DynamicVariance tokens rendered: styles 0-2 as hairpin wedges, Rinforzando as "rfz", Sforzando as "sfz". TempoVariance rendered: Fermata as SMuFL glyph, breath mark as comma, text variants (rit., rall., accel., etc.) as italic text.
 - [x] **Flow direction rendering** — Coda/Segno rendered as SMuFL glyphs; Fine/D.C./D.S./To Coda/etc. rendered as bold italic text.
 
@@ -53,8 +53,8 @@ Planned features and improvements, roughly prioritized.
 - [ ] Grand staff brace rendering (`braceWithNext` parsed but not drawn)
 - [ ] Proportional / spring-and-rod spacing (currently fixed-width-per-duration)
 - [x] Grace notes — drawn at 60% scale with reduced spacing
-- [ ] Ties and slurs (partially implemented)
-- [x] Triplet/tuplet brackets — TupletBracket class with bracket, hooks, centered numeral
+- [x] Ties and slurs — direction follows stem (up→below, down→above); anchored at notehead pitch (offsetY); per-child-note chord ties; cross-system tie splitting preserves direction; slurs use outer chord note as anchor
+- [x] Triplet/tuplet brackets — numeral on stem/beam side; fully-beamed triplets get numeral only (no bracket); unbeamed/mixed get bracket+numeral; vocal staves place numeral above to clear lyrics
 - [ ] Alto and tenor clef support
 - [x] Ending brackets (1st/2nd endings) — VoltaBracket class with ending numbers
 - [x] Hairpins (crescendo/diminuendo) — Hairpin class with auto-spanning
@@ -88,6 +88,8 @@ Planned features and improvements, roughly prioritized.
 
 - [x] Binary NWC format (v1.55, v1.75, v2.0, v2.05) + NWC text format
 - [x] LyricSyllable bit extraction from binary format
+- [x] Beam convention fix — NWC binary uses 1=start, 2=middle, 3=end (was swapped in beams.js)
+- [x] Parent Chord drawingNoteHead — set from first child note for slur/highlight anchoring
 - [ ] V205+ staff visual property parsing (only 4 test files affected)
 - [ ] Fix 4 files that fail new parser ("Unknown object type: 256")
 - [ ] Visual regression test baselines

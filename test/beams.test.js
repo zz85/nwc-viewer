@@ -160,11 +160,11 @@ describe('groupBeamableNotes', () => {
 		}
 	}
 
-	test('beam markers 1=start, 3=middle, 2=end form one group', () => {
+	test('beam markers 1=start, 2=middle, 3=end form one group', () => {
 		const tokens = [
 			makeNote(8, 1),
-			makeNote(8, 3),
 			makeNote(8, 2),
+			makeNote(8, 3),
 		]
 		const groups = groupBeamableNotes(tokens)
 		expect(groups.length).toBe(1)
@@ -184,9 +184,9 @@ describe('groupBeamableNotes', () => {
 	test('two separate beam groups', () => {
 		const tokens = [
 			makeNote(8, 1),
-			makeNote(8, 2),
+			makeNote(8, 3),
 			makeNote(16, 1),
-			makeNote(16, 2),
+			makeNote(16, 3),
 		]
 		const groups = groupBeamableNotes(tokens)
 		expect(groups.length).toBe(2)
@@ -197,7 +197,7 @@ describe('groupBeamableNotes', () => {
 	test('quarter notes (duration < 8) are not beamable', () => {
 		const tokens = [
 			{ type: 'Note', duration: 4, beam: 1, drawingNoteHead: { x: 0, y: 0, width: 10 } },
-			{ type: 'Note', duration: 4, beam: 2, drawingNoteHead: { x: 20, y: 0, width: 10 } },
+			{ type: 'Note', duration: 4, beam: 3, drawingNoteHead: { x: 20, y: 0, width: 10 } },
 		]
 		const groups = groupBeamableNotes(tokens)
 		expect(groups.length).toBe(0)
@@ -206,7 +206,7 @@ describe('groupBeamableNotes', () => {
 	test('notes without drawingNoteHead are skipped', () => {
 		const tokens = [
 			{ type: 'Note', duration: 8, beam: 1 },
-			{ type: 'Note', duration: 8, beam: 2 },
+			{ type: 'Note', duration: 8, beam: 3 },
 		]
 		const groups = groupBeamableNotes(tokens)
 		expect(groups.length).toBe(0)
@@ -216,7 +216,7 @@ describe('groupBeamableNotes', () => {
 		const tokens = [
 			makeNote(8, 1),
 			{ type: 'Barline' },
-			makeNote(8, 2),
+			makeNote(8, 3),
 		]
 		const groups = groupBeamableNotes(tokens)
 		// Barline breaks the group; each side has 1 note
@@ -228,7 +228,7 @@ describe('groupBeamableNotes', () => {
 	test('Chord type tokens are beamable', () => {
 		const tokens = [
 			{ type: 'Chord', duration: 8, beam: 1, drawingNoteHead: { x: 0, y: 0, width: 10 }, notes: [{ position: 0 }, { position: 2 }] },
-			{ type: 'Chord', duration: 8, beam: 2, drawingNoteHead: { x: 20, y: 0, width: 10 }, notes: [{ position: 0 }, { position: 2 }] },
+			{ type: 'Chord', duration: 8, beam: 3, drawingNoteHead: { x: 20, y: 0, width: 10 }, notes: [{ position: 0 }, { position: 2 }] },
 		]
 		const groups = groupBeamableNotes(tokens)
 		expect(groups.length).toBe(1)

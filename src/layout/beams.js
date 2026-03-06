@@ -80,21 +80,21 @@ function groupBeamableNotes(tokens) {
 		}
 
 		// Use beam markers from NWC file
-		// beam: 1 = start, 2 = end, 3 = middle, 0 or undefined = no beam
+		// NWC binary: beam 1 = first (start), 2 = middle (continue), 3 = last (end)
 		if (token.beam === 1) {
 			// Start new beam group
 			if (currentGroup.length > 0) {
 				groups.push(currentGroup)
 			}
 			currentGroup = [token]
-		} else if (token.beam === 2) {
-			// End beam group
+		} else if (token.beam === 3) {
+			// End beam group (last note)
 			currentGroup.push(token)
 			if (currentGroup.length > 0) {
 				groups.push(currentGroup)
 			}
 			currentGroup = []
-		} else if (token.beam === 3) {
+		} else if (token.beam === 2) {
 			// Middle - continue current group
 			currentGroup.push(token)
 		} else {
