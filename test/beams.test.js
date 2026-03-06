@@ -9,7 +9,7 @@ globalThis.document = globalThis.document || {
 globalThis.window = globalThis.window || { ctx: null, canvas: null }
 globalThis.XMLHttpRequest = globalThis.XMLHttpRequest || class { open() {} send() {} }
 
-const { computeBeamLayout, groupBeamableNotes, computeStemLength, isNonMonotonic } = await import('../src/layout/beams.js')
+const { computeBeamLayout, groupBeamableNotes, computeStemLength } = await import('../src/layout/beams.js')
 
 describe('computeBeamLayout', () => {
 	test('two 8th notes → 1 primary beam, no sub-beams', () => {
@@ -308,47 +308,5 @@ describe('computeStemLength', () => {
 		// Standalone flagged notes should use beamCount=0
 		// A 32nd note standalone: 7 base, no beam extras
 		expect(computeStemLength(0, true, 0, 0)).toBe(7)
-	})
-})
-
-// =============================================================================
-// isNonMonotonic — pitch contour detection
-// =============================================================================
-describe('isNonMonotonic', () => {
-	test('ascending positions are monotonic', () => {
-		expect(isNonMonotonic([-2, 0, 3])).toBe(false)
-	})
-
-	test('descending positions are monotonic', () => {
-		expect(isNonMonotonic([3, 0, -2])).toBe(false)
-	})
-
-	test('flat positions are monotonic', () => {
-		expect(isNonMonotonic([2, 2, 2])).toBe(false)
-	})
-
-	test('up-down is non-monotonic', () => {
-		expect(isNonMonotonic([-2, 2, -1])).toBe(true)
-	})
-
-	test('down-up is non-monotonic', () => {
-		expect(isNonMonotonic([2, -1, 3])).toBe(true)
-	})
-
-	test('two notes are always monotonic', () => {
-		expect(isNonMonotonic([0, 5])).toBe(false)
-		expect(isNonMonotonic([5, 0])).toBe(false)
-	})
-
-	test('single note is monotonic', () => {
-		expect(isNonMonotonic([3])).toBe(false)
-	})
-
-	test('ascending then flat is monotonic', () => {
-		expect(isNonMonotonic([-2, 0, 0, 3])).toBe(false)
-	})
-
-	test('zigzag is non-monotonic', () => {
-		expect(isNonMonotonic([0, 3, 1, 4])).toBe(true)
 	})
 })

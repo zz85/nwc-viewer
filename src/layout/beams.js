@@ -163,27 +163,6 @@ function computeStemLength(position, stemUp, chordSpan, beamCount) {
 	return stemLen
 }
 
-/**
- * Determine if the beam pitch contour is non-monotonic (e.g., up-down-up or zigzag),
- * in which case the beam should be horizontal.
- * Monotonic = all positions go in one direction (ascending or descending) or stay flat.
- */
-function isNonMonotonic(positions) {
-	if (positions.length <= 2) return false
-	var firstDir = 0
-	for (var i = 1; i < positions.length; i++) {
-		var diff = positions[i] - positions[i - 1]
-		if (diff === 0) continue
-		var dir = diff > 0 ? 1 : -1
-		if (firstDir === 0) {
-			firstDir = dir
-		} else if (dir !== firstDir) {
-			return true
-		}
-	}
-	return false
-}
-
 function drawBeamGroup(group) {
 	if (group.length < 2) return
 
@@ -252,98 +231,53 @@ function drawBeamGroup(group) {
 	// For stems-down, the beam sits BELOW the noteheads (at the tip of stems going down).
 	//   beamPos = position - stemLen  (toward smaller position = lower)
 
-	// 1. Compute the "natural" beam position at each outer note using anchor stem logic.
-	//    Anchor = note farthest from the middle line → gets standard octave-length stem.
-	const positions = noteData.map(d => d.position)
+	// 1. Determine beam slope from first-to-last note interval.
+	//    No slant limit — the beam follows the natural pitch direction.
+	//    Minimum stem enforcement prevents any stem from being too short.
 	const first = noteData[0]
 	const last = noteData[noteData.length - 1]
-
-	// Each note gets at least the standard stem length
-	const firstStemLen = computeStemLength(first.position, stemUp, first.chordSpan, totalBeamCount)
-	const lastStemLen = computeStemLength(last.position, stemUp, last.chordSpan, totalBeamCount)
-
-	let beamStartPos, beamEndPos
-	if (stemUp) {
-		beamStartPos = first.position + firstStemLen
-		beamEndPos = last.position + lastStemLen
-	} else {
-		beamStartPos = first.position - firstStemLen
-		beamEndPos = last.position - lastStemLen
-	}
-
-	// 2. Horizontal beam for non-monotonic contours (up-down-up, etc.)
-	if (isNonMonotonic(positions)) {
-		// Set beam to horizontal at the more extreme position (farther from noteheads)
-		if (stemUp) {
-			// Stems up: beam is above → use the HIGHER (larger) value
-			const beamPos = Math.max(beamStartPos, beamEndPos)
-			beamStartPos = beamPos
-			beamEndPos = beamPos
-		} else {
-			// Stems down: beam is below → use the LOWER (smaller) value
-			const beamPos = Math.min(beamStartPos, beamEndPos)
-			beamStartPos = beamPos
-			beamEndPos = beamPos
-		}
-	}
-
-	// 3. Slant limiting: max 1 staff space = 2 half-space units between outer notes.
-	const MAX_SLANT = 2  // 1 staff space in half-space units
-	const slant = beamEndPos - beamStartPos
-	if (Math.abs(slant) > MAX_SLANT) {
-		// Keep the anchor (note farthest from middle) fixed, adjust the other end.
-		const midSlant = slant > 0 ? MAX_SLANT : -MAX_SLANT
-		const firstDist = Math.abs(first.position)
-		const lastDist = Math.abs(last.position)
-		if (firstDist >= lastDist) {
-			beamEndPos = beamStartPos + midSlant
-		} else {
-			beamStartPos = beamEndPos - midSlant
-		}
-	}
-
-	// 4. Enforce minimum stem lengths for all notes in the group.
-	//    Minimum: 2.5 staff spaces (5 units) if beam is outside staff,
-	//             3 staff spaces (6 units) if beam is within staff.
 	const firstX = first.x
 	const lastX = last.x
 	const xSpan = lastX - firstX || 1
 
-	// Check all notes and push the beam outward if any stem is too short.
-	for (let pass = 0; pass < 2; pass++) {
-		for (let i = 0; i < noteData.length; i++) {
-			const nd = noteData[i]
+	const slope = last.position - first.position  // positive = ascending
+
+	// 2. Find the optimal beam offset that satisfies all minimum stem lengths.
+	//    With a fixed slope, the beam line is:
+	//      beamPos(x) = beamBase + slope * (x - firstX) / xSpan
+	//    where beamBase is the beam position at the first note's X.
+	//
+	//    For stems-up: need beamPos(x_i) >= p_i + minStemLen_i for all notes
+	//      → beamBase >= p_i + minStemLen_i - slope * t_i
+	//      → beamBase = max over all notes
+	//
+	//    For stems-down: need beamPos(x_i) <= p_i - minStemLen_i for all notes
+	//      → beamBase <= p_i - minStemLen_i - slope * t_i
+	//      → beamBase = min over all notes
+
+	let beamBase
+	if (stemUp) {
+		beamBase = -Infinity
+		for (const nd of noteData) {
 			const t = (nd.x - firstX) / xSpan
-			const beamPosAtNote = beamStartPos + (beamEndPos - beamStartPos) * t
-			// Stem length = distance from notehead to beam, always positive
-			const actualStemLen = stemUp
-				? beamPosAtNote - nd.position   // beam is above (larger pos)
-				: nd.position - beamPosAtNote   // beam is below (smaller pos)
-
-			// The beam position in half-spaces from middle line:
-			// within staff = between -4 and +4
-			const beamInStaff = beamPosAtNote >= -4 && beamPosAtNote <= 4
-
-			const minStemLen = beamInStaff ? 6 : 5  // 3 spaces or 2.5 spaces
-			const minWithChord = minStemLen + nd.chordSpan
-			const minRequired = Math.max(minWithChord, computeStemLength(nd.position, stemUp, nd.chordSpan, totalBeamCount))
-
-			if (actualStemLen < minRequired) {
-				const deficit = minRequired - actualStemLen
-				if (stemUp) {
-					// Push beam higher (larger position)
-					beamStartPos += deficit
-					beamEndPos += deficit
-				} else {
-					// Push beam lower (smaller position)
-					beamStartPos -= deficit
-					beamEndPos -= deficit
-				}
-			}
+			const minStem = computeStemLength(nd.position, stemUp, nd.chordSpan, totalBeamCount)
+			const needed = nd.position + minStem - slope * t
+			if (needed > beamBase) beamBase = needed
+		}
+	} else {
+		beamBase = Infinity
+		for (const nd of noteData) {
+			const t = (nd.x - firstX) / xSpan
+			const minStem = computeStemLength(nd.position, stemUp, nd.chordSpan, totalBeamCount)
+			const needed = nd.position - minStem - slope * t
+			if (needed < beamBase) beamBase = needed
 		}
 	}
 
-	// 5. Now draw stems and beams.
+	const beamStartPos = beamBase
+	const beamEndPos = beamBase + slope
+
+	// 3. Draw stems and beams.
 	//    Each note's stem runs from its notehead to the beam line.
 	const stemDataFinal = noteData.map((nd, i) => {
 		const t = (nd.x - firstX) / xSpan
@@ -543,4 +477,4 @@ function layoutBeaming(_drawing, _data) {
 	})
 }
 
-export { layoutBeaming, computeBeamLayout, groupBeamableNotes, computeStemLength, isNonMonotonic }
+export { layoutBeaming, computeBeamLayout, groupBeamableNotes, computeStemLength }
