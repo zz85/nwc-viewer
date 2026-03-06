@@ -84,6 +84,29 @@ Planned features and improvements, roughly prioritized.
 - [ ] LilyPond export — export score as .ly file
 - [ ] PDF export / print feature from page layout
 
+## Beam Engraving Guidelines
+
+Rules for rendering beams (especially across triplets) to achieve professional appearance without interfering with staff lines.
+
+### Standard Stem Length
+
+- **The Octave Rule**: Standard stem length for any note (including triplet notes) is one octave = 3.5 staff spaces.
+- **Anchor stems**: In a beamed group of three notes, identify the note farthest from the middle staff line and set its stem to the standard one-octave length. This becomes the anchor from which the beam angle is derived.
+- **Minimum stem lengths**:
+  - 3 staff spaces if the beam falls within the staff
+  - 2.5 staff spaces if the beam falls outside the staff
+
+### Adjusting for Beam Angle
+
+- **Slant limits**: A beam should not slant more than one staff space (approximately a third of the staff height) to maintain readability.
+- **Intermediate stems**: Once the two outer stems establish the beam angle, any middle (intermediate) stem is lengthened or shortened as needed to exactly touch the beam line.
+- **Horizontal beams**: If the notes have a varied contour (e.g., up-down-up or similar non-monotonic pitch pattern), the beam should be rendered perfectly horizontal.
+
+### Specialized Requirements
+
+- **32nd note triplets**: Require stems slightly longer than one octave (~4–4.5 staff spaces) to accommodate the extra beam lines without crowding the noteheads.
+- **Ledger line notes**: If a notehead sits on a ledger line far from the staff, the stem must be long enough to reach at least the middle line of the staff.
+
 ## Parser / Data
 
 - [x] Binary NWC format (v1.55, v1.75, v2.0, v2.05) + NWC text format
