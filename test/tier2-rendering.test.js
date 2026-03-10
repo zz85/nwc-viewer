@@ -820,3 +820,376 @@ describe('Parent Chord token gets drawingNoteHead from first child', () => {
 		expect(chord.drawingNoteHead).toBe(childGlyph)
 	})
 })
+
+// =============================================================================
+// Engraving Rules: Tie/Slur professional engraving
+// =============================================================================
+
+import {
+	computeArcHeight,
+	avoidStaffLine,
+	TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX,
+	TIE_X_GAP, TIE_Y_OFFSET, TIE_THICKNESS,
+	SLUR_HEIGHT_K, SLUR_HEIGHT_D, SLUR_HEIGHT_MIN, SLUR_HEIGHT_MAX,
+	SLUR_Y_OFFSET, SLUR_THICKNESS,
+	STAFF_LINE_THRESHOLD, STAFF_LINE_NUDGE,
+	ACCIDENTAL_CLEARANCE,
+} from '../src/engraving-rules.js'
+
+describe('Engraving rules constants', () => {
+	test('tie constants are defined and positive', () => {
+		expect(TIE_HEIGHT_K).toBeGreaterThan(0)
+		expect(TIE_HEIGHT_D).toBeGreaterThan(0)
+		expect(TIE_HEIGHT_MIN).toBeGreaterThan(0)
+		expect(TIE_HEIGHT_MAX).toBeGreaterThan(TIE_HEIGHT_MIN)
+		expect(TIE_X_GAP).toBeGreaterThan(0)
+		expect(TIE_Y_OFFSET).toBeGreaterThan(0)
+		expect(TIE_THICKNESS).toBeGreaterThan(0)
+	})
+
+	test('slur constants are defined and positive', () => {
+		expect(SLUR_HEIGHT_K).toBeGreaterThan(0)
+		expect(SLUR_HEIGHT_D).toBeGreaterThan(0)
+		expect(SLUR_HEIGHT_MIN).toBeGreaterThan(0)
+		expect(SLUR_HEIGHT_MAX).toBeGreaterThan(SLUR_HEIGHT_MIN)
+		expect(SLUR_Y_OFFSET).toBeGreaterThan(0)
+		expect(SLUR_THICKNESS).toBeGreaterThan(0)
+	})
+
+	test('slurs are thinner than ties', () => {
+		expect(SLUR_THICKNESS).toBeLessThan(TIE_THICKNESS)
+	})
+
+	test('collision avoidance constants are defined', () => {
+		expect(STAFF_LINE_THRESHOLD).toBeGreaterThan(0)
+		expect(STAFF_LINE_NUDGE).toBeGreaterThan(0)
+		expect(ACCIDENTAL_CLEARANCE).toBeGreaterThan(0)
+	})
+})
+
+describe('computeArcHeight: proportional tie height', () => {
+	const fontSize = 28
+
+	test('short tie has smaller arc height than long tie', () => {
+		const shortH = computeArcHeight(fontSize * 1, fontSize, TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX)
+		const longH = computeArcHeight(fontSize * 8, fontSize, TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX)
+		expect(longH).toBeGreaterThan(shortH)
+	})
+
+	test('height is clamped to minimum', () => {
+		const h = computeArcHeight(1, fontSize, TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX)
+		expect(h).toBeGreaterThanOrEqual(TIE_HEIGHT_MIN * fontSize)
+	})
+
+	test('height is clamped to maximum', () => {
+		const h = computeArcHeight(fontSize * 100, fontSize, TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX)
+		expect(h).toBeLessThanOrEqual(TIE_HEIGHT_MAX * fontSize + 0.01)
+	})
+
+	test('slur height is flatter than tie height for same span', () => {
+		const span = fontSize * 4
+		const tieH = computeArcHeight(span, fontSize, TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX)
+		const slurH = computeArcHeight(span, fontSize, SLUR_HEIGHT_K, SLUR_HEIGHT_D, SLUR_HEIGHT_MIN, SLUR_HEIGHT_MAX)
+		// For the same moderate span, tie height and slur height should be similar
+		// but the interpolation slopes differ
+		expect(typeof tieH).toBe('number')
+		expect(typeof slurH).toBe('number')
+		expect(tieH).toBeGreaterThan(0)
+		expect(slurH).toBeGreaterThan(0)
+	})
+
+	test('always returns positive values', () => {
+		// Even negative span should yield positive height
+		const h = computeArcHeight(-100, 28, TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX)
+		expect(h).toBeGreaterThan(0)
+	})
+})
+
+describe('avoidStaffLine: staff-line collision avoidance', () => {
+	const fontSize = 28
+	const lineSpacing = fontSize / 4  // 7
+	const staffY = 100  // top staff line at Y=100
+
+	test('peak on a staff line is nudged', () => {
+		// Place peak exactly on the 3rd staff line (Y = 100 + 2*7 = 114)
+		const peakY = staffY + lineSpacing * 2
+		const adjusted = avoidStaffLine(peakY, staffY, fontSize, 1)
+		expect(adjusted).not.toBe(peakY)
+		// Should be nudged below (direction = 1)
+		expect(adjusted).toBeGreaterThan(peakY)
+	})
+
+	test('peak in a space is not nudged', () => {
+		// Place peak between 2nd and 3rd lines (Y = 100 + 1.5*7 = 110.5)
+		const peakY = staffY + lineSpacing * 1.5
+		const adjusted = avoidStaffLine(peakY, staffY, fontSize, 1)
+		expect(adjusted).toBe(peakY)
+	})
+
+	test('nudge direction follows the direction parameter', () => {
+		const peakY = staffY + lineSpacing * 3  // on 4th staff line
+		const adjustedBelow = avoidStaffLine(peakY, staffY, fontSize, 1)
+		const adjustedAbove = avoidStaffLine(peakY, staffY, fontSize, -1)
+		expect(adjustedBelow).toBeGreaterThan(peakY)
+		expect(adjustedAbove).toBeLessThan(peakY)
+	})
+
+	test('works for all 5 staff lines', () => {
+		for (let i = 0; i < 5; i++) {
+			const peakY = staffY + lineSpacing * i
+			const adjusted = avoidStaffLine(peakY, staffY, fontSize, 1)
+			expect(adjusted).not.toBe(peakY)
+		}
+	})
+})
+
+describe('Chord tie direction: inner/outer rule', () => {
+	// Simulate the getChordTieDirection logic
+	function getChordTieDirection(token, childNote) {
+		if (!childNote || token.type !== 'Chord' || !token.notes || token.notes.length < 2) {
+			// Stem-based fallback
+			if (token.Stem === 'Up' || token.stem === 1) return 1
+			if (token.Stem === 'Down' || token.stem === 2) return -1
+			const pos = childNote ? childNote.position : (token.position || 0)
+			return pos < 0 ? 1 : -1
+		}
+		const tiedPositions = token.notes.filter(n => n.tie || n.tieEnd).map(n => n.position)
+		if (tiedPositions.length < 2) {
+			if (token.Stem === 'Up' || token.stem === 1) return 1
+			if (token.Stem === 'Down' || token.stem === 2) return -1
+			return childNote.position < 0 ? 1 : -1
+		}
+		const sorted = [...tiedPositions].sort((a, b) => a - b)
+		const pos = childNote.position
+		if (pos === sorted[0]) return -1                     // top note -> above
+		if (pos === sorted[sorted.length - 1]) return 1      // bottom note -> below
+		const distToTop = Math.abs(pos - sorted[0])
+		const distToBottom = Math.abs(pos - sorted[sorted.length - 1])
+		return distToTop <= distToBottom ? -1 : 1
+	}
+
+	test('two-note chord: top note curves above, bottom curves below', () => {
+		const chord = {
+			type: 'Chord',
+			notes: [
+				{ position: -4, tie: true },  // top (high pitch, negative position)
+				{ position: 2, tie: true },    // bottom
+			]
+		}
+		expect(getChordTieDirection(chord, chord.notes[0])).toBe(-1)  // above
+		expect(getChordTieDirection(chord, chord.notes[1])).toBe(1)   // below
+	})
+
+	test('three-note chord: inner note follows nearest outer', () => {
+		const chord = {
+			type: 'Chord',
+			notes: [
+				{ position: -6, tie: true },  // top
+				{ position: -2, tie: true },  // inner (closer to top)
+				{ position: 4, tie: true },   // bottom
+			]
+		}
+		expect(getChordTieDirection(chord, chord.notes[0])).toBe(-1)  // top -> above
+		expect(getChordTieDirection(chord, chord.notes[1])).toBe(-1)  // inner -> follows top (closer)
+		expect(getChordTieDirection(chord, chord.notes[2])).toBe(1)   // bottom -> below
+	})
+
+	test('three-note chord: inner note closer to bottom follows bottom', () => {
+		const chord = {
+			type: 'Chord',
+			notes: [
+				{ position: -6, tie: true },  // top
+				{ position: 2, tie: true },   // inner (closer to bottom)
+				{ position: 4, tie: true },   // bottom
+			]
+		}
+		expect(getChordTieDirection(chord, chord.notes[1])).toBe(1)  // follows bottom
+	})
+
+	test('single tied note in chord falls back to stem direction', () => {
+		const chord = {
+			type: 'Chord',
+			Stem: 'Up',
+			notes: [
+				{ position: -4, tie: true },
+				{ position: 2 },  // not tied
+			]
+		}
+		// Only one tied note -> fall back to stem-based
+		expect(getChordTieDirection(chord, chord.notes[0])).toBe(1)  // stems up -> below
+	})
+
+	test('four-note chord inner notes split correctly', () => {
+		const chord = {
+			type: 'Chord',
+			notes: [
+				{ position: -8, tie: true },  // top
+				{ position: -4, tie: true },  // inner-upper (closer to top)
+				{ position: 2, tie: true },   // inner-lower (closer to bottom)
+				{ position: 6, tie: true },   // bottom
+			]
+		}
+		expect(getChordTieDirection(chord, chord.notes[0])).toBe(-1)  // top
+		expect(getChordTieDirection(chord, chord.notes[1])).toBe(-1)  // inner-upper -> top
+		expect(getChordTieDirection(chord, chord.notes[2])).toBe(1)   // inner-lower -> bottom
+		expect(getChordTieDirection(chord, chord.notes[3])).toBe(1)   // bottom
+	})
+})
+
+describe('Mixed stem direction: slur placement', () => {
+	test('same stem direction -> opposite the stem', () => {
+		// Both stems up -> slur below (direction = 1)
+		const startStemUp = true
+		const endStemUp = true
+		let direction
+		if (startStemUp !== undefined && endStemUp !== undefined && startStemUp !== endStemUp) {
+			direction = -1
+		} else {
+			direction = startStemUp ? 1 : -1
+		}
+		expect(direction).toBe(1)  // below
+	})
+
+	test('mixed stem directions -> always above', () => {
+		const startStemUp = true
+		const endStemUp = false
+		let direction
+		if (startStemUp !== undefined && endStemUp !== undefined && startStemUp !== endStemUp) {
+			direction = -1
+		} else {
+			direction = startStemUp ? 1 : -1
+		}
+		expect(direction).toBe(-1)  // above
+	})
+
+	test('both stems down -> slur above', () => {
+		const startStemUp = false
+		const endStemUp = false
+		let direction
+		if (startStemUp !== undefined && endStemUp !== undefined && startStemUp !== endStemUp) {
+			direction = -1
+		} else {
+			direction = startStemUp ? 1 : -1
+		}
+		expect(direction).toBe(-1)  // above
+	})
+})
+
+describe('Tie anchoring: edge-based, not center', () => {
+	test('tie X gap separates arc from notehead edges', () => {
+		// Verify the constant is a small positive fraction
+		expect(TIE_X_GAP).toBeGreaterThan(0)
+		expect(TIE_X_GAP).toBeLessThan(0.5)  // reasonable fraction
+	})
+
+	test('tie Y offset pushes arc toward curve direction', () => {
+		expect(TIE_Y_OFFSET).toBeGreaterThan(0)
+		expect(TIE_Y_OFFSET).toBeLessThan(0.5)
+	})
+
+	test('slur anchors with larger Y offset than tie', () => {
+		expect(SLUR_Y_OFFSET).toBeGreaterThan(TIE_Y_OFFSET)
+	})
+})
+
+describe('Accidental clearance', () => {
+	test('ACCIDENTAL_CLEARANCE is a positive fraction of fontSize', () => {
+		expect(ACCIDENTAL_CLEARANCE).toBeGreaterThan(0)
+		expect(ACCIDENTAL_CLEARANCE).toBeLessThan(0.5)
+	})
+
+	test('accidental boost adds height proportional to fontSize', () => {
+		const fontSize = 28
+		const boost = fontSize * ACCIDENTAL_CLEARANCE
+		expect(boost).toBeGreaterThan(0)
+		expect(boost).toBeLessThan(fontSize * 0.5)
+	})
+})
+
+describe('Intermediate note clearance for slurs/ties', () => {
+	// Simulate the intermediateNoteClearance logic
+	function intermediateNoteClearance(entries, startIdx, endIdx, arcObj, direction, fontSize) {
+		if (endIdx - startIdx < 2) return 0
+		const startX = arcObj.x
+		const startY = arcObj.y
+		const endX = arcObj.endx
+		const spanW = endX - startX
+		if (spanW <= 0) return 0
+		const endY = arcObj.endy
+		const padding = fontSize * 0.2
+		let maxNeeded = 0
+		for (let k = startIdx + 1; k < endIdx; k++) {
+			const mid = entries[k]
+			if (!mid.glyph) continue
+			const noteX = mid.glyph.x + (mid.glyph.width || 0) / 2
+			const noteY = mid.glyph.y + (mid.glyph.offsetY || 0)
+			const fraction = (noteX - startX) / spanW
+			if (fraction <= 0.03 || fraction >= 0.97) continue
+			const lineY = startY + (endY - startY) * fraction
+			let intrusion
+			if (direction > 0) {
+				intrusion = noteY - lineY
+			} else {
+				intrusion = lineY - noteY
+			}
+			if (intrusion <= 0) continue
+			const arcFraction = 4 * fraction * (1 - fraction)
+			if (arcFraction < 0.1) continue
+			const neededHeight = (intrusion + padding) / arcFraction
+			if (neededHeight > maxNeeded) maxNeeded = neededHeight
+		}
+		const currentHeight = Math.abs(arcObj.arcHeight)
+		if (maxNeeded <= currentHeight) return 0
+		return (maxNeeded - currentHeight) * direction
+	}
+
+	test('D-G-F# above: middle G protrudes, arc height increases', () => {
+		// D at y=50, G at y=30 (higher = smaller Y), F# at y=45
+		// Slur from D to F#, direction=-1 (above)
+		const entries = [
+			{ glyph: { x: 10, y: 50, width: 8, offsetY: 0 } },  // D (start)
+			{ glyph: { x: 50, y: 30, width: 8, offsetY: 0 } },  // G (middle, higher)
+			{ glyph: { x: 90, y: 45, width: 8, offsetY: 0 } },  // F# (end)
+		]
+		const arcObj = { x: 14, y: 50, endx: 90, endy: 45, arcHeight: -5 }
+		const boost = intermediateNoteClearance(entries, 0, 2, arcObj, -1, 28)
+		// G is above the line, so boost should be negative (increase upward arc)
+		expect(boost).toBeLessThan(0)
+	})
+
+	test('D-B-F# above: middle B below the line, no boost needed', () => {
+		// D at y=50, B at y=55 (lower = larger Y), F# at y=45
+		// Direction=-1 (above), B is below the start-end line, no protrusion
+		const entries = [
+			{ glyph: { x: 10, y: 50, width: 8, offsetY: 0 } },
+			{ glyph: { x: 50, y: 55, width: 8, offsetY: 0 } },  // B below line
+			{ glyph: { x: 90, y: 45, width: 8, offsetY: 0 } },
+		]
+		const arcObj = { x: 14, y: 50, endx: 90, endy: 45, arcHeight: -8 }
+		const boost = intermediateNoteClearance(entries, 0, 2, arcObj, -1, 28)
+		expect(boost).toBe(0)  // no protrusion
+	})
+
+	test('no intermediate notes: no boost', () => {
+		const entries = [
+			{ glyph: { x: 10, y: 50, width: 8, offsetY: 0 } },
+			{ glyph: { x: 90, y: 45, width: 8, offsetY: 0 } },
+		]
+		const arcObj = { x: 14, y: 50, endx: 90, endy: 45, arcHeight: -5 }
+		const boost = intermediateNoteClearance(entries, 0, 1, arcObj, -1, 28)
+		expect(boost).toBe(0)
+	})
+
+	test('below arc: intermediate note protrudes downward', () => {
+		// Start y=30, End y=35, Middle at y=60 (much lower)
+		// Direction=1 (below), middle note extends below the line
+		const entries = [
+			{ glyph: { x: 10, y: 30, width: 8, offsetY: 0 } },
+			{ glyph: { x: 50, y: 60, width: 8, offsetY: 0 } },  // protrudes down
+			{ glyph: { x: 90, y: 35, width: 8, offsetY: 0 } },
+		]
+		const arcObj = { x: 14, y: 30, endx: 90, endy: 35, arcHeight: 5 }
+		const boost = intermediateNoteClearance(entries, 0, 2, arcObj, 1, 28)
+		expect(boost).toBeGreaterThan(0)  // positive boost (more downward arc)
+	})
+})

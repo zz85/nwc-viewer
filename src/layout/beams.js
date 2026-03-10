@@ -232,15 +232,36 @@ function drawBeamGroup(group) {
 	//   beamPos = position - stemLen  (toward smaller position = lower)
 
 	// 1. Determine beam slope from first-to-last note interval.
-	//    No slant limit — the beam follows the natural pitch direction.
-	//    Minimum stem enforcement prevents any stem from being too short.
+	//    Clamp to a maximum of 1 staff space (2 half-space units) to
+	//    prevent excessively angled beams on large pitch intervals.
+	//    Non-monotonic pitch contours (e.g. up-down-up) use a flat beam.
 	const first = noteData[0]
 	const last = noteData[noteData.length - 1]
 	const firstX = first.x
 	const lastX = last.x
 	const xSpan = lastX - firstX || 1
 
-	const slope = last.position - first.position  // positive = ascending
+	const MAX_BEAM_SLOPE = 2  // 1 staff space = 2 half-space units
+
+	let slope = last.position - first.position  // positive = ascending
+
+	// Detect non-monotonic contour: if any intermediate note breaks the
+	// overall direction, flatten the beam to horizontal.
+	if (noteData.length > 2 && slope !== 0) {
+		const ascending = slope > 0
+		for (let ni = 1; ni < noteData.length - 1; ni++) {
+			const delta = noteData[ni].position - first.position
+			// A note on the wrong side of the starting pitch
+			if ((ascending && delta < 0) || (!ascending && delta > 0)) {
+				slope = 0
+				break
+			}
+		}
+	}
+
+	// Clamp slope magnitude so stems don't extend excessively
+	if (slope > MAX_BEAM_SLOPE) slope = MAX_BEAM_SLOPE
+	else if (slope < -MAX_BEAM_SLOPE) slope = -MAX_BEAM_SLOPE
 
 	// 2. Find the optimal beam offset that satisfies all minimum stem lengths.
 	//    With a fixed slope, the beam line is:

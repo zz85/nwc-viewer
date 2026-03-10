@@ -64,8 +64,8 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Chords — multiple note heads on a single stem
 - [ ] Grace notes — small notes before the principal note, no time value
 - [ ] Triplet/tuplet brackets — number and bracket above/below note group
-- [ ] Ties — curved line connecting two notes of same pitch (partially implemented)
-- [ ] Slurs — curved line connecting notes of different pitches (partially implemented)
+- [x] Ties — cubic bezier curves with proportional arc height, edge-anchored (gap from noteheads), staff-line avoidance, accidental collision clearance, chord inner/outer direction rule
+- [x] Slurs — separate Slur class (thinner, more open profile than ties), center-anchored on noteheads, mixed-stem phrases default above, staff-line avoidance
 - [ ] Double sharp / double flat accidentals
 
 ## Beams

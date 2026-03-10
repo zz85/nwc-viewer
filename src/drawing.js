@@ -1,6 +1,13 @@
 import './constants.js'
 import { ajax } from './loaders.js'
 import { getFontSize, getZoomLevel, getMusicFontPath, getMusicTextFamily } from './constants.js'
+import {
+	TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX,
+	TIE_X_GAP, TIE_Y_OFFSET, TIE_THICKNESS,
+	SLUR_HEIGHT_K, SLUR_HEIGHT_D, SLUR_HEIGHT_MIN, SLUR_HEIGHT_MAX,
+	SLUR_Y_OFFSET, SLUR_THICKNESS,
+	computeArcHeight,
+} from './engraving-rules.js'
 
 const fontMap = {
 	// barlines
@@ -1004,37 +1011,116 @@ class Tie extends Draw {
 	 */
 	constructor(start, end, direction) {
 		super()
-		// Incorporate offsetY so ties attach at the notehead pitch, not staff top
-		var x1 = start.x + start.width / 2
-		var y1 = start.y + (start.offsetY || 0)
-		var x2 = end.x + end.width / 2
-		var y2 = end.y + (end.offsetY || 0)
+		var fontSize = getFontSize()
+		var d = direction || 1
+		var gap = fontSize * TIE_X_GAP
+		var yOff = fontSize * TIE_Y_OFFSET * d
 
-		this.size = getFontSize()
+		// Anchor just past the notehead edges — "never touch the noteheads"
+		var x1 = start.x + start.width + gap
+		var y1 = start.y + (start.offsetY || 0) + yOff
+		var x2 = end.x - gap
+		var y2 = end.y + (end.offsetY || 0) + yOff
+
+		this.size = fontSize
 		this.x = x1
 		this.y = y1
 		this.endx = x2
 		this.endy = y2
-		this.direction = direction || 1
-		this.height = getFontSize() * 0.5 * this.direction
-
+		this.direction = d
 		this.width = this.endx - this.x
+
+		// Proportional arc height — short ties are round, long ties flatten
+		this.arcHeight = computeArcHeight(
+			this.width, fontSize,
+			TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX
+		) * d
+		this.thickness = fontSize * TIE_THICKNESS * d
 	}
 
 	draw(ctx) {
 		ctx.fillStyle = '#000'
-
 		ctx.beginPath()
 
-		ctx.moveTo(0, 0)
-		var mx = this.width / 2
-		var my = this.height
-		var x2 = this.width
-		var y2 = this.endy - this.y
-		var d = this.direction
+		var w = this.width
+		var dy = this.endy - this.y
+		var h = this.arcHeight
+		var t = this.thickness
 
-		ctx.quadraticCurveTo(mx, my - getFontSize() / 10 * d, x2, y2)
-		ctx.quadraticCurveTo(mx, my, 0, 0)
+		// Cubic bezier control points at 1/3 and 2/3 for natural curve
+		var cp1x = w * 0.33
+		var cp2x = w * 0.67
+		// Interpolate dy along control points for cross-pitch ties
+		var cp1dy = dy * 0.33
+		var cp2dy = dy * 0.67
+
+		// Outer curve (full arc height)
+		ctx.moveTo(0, 0)
+		ctx.bezierCurveTo(cp1x, h + cp1dy, cp2x, h + cp2dy, w, dy)
+		// Inner curve (reduced height — taper: 0 thickness at endpoints,
+		// max thickness at midpoint)
+		ctx.bezierCurveTo(cp2x, (h - t) + cp2dy, cp1x, (h - t) + cp1dy, 0, 0)
+		ctx.fill()
+	}
+}
+
+class Slur extends Draw {
+	/**
+	 * Slur connects different pitches for phrasing / articulation.
+	 * Thinner and more open than ties, anchored at notehead centre.
+	 *
+	 * @param {Draw} start - Start notehead glyph
+	 * @param {Draw} end - End notehead glyph
+	 * @param {number} direction - 1 = below, -1 = above
+	 */
+	constructor(start, end, direction) {
+		super()
+		var fontSize = getFontSize()
+		var d = direction || 1
+		var yOff = fontSize * SLUR_Y_OFFSET * d
+
+		// Slurs anchor at notehead centre (not edges like ties)
+		var x1 = start.x + start.width / 2
+		var y1 = start.y + (start.offsetY || 0) + yOff
+		var x2 = end.x + end.width / 2
+		var y2 = end.y + (end.offsetY || 0) + yOff
+
+		this.size = fontSize
+		this.x = x1
+		this.y = y1
+		this.endx = x2
+		this.endy = y2
+		this.direction = d
+		this.width = this.endx - this.x
+
+		// Slur height — flatter, more open than ties
+		this.arcHeight = computeArcHeight(
+			this.width, fontSize,
+			SLUR_HEIGHT_K, SLUR_HEIGHT_D, SLUR_HEIGHT_MIN, SLUR_HEIGHT_MAX
+		) * d
+		this.thickness = fontSize * SLUR_THICKNESS * d
+	}
+
+	draw(ctx) {
+		ctx.fillStyle = '#000'
+		ctx.beginPath()
+
+		var w = this.width
+		var dy = this.endy - this.y
+		var h = this.arcHeight
+		var t = this.thickness
+
+		// Cubic bezier control points at 1/3 and 2/3
+		var cp1x = w * 0.33
+		var cp2x = w * 0.67
+		var cp1dy = dy * 0.33
+		var cp2dy = dy * 0.67
+
+		// Outer curve
+		ctx.moveTo(0, 0)
+		ctx.bezierCurveTo(cp1x, h + cp1dy, cp2x, h + cp2dy, w, dy)
+		// Inner curve (taper)
+		ctx.bezierCurveTo(cp2x, (h - t) + cp2dy, cp1x, (h - t) + cp1dy, 0, 0)
 		ctx.fill()
 	}
 }
@@ -1048,19 +1134,28 @@ class PartialTie extends Draw {
 	constructor(noteGlyph, arcWidth, mode, direction) {
 		super()
 		this.mode = mode  // 'trailing' or 'leading'
-		this.size = getFontSize()
-		this.direction = direction || 1
-		this.height = getFontSize() * 0.5 * this.direction
+		var fontSize = getFontSize()
+		var d = direction || 1
+		this.size = fontSize
+		this.direction = d
+		var yOff = fontSize * TIE_Y_OFFSET * d
 
-		var noteY = noteGlyph.y + (noteGlyph.offsetY || 0)
+		// Proportional arc height (same formula as full Tie)
+		this.arcHeight = computeArcHeight(
+			arcWidth, fontSize,
+			TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX
+		) * d
+		this.thickness = fontSize * TIE_THICKNESS * d
+
+		var noteY = noteGlyph.y + (noteGlyph.offsetY || 0) + yOff
 		if (mode === 'trailing') {
 			// Start at the note, arc curves rightward
-			this.x = noteGlyph.x + noteGlyph.width / 2
+			this.x = noteGlyph.x + noteGlyph.width + fontSize * TIE_X_GAP
 			this.y = noteY
 			this.width = arcWidth
 		} else {
 			// End at the note, arc curves leftward from system start
-			this.x = noteGlyph.x + noteGlyph.width / 2 - arcWidth
+			this.x = noteGlyph.x - fontSize * TIE_X_GAP - arcWidth
 			this.y = noteY
 			this.width = arcWidth
 		}
@@ -1071,20 +1166,24 @@ class PartialTie extends Draw {
 	draw(ctx) {
 		ctx.fillStyle = '#000'
 		var w = this.width
-		var h = this.height
-		var d = this.direction
+		var h = this.arcHeight
+		var t = this.thickness
 
 		ctx.beginPath()
 		if (this.mode === 'trailing') {
-			// Draw right half of an arc
+			// Biased right — steeper near the note, flatter toward system edge
+			var cp1x = w * 0.25
+			var cp2x = w * 0.60
 			ctx.moveTo(0, 0)
-			ctx.quadraticCurveTo(w * 0.6, h - getFontSize() / 10 * d, w, 0)
-			ctx.quadraticCurveTo(w * 0.6, h, 0, 0)
+			ctx.bezierCurveTo(cp1x, h, cp2x, h, w, 0)
+			ctx.bezierCurveTo(cp2x, h - t, cp1x, h - t, 0, 0)
 		} else {
-			// Draw left half of an arc
+			// Biased left — steeper near the note, flatter toward system start
+			var cp1x = w * 0.40
+			var cp2x = w * 0.75
 			ctx.moveTo(w, 0)
-			ctx.quadraticCurveTo(w * 0.4, h - getFontSize() / 10 * d, 0, 0)
-			ctx.quadraticCurveTo(w * 0.4, h, w, 0)
+			ctx.bezierCurveTo(cp2x, h, cp1x, h, 0, 0)
+			ctx.bezierCurveTo(cp1x, h - t, cp2x, h - t, w, 0)
 		}
 		ctx.fill()
 	}
@@ -1198,10 +1297,11 @@ const Claire = {
 	Line,
 	Path,
 	Tie,
+	Slur,
 	PartialTie,
 }
 
 Object.assign(Claire, { Drawing, setup, Claire, resize, resizeToFit, changeFont })
 Object.assign(window, Claire)
 
-export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, PartialTie, Beam, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, changeFont }
+export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, Slur, PartialTie, Beam, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, changeFont }

@@ -933,7 +933,37 @@ function layoutTripletBrackets(drawing, staves) {
 							above = stemUp  // stem side: stems up → above, stems down → below
 						}
 
-						var bracketPos = above ? 12 : -4
+						// Compute bracket position from actual note extremes,
+						// not a fixed staff position.  This ensures clearance
+						// when notes sit above or below the staff.
+						var maxRelPos = 0, minRelPos = 8
+						for (var gi = 0; gi < groupTokens.length; gi++) {
+							var gt = groupTokens[gi]
+							if (gt.type === 'Rest') continue
+							var pos = (gt.position || 0) + 4
+							if (gt.type === 'Chord' && gt.notes) {
+								for (var ci = 0; ci < gt.notes.length; ci++) {
+									var cp = (gt.notes[ci].position || 0) + 4
+									if (cp > maxRelPos) maxRelPos = cp
+									if (cp < minRelPos) minRelPos = cp
+								}
+							}
+							if (pos > maxRelPos) maxRelPos = pos
+							if (pos < minRelPos) minRelPos = pos
+						}
+
+						// Stem extent (~3.5 staff spaces = 7 half-spaces)
+						// and padding (2 half-spaces for breathing room)
+						var stemExtent = 7
+						var bracketPad = 3
+						var bracketPos
+						if (above) {
+							bracketPos = maxRelPos + stemExtent + bracketPad
+							if (bracketPos < 14) bracketPos = 14  // never closer than ~1.5 spaces above top line
+						} else {
+							bracketPos = minRelPos - stemExtent - bracketPad
+							if (bracketPos > -6) bracketPos = -6  // never closer than ~1.5 spaces below bottom line
+						}
 						var below = !above
 						var bracket = new TupletBracket('3', spanW, bracketPos, below, allBeamed)
 						bracket.moveTo(startX, getStaffY(si))
@@ -969,33 +999,45 @@ function splitCrossSystemTies(drawing, systemHeight, interSystemGap) {
 	var arcWidth = fs * 2  // width of the partial arc
 
 	for (var el of drawing.set) {
-		// Identify Tie objects: they have endx, endy, and width properties
+		// Identify Tie/Slur objects: they have endx, endy, and width properties
 		if (el.endx == null || el.endy == null || el.width == null) continue
 		// Skip PartialTie objects (they don't have the same structure)
 		if (el instanceof PartialTie) continue
 
-		// Check if start and end are on different systems by comparing Y positions.
-		// Within the same system, Y difference is at most the staff spread.
-		// Across systems, the difference is at least (systemHeight + interSystemGap).
-		var yDiff = Math.abs(el.endy - el.y)
-		if (yDiff < systemHeight * 0.8) continue  // same system — skip
+		// Detect cross-system ties/slurs.
+		// Primary: use stored system index from reflow pass.
+		// Fallback: Y-distance heuristic for elements without _sysIdx.
+		var isCrossSystem = false
+		if (el._sysIdx != null) {
+			// If the end Y is on a different system, the Y shift during
+			// reflow only applied the *start* system's offset to endy,
+			// so the two endpoints will be far apart in Y.
+			var yDiff = Math.abs(el.endy - el.y)
+			isCrossSystem = yDiff > systemHeight * 0.5
+		} else {
+			var yDiff = Math.abs(el.endy - el.y)
+			isCrossSystem = yDiff > systemHeight * 0.8
+		}
 
-		// This tie crosses a system break.  Replace with two partial arcs.
+		if (!isCrossSystem) continue
+
+		// This tie/slur crosses a system break.  Replace with two partial arcs.
 		toRemove.push(el)
 		var tieDir = el.direction || 1
 
 		// Trailing arc: from the start note, curving to the right
 		var trailing = new PartialTie(
-			{ x: el.x, y: el.y, width: 0 },  // synthetic glyph-like object
+			{ x: el.x, y: el.y, width: 0, offsetY: 0 },
 			arcWidth, 'trailing', tieDir
 		)
-		// Position: already at el.x, el.y from the constructor
+		// Override position — the synthetic glyph produces offset anchoring;
+		// we want the exact position already computed for this tie/slur.
 		trailing.x = el.x
 		trailing.y = el.y
 
 		// Leading arc: curving in from the left to the end note
 		var leading = new PartialTie(
-			{ x: el.endx, y: el.endy, width: 0 },
+			{ x: el.endx, y: el.endy, width: 0, offsetY: 0 },
 			arcWidth, 'leading', tieDir
 		)
 		leading.x = el.endx - arcWidth
@@ -1523,6 +1565,8 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var justEnd = justify(relEnd) + leftMargin + courtesyW
 			el.width = justEnd - el.x
 			el.endx = justEnd
+			// Store system index for cross-system tie/slur detection
+			el._sysIdx = sysIdx
 		}
 		else {
 			el.x = justify(relX) + leftMargin + courtesyW
@@ -1846,6 +1890,8 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad
 			el.width = justEnd - el.x
 			el.endx = justEnd
+			// Store system index for cross-system tie/slur detection
+			el._sysIdx = sysIdx
 		} else {
 			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad
 		}
@@ -2512,6 +2558,8 @@ function drawForNote(token, cursor, durToken) {
 		acc.offsetX = -acc.width * 1.2 * graceScale
 		if (isGrace) acc._graceScale = graceScale
 		drawing.add(acc)
+		// Store reference for tie/slur collision avoidance
+		token.drawingAccidental = acc
 	}
 
 	// note head

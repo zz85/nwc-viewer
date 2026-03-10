@@ -54,7 +54,9 @@ Planned features and improvements, roughly prioritized.
 - [ ] Proportional / spring-and-rod spacing (currently fixed-width-per-duration)
 - [x] Grace notes — drawn at 60% scale with reduced spacing
 - [x] Ties and slurs — direction follows stem (up→below, down→above); anchored at notehead pitch (offsetY); per-child-note chord ties; cross-system tie splitting preserves direction; slurs use outer chord note as anchor
+- [x] **Professional tie/slur engraving** — Cubic bezier curves with proportional arc height (short ties = round, long ties = flat); separate Tie/Slur classes (ties thicker+rounder, slurs thinner+more open); edge-anchored ties (gap from notehead edges, "never touch"); chord inner/outer direction (top curves above, bottom below, inner follows nearest); mixed-stem slurs default above; staff-line avoidance (peak nudged into spaces); accidental collision clearance; engraving constants in `src/engraving-rules.js`
 - [x] Triplet/tuplet brackets — numeral on stem/beam side; fully-beamed triplets get numeral only (no bracket); unbeamed/mixed get bracket+numeral; vocal staves place numeral above to clear lyrics
+- [ ] **Future: Full OSMD-style slur math** — Coordinate-rotation bezier calculation (tangent angles with 30-80 degree clamping), skyline/bottomline collision system, `SlurHeightFlatten` factors for long slurs, per-note articulation Y offsets at slur endpoints. See `references/osmd-engraving-notes.md`.
 - [ ] Alto and tenor clef support
 - [x] Ending brackets (1st/2nd endings) — VoltaBracket class with ending numbers
 - [x] Hairpins (crescendo/diminuendo) — Hairpin class with auto-spanning
