@@ -220,6 +220,22 @@
 				<span style="width: 10px;"></span>
 				Spacing:
 				<button id="spacing_toggle" onclick="toggleSpacing()">Spring</button>
+				<label title="Note spacing density: lower = tighter, higher = looser" style="font-size: 11px; margin-left: 6px;">
+					Density:
+					<input type="range" id="density_slider"
+						min="0.5" max="3.0" step="0.05" value="1.5"
+						style="width: 80px; vertical-align: middle;"
+					/>
+					<span id="density_label" style="min-width: 30px; display: inline-block; font-size: 11px;">1.50</span>
+				</label>
+				<label title="Rod-spring balance: 0 = all rigid (rod), 1 = default, 2 = all elastic (spring)" style="font-size: 11px; margin-left: 6px;">
+					Rod/Spring:
+					<input type="range" id="rod_spring_slider"
+						min="0.0" max="2.0" step="0.05" value="1.0"
+						style="width: 80px; vertical-align: middle;"
+					/>
+					<span id="rod_spring_label" style="min-width: 30px; display: inline-block; font-size: 11px;">1.00</span>
+				</label>
 
 					<div id="debug_tools" style="display: none;">
 						<button

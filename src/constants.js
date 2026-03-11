@@ -115,6 +115,34 @@ function getSpacingModel() {
 	return spacingModel
 }
 
+// Spacing density — controls the base spring unit multiplier.
+// Quarter-note spring = rossRatio * fontSize * springDensity.
+// Default 1.5: tighter at ~0.5, looser at ~3.0.
+// Also scales the legacy model's sqrt-based padding proportionally.
+let springDensity = 1.5
+
+function setSpringDensity(n) {
+	springDensity = Math.max(0.5, Math.min(3.0, n))
+}
+
+function getSpringDensity() {
+	return springDensity
+}
+
+// Rod-spring balance — controls what fraction of each inter-note gap is
+// treated as elastic spring vs rigid rod during justification.
+// At 0.0 all gaps are rigid (no stretching); at 1.0 (default) springs are
+// at full Ross/Gould values; above 1.0 springs dominate even more.
+let rodSpringBalance = 1.0
+
+function setRodSpringBalance(n) {
+	rodSpringBalance = Math.max(0.0, Math.min(2.0, n))
+}
+
+function getRodSpringBalance() {
+	return rodSpringBalance
+}
+
 // Visual zoom level — applied as a canvas transform in quickDraw().
 // This does NOT trigger a re-layout; it simply scales the rendered output.
 // Use setFontSize() to change the actual music engraving size (requires re-layout).
@@ -146,6 +174,10 @@ Object.assign(!isBrowser() ? global : window, {
 	getFontSize,
 	setSpacingModel,
 	getSpacingModel,
+	setSpringDensity,
+	getSpringDensity,
+	setRodSpringBalance,
+	getRodSpringBalance,
 	setZoomLevel,
 	getZoomLevel,
 	ZOOM_MIN,
@@ -168,6 +200,8 @@ export {
 	isNode, isBrowser,
 	FONT_SIZE, setFontSize, getFontSize,
 	setSpacingModel, getSpacingModel,
+	setSpringDensity, getSpringDensity,
+	setRodSpringBalance, getRodSpringBalance,
 	setZoomLevel, getZoomLevel, ZOOM_MIN, ZOOM_MAX,
 	setLayoutMode, getLayoutMode,
 	PAGE_SIZES, setPageSize, getPageSize, getPageDimensions, getPageMargins,

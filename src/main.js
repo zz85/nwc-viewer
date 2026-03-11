@@ -1,5 +1,5 @@
 import './constants.js'
-import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont, getSpacingModel, setSpacingModel } from './constants.js'
+import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont, getSpacingModel, setSpacingModel, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -692,3 +692,55 @@ if (storedSpacing === 'current' || storedSpacing === 'spring') {
 	setSpacingModel(storedSpacing)
 }
 updateSpacingButton()
+
+// ---- Spacing density slider ----
+
+const DENSITY_STORAGE_KEY = 'nwc_spring_density'
+const densitySlider = document.getElementById('density_slider')
+const densityLabel = document.getElementById('density_label')
+
+function updateDensityUI() {
+	var val = getSpringDensity()
+	if (densitySlider) densitySlider.value = val
+	if (densityLabel) densityLabel.textContent = val.toFixed(2)
+}
+
+if (densitySlider) {
+	densitySlider.oninput = function () {
+		var val = parseFloat(densitySlider.value)
+		setSpringDensity(val)
+		localStorage.setItem(DENSITY_STORAGE_KEY, val)
+		updateDensityUI()
+		rerender()
+	}
+}
+
+var storedDensity = localStorage.getItem(DENSITY_STORAGE_KEY)
+if (storedDensity !== null) setSpringDensity(parseFloat(storedDensity))
+updateDensityUI()
+
+// ---- Rod-spring balance slider ----
+
+const ROD_SPRING_STORAGE_KEY = 'nwc_rod_spring_balance'
+const rodSpringSlider = document.getElementById('rod_spring_slider')
+const rodSpringLabel = document.getElementById('rod_spring_label')
+
+function updateRodSpringUI() {
+	var val = getRodSpringBalance()
+	if (rodSpringSlider) rodSpringSlider.value = val
+	if (rodSpringLabel) rodSpringLabel.textContent = val.toFixed(2)
+}
+
+if (rodSpringSlider) {
+	rodSpringSlider.oninput = function () {
+		var val = parseFloat(rodSpringSlider.value)
+		setRodSpringBalance(val)
+		localStorage.setItem(ROD_SPRING_STORAGE_KEY, val)
+		updateRodSpringUI()
+		rerender()
+	}
+}
+
+var storedRodSpring = localStorage.getItem(ROD_SPRING_STORAGE_KEY)
+if (storedRodSpring !== null) setRodSpringBalance(parseFloat(storedRodSpring))
+updateRodSpringUI()

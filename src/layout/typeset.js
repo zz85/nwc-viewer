@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily, getSpacingModel } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily, getSpacingModel, getSpringDensity, getRodSpringBalance } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie } from '../drawing.js'
@@ -420,10 +420,10 @@ function rossSpringWidth(durValue) {
 			break
 		}
 	}
-	// Base unit: a quarter-note spring = 1.5 * fontSize.
+	// Base unit: a quarter-note spring = springDensity * fontSize.
 	// Higher values make duration differences more visually prominent
 	// (time-based spacing dominates over visual/rod spacing).
-	return ratio * getFontSize() * 1.5
+	return ratio * getFontSize() * getSpringDensity()
 }
 
 // Minimum spring factor — prevents notes from overlapping.
@@ -509,10 +509,12 @@ function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
 	// First pass: compute effective total springs (after clamping to gap size).
 	// This is needed because the factor formula assumes all spring length is
 	// usable, but springs wider than their gap get clamped.
+	// rodSpringBalance scales the spring portion: 0 = all rigid, 1 = natural, 2 = extra elastic.
+	var balance = getRodSpringBalance()
 	var effectiveSprings = 0
 	for (var i = 1; i < entries.length; i++) {
 		var naturalGap = entries[i].anchorX - entries[i - 1].anchorX
-		var sp = entries[i - 1].spring
+		var sp = entries[i - 1].spring * balance
 		if (sp > naturalGap) sp = naturalGap
 		effectiveSprings += sp
 	}
@@ -520,7 +522,7 @@ function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
 	var lastEntry = entries[entries.length - 1]
 	var trailingNatural = naturalWidth - lastEntry.anchorX
 	if (trailingNatural > 0) {
-		var trailSp = lastEntry.spring
+		var trailSp = lastEntry.spring * balance
 		if (trailSp > trailingNatural) trailSp = trailingNatural
 		effectiveSprings += trailSp
 	}
@@ -538,7 +540,7 @@ function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
 	for (var i = 1; i < entries.length; i++) {
 		anchors.push(entries[i].anchorX)
 		var naturalGap = entries[i].anchorX - entries[i - 1].anchorX
-		var springPortion = entries[i - 1].spring
+		var springPortion = entries[i - 1].spring * balance
 		// Clamp springPortion to not exceed the natural gap
 		if (springPortion > naturalGap) springPortion = naturalGap
 		var rodPortion = naturalGap - springPortion
@@ -551,7 +553,7 @@ function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
 	// note's spring is also stretched, pushing the trailing barline to
 	// the right edge of the system.
 	if (trailingNatural > 0) {
-		var trailingSpring = lastEntry.spring
+		var trailingSpring = lastEntry.spring * balance
 		if (trailingSpring > trailingNatural) trailingSpring = trailingNatural
 		var trailingRod = trailingNatural - trailingSpring
 		var trailingNew = trailingRod + trailingSpring * factor
@@ -623,6 +625,10 @@ function buildBarlineMap(relBarXs, extraSpace, anchors) {
 
 	// Phase 1: compute per-gap ideal extra, capped at MAX_INTRA_STRETCH.
 	// A "gap" is the space between two consecutive anchors.
+	// Rod-spring balance scales the stretch cap: 0 = no stretch (all rigid),
+	// 1.0 = default (5x cap), 2.0 = very elastic (9x cap).
+	var balance = getRodSpringBalance()
+	var effectiveMaxStretch = 1.0 + (MAX_INTRA_STRETCH - 1.0) * balance
 	var gaps = []
 	for (var i = 1; i < anchors.length; i++) {
 		gaps.push(anchors[i] - anchors[i - 1])
@@ -638,7 +644,7 @@ function buildBarlineMap(relBarXs, extraSpace, anchors) {
 			continue
 		}
 		var idealExtra = extraSpace * (gap / totalGapWidth)
-		var maxExtra = gap * (MAX_INTRA_STRETCH - 1.0)
+		var maxExtra = gap * (effectiveMaxStretch - 1.0)
 		var actual = Math.min(idealExtra, maxExtra)
 		gapExtras.push(actual)
 		usedByStretch += actual
@@ -2782,8 +2788,11 @@ function calculatePadding(durValue) {
 	// Whole notes get more space, shorter notes get proportionally less
 	const duration = durValue.value()
 	
-	// Base spacing on note duration with diminishing returns
-	const baseSpacing = Math.sqrt(duration * 16)
+	// Base spacing on note duration with diminishing returns.
+	// Scale by springDensity / 1.5 so the density slider affects both
+	// the spring model and the legacy model proportionally.
+	const densityScale = getSpringDensity() / 1.5
+	const baseSpacing = Math.sqrt(duration * 16) * densityScale
 	
 	// Clamp between reasonable bounds
 	return Math.min(Math.max(baseSpacing, 0.5), 10)
