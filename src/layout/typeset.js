@@ -1075,39 +1075,36 @@ function layoutHairpinSpans(drawing, staves) {
 
 			var hp = token.drawingHairpin
 			var startX = hp.x
+			var fs = getFontSize()
+			var gap = fs * 0.3  // horizontal gap between hairpin and adjacent markings
 
 			// Find the end point: next Dynamic, DynamicVariance, or Barline
-			var endX = startX + getFontSize() * 3  // default fallback
+			var endX = startX + fs * 3  // default fallback
 			for (var j = i + 1; j < tokens.length; j++) {
 				var nt = tokens[j]
 				if (nt.type === 'Dynamic' || nt.type === 'DynamicVariance') {
-					// End at the start of the next dynamic marking
 					if (nt.drawingHairpin) {
-						endX = nt.drawingHairpin.x - getFontSize() * 0.3
+						// Next item is another hairpin — end just before it
+						endX = nt.drawingHairpin.x - gap
+					} else if (nt.drawingDynamic) {
+						// Next item is a text dynamic (p, f, etc.) — end just before it
+						endX = nt.drawingDynamic.x - gap
 					} else {
-						// Find the drawing element's X position
-						endX = startX + getFontSize() * 3
-						// Try to find drawing objects at this token's position
-						for (var el of drawing.set) {
-							if (el.x != null && el instanceof DynamicMarking) {
-								// Check if this DynamicMarking is for this token
-								// Simple heuristic: DM near this stave position
-							}
-						}
+						endX = startX + fs * 3
 					}
 					break
 				}
 				if (nt.type === 'Barline' && nt.drawingBarline) {
-					endX = nt.drawingBarline.x - getFontSize() * 0.3
+					endX = nt.drawingBarline.x - gap
 					break
 				}
-				// Also end if we hit a note/chord with a drawingNoteHead far enough away
+				// Track the last note/chord position as a running fallback
 				if ((nt.type === 'Note' || nt.type === 'Chord') && nt.drawingNoteHead) {
 					endX = nt.drawingNoteHead.x + (nt.drawingNoteHead.width || 0)
 				}
 			}
 
-			var newWidth = Math.max(endX - startX, getFontSize() * 1.5)
+			var newWidth = Math.max(endX - startX, fs * 1.5)
 			hp.spanWidth = newWidth
 			hp.width = newWidth
 		}
@@ -2426,6 +2423,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			var dynGlyph = new DynamicMarking(token.dynamic, pos + 4)
 			cursor.posGlyph(dynGlyph)
 			drawing.add(dynGlyph)
+			token.drawingDynamic = dynGlyph
 			break
 
 		case 'DynamicVariance':

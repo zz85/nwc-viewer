@@ -535,13 +535,59 @@ const SYNTHETIC_FIXTURES = [
 				]]),
 			},
 			{
-				label: 'Hairpins',
-				desc: 'Crescendo and decrescendo wedges',
-				data: () => makeScore('Hairpins', [[
+				label: 'Hairpins — Basic',
+				desc: 'Crescendo and decrescendo wedges with terminal dynamic',
+				data: () => makeScore('Hairpins — Basic', [[
 					clef(), keySig(), timeSig(),
-					dynVariance(0), note(0, 4), note(1, 4), note(2, 4), note(3, 4), bar(), // cresc
-					dynVariance(1), note(3, 4), note(2, 4), note(1, 4), note(0, 4), bar(), // decresc
-					dynamic('f'), note(0, 1),
+					dynamic('p'), dynVariance(0), note(0, 4), note(1, 4), note(2, 4), note(3, 4), bar(), // cresc
+					dynamic('f'), dynVariance(1), note(3, 4), note(2, 4), note(1, 4), note(0, 4), bar(), // decresc
+					dynamic('p'), note(0, 1),
+					bar(3),
+				]]),
+			},
+			{
+				label: 'Hairpins — Diminuendo',
+				desc: 'Diminuendo (style 2) vs decrescendo (style 1)',
+				data: () => makeScore('Hairpins — Dimin vs Decresc', [[
+					clef(), keySig(), timeSig(),
+					dynVariance(1), note(4, 4), note(3, 4), note(2, 4), note(1, 4), bar(), // decresc (style 1)
+					dynVariance(2), note(4, 4), note(3, 4), note(2, 4), note(1, 4), bar(), // dimin (style 2)
+					dynamic('pp'), note(0, 1),
+					bar(3),
+				]]),
+			},
+			{
+				label: 'Hairpins — Swell',
+				desc: 'Messa di voce: cresc followed immediately by decresc',
+				data: () => makeScore('Hairpins — Swell', [[
+					clef(), keySig(), timeSig(),
+					dynamic('p'),
+					dynVariance(0), note(0, 4), note(2, 4),
+					dynVariance(1), note(4, 4), note(2, 4), bar(),
+					dynamic('p'), note(0, 1),
+					bar(3),
+				]]),
+			},
+			{
+				label: 'Hairpins — To Barline',
+				desc: 'Hairpin ending at a barline with no following dynamic',
+				data: () => makeScore('Hairpins — To Barline', [[
+					clef(), keySig(), timeSig(),
+					dynVariance(0), note(0, 4), note(1, 4), note(2, 4), note(3, 4), bar(),
+					note(4, 4), note(3, 4), note(2, 4), note(1, 4), bar(),
+					dynVariance(1), note(4, 4), note(3, 4), note(2, 4), note(1, 4), bar(),
+					note(0, 1),
+					bar(3),
+				]]),
+			},
+			{
+				label: 'Hairpins — Short',
+				desc: 'Short hairpins over two notes (minimum legible span)',
+				data: () => makeScore('Hairpins — Short', [[
+					clef(), keySig(), timeSig(),
+					dynVariance(0), note(0, 2), dynamic('f'), note(4, 2), bar(),
+					dynVariance(1), note(4, 2), dynamic('p'), note(0, 2), bar(),
+					dynVariance(0), note(0, 4), dynamic('mf'), note(2, 4), note(4, 4), note(2, 4),
 					bar(3),
 				]]),
 			},

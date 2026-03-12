@@ -818,7 +818,7 @@ class Hairpin extends Draw {
 
 	draw(ctx) {
 		var fs = this.fontSize
-		var halfOpen = fs * 0.22  // half-height of the open end
+		var halfOpen = fs / 8   // half-height of the open end (~1 staff space total)
 		var lw = fs / 24
 		var w = this.spanWidth
 
@@ -828,16 +828,16 @@ class Hairpin extends Draw {
 
 		if (this.style === 'Crescendo') {
 			// Point on the left, opening to the right
-			ctx.moveTo(0, -halfOpen)
-			ctx.lineTo(w, -halfOpen * 2)
-			ctx.moveTo(0, halfOpen)
-			ctx.lineTo(w, halfOpen * 2)
+			ctx.moveTo(0, 0)
+			ctx.lineTo(w, -halfOpen)
+			ctx.moveTo(0, 0)
+			ctx.lineTo(w, halfOpen)
 		} else {
 			// Opening on the left, point on the right (decresc/dimin)
-			ctx.moveTo(0, -halfOpen * 2)
-			ctx.lineTo(w, -halfOpen)
-			ctx.moveTo(0, halfOpen * 2)
-			ctx.lineTo(w, halfOpen)
+			ctx.moveTo(0, -halfOpen)
+			ctx.lineTo(w, 0)
+			ctx.moveTo(0, halfOpen)
+			ctx.lineTo(w, 0)
 		}
 		ctx.stroke()
 	}
