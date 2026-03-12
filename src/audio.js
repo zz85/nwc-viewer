@@ -27,11 +27,38 @@ function toMidi(name, octave, accidentalValue) {
 // ── Score → NoteEvent[] conversion ─────────────────────────────────────────
 
 /**
+ * Assign a MIDI channel (0-15) for each staff.
+ * Each staff gets its own channel to avoid noteOff collisions between staves.
+ * Channel 9 is reserved for GM percussion — non-percussion staves skip it.
+ * If a staff's NWC channel is 9, it gets channel 9 for correct drum sounds.
+ *
+ * @param {Array} staves - Score staves array
+ * @returns {number[]} - MIDI channel per staff index
+ */
+function assignChannels(staves) {
+	const channels = []
+	let nextCh = 0
+	for (let si = 0; si < staves.length; si++) {
+		const nwcCh = staves[si].channel ?? 0
+		if (nwcCh === 9) {
+			// Percussion staff — always use GM drum channel 9
+			channels.push(9)
+		} else {
+			// Skip channel 9 for melodic staves
+			if (nextCh === 9) nextCh = 10
+			channels.push(Math.min(nextCh, 15))
+			if (nextCh < 15) nextCh++
+		}
+	}
+	return channels
+}
+
+/**
  * Walk all staves and build a flat, time-sorted NoteEvent array suitable for
  * MidiScheduler.load().
  *
  * @param {object} data - The interpreted score data (data.score.staves[].tokens)
- * @returns {{ notes: NoteEvent[], duration: number }}
+ * @returns {{ notes: NoteEvent[], duration: number, channels: number[] }}
  */
 export function buildNoteEvents(data) {
 	const staves = data.score.staves
@@ -41,9 +68,13 @@ export function buildNoteEvents(data) {
 	// Tempo token; if there are mid-score tempo changes we'll track them.
 	const tempoMap = buildTempoMap(staves)
 
+	// Assign MIDI channels: each staff gets its own channel, skipping ch9
+	// for non-percussion staves to avoid GM drum kit sounds.
+	const channels = assignChannels(staves)
+
 	for (let si = 0; si < staves.length; si++) {
 		const tokens = staves[si].tokens
-		const channel = Math.min(si, 15) // cap at 16 MIDI channels
+		const channel = channels[si]
 
 		for (let ti = 0; ti < tokens.length; ti++) {
 			const tok = tokens[ti]
@@ -114,7 +145,7 @@ export function buildNoteEvents(data) {
 	notes.sort((a, b) => a.time - b.time || a.midi - b.midi)
 
 	const duration = notes.reduce((mx, n) => Math.max(mx, n.time + n.duration), 0)
-	return { notes, duration }
+	return { notes, duration, channels }
 }
 
 // ── Tie merging helper ─────────────────────────────────────────────────────
@@ -142,6 +173,7 @@ function findNextTied(tokens, idx) {
 /**
  * Build a tempo map: array of { tick, bpm } sorted by tick.
  * Tick values are in whole-note units (matching tickValue from interpreter).
+ * BPM is normalized to quarter-note BPM regardless of the displayed beat unit.
  */
 export function buildTempoMap(staves) {
 	const entries = []
@@ -150,11 +182,14 @@ export function buildTempoMap(staves) {
 	for (const stave of staves) {
 		for (const tok of stave.tokens) {
 			if (tok.type === 'Tempo') {
-				// tok.duration = BPM value, tok.note = beat unit
-				// NWC stores tempo as quarter-note BPM regardless of tok.note
-				const bpm = tok.duration || 120
+				// tok.duration = BPM value (beats per minute of the displayed beat unit)
+				// tok.beatDuration = beat unit in whole-note fractions (0.25 = quarter, 0.5 = half, etc.)
+				// Convert to quarter-note BPM: if displayed as half=60, that's quarter=120.
+				const rawBpm = tok.duration || 120
+				const beatDur = tok.beatDuration || 0.25  // default to quarter
+				const quarterBpm = rawBpm * (beatDur / 0.25)
 				const tick = tok.tickValue ?? 0
-				entries.push({ tick, bpm })
+				entries.push({ tick, bpm: quarterBpm })
 			}
 		}
 	}
@@ -384,9 +419,18 @@ export class PlaybackController {
 		}
 		// Ensure tokens have been interpreted (name, octave, tickValue, etc.)
 		interpret(data)
-		const { notes } = buildNoteEvents(data)
+		const { notes, channels } = buildNoteEvents(data)
 		this._allNotes = notes
 		this._scoreData = data
+
+		// Send GM program change for each staff's instrument before playback.
+		// This sets the correct instrument sound per channel.
+		const staves = data.score.staves
+		for (let si = 0; si < staves.length; si++) {
+			const ch = channels[si]
+			const program = staves[si].patchName ?? 0
+			this._engine.programChange(ch, program)
+		}
 		const filtered = this._filterNotes(notes)
 		this._scheduler.load({ notes: filtered })
 	}

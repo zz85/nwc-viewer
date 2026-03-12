@@ -14,8 +14,9 @@ Planned features and improvements, roughly prioritized.
 - [x] Keep highlights on pause — score and piano highlights stay visible when paused
 - [x] Fix chord accidental MIDI — accidentals on chord child notes now resolve correctly (key sig + running + explicit)
 - [ ] Highlight current bar — light red translucent overlay behind the active measure during playback
-- [ ] Instrument/channel assignment per staff — currently all notes go to channel 0 / piano
-- [ ] MIDI instrument/track selection — choose instrument per staff from GM program list
+- [x] Instrument/channel assignment per staff — each staff gets its own MIDI channel (skipping ch9 for non-percussion), with GM program change sent before playback using the NWC patchName
+- [x] Tempo beat unit conversion — tempo markings with non-quarter beat units (half, eighth, dotted) are converted to equivalent quarter-note BPM for correct playback speed
+- [x] NoteOff overlap fix — reference-counted active notes prevent premature noteOff when overlapping notes share the same pitch on the same channel
 - [ ] Dynamic markings affect playback velocity
 - [ ] Repeat/volta playback support
 - [ ] Tempo changes during playback (rit., accel.)
