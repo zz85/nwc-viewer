@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Notably — Visual Test Suite</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	background: #f0f0f0;
+	color: #333;
+	padding: 20px;
+}
+h1 { margin-bottom: 4px; font-size: 24px; }
+.subtitle { color: #666; margin-bottom: 20px; font-size: 13px; }
+.controls {
+	display: flex; gap: 10px; align-items: center;
+	margin-bottom: 20px; padding: 10px;
+	background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.controls label { font-size: 13px; font-weight: 600; }
+.controls select, .controls button {
+	font-size: 13px; padding: 4px 8px; border-radius: 4px; border: 1px solid #ccc;
+}
+.controls button { cursor: pointer; background: #4a90d9; color: #fff; border: none; padding: 6px 14px; }
+.controls button:hover { background: #357abd; }
+.status { margin-left: auto; font-size: 12px; color: #888; }
+
+.category { margin-bottom: 30px; }
+.category h2 {
+	font-size: 16px; color: #555; border-bottom: 2px solid #ddd;
+	padding-bottom: 4px; margin-bottom: 12px;
+}
+.test-grid {
+	display: flex; flex-wrap: wrap; gap: 16px;
+}
+.test-case {
+	background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+	overflow: hidden; display: flex; flex-direction: column;
+}
+.test-case .label {
+	font-size: 11px; font-weight: 600; color: #555; padding: 6px 10px;
+	background: #fafafa; border-bottom: 1px solid #eee;
+}
+.test-case .label .desc {
+	font-weight: 400; color: #999; display: block; margin-top: 1px;
+}
+.test-case canvas {
+	display: block;
+}
+.test-case.error { border: 2px solid #e74c3c; }
+.test-case.error .label { background: #fdecea; color: #c0392b; }
+
+/* Hidden rendering area — the real pipeline renders here, then we snapshot */
+#render-area { position: absolute; left: -9999px; top: -9999px; }
+#render-area #score { width: 1200px; height: 600px; overflow: hidden; }
+</style>
+</head>
+<body>
+
+<h1>Notably — Visual Test Suite</h1>
+<p class="subtitle">Visual regression tests for score rendering. Inspect after code changes to verify layout correctness.</p>
+
+<div class="controls">
+	<label>Font Size:</label>
+	<select id="font-size-select">
+		<option value="20">20</option>
+		<option value="24">24</option>
+		<option value="28" selected>28</option>
+		<option value="32">32</option>
+	</select>
+	<button id="run-btn">Re-run All Tests</button>
+	<span class="status" id="status">Loading...</span>
+</div>
+
+<div id="test-output"></div>
+
+<!-- Hidden rendering area used by the pipeline -->
+<div id="render-area">
+	<div id="score"><div id="invisible_canvas"></div></div>
+	<!-- Stubs for loaders.js DOM dependencies -->
+	<input type="file" id="opener" style="display:none">
+	<button id="open" style="display:none"></button>
+</div>
+
+<!-- Vendor dependencies -->
+<script src="../../vendor/inflate.min.js"></script>
+<script src="../../vendor/opentype.min.js"></script>
+
+<script type="module">
+import '../../src/constants.js'
+import { setLayoutMode, setFontSize, getFontSize, setZoomLevel } from '../../src/constants.js'
+import { decodeNwcArrayBuffer } from '../../src/nwc.js'
+import { interpret } from '../../src/interpreter.js'
+import { setup, resizeToFit } from '../../src/drawing.js'
+import { score } from '../../src/layout/typeset.js'
+import { MusicContext } from '../../src/context.js'
+
+// ── Test fixture definitions ───────────────────────────────────────
+
+const FIXTURES = [
+	// ── Real NWC files ──────────────────────────────────────────
+	{
+		category: 'Full Scores',
+		tests: [
+			{ file: '../../nwcs/bachjesu.nwc', label: 'Bach — Jesu, Joy', desc: '4-part vocal + basso continuo, triplets, beams, ties' },
+			{ file: '../../nwcs/bachairg.nwc', label: 'Bach — Air on G', desc: '11 staves, slurs, dynamics, ornate beaming' },
+			{ file: '../../samples/carenot.nwc', label: 'Carenot', desc: 'Articulations, staccato, accent, grace notes' },
+			{ file: '../../samples/adohn.nwc', label: 'O Holy Night', desc: 'Split-stem chords, tempo, text, dynamics' },
+			{ file: '../../nwcs/beetfur.nwc', label: 'Beethoven — Fur Elise', desc: 'Triplets, dynamics, repeats' },
+		]
+	},
+	{
+		category: 'Beams & Stems',
+		tests: [
+			{ file: '../../nwcs/bachjesu.nwc', label: 'Triplet Beams (Staff 1)', desc: 'Violino I — running triplet 8ths, beam=1,2,3' },
+			{ file: '../../nwcs/albast.nwc', label: 'Albeniz — Asturias', desc: 'Fast 16th note beaming patterns' },
+		]
+	},
+	{
+		category: 'Ties & Slurs',
+		tests: [
+			{ file: '../../samples/AveMariaArcadelt.nwc', label: 'Ave Maria — Arcadelt', desc: 'Vocal slurs, tied notes across barlines' },
+			{ file: '../../samples/bwv140-2.nwc', label: 'Bach BWV 140-2', desc: 'Chorale ties, chord ties' },
+			{ file: '../../samples/WhatChildIsThis.nwc', label: 'What Child Is This', desc: 'Slurs over varied pitch intervals' },
+		]
+	},
+	{
+		category: 'Lyrics & Vocals',
+		tests: [
+			{ file: '../../samples/AChildThisDayIsBorn.nwc', label: 'A Child This Day', desc: 'Lyrics with hyphens, multi-syllable words' },
+			{ file: '../../samples/WakenChristianChildren.nwc', label: 'Waken Christian Children', desc: 'Lyrics under beamed notes' },
+			{ file: '../../samples/WeThreeKingsOfOrientAre.nwc', label: 'We Three Kings', desc: 'Lyrics with slurs, tied notes skip syllables' },
+		]
+	},
+	{
+		category: 'Dynamics & Expressions',
+		tests: [
+			{ file: '../../nwcs/anonitra.nwc', label: 'Anitra\'s Dance', desc: 'Dynamics (pp, p, f), tempo markings' },
+			{ file: '../../nwcs/bellvaga.nwc', label: 'Bellini — Vaga Luna', desc: 'Hairpins, dynamic markings, expression text' },
+		]
+	},
+	{
+		category: 'Clefs & Key Signatures',
+		tests: [
+			{ file: '../../nwcs/bacfuggm.nwc', label: 'Bach — Fugue G minor', desc: 'Key signatures with flats' },
+			{ file: '../../nwcs/albadag.nwc', label: 'Albéniz — Adagio', desc: 'Key signatures with sharps' },
+		]
+	},
+]
+
+// ── Rendering engine ───────────────────────────────────────────────
+
+const statusEl = document.getElementById('status')
+const outputEl = document.getElementById('test-output')
+
+async function loadFile(url) {
+	const resp = await fetch(url)
+	if (!resp.ok) throw new Error(`Failed to load ${url}: ${resp.status}`)
+	return resp.arrayBuffer()
+}
+
+function snapshotCanvas(srcCanvas, width, height) {
+	// After score() + quickDraw(), the source canvas has the rendered content
+	// at backing-store resolution (CSS pixels * DPR).  We copy the visible
+	// portion into a display-sized canvas.
+	const snap = document.createElement('canvas')
+	const maxW = 1100
+	const maxH = 500
+	const displayW = Math.min(Math.ceil(width), maxW)
+	const displayH = Math.min(Math.ceil(height), maxH)
+
+	// Use 1:1 pixel ratio for the snapshot (no DPR scaling) so it's crisp
+	snap.width = displayW
+	snap.height = displayH
+	snap.style.width = displayW + 'px'
+	snap.style.height = displayH + 'px'
+
+	const sCtx = snap.getContext('2d')
+	// The source canvas is DPR-scaled.  Map the score-space region to our snap.
+	const dpr = srcCanvas.width / parseFloat(srcCanvas.style.width || srcCanvas.width)
+	sCtx.drawImage(
+		srcCanvas,
+		0, 0, displayW * dpr, displayH * dpr,   // source rect (backing pixels)
+		0, 0, displayW, displayH                 // dest rect (display pixels)
+	)
+	return snap
+}
+
+function renderFixture(data) {
+	// Force scroll mode for single-line rendering
+	setLayoutMode('scroll')
+	setZoomLevel(1)
+
+	// Use MusicContext so score() gets canvas/ctx from the context
+	const musicCtx = new MusicContext(data, window.canvas)
+
+	// Interpret
+	interpret(musicCtx)
+
+	// Layout + draw (renders to window.canvas via the pipeline)
+	score(musicCtx)
+
+	// Return content dimensions
+	return {
+		width: window.maxCanvasWidth || 800,
+		height: window.maxCanvasHeight || 200,
+	}
+}
+
+async function runAllTests() {
+	outputEl.innerHTML = ''
+	let total = 0, passed = 0, failed = 0
+
+	for (const cat of FIXTURES) {
+		total += cat.tests.length
+	}
+
+	statusEl.textContent = `Running 0 / ${total}...`
+	let idx = 0
+
+	for (const cat of FIXTURES) {
+		const catDiv = document.createElement('div')
+		catDiv.className = 'category'
+		catDiv.innerHTML = `<h2>${cat.category}</h2>`
+		const grid = document.createElement('div')
+		grid.className = 'test-grid'
+		catDiv.appendChild(grid)
+		outputEl.appendChild(catDiv)
+
+		for (const test of cat.tests) {
+			idx++
+			statusEl.textContent = `Rendering ${idx} / ${total}: ${test.label}...`
+
+			const caseDiv = document.createElement('div')
+			caseDiv.className = 'test-case'
+
+			const labelDiv = document.createElement('div')
+			labelDiv.className = 'label'
+			labelDiv.innerHTML = `${test.label}${test.desc ? `<span class="desc">${test.desc}</span>` : ''}`
+			caseDiv.appendChild(labelDiv)
+
+			try {
+				const buf = await loadFile(test.file)
+				const data = decodeNwcArrayBuffer(buf)
+				const dims = renderFixture(data)
+
+				const snap = snapshotCanvas(window.canvas, dims.width, dims.height)
+				caseDiv.appendChild(snap)
+				passed++
+			} catch (err) {
+				caseDiv.classList.add('error')
+				const errDiv = document.createElement('div')
+				errDiv.style.cssText = 'padding:10px;font-size:11px;color:#c0392b;'
+				errDiv.textContent = `Error: ${err.message}`
+				caseDiv.appendChild(errDiv)
+				console.error(`[${test.label}]`, err)
+				failed++
+			}
+
+			grid.appendChild(caseDiv)
+
+			// Yield to browser between renders so progress shows
+			await new Promise(r => setTimeout(r, 0))
+		}
+	}
+
+	statusEl.textContent = `Done — ${passed} passed, ${failed} failed out of ${total}`
+}
+
+// ── Initialization ─────────────────────────────────────────────────
+
+function init() {
+	const fontSize = parseInt(document.getElementById('font-size-select').value) || 28
+	setFontSize(fontSize)
+
+	// Font path must be relative to this HTML file's location (test/visual/)
+	const fontPath = '../../vendor/bravura-1.211/otf/Bravura.otf'
+
+	setup(
+		() => {
+			statusEl.textContent = 'Font loaded. Running tests...'
+			runAllTests()
+		},
+		fontPath,
+		(canvas) => {
+			// Insert the pipeline canvas into the hidden render area
+			const scoreDiv = document.getElementById('score')
+			const spacer = document.getElementById('invisible_canvas')
+			scoreDiv.insertBefore(canvas, spacer)
+		}
+	)
+}
+
+document.getElementById('run-btn').addEventListener('click', () => {
+	const fontSize = parseInt(document.getElementById('font-size-select').value) || 28
+	setFontSize(fontSize)
+	runAllTests()
+})
+
+document.getElementById('font-size-select').addEventListener('change', () => {
+	const fontSize = parseInt(document.getElementById('font-size-select').value) || 28
+	setFontSize(fontSize)
+	runAllTests()
+})
+
+init()
+</script>
+</body>
+</html>

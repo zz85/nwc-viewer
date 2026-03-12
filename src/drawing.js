@@ -1248,10 +1248,11 @@ class Drawing {
 		// quickDraw() applies ctx.scale(zoom) so drawing coordinates are in
 		// score-space, but scrollLeft/clientWidth are in screen pixels.
 		const zoom = getZoomLevel()
-		const viewportWidth = scoreElm.clientWidth / zoom
-		const viewportOffsetX = scoreElm.scrollLeft / zoom
-		const viewportHeight = scoreElm.clientHeight / zoom
-		const viewportOffsetY = scoreElm.scrollTop / zoom
+		const _scoreElm = document.getElementById('score')
+		const viewportWidth = (_scoreElm?.clientWidth || 800) / zoom
+		const viewportOffsetX = (_scoreElm?.scrollLeft || 0) / zoom
+		const viewportHeight = (_scoreElm?.clientHeight || 600) / zoom
+		const viewportOffsetY = (_scoreElm?.scrollTop || 0) / zoom
 
 		// Restore default font/baseline — canvas resets wipe context state
 		// (e.g. after resizeToFit()), so re-apply on every draw pass.
