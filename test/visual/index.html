@@ -59,7 +59,7 @@ h1 { margin-bottom: 4px; font-size: 24px; }
 <body>
 
 <h1>Notably — Visual Test Suite</h1>
-<p class="subtitle">Visual regression tests for score rendering. Inspect after code changes to verify layout correctness.</p>
+<p class="subtitle">Isolated feature tests (synthetic data) + full NWC file rendering. Inspect after code changes to verify layout correctness.</p>
 
 <div class="controls">
 	<label>Font Size:</label>
@@ -95,10 +95,12 @@ import { interpret } from '../../src/interpreter.js'
 import { setup, resizeToFit } from '../../src/drawing.js'
 import { score } from '../../src/layout/typeset.js'
 import { MusicContext } from '../../src/context.js'
+import { SYNTHETIC_FIXTURES } from './fixtures.js'
 
 // ── Test fixture definitions ───────────────────────────────────────
 
-const FIXTURES = [
+// NWC file-based fixtures (loaded from disk)
+const FILE_FIXTURES = [
 	// ── Real NWC files ──────────────────────────────────────────
 	{
 		category: 'Full Scores',
@@ -212,14 +214,17 @@ async function runAllTests() {
 	outputEl.innerHTML = ''
 	let total = 0, passed = 0, failed = 0
 
-	for (const cat of FIXTURES) {
+	// Combine synthetic (data-based) and file-based fixture lists
+	const allFixtures = [...SYNTHETIC_FIXTURES, ...FILE_FIXTURES]
+
+	for (const cat of allFixtures) {
 		total += cat.tests.length
 	}
 
 	statusEl.textContent = `Running 0 / ${total}...`
 	let idx = 0
 
-	for (const cat of FIXTURES) {
+	for (const cat of allFixtures) {
 		const catDiv = document.createElement('div')
 		catDiv.className = 'category'
 		catDiv.innerHTML = `<h2>${cat.category}</h2>`
@@ -241,10 +246,19 @@ async function runAllTests() {
 			caseDiv.appendChild(labelDiv)
 
 			try {
-				const buf = await loadFile(test.file)
-				const data = decodeNwcArrayBuffer(buf)
-				const dims = renderFixture(data)
+				let data
+				if (test.data) {
+					// Synthetic fixture — data built directly
+					data = test.data()
+				} else if (test.file) {
+					// File-based fixture — load and parse NWC file
+					const buf = await loadFile(test.file)
+					data = decodeNwcArrayBuffer(buf)
+				} else {
+					throw new Error('Fixture has neither data() nor file')
+				}
 
+				const dims = renderFixture(data)
 				const snap = snapshotCanvas(window.canvas, dims.width, dims.height)
 				caseDiv.appendChild(snap)
 				passed++
