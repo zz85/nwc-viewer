@@ -441,12 +441,13 @@ class KeySignature extends Draw {
 		// eg. ['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#']
 		//     ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb']
 		this.accidentals = accidentals
+		this.width = 0  // default: C major has no accidentals
 
 		// magic numbers
 		const key_sharps_pos = [8, 5, 9, 6, 3, 7, 4]
 		const key_flats_pos = [4, 7, 3, 6, 2, 5, 1]
 
-		const first = accidentals[0]
+		const first = accidentals && accidentals[0]
 		if (!first) return
 
 		let positions = first.charAt(1) === '#' ? key_sharps_pos : key_flats_pos
