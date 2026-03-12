@@ -75,6 +75,9 @@ export function buildNoteEvents(data) {
 	for (let si = 0; si < staves.length; si++) {
 		const tokens = staves[si].tokens
 		const channel = channels[si]
+		// Transposition: semitones above (+) or below (-) written pitch.
+		// A Bb clarinet written up 2 semitones has transposition = -2.
+		const transpose = staves[si].transposition || 0
 
 		for (let ti = 0; ti < tokens.length; ti++) {
 			const tok = tokens[ti]
@@ -105,7 +108,7 @@ export function buildNoteEvents(data) {
 
 			if (tok.type === 'Note') {
 				if (tok.name == null) continue
-				const midi = toMidi(tok.name, tok.octave, tok.accidentalValue)
+				const midi = toMidi(tok.name, tok.octave, tok.accidentalValue) + transpose
 				notes.push({
 					midi,
 					time: startSec,
@@ -124,7 +127,7 @@ export function buildNoteEvents(data) {
 				for (const n of tok.notes) {
 					if (n.name == null) continue
 					if (n.tieEnd) continue
-					const midi = toMidi(n.name, n.octave, n.accidentalValue)
+					const midi = toMidi(n.name, n.octave, n.accidentalValue) + transpose
 					notes.push({
 						midi,
 						time: startSec,

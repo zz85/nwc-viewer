@@ -17,6 +17,7 @@ Planned features and improvements, roughly prioritized.
 - [x] Instrument/channel assignment per staff — each staff gets its own MIDI channel (skipping ch9 for non-percussion), with GM program change sent before playback using the NWC patchName
 - [x] Tempo beat unit conversion — tempo markings with non-quarter beat units (half, eighth, dotted) are converted to equivalent quarter-note BPM for correct playback speed
 - [x] NoteOff overlap fix — reference-counted active notes prevent premature noteOff when overlapping notes share the same pitch on the same channel
+- [x] Staff transposition — per-staff semitone transposition extracted from binary/nwctxt formats, applied to MIDI output for correct sounding pitch of transposing instruments
 - [ ] Dynamic markings affect playback velocity
 - [ ] Repeat/volta playback support
 - [ ] Tempo changes during playback (rit., accel.)

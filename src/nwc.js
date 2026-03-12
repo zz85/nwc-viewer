@@ -402,6 +402,7 @@ function convertFromNewParser(nwcFile) {
 					group_name: staff.group || '',
 					channel: staff.channel || 0,
 				patchName: staff.patchName ?? 0,
+				transposition: staff.transposition || 0,
 					// WithNextStaff grouping flags
 					bracketWithNext: !!staff.bracketWithNext,
 					braceWithNext: !!staff.braceWithNext,
