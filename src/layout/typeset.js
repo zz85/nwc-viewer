@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily, getSpacingModel, getSpringDensity, getRodSpringBalance } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie } from '../drawing.js'
@@ -420,10 +420,13 @@ function rossSpringWidth(durValue) {
 			break
 		}
 	}
+	// Duration proportionality: interpolate between uniform (ratio=1) and
+	// the Ross/Gould ratio.  At 0 all notes get same spring; at 1 standard
+	// engraving; above 1 duration differences are exaggerated.
+	var prop = getDurationProportionality()
+	var effectiveRatio = 1.0 + (ratio - 1.0) * prop
 	// Base unit: a quarter-note spring = springDensity * fontSize.
-	// Higher values make duration differences more visually prominent
-	// (time-based spacing dominates over visual/rod spacing).
-	return ratio * getFontSize() * getSpringDensity()
+	return effectiveRatio * getFontSize() * getSpringDensity()
 }
 
 // Minimum spring factor — prevents notes from overlapping.
@@ -2792,7 +2795,12 @@ function calculatePadding(durValue) {
 	// Scale by springDensity / 1.5 so the density slider affects both
 	// the spring model and the legacy model proportionally.
 	const densityScale = getSpringDensity() / 1.5
-	const baseSpacing = Math.sqrt(duration * 16) * densityScale
+	// sqrt(quarter * 16) = 2.0 is our "quarter baseline".  Proportionality
+	// interpolates between uniform (quarterBaseline) and the actual sqrt value.
+	const rawSpacing = Math.sqrt(duration * 16)
+	const quarterBaseline = 2.0   // sqrt(0.25 * 16)
+	const prop = getDurationProportionality()
+	const baseSpacing = (quarterBaseline + (rawSpacing - quarterBaseline) * prop) * densityScale
 	
 	// Clamp between reasonable bounds
 	return Math.min(Math.max(baseSpacing, 0.5), 10)

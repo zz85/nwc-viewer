@@ -143,6 +143,21 @@ function getRodSpringBalance() {
 	return rodSpringBalance
 }
 
+// Duration proportionality — how much note duration affects horizontal spacing.
+// At 0 (visual): all notes get the same spring width regardless of duration.
+// At 1 (default): standard Ross/Gould engraving ratios (quarter = 1.0, half ≈ 1.4).
+// At 2 (timing): exaggerated duration differences approaching linear.
+// Interpolates: effectiveRatio = 1 + (rossRatio - 1) * proportionality
+let durationProportionality = 1.0
+
+function setDurationProportionality(n) {
+	durationProportionality = Math.max(0.0, Math.min(2.0, n))
+}
+
+function getDurationProportionality() {
+	return durationProportionality
+}
+
 // Visual zoom level — applied as a canvas transform in quickDraw().
 // This does NOT trigger a re-layout; it simply scales the rendered output.
 // Use setFontSize() to change the actual music engraving size (requires re-layout).
@@ -178,6 +193,8 @@ Object.assign(!isBrowser() ? global : window, {
 	getSpringDensity,
 	setRodSpringBalance,
 	getRodSpringBalance,
+	setDurationProportionality,
+	getDurationProportionality,
 	setZoomLevel,
 	getZoomLevel,
 	ZOOM_MIN,
@@ -202,6 +219,7 @@ export {
 	setSpacingModel, getSpacingModel,
 	setSpringDensity, getSpringDensity,
 	setRodSpringBalance, getRodSpringBalance,
+	setDurationProportionality, getDurationProportionality,
 	setZoomLevel, getZoomLevel, ZOOM_MIN, ZOOM_MAX,
 	setLayoutMode, getLayoutMode,
 	PAGE_SIZES, setPageSize, getPageSize, getPageDimensions, getPageMargins,

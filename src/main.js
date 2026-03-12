@@ -1,5 +1,5 @@
 import './constants.js'
-import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont, getSpacingModel, setSpacingModel, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance } from './constants.js'
+import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont, getSpacingModel, setSpacingModel, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -85,10 +85,15 @@ nwcSamples.forEach((sample) => {
 sample_dom.onchange = function () {
 	const path = samples.includes(sample_dom.value) ? 'samples/' : 'nwcs/'
 	ajax(path + sample_dom.value, (buf) => processData(buf, sample_dom.value))
+	localStorage.setItem('nwc_last_song', sample_dom.value)
 }
 
-// Default loading
-ajax('samples/WhatChildIsThis.nwc', (buf) => processData(buf, 'WhatChildIsThis.nwc'))
+// Default loading — restore last song or fall back to WhatChildIsThis
+const LAST_SONG_KEY = 'nwc_last_song'
+const lastSong = localStorage.getItem(LAST_SONG_KEY) || 'WhatChildIsThis.nwc'
+const lastSongPath = samples.includes(lastSong) ? 'samples/' : 'nwcs/'
+ajax(lastSongPath + lastSong, (buf) => processData(buf, lastSong))
+if (sample_dom) sample_dom.value = lastSong
 
 // Doesn't work yet
 
@@ -744,3 +749,29 @@ if (rodSpringSlider) {
 var storedRodSpring = localStorage.getItem(ROD_SPRING_STORAGE_KEY)
 if (storedRodSpring !== null) setRodSpringBalance(parseFloat(storedRodSpring))
 updateRodSpringUI()
+
+// ---- Duration proportionality slider (visual ↔ timing) ----
+
+const PROP_STORAGE_KEY = 'nwc_duration_proportionality'
+const propSlider = document.getElementById('proportionality_slider')
+const propLabel = document.getElementById('proportionality_label')
+
+function updateProportionalityUI() {
+	var val = getDurationProportionality()
+	if (propSlider) propSlider.value = val
+	if (propLabel) propLabel.textContent = val.toFixed(2)
+}
+
+if (propSlider) {
+	propSlider.oninput = function () {
+		var val = parseFloat(propSlider.value)
+		setDurationProportionality(val)
+		localStorage.setItem(PROP_STORAGE_KEY, val)
+		updateProportionalityUI()
+		rerender()
+	}
+}
+
+var storedProp = localStorage.getItem(PROP_STORAGE_KEY)
+if (storedProp !== null) setDurationProportionality(parseFloat(storedProp))
+updateProportionalityUI()
