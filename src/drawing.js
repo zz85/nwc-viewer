@@ -522,20 +522,30 @@ class Accidental extends Glyph {
 }
 
 class Ledger extends Draw {
-	constructor(start, end) {
+	constructor(start, end, noteheadWidth) {
 		super()
 		const from = Math.min(start, end)
 		const to = Math.max(start, end)
 		this.positionY(from)
 		this.to = to - from
-		this.width = 18
+		this.fontSize = getFontSize()
+		this.noteheadWidth = noteheadWidth || this.fontSize * 0.3
+		// Overhang: ~1/3 of notehead width on each side
+		this.overhang = this.noteheadWidth * 0.33
+		this.width = this.noteheadWidth + this.overhang * 2
 	}
 
 	draw(ctx) {
+		var x0 = -this.overhang
+		var x1 = this.noteheadWidth + this.overhang
+
+		ctx.lineWidth = this.fontSize / 32   // match staff line thickness
+		ctx.strokeStyle = '#000'
+
 		for (let i = 0; i < this.to; i += 2) {
 			ctx.beginPath()
-			ctx.moveTo(-4, this.unitsToY(i))
-			ctx.lineTo(this.width, this.unitsToY(i))
+			ctx.moveTo(x0, this.unitsToY(i))
+			ctx.lineTo(x1, this.unitsToY(i))
 			ctx.stroke()
 		}
 	}

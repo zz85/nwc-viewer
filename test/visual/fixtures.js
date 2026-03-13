@@ -223,12 +223,58 @@ const SYNTHETIC_FIXTURES = [
 				]]),
 			},
 			{
-				label: 'Ledger Lines',
-				desc: 'Notes far above and below staff',
-				data: () => makeScore('Ledger Lines', [[
+				label: 'Ledger Lines — Below',
+				desc: 'Notes stepping below staff: spaces and lines',
+				data: () => makeScore('Ledger Lines — Below', [[
 					clef(), keySig(), timeSig(),
-					note(-8, 4), note(-6, 4), note(-4, 4), note(0, 4), bar(),
-					note(4, 4), note(6, 4), note(8, 4), note(10, 4),
+					note(0, 4),   // bottom staff line (no ledger)
+					note(-1, 4),  // first space below (no ledger)
+					note(-2, 4),  // first ledger line below
+					note(-3, 4),  // space below first ledger
+					bar(),
+					note(-4, 4),  // second ledger line below
+					note(-6, 4),  // third ledger line
+					note(-8, 4),  // fourth ledger line
+					note(-10, 4), // fifth ledger line
+					bar(3),
+				]]),
+			},
+			{
+				label: 'Ledger Lines — Above',
+				desc: 'Notes stepping above staff: spaces and lines',
+				data: () => makeScore('Ledger Lines — Above', [[
+					clef(), keySig(), timeSig(),
+					note(4, 4),   // top staff line (no ledger)
+					note(5, 4),   // first space above (no ledger)
+					note(6, 4),   // first ledger line above
+					note(7, 4),   // space above first ledger
+					bar(),
+					note(8, 4),   // second ledger line above
+					note(10, 4),  // third ledger line
+					note(12, 4),  // fourth ledger line
+					note(14, 4),  // fifth ledger line
+					bar(3),
+				]]),
+			},
+			{
+				label: 'Ledger Lines — Whole Notes',
+				desc: 'Wider noteheads get proportionally wider ledger lines',
+				data: () => makeScore('Ledger Lines — Whole Notes', [[
+					clef(), keySig(), timeSig(),
+					note(-4, 1),  // whole note below staff
+					bar(),
+					note(8, 1),   // whole note above staff
+					bar(3),
+				]]),
+			},
+			{
+				label: 'Ledger Lines — Chords',
+				desc: 'Chord ledger lines cover full range without duplication',
+				data: () => makeScore('Ledger Lines — Chords', [[
+					clef(), keySig(), timeSig(),
+					chord([-6, -4, -2], 4), bar(),  // chord spanning 3 ledger lines below
+					chord([6, 8, 10], 4), bar(),     // chord spanning 3 ledger lines above
+					chord([-4, 0, 8], 2),             // chord crossing both sides
 					bar(3),
 				]]),
 			},

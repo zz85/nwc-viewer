@@ -2379,8 +2379,32 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			let tmp = cursor.staveX
 			token.notes.forEach((note) => {
 				cursor.staveX = tmp
-				drawForNote(note, cursor, token)
+				drawForNote(note, cursor, token, true)  // skip ledger — consolidated below
 			})
+			// Consolidated ledger lines for the chord: compute the full
+			// range across all notes and create a single Ledger per side.
+			cursor.staveX = tmp
+			var chordPositions = token.notes.map(n => n.position + 4)
+			var chordMinPos = Math.min.apply(null, chordPositions)
+			var chordMaxPos = Math.max.apply(null, chordPositions)
+			var chordNhWidth = (token.notes[0] && token.notes[0].drawingNoteHead)
+				? token.notes[0].drawingNoteHead.width : getFontSize() * 0.3
+			if (chordMinPos < 0) {
+				var chordLedgerStart = ((chordMinPos / 2) | 0) * 2
+				if (chordLedgerStart < 0) {
+					var ledgerBelow = new Ledger(chordLedgerStart, 0, chordNhWidth)
+					cursor.posGlyph(ledgerBelow)
+					drawing.add(ledgerBelow)
+				}
+			}
+			if (chordMaxPos > 8) {
+				var chordLedgerEnd = Math.floor(chordMaxPos / 2) * 2
+				if (chordLedgerEnd >= 10) {
+					var ledgerAbove = new Ledger(10, chordLedgerEnd + 2, chordNhWidth)
+					cursor.posGlyph(ledgerAbove)
+					drawing.add(ledgerAbove)
+				}
+			}
 			// Set parent chord's drawingNoteHead for slur/highlight anchoring.
 			// Use the first child's notehead (ties use per-child noteheads directly).
 			if (token.notes.length > 0 && token.notes[0].drawingNoteHead) {
@@ -2536,7 +2560,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 	tickTracker.add(token, cursor)
 }
 
-function drawForNote(token, cursor, durToken) {
+function drawForNote(token, cursor, durToken, skipLedger) {
 	// Use the individual note's duration if available (split-stem chords),
 	// otherwise fall back to the chord/token-level duration.
 	const duration = token.duration || durToken.duration
@@ -2581,15 +2605,23 @@ function drawForNote(token, cursor, durToken) {
 	drawing.add(noteHead)
 	const noteHeadWidth = noteHead.width
 
-	// ledger lines
-	if (relativePos < 0) {
-		const ledger = new Ledger(((relativePos / 2) | 0) * 2, 0)
-		cursor.posGlyph(ledger)
-		drawing.add(ledger)
-	} else if (relativePos > 8) {
-		const ledger = new Ledger((((relativePos + 1) / 2) | 0) * 2, 8)
-		cursor.posGlyph(ledger)
-		drawing.add(ledger)
+	// ledger lines (skip when called from chord — chord handles them consolidated)
+	if (!skipLedger) {
+		if (relativePos < 0) {
+			const ledgerStart = ((relativePos / 2) | 0) * 2
+			if (ledgerStart < 0) {
+				const ledger = new Ledger(ledgerStart, 0, noteHeadWidth)
+				cursor.posGlyph(ledger)
+				drawing.add(ledger)
+			}
+		} else if (relativePos > 8) {
+			const ledgerEnd = Math.floor(relativePos / 2) * 2
+			if (ledgerEnd >= 10) {
+				const ledger = new Ledger(10, ledgerEnd + 2, noteHeadWidth)
+				cursor.posGlyph(ledger)
+				drawing.add(ledger)
+			}
+		}
 	}
 
 	token.drawingNoteHead = noteHead
