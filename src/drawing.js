@@ -126,6 +126,9 @@ const fontMap = {
 	coda: 'E048',
 	segno: 'E047',
 
+	// Brackets and braces (U+E000–U+E00F)
+	brace: 'E000',
+
 	// Common ornaments (U+E560–U+E56F)
 }
 
@@ -1334,4 +1337,4 @@ const Claire = {
 Object.assign(Claire, { Drawing, setup, Claire, resize, resizeToFit, changeFont })
 Object.assign(window, Claire)
 
-export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, Slur, PartialTie, Beam, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, changeFont }
+export { Drawing, setup, Claire, resize, resizeToFit, Stem, Glyph, Tie, Slur, PartialTie, Beam, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, changeFont, getCode, glyphPathGet }

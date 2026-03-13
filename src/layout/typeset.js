@@ -1,7 +1,7 @@
 import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
-import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie } from '../drawing.js'
+import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie, getCode, glyphPathGet } from '../drawing.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
@@ -2260,6 +2260,7 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 	}
 
 	// Draw per-group braces for braceWithNext chains
+	var braceChar = getCode('brace')
 	for (var si = 0; si < staves.length; si++) {
 		var stave = staves[si]
 		if (stave.braceWithNext) {
@@ -2270,22 +2271,34 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 			let topY = visibleStaffY(si) - fs * 0.15
 			let botY = visibleStaffY(endSi) + fs * 1.05
 			let braceH = botY - topY
-			let midY = topY + braceH / 2
-			let curveW = fs * 0.5
-			let bLw = fs / 18
+
+			// Render the SMuFL brace glyph, scaled vertically to span the
+			// staff group.  The glyph is measured at a reference size, then a
+			// Y scale is computed to stretch it to the required height.
+			var refSize = fs * 4  // reference rendering size
+			var refPath = glyphPathGet(braceChar, refSize)
+			var bbox = refPath.getBoundingBox()
+			var designH = bbox.y2 - bbox.y1
+			if (designH <= 0) {
+				// Fallback if bounding box is invalid
+				si = endSi
+				continue
+			}
+			var yScale = braceH / designH
+			// Keep X proportional but cap to prevent overly wide braces
+			var xScale = Math.min(yScale, 1.5)
+
 			var brace = new Claire.Path(function(ctx) {
-				ctx.beginPath()
-				ctx.lineWidth = bLw
-				ctx.moveTo(braceX + curveW, topY)
-				ctx.bezierCurveTo(braceX + curveW * 0.2, topY + braceH * 0.1,
-					braceX + curveW * 0.4, midY - braceH * 0.05,
-					braceX, midY)
-				ctx.bezierCurveTo(braceX + curveW * 0.4, midY + braceH * 0.05,
-					braceX + curveW * 0.2, botY - braceH * 0.1,
-					braceX + curveW, botY)
-				ctx.stroke()
+				ctx.save()
+				ctx.translate(braceX, topY - bbox.y1 * yScale)
+				ctx.scale(xScale, yScale)
+				ctx.fillStyle = '#000'
+				refPath.draw(ctx)
+				ctx.restore()
 			})
 			drawing.add(brace)
+
+			si = endSi  // skip past the chain
 		}
 	}
 }

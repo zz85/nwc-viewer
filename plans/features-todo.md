@@ -52,7 +52,7 @@ Planned features and improvements, roughly prioritized.
 - [ ] First-system indent for instrument names
 - [ ] Melisma/extender lines for slurred notes under one syllable
 - [ ] Multiple lyric verses (currently only verse 1 rendered; NWC supports up to 8)
-- [ ] Grand staff brace rendering (`braceWithNext` parsed but not drawn)
+- [x] Grand staff brace rendering (`braceWithNext` parsed and drawn as SMuFL glyph)
 - [ ] Proportional / spring-and-rod spacing (currently fixed-width-per-duration)
 - [x] Grace notes — 60% scale noteheads/accidentals, stems always up, shorter stems (~5 half-spaces), thinner stem/beam lines, scaled flag glyphs, acciaccatura slash through stem. Beamed grace groups get scaled beams. Reduced horizontal spacing (40% spring, 50% padding).
 - [x] Ties and slurs — direction follows stem (up→below, down→above); anchored at notehead pitch (offsetY); per-child-note chord ties; cross-system tie splitting preserves direction; slurs use outer chord note as anchor
