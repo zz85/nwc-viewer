@@ -23,10 +23,15 @@ class StaveCursor {
 	constructor(stave, staveIndex) {
 		this.tokenIndex = -1
 		this.staveIndex = staveIndex
-		this.staveX = getLayoutMode() === 'wrap' ? 0 : getFontSize()
+		// Left margin: scroll mode starts one fontSize from canvas edge;
+		// wrap and page modes use 0 (reflow adds its own margins).
+		var leftEdge = getLayoutMode() === 'scroll' ? getFontSize() : 0
+		this.lastBarline = leftEdge
+		// Stave-to-clef gap: ~1.1 staff spaces so the clef doesn't sit flush
+		// against the opening barline (standard engraving: 1.0–1.5 staff spaces).
+		this.staveX = leftEdge + getFontSize() * 0.275
 		this.stave = stave
 		this.tokens = stave.tokens
-		this.lastBarline = getLayoutMode() === 'wrap' ? 0 : getFontSize()
 	}
 
 	peek() {
@@ -285,7 +290,8 @@ function collectRunningState(staves) {
  */
 function createCourtesyItems(clefStr, accidentals, clefForKey, staffY) {
 	const elements = []
-	let x = 0
+	// Stave-to-clef gap: ~1.1 staff spaces (same as initial system start)
+	let x = getFontSize() * 0.275
 
 	// Courtesy clef
 	const clef = clefFromString(clefStr)
