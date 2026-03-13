@@ -1,5 +1,5 @@
 import './constants.js'
-import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont, getSpacingModel, setSpacingModel, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel } from './constants.js'
+import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -487,7 +487,7 @@ const autoScrollBtn = document.getElementById('autoscroll_toggle')
 if (autoScrollBtn) {
 	autoScrollBtn.onclick = () => {
 		const enabled = highlighter.toggleAutoScroll()
-		autoScrollBtn.textContent = 'Auto-scroll: ' + (enabled ? 'On' : 'Off')
+		autoScrollBtn.classList.toggle('active', enabled)
 	}
 }
 
@@ -529,7 +529,7 @@ const pianoToggleBtn = document.getElementById('piano_toggle')
 if (pianoToggleBtn) {
 	pianoToggleBtn.onclick = () => {
 		const visible = pianoKeyboard.toggle()
-		pianoToggleBtn.textContent = 'Piano: ' + (visible ? 'On' : 'Off')
+		pianoToggleBtn.classList.toggle('active', visible)
 		// Resize canvas to reclaim/release space from the keyboard area
 		if (getLayoutMode() === 'wrap') {
 			rerender()
@@ -627,7 +627,7 @@ function updateParserButton() {
 	if (btn) btn.textContent = getUseNewParser() ? 'New' : 'Old'
 }
 
-window.toggleParser = function () {
+function toggleParser() {
 	const next = !getUseNewParser()
 	setUseNewParser(next)
 	localStorage.setItem(PARSER_STORAGE_KEY, next)
@@ -637,6 +637,9 @@ window.toggleParser = function () {
 	}
 }
 
+const parserBtn = document.getElementById('parser_toggle')
+if (parserBtn) parserBtn.onclick = toggleParser
+
 // Restore persisted parser preference
 const storedParser = localStorage.getItem(PARSER_STORAGE_KEY)
 if (storedParser !== null) {
@@ -644,21 +647,31 @@ if (storedParser !== null) {
 }
 updateParserButton()
 
-// ---- Layout mode toggle (scroll → wrap → page) ----
+// ---- Layout mode (segmented button group) ----
 
 const LAYOUT_STORAGE_KEY = 'nwc_layout_mode'
 const PAGE_SIZE_STORAGE_KEY = 'nwc_page_size'
+const ORIENTATION_STORAGE_KEY = 'nwc_page_orientation'
 
-function updateLayoutButton() {
-	const btn = document.getElementById('layout_toggle')
+function updateLayoutUI() {
 	const mode = getLayoutMode()
-	if (btn) btn.textContent = mode === 'wrap' ? 'Wrap' : mode === 'page' ? 'Page' : 'Scroll'
 
-	// Show/hide page size selector
-	const pageSizeSelect = document.getElementById('page_size')
-	if (pageSizeSelect) pageSizeSelect.style.display = mode === 'page' ? 'inline' : 'none'
+	// Update segmented button group active state
+	const group = document.getElementById('layout_group')
+	if (group) {
+		for (const btn of group.querySelectorAll('button')) {
+			btn.classList.toggle('active', btn.dataset.mode === mode)
+		}
+	}
 
-	// Toggle background color for page mode (gray vs white canvas)
+	// Show/hide page-only controls
+	const pageSizeEl = document.getElementById('page_size')
+	const orientGroup = document.getElementById('orientation_group')
+	const isPage = mode === 'page'
+	if (pageSizeEl) pageSizeEl.style.display = isPage ? 'inline' : 'none'
+	if (orientGroup) orientGroup.style.display = isPage ? 'inline-flex' : 'none'
+
+	// Toggle background for page mode (gray canvas background)
 	const scoreDiv = document.getElementById('score')
 	const canvasEl = window.canvas
 	if (mode === 'page') {
@@ -670,14 +683,17 @@ function updateLayoutButton() {
 	}
 }
 
-window.toggleLayout = function () {
-	const modes = ['scroll', 'wrap', 'page']
-	const idx = modes.indexOf(getLayoutMode())
-	const next = modes[(idx + 1) % modes.length]
-	setLayoutMode(next)
-	localStorage.setItem(LAYOUT_STORAGE_KEY, next)
-	updateLayoutButton()
-	rerender()
+// Layout button group click handler
+const layoutGroup = document.getElementById('layout_group')
+if (layoutGroup) {
+	layoutGroup.addEventListener('click', (e) => {
+		const btn = e.target.closest('button')
+		if (!btn || !btn.dataset.mode) return
+		setLayoutMode(btn.dataset.mode)
+		localStorage.setItem(LAYOUT_STORAGE_KEY, btn.dataset.mode)
+		updateLayoutUI()
+		rerender()
+	})
 }
 
 // Page size selector
@@ -690,6 +706,21 @@ if (pageSizeSelect) {
 	}
 }
 
+// Orientation button group click handler
+const orientGroup = document.getElementById('orientation_group')
+if (orientGroup) {
+	orientGroup.addEventListener('click', (e) => {
+		const btn = e.target.closest('button')
+		if (!btn || !btn.dataset.orient) return
+		setPageOrientation(btn.dataset.orient)
+		localStorage.setItem(ORIENTATION_STORAGE_KEY, btn.dataset.orient)
+		for (const b of orientGroup.querySelectorAll('button')) {
+			b.classList.toggle('active', b === btn)
+		}
+		if (getLayoutMode() === 'page') rerender()
+	})
+}
+
 // Restore persisted preferences
 const storedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY)
 if (storedLayout === 'wrap' || storedLayout === 'scroll' || storedLayout === 'page') {
@@ -698,7 +729,16 @@ if (storedLayout === 'wrap' || storedLayout === 'scroll' || storedLayout === 'pa
 const storedPageSize = localStorage.getItem(PAGE_SIZE_STORAGE_KEY)
 if (storedPageSize) setPageSize(storedPageSize)
 if (pageSizeSelect) pageSizeSelect.value = getPageSize()
-updateLayoutButton()
+const storedOrientation = localStorage.getItem(ORIENTATION_STORAGE_KEY)
+if (storedOrientation === 'portrait' || storedOrientation === 'landscape') {
+	setPageOrientation(storedOrientation)
+}
+if (orientGroup) {
+	for (const btn of orientGroup.querySelectorAll('button')) {
+		btn.classList.toggle('active', btn.dataset.orient === getPageOrientation())
+	}
+}
+updateLayoutUI()
 
 // ---- Music font selector ----
 
@@ -719,29 +759,31 @@ const storedMusicFont = localStorage.getItem(MUSIC_FONT_STORAGE_KEY)
 if (storedMusicFont) setMusicFont(storedMusicFont)
 if (musicFontSelect) musicFontSelect.value = getMusicFont()
 
-// ---- Spacing model toggle (current ↔ spring) ----
+// ---- Size buttons ----
 
-const SPACING_STORAGE_KEY = 'nwc_spacing_model'
+const sizeDownBtn = document.getElementById('size_down')
+const sizeUpBtn = document.getElementById('size_up')
+if (sizeDownBtn) sizeDownBtn.onclick = () => { setFontSize(getFontSize() - 4); rerender() }
+if (sizeUpBtn) sizeUpBtn.onclick = () => { setFontSize(getFontSize() + 4); rerender() }
 
-function updateSpacingButton() {
-	var btn = document.getElementById('spacing_toggle')
-	if (btn) btn.textContent = getSpacingModel() === 'spring' ? 'Spring' : 'Fixed'
+// ---- Tuning popover ----
+
+const tuningToggle = document.getElementById('tuning_toggle')
+const tuningPanel = document.getElementById('tuning_panel')
+if (tuningToggle && tuningPanel) {
+	tuningToggle.onclick = (e) => {
+		e.stopPropagation()
+		const isOpen = tuningPanel.classList.toggle('open')
+		tuningToggle.classList.toggle('active', isOpen)
+	}
+	// Close on click outside
+	document.addEventListener('click', (e) => {
+		if (!tuningPanel.contains(e.target) && e.target !== tuningToggle) {
+			tuningPanel.classList.remove('open')
+			tuningToggle.classList.remove('active')
+		}
+	})
 }
-
-window.toggleSpacing = function () {
-	var next = getSpacingModel() === 'spring' ? 'current' : 'spring'
-	setSpacingModel(next)
-	localStorage.setItem(SPACING_STORAGE_KEY, next)
-	updateSpacingButton()
-	rerender()
-}
-
-// Restore persisted spacing preference
-var storedSpacing = localStorage.getItem(SPACING_STORAGE_KEY)
-if (storedSpacing === 'current' || storedSpacing === 'spring') {
-	setSpacingModel(storedSpacing)
-}
-updateSpacingButton()
 
 // ---- Spacing density slider ----
 

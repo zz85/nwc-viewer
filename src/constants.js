@@ -45,8 +45,23 @@ function getPageSize() {
 	return pageSize
 }
 
+// Page orientation — 'portrait' uses the page as-is; 'landscape' swaps width/height.
+let pageOrientation = 'portrait'
+
+function setPageOrientation(orient) {
+	if (orient === 'portrait' || orient === 'landscape') pageOrientation = orient
+}
+
+function getPageOrientation() {
+	return pageOrientation
+}
+
 function getPageDimensions() {
-	return PAGE_SIZES[pageSize]
+	const base = PAGE_SIZES[pageSize]
+	if (pageOrientation === 'landscape') {
+		return { width: base.height, height: base.width, label: base.label }
+	}
+	return base
 }
 
 // Page margins (in score-space px at 96 DPI)
@@ -204,6 +219,8 @@ Object.assign(!isBrowser() ? global : window, {
 	PAGE_SIZES,
 	setPageSize,
 	getPageSize,
+	setPageOrientation,
+	getPageOrientation,
 	getPageDimensions,
 	getPageMargins,
 	MUSIC_FONTS,
@@ -222,6 +239,8 @@ export {
 	setDurationProportionality, getDurationProportionality,
 	setZoomLevel, getZoomLevel, ZOOM_MIN, ZOOM_MAX,
 	setLayoutMode, getLayoutMode,
-	PAGE_SIZES, setPageSize, getPageSize, getPageDimensions, getPageMargins,
+	PAGE_SIZES, setPageSize, getPageSize,
+	setPageOrientation, getPageOrientation,
+	getPageDimensions, getPageMargins,
 	MUSIC_FONTS, setMusicFont, getMusicFont, getMusicFontPath, getMusicTextFamily,
 }

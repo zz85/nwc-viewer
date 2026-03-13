@@ -1,121 +1,54 @@
 <html>
 	<head>
-		<title>
-			Notably Music Editor
-		</title>
+		<title>Notably Music Editor</title>
 		<meta charset="UTF-8" />
-		<meta
-			name="description"
-			content="Notably, a simple, lightweight music viewer for nwc (noteworthy composer) files"
-		/>
-		<meta
-			name="keywords"
-			content="Music,Notation,Composer,Scorewriter,Editor,NWC,Noteworthy"
-		/>
+		<meta name="description" content="Notably, a simple, lightweight music viewer for nwc (noteworthy composer) files" />
+		<meta name="keywords" content="Music,Notation,Composer,Scorewriter,Editor,NWC,Noteworthy" />
 		<meta name="author" content="Joshua Koo" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<style>
 			/* Companion text fonts for each SMuFL music font */
-			@font-face {
-				font-family: 'BravuraText';
-				src: url('vendor/bravura-1.211/otf/BravuraText.otf') format('opentype');
-			}
-			@font-face {
-				font-family: 'LelandText';
-				src: url('vendor/fonts/LelandText.otf') format('opentype');
-			}
-			@font-face {
-				font-family: 'PetalumaText';
-				src: url('vendor/fonts/PetalumaText.otf') format('opentype');
-			}
-			@font-face {
-				font-family: 'SebastianText';
-				src: url('vendor/fonts/SebastianText.otf') format('opentype');
-			}
-			@font-face {
-				font-family: 'FinaleMaestroText';
-				font-weight: normal;
-				font-style: normal;
-				src: url('vendor/fonts/FinaleMaestroText-Regular.otf') format('opentype');
-			}
-			@font-face {
-				font-family: 'FinaleMaestroText';
-				font-weight: bold;
-				font-style: normal;
-				src: url('vendor/fonts/FinaleMaestroText-Bold.otf') format('opentype');
-			}
-			@font-face {
-				font-family: 'FinaleMaestroText';
-				font-weight: normal;
-				font-style: italic;
-				src: url('vendor/fonts/FinaleMaestroText-Italic.otf') format('opentype');
-			}
-			@font-face {
-				font-family: 'FinaleMaestroText';
-				font-weight: bold;
-				font-style: italic;
-				src: url('vendor/fonts/FinaleMaestroText-BoldItalic.otf') format('opentype');
-			}
-			@font-face {
-				font-family: 'FinaleBroadwayText';
-				src: url('vendor/fonts/FinaleBroadwayText.otf') format('opentype');
-			}
-			@font-face {
-				font-family: 'FinaleAshText';
-				src: url('vendor/fonts/FinaleAshText.otf') format('opentype');
-			}
-			@font-face {
-				font-family: 'FinaleJazzText';
-				src: url('vendor/fonts/FinaleJazzText.otf') format('opentype');
-			}
+			@font-face { font-family: 'BravuraText'; src: url('vendor/bravura-1.211/otf/BravuraText.otf') format('opentype'); }
+			@font-face { font-family: 'LelandText'; src: url('vendor/fonts/LelandText.otf') format('opentype'); }
+			@font-face { font-family: 'PetalumaText'; src: url('vendor/fonts/PetalumaText.otf') format('opentype'); }
+			@font-face { font-family: 'SebastianText'; src: url('vendor/fonts/SebastianText.otf') format('opentype'); }
+			@font-face { font-family: 'FinaleMaestroText'; font-weight: normal; font-style: normal; src: url('vendor/fonts/FinaleMaestroText-Regular.otf') format('opentype'); }
+			@font-face { font-family: 'FinaleMaestroText'; font-weight: bold; font-style: normal; src: url('vendor/fonts/FinaleMaestroText-Bold.otf') format('opentype'); }
+			@font-face { font-family: 'FinaleMaestroText'; font-weight: normal; font-style: italic; src: url('vendor/fonts/FinaleMaestroText-Italic.otf') format('opentype'); }
+			@font-face { font-family: 'FinaleMaestroText'; font-weight: bold; font-style: italic; src: url('vendor/fonts/FinaleMaestroText-BoldItalic.otf') format('opentype'); }
+			@font-face { font-family: 'FinaleBroadwayText'; src: url('vendor/fonts/FinaleBroadwayText.otf') format('opentype'); }
+			@font-face { font-family: 'FinaleAshText'; src: url('vendor/fonts/FinaleAshText.otf') format('opentype'); }
+			@font-face { font-family: 'FinaleJazzText'; src: url('vendor/fonts/FinaleJazzText.otf') format('opentype'); }
 		</style>
 	</head>
 	<body>
 		<style>
+			:root {
+				--bg: #222;
+				--surface: #333;
+				--surface-hover: #3e3e3e;
+				--surface-active: #505050;
+				--text: #eee;
+				--text-dim: #999;
+				--border: #444;
+				--divider: #444;
+				--accent: #5a8fcc;
+				--accent-hover: #6ba0dd;
+				--accent-text: #fff;
+				--radius: 4px;
+				--gap: 8px;
+			}
+
 			body {
-				background: #1a1a1a;
-				color: #fefefe;
+				background: var(--bg);
+				color: var(--text);
 				overflow: hidden;
-				/* Use System Fonts */
 				font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
 					'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
-					'Helvetica Neue', sans-serif !important;
+					'Helvetica Neue', sans-serif;
+				font-size: 12px;
 				margin: 0;
 				padding: 0;
-			}
-
-			#top {
-				padding: 10px 4px 10px 4px;
-			}
-
-			#footer {
-				padding: 10px 4px 10px 4px;
-				font-size: 10px;
-			}
-
-			a {
-				color: #9a9a9a;
-			}
-
-			button,
-			select {
-				background: #3f3f3f;
-				color: #fefefe;
-				border: 1px #2e2e2e;
-				outline: #9a9a9a;
-				padding: 4px;
-				margin: 2px;
-			}
-
-			canvas {
-				background: #fff;
-				position: fixed;
-			}
-
-			#score {
-				overflow: auto;
-				flex: 1 0;
-				padding: 0px;
 			}
 
 			#container {
@@ -125,154 +58,307 @@
 				height: 100%;
 			}
 
+			/* Toolbar */
+			.toolbar {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: var(--gap);
+				padding: 6px 10px;
+			}
+
+			.toolbar-group {
+				display: flex;
+				align-items: center;
+				gap: 4px;
+			}
+
+			.toolbar-group + .toolbar-group {
+				border-left: 1px solid var(--divider);
+				padding-left: var(--gap);
+			}
+
+			.toolbar-label {
+				font-size: 11px;
+				color: var(--text-dim);
+				user-select: none;
+			}
+
+			/* Controls */
+			button, select {
+				background: var(--surface);
+				color: var(--text);
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				padding: 4px 8px;
+				font-size: 12px;
+				font-family: inherit;
+				cursor: pointer;
+				outline: none;
+			}
+
+			button:hover, select:hover {
+				background: var(--surface-hover);
+			}
+
+			button:active {
+				background: var(--surface-active);
+			}
+
+			button.active {
+				background: var(--accent);
+				color: var(--accent-text);
+				border-color: var(--accent);
+			}
+
+			button.active:hover {
+				background: var(--accent-hover);
+			}
+
+			input[type="range"] {
+				accent-color: var(--accent);
+				cursor: pointer;
+			}
+
+			/* Segmented button group */
+			.btn-group {
+				display: inline-flex;
+				border-radius: var(--radius);
+				overflow: hidden;
+			}
+
+			.btn-group button {
+				border-radius: 0;
+				border-right-color: var(--bg);
+				margin: 0;
+				padding: 4px 10px;
+			}
+
+			.btn-group button:first-child {
+				border-radius: var(--radius) 0 0 var(--radius);
+			}
+
+			.btn-group button:last-child {
+				border-radius: 0 var(--radius) var(--radius) 0;
+				border-right-color: var(--border);
+			}
+
+			/* Popover panel */
+			.popover {
+				display: none;
+				position: absolute;
+				top: calc(100% + 4px);
+				left: 0;
+				z-index: 100;
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				padding: 12px;
+				min-width: 260px;
+				box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+			}
+
+			.popover.open {
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+			}
+
+			.popover label {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 11px;
+				color: var(--text-dim);
+				white-space: nowrap;
+			}
+
+			.popover label span:first-child {
+				min-width: 80px;
+			}
+
+			.popover input[type="range"] {
+				width: 100px;
+			}
+
+			.popover .slider-value {
+				min-width: 32px;
+				text-align: right;
+				font-variant-numeric: tabular-nums;
+			}
+
+			/* Score area */
+			#score {
+				overflow: auto;
+				flex: 1 0;
+				padding: 0;
+			}
+
+			canvas {
+				background: #fff;
+				position: fixed;
+			}
+
 			#invisible_canvas {
 				display: block;
-				/* background: linear-gradient(to right, white, yellow); */
 				opacity: 0.9;
+			}
+
+			/* Misc */
+			#logo {
+				font-size: 15px;
+				font-weight: 600;
+				letter-spacing: -0.3px;
+			}
+
+			#footer {
+				padding: 6px 12px;
+				font-size: 10px;
+				color: var(--text-dim);
+			}
+
+			a {
+				color: var(--text-dim);
+				text-decoration: none;
+			}
+
+			a:hover {
+				color: var(--text);
 			}
 
 			h4 {
 				display: inline-block;
 			}
 
-			#logo {
-				font-size: 16px;
-				font-weight: bold;
+			.time-display {
+				font-size: 11px;
+				min-width: 85px;
+				text-align: center;
+				font-variant-numeric: tabular-nums;
+				color: var(--text-dim);
 			}
 		</style>
+
 		<div id="container">
-			<div id="top">
-				<div>
+			<div id="top" class="toolbar">
+				<!-- File -->
+				<div class="toolbar-group">
 					<span id="logo">Notably</span>
 					<button id="open">Open</button>
-
 					<input type="file" id="opener" accept=".nwc,.nwz,.nwctxt,.mid,.midi" hidden />
-
 					<select id="samples"></select>
+					<a href="nwc2xml_converter.html"><button title="Convert NWC to MusicXML">NWC to XML</button></a>
+				</div>
 
-				<button id="play" title="Play / Pause">Play</button>
-				<button id="stop" title="Stop">Stop</button>
-				<select id="highlight_mode" title="Highlight mode during playback">
-					<option value="notes">Highlight: Notes</option>
-					<option value="glow">Highlight: Glow</option>
-					<option value="bar">Highlight: Bar</option>
-					<option value="column">Highlight: Column</option>
-					<option value="none">Highlight: Off</option>
-				</select>
-				<button id="autoscroll_toggle" title="Toggle auto-scroll during playback">Auto-scroll: On</button>
-				<select id="solo_staff" title="Solo a single staff (or play all)">
-					<option value="all">All Staves</option>
-				</select>
-				<button id="piano_toggle" title="Toggle piano keyboard visualization">Piano: On</button>
-				<span id="playback_time" style="font-size: 12px; min-width: 90px; display: inline-block; text-align: center; vertical-align: middle;">0:00 / 0:00</span>
-				<input type="range" id="progress_bar"
-					min="0" max="1" step="0.001" value="0"
-					style="width: 140px; vertical-align: middle; cursor: pointer;"
-				/>
+				<!-- Playback -->
+				<div class="toolbar-group">
+					<button id="play" title="Play / Pause">Play</button>
+					<button id="stop" title="Stop">Stop</button>
+					<span id="playback_time" class="time-display">0:00 / 0:00</span>
+					<input type="range" id="progress_bar"
+						min="0" max="1" step="0.001" value="0"
+						style="width: 120px;" />
+					<select id="solo_staff" title="Solo a single staff">
+						<option value="all">All Staves</option>
+					</select>
+					<select id="highlight_mode" title="Playback highlight mode">
+						<option value="notes">Notes</option>
+						<option value="glow">Glow</option>
+						<option value="bar">Bar</option>
+						<option value="column">Column</option>
+						<option value="none">Off</option>
+					</select>
+					<button id="autoscroll_toggle" class="active" title="Auto-scroll during playback">Auto-scroll</button>
+					<button id="piano_toggle" class="active" title="Piano keyboard">Piano</button>
+				</div>
 
-				<a href="nwc2xml_converter.html" style="margin-left: 20px;">
-					<button>NWC to MusicXML</button>
-				</a>
-
-				<span style="width: 50px;"></span>
-				Size:
-				<button onclick="setFontSize(getFontSize() - 4); console.log('Font size:', getFontSize()); rerender()">-</button>
-				<button onclick="setFontSize(getFontSize() + 4); console.log('Font size:', getFontSize()); rerender()">+</button>
-
-				<span style="width: 20px;"></span>
-				Zoom:
-				<input type="range" id="zoom_slider"
-					min="0.25" max="4.0" step="0.01" value="1.0"
-					oninput="applyZoom(parseFloat(this.value))"
-					style="width: 100px; vertical-align: middle;"
-				/>
-				<span id="zoom_label" style="min-width: 40px; display: inline-block; text-align: center;">100%</span>
-
-				<span style="width: 20px;"></span>
-				Font:
-				<select id="music_font">
-					<optgroup label="Modern Engraving">
-						<option value="bravura">Bravura — clean, modern (Dorico default)</option>
-						<option value="leland">Leland — contemporary (MuseScore 4)</option>
-						<option value="maestro">Finale Maestro — classic engraver</option>
-						<option value="engraver">Finale Engraver — traditional plate</option>
-					</optgroup>
-					<optgroup label="Handwritten / Jazz">
-						<option value="petaluma">Petaluma — hand-engraved style</option>
-						<option value="jazz">Finale Jazz — jazz lead sheets</option>
-						<option value="ash">Finale Ash — manuscript / sketch</option>
-					</optgroup>
-					<optgroup label="Historical / Specialty">
-						<option value="sebastian">Sebastian — elegant engraver</option>
-						<option value="goldenage">Golden Age — vintage / early print</option>
-						<option value="leipzig">Leipzig — scholarly / academic</option>
-						<option value="broadway">Finale Broadway — show music</option>
-						<option value="legacy">Finale Legacy — classic Finale</option>
-					</optgroup>
-				</select>
-
-				<span style="width: 20px;"></span>
-				Parser:
-				<button id="parser_toggle" onclick="toggleParser()">New</button>
-
-				<span style="width: 20px;"></span>
-				Layout:
-				<button id="layout_toggle" onclick="toggleLayout()">Scroll</button>
-				<select id="page_size" style="display: none;">
-					<option value="letter">Letter</option>
-					<option value="a4">A4</option>
-				</select>
-
-				<span style="width: 10px;"></span>
-				Spacing:
-				<button id="spacing_toggle" onclick="toggleSpacing()">Spring</button>
-				<label title="Note spacing density: lower = tighter, higher = looser" style="font-size: 11px; margin-left: 6px;">
-					Density:
-					<input type="range" id="density_slider"
-						min="0.5" max="3.0" step="0.05" value="1.5"
-						style="width: 80px; vertical-align: middle;"
-					/>
-					<span id="density_label" style="min-width: 30px; display: inline-block; font-size: 11px;">1.50</span>
-				</label>
-				<label title="Rod-spring balance: 0 = all rigid (rod), 1 = default, 2 = all elastic (spring)" style="font-size: 11px; margin-left: 6px;">
-					Rod/Spring:
-					<input type="range" id="rod_spring_slider"
-						min="0.0" max="2.0" step="0.05" value="1.0"
-						style="width: 80px; vertical-align: middle;"
-					/>
-					<span id="rod_spring_label" style="min-width: 30px; display: inline-block; font-size: 11px;">1.00</span>
-				</label>
-				<label title="Duration proportionality: 0 = visual (uniform spacing), 1 = standard engraving, 2 = timing (duration-proportional)" style="font-size: 11px; margin-left: 6px;">
-					Visual/Timing:
-					<input type="range" id="proportionality_slider"
-						min="0.0" max="2.0" step="0.05" value="1.0"
-						style="width: 80px; vertical-align: middle;"
-					/>
-					<span id="proportionality_label" style="min-width: 30px; display: inline-block; font-size: 11px;">1.00</span>
-				</label>
-
-					<div id="debug_tools" style="display: none;">
-						<button
-							onclick="window._debug_glyph = !window._debug_glyph; rerender()"
-						>
-							Debug glyph
-						</button>
-
-						<button id="blank_button">blank score</button>
-						<button id="new_staff">add staff</button>
-
-						<button onclick="activateEdit()">Toggle Editing</button>
-						<button>Save</button>
-						<button>Load</button>
-						<!-- export selection to lilypond -->
-
-						<i style="font-size: 12px; float: right;">
-							Code:
-							<a href="https://github.com/zz85/nwc-viewer"
-								>github.com/zz85/nwc-viewer</a
-							>
-						</i>
+				<!-- Layout -->
+				<div class="toolbar-group">
+					<span class="toolbar-label">Layout</span>
+					<div class="btn-group" id="layout_group">
+						<button data-mode="scroll">Scroll</button>
+						<button data-mode="wrap" class="active">Wrap</button>
+						<button data-mode="page">Page</button>
 					</div>
+					<select id="page_size" style="display: none;" title="Page size">
+						<option value="letter">Letter</option>
+						<option value="a4">A4</option>
+					</select>
+					<div class="btn-group" id="orientation_group" style="display: none;">
+						<button data-orient="portrait" class="active">Portrait</button>
+						<button data-orient="landscape">Landscape</button>
+					</div>
+				</div>
+
+				<!-- View -->
+				<div class="toolbar-group">
+					<span class="toolbar-label">Font</span>
+					<select id="music_font" title="Music engraving font">
+						<optgroup label="Modern Engraving">
+							<option value="bravura">Bravura — modern, clean</option>
+							<option value="leland">Leland — contemporary</option>
+							<option value="maestro">Finale Maestro — classic</option>
+							<option value="engraver">Finale Engraver — traditional</option>
+						</optgroup>
+						<optgroup label="Handwritten / Jazz">
+							<option value="petaluma">Petaluma — hand-drawn</option>
+							<option value="jazz">Finale Jazz — lead sheets</option>
+							<option value="ash">Finale Ash — manuscript</option>
+						</optgroup>
+						<optgroup label="Historical / Specialty">
+							<option value="sebastian">Sebastian — elegant</option>
+							<option value="goldenage">Golden Age — vintage</option>
+							<option value="leipzig">Leipzig — scholarly</option>
+							<option value="broadway">Finale Broadway — show music</option>
+							<option value="legacy">Finale Legacy — classic Finale</option>
+						</optgroup>
+					</select>
+					<span class="toolbar-label">Size</span>
+					<button id="size_down" title="Decrease staff size">-</button>
+					<button id="size_up" title="Increase staff size">+</button>
+					<span class="toolbar-label">Zoom</span>
+					<input type="range" id="zoom_slider"
+						min="0.25" max="4.0" step="0.01" value="1.0"
+						oninput="applyZoom(parseFloat(this.value))"
+						style="width: 80px;" />
+					<span id="zoom_label" style="font-size: 11px; min-width: 36px; text-align: center; color: var(--text-dim);">100%</span>
+				</div>
+
+				<!-- Spacing tuning (popover) -->
+				<div class="toolbar-group" style="position: relative;">
+					<button id="tuning_toggle" title="Spacing tuning parameters">Tuning</button>
+					<div id="tuning_panel" class="popover">
+						<label title="Note spacing density: lower = tighter, higher = looser">
+							<span>Density</span>
+							<input type="range" id="density_slider" min="0.5" max="3.0" step="0.05" value="1.5" />
+							<span id="density_label" class="slider-value">1.50</span>
+						</label>
+						<label title="Rod-spring balance: 0 = all rigid, 1 = default, 2 = all elastic">
+							<span>Rod / Spring</span>
+							<input type="range" id="rod_spring_slider" min="0.0" max="2.0" step="0.05" value="1.0" />
+							<span id="rod_spring_label" class="slider-value">1.00</span>
+						</label>
+						<label title="Duration proportionality: 0 = uniform, 1 = standard, 2 = duration-proportional">
+							<span>Visual / Timing</span>
+							<input type="range" id="proportionality_slider" min="0.0" max="2.0" step="0.05" value="1.0" />
+							<span id="proportionality_label" class="slider-value">1.00</span>
+						</label>
+					</div>
+				</div>
+
+				<!-- Debug (localhost only) -->
+				<div id="debug_tools" class="toolbar-group" style="display: none;">
+					<button onclick="window._debug_glyph = !window._debug_glyph; rerender()">Debug glyph</button>
+					<button id="blank_button">Blank</button>
+					<button id="new_staff">Add staff</button>
+					<button onclick="activateEdit()">Edit</button>
+					<span class="toolbar-label">Parser</span>
+					<button id="parser_toggle">New</button>
+					<button>Save</button>
+					<button>Load</button>
+					<i style="font-size: 11px;">
+						<a href="https://github.com/zz85/nwc-viewer">GitHub</a>
+					</i>
 				</div>
 			</div>
 
@@ -289,9 +375,6 @@
 		<script src="vendor/inflate.min.js"></script>
 		<script src="vendor/opentype.min.js"></script>
 
-		<!-- rollup build -->
-		<!-- <script nomodule="true" src="bin/notably.js"></script> -->
-
 		<!-- module script -->
 		<script type="module" src="src/main.js"></script>
 		<script>
@@ -300,14 +383,11 @@
 			var scoreElm = document.getElementById('score')
 
 			function updateScroll() {
-				// console.log('scroll', scoreElm.scrollLeft, scoreElm.scrollTop);
 				quickDraw(data, -scoreElm.scrollLeft, -scoreElm.scrollTop)
-
 				nextRender = null
 			}
 
 			scoreElm.addEventListener('scroll', (e) => {
-				// for browsers firing off > 60fps, we limit the rerendering
 				if (!nextRender) nextRender = requestAnimationFrame(updateScroll)
 			})
 
@@ -315,13 +395,12 @@
 
 			var downx, downy, scrollLeft, scrollTop
 			scoreElm.addEventListener('mousedown', (e) => {
-				// console.log('mousedown', 	e);
 				downx = e.x
 				downy = e.y
 				scrollLeft = scoreElm.scrollLeft
 				scrollTop = scoreElm.scrollTop
 				window.addEventListener('mousemove', mousedrag)
-				scoreElm.style.cursor = 'grab' // move
+				scoreElm.style.cursor = 'grab'
 
 				e.preventDefault()
 
@@ -332,13 +411,8 @@
 			})
 
 			function mousedrag(e) {
-				// scoreElm.scrollLeft = scrollLeft + downx - e.x;
-				// scoreElm.scrollTop = scrollTop + downy - e.y;
-
 				scoreElm.scrollLeft += downx - e.x
 				scoreElm.scrollTop += downy - e.y
-
-				// console.log('drag', e)
 			}
 
 			// ---- Zoom handler (transform-based, no re-layout) ----
@@ -357,8 +431,6 @@
 
 				// Center-preserving scroll: keep the same score-space point at
 				// the viewport center before and after zoom.
-				// centerScore = (scrollLeft + clientWidth/2) / oldZoom
-				// newScrollLeft = centerScore * newZoom - clientWidth/2
 				var cx = (scoreElm.scrollLeft + scoreElm.clientWidth  / 2) / oldZoom
 				var cy = (scoreElm.scrollTop  + scoreElm.clientHeight / 2) / oldZoom
 
