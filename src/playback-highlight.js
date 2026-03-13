@@ -45,6 +45,11 @@ export class PlaybackHighlighter {
 
 		// Auto-scroll: enabled by default
 		this._autoScrollEnabled = true
+
+		// Snap-to-notes: when true, cursor X locks to the active notehead
+		// instead of interpolating smoothly.  Off by default so the cursor
+		// slides continuously with time.
+		this._snapToNotes = false
 	}
 
 	// ── Score data binding ─────────────────────────────────────────────────
@@ -163,6 +168,17 @@ export class PlaybackHighlighter {
 	/** Whether auto-scroll is currently enabled. */
 	get autoScrollEnabled() { return this._autoScrollEnabled }
 
+	// ── Snap-to-notes ─────────────────────────────────────────────────────
+
+	/** Toggle snap-to-notes on/off. Returns the new state. */
+	toggleSnapToNotes() {
+		this._snapToNotes = !this._snapToNotes
+		return this._snapToNotes
+	}
+
+	/** Whether snap-to-notes is currently enabled. */
+	get snapToNotes() { return this._snapToNotes }
+
 	// ── Render loop ────────────────────────────────────────────────────────
 
 	/** Whether the highlighter is actively running (for quickDraw to check). */
@@ -224,12 +240,14 @@ export class PlaybackHighlighter {
 	 * score-space transform (scroll + zoom) is still active.
 	 *
 	 * @param {CanvasRenderingContext2D} ctx - The score canvas context
+	 * @param {Array<{topY: number, bottomY: number}>} [systemGeometry] -
+	 *   Per-system vertical bounds for full-system cursor spanning.
 	 */
-	drawHighlights(ctx) {
+	drawHighlights(ctx, systemGeometry) {
 		if (!this._running && !this._paused) return
 
 		// Draw position cursor
-		this._drawCursor(ctx)
+		this._drawCursor(ctx, systemGeometry)
 
 		// Draw active note highlights
 		this._drawNoteHighlights(ctx)
@@ -238,24 +256,65 @@ export class PlaybackHighlighter {
 	// ── Cursor drawing ─────────────────────────────────────────────────────
 
 	/**
-	 * Draw a vertical position cursor at the interpolated X for the current time.
+	 * Draw a vertical position cursor spanning the full system height.
+	 * When notes are actively sounding, snaps to the leftmost active
+	 * notehead X for exact alignment with note highlights.
 	 */
-	_drawCursor(ctx) {
-		const pos = this._getCursorPosition(this._currentTime)
-		if (!pos) return
+	_drawCursor(ctx, systemGeometry) {
+		var posX, posY
 
+		// When snap-to-notes is enabled and notes are active, lock cursor X
+		// to the leftmost active notehead for exact alignment with highlights.
+		if (this._snapToNotes && this._activeTokens.size > 0) {
+			var minX = Infinity, anyY = null
+			for (const token of this._activeTokens) {
+				const head = token.drawingNoteHead
+					|| (token.notes && token.notes[0] && token.notes[0].drawingNoteHead)
+				if (!head) continue
+				const hx = head.x + (head.offsetX || 0)
+				if (hx < minX) {
+					minX = hx
+					anyY = head.y + (head.offsetY || 0)
+				}
+			}
+			if (minX < Infinity) {
+				posX = minX
+				posY = anyY
+			}
+		}
+
+		// Default: smooth time-based interpolation
+		if (posX == null) {
+			const pos = this._getCursorPosition(this._currentTime)
+			if (!pos) return
+			posX = pos.x
+			posY = pos.y
+		}
+
+		// Determine cursor vertical span from system geometry
 		const fs = getFontSize()
+		const margin = fs * 0.5
+		var topY = posY - fs * 1.5   // fallback if no geometry
+		var botY = posY + fs * 2
 
-		// Draw a vertical line spanning the system height around the cursor Y
-		const topY = pos.y - fs * 1.5
-		const botY = pos.y + fs * 2
+		if (systemGeometry && systemGeometry.length > 0) {
+			// Find the system containing this Y position
+			for (var i = 0; i < systemGeometry.length; i++) {
+				var sys = systemGeometry[i]
+				if (posY >= sys.topY - fs && posY <= sys.bottomY + fs) {
+					topY = sys.topY - margin
+					botY = sys.bottomY + margin
+					break
+				}
+			}
+		}
 
 		ctx.save()
 		ctx.strokeStyle = CURSOR_COLOR
 		ctx.lineWidth = CURSOR_WIDTH
 		ctx.beginPath()
-		ctx.moveTo(pos.x, topY)
-		ctx.lineTo(pos.x, botY)
+		ctx.moveTo(posX, topY)
+		ctx.lineTo(posX, botY)
 		ctx.stroke()
 		ctx.restore()
 	}

@@ -832,7 +832,7 @@ function quickDraw(dataOrContext, x, y) {
 	// Draw playback highlights on top of the score (cursor + active notes).
 	// The highlighter is set externally via setPlaybackHighlighter().
 	if (_playbackHighlighter) {
-		_playbackHighlighter.drawHighlights(ctx)
+		_playbackHighlighter.drawHighlights(ctx, _systemGeometry)
 	}
 	ctx.restore()
 }
@@ -846,6 +846,11 @@ let _playbackHighlighter = null
 // Page layout geometry — set by scorePageLayout(), read by quickDraw()
 // to draw page backgrounds before the score elements.
 let _pageGeometry = null
+
+// System geometry — set by all layout modes, read by quickDraw() to pass
+// to the playback highlighter for full-system cursor spanning.
+// Array of { topY, bottomY } per system in absolute canvas coordinates.
+let _systemGeometry = null
 
 /** Register the playback highlighter so quickDraw can call drawHighlights(). */
 function setPlaybackHighlighter(highlighter) {
@@ -1403,6 +1408,13 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// Clear page geometry (not in page mode)
 	_pageGeometry = null
 
+	// Build system geometry (single system for scroll mode)
+	var firstStaffY = getStaffY(0)
+	_systemGeometry = [{
+		topY: firstStaffY - fs,
+		bottomY: lastStaveY,
+	}]
+
 	drawBracketsAndBraces(drawing, staves, 0)
 	drawStaffLabels(drawing, staves, 0)
 	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
@@ -1704,6 +1716,16 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// Clear page geometry (not in page mode)
 	_pageGeometry = null
+
+	// Build system geometry for playback cursor spanning
+	_systemGeometry = []
+	for (var gi = 0; gi < systemCount; gi++) {
+		var gYOffset = gi * (systemHeight + interSystemGap)
+		_systemGeometry.push({
+			topY: firstStaffY + gYOffset - fs,
+			bottomY: lastStaffY + gYOffset,
+		})
+	}
 
 	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
 	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
@@ -2053,6 +2075,16 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		pageHeight: PAGE_H,
 		interPageGap,
 		horizontalPad,
+	}
+
+	// Build system geometry for playback cursor spanning
+	_systemGeometry = []
+	for (var gi = 0; gi < systemCount; gi++) {
+		// After reflow, first staff bottom line is at systemYOffsets[gi]
+		_systemGeometry.push({
+			topY: systemYOffsets[gi] - fs,
+			bottomY: systemYOffsets[gi] + (lastStaffY - firstStaffY),
+		})
 	}
 
 	// --- Canvas sizing ---
