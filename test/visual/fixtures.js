@@ -723,16 +723,33 @@ const SYNTHETIC_FIXTURES = [
 			]]),
 		},
 			{
-				label: 'Grace Notes',
-				desc: 'Grace note before regular note — 60% scale',
-				data: () => makeScore('Grace Notes', [[
-					clef(), keySig(), timeSig(),
-					note(2, 8, { grace: 1 }), note(0, 4),
-					note(4, 8, { grace: 1 }), note(2, 4),
-					note(-2, 8, { grace: 1 }), note(0, 2),
-					bar(3),
-				]]),
-			},
+			label: 'Grace Notes',
+			desc: 'Acciaccatura (slashed stem), scaled flag, stems up',
+			data: () => makeScore('Grace Notes', [[
+				clef(), keySig(), timeSig(),
+				// Single grace notes before different durations
+				note(2, 8, { grace: 1 }), note(0, 4),
+				note(4, 8, { grace: 1 }), note(2, 4),
+				note(-2, 8, { grace: 1 }), note(0, 2),
+				bar(3),
+			]]),
+		},
+		{
+			label: 'Grace Note Variants',
+			desc: 'High/low positions, with accidentals, beamed grace group',
+			data: () => makeScore('Grace Note Variants', [[
+				clef(), keySig(), timeSig(),
+				// Grace note with accidental
+				note(0, 8, { grace: 1, accidental: '#' }), note(0, 4),
+				// Grace note high on staff
+				note(6, 8, { grace: 1 }), note(4, 4),
+				// Beamed grace note pair (16ths)
+				note(0, 16, { grace: 1, beam: 1 }),
+				note(2, 16, { grace: 1, beam: 3 }),
+				note(0, 2),
+				bar(3),
+			]]),
+		},
 		],
 	},
 	// ────────────────────────────────────────────────────────────

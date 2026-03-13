@@ -166,13 +166,19 @@ function computeStemLength(position, stemUp, chordSpan, beamCount) {
 function drawBeamGroup(group) {
 	if (group.length < 2) return
 
+	// Detect grace note beam group (all notes in group are grace)
+	const isGraceGroup = group.every(t => t.grace)
+	const graceScale = isGraceGroup ? 0.6 : 1.0
+
 	// Use the stored stem direction from the NWC file if available.
 	// stem: 1 = up, 2 = down.  Fall back to average-position heuristic.
-	const firstStemDir = group[0].stem
+	// Grace notes: stems almost always point up.
 	let stemUp
-	if (firstStemDir === 1) {
+	if (isGraceGroup) {
 		stemUp = true
-	} else if (firstStemDir === 2) {
+	} else if (group[0].stem === 1) {
+		stemUp = true
+	} else if (group[0].stem === 2) {
 		stemUp = false
 	} else {
 		const avgPosition = group.reduce((sum, token) => {
@@ -281,7 +287,8 @@ function drawBeamGroup(group) {
 		beamBase = -Infinity
 		for (const nd of noteData) {
 			const t = (nd.x - firstX) / xSpan
-			const minStem = computeStemLength(nd.position, stemUp, nd.chordSpan, totalBeamCount)
+			var minStem = computeStemLength(nd.position, stemUp, nd.chordSpan, totalBeamCount)
+			if (isGraceGroup) minStem = Math.min(minStem, 5)
 			const needed = nd.position + minStem - slope * t
 			if (needed > beamBase) beamBase = needed
 		}
@@ -289,7 +296,8 @@ function drawBeamGroup(group) {
 		beamBase = Infinity
 		for (const nd of noteData) {
 			const t = (nd.x - firstX) / xSpan
-			const minStem = computeStemLength(nd.position, stemUp, nd.chordSpan, totalBeamCount)
+			var minStem = computeStemLength(nd.position, stemUp, nd.chordSpan, totalBeamCount)
+			if (isGraceGroup) minStem = Math.min(minStem, 5)
 			const needed = nd.position - minStem - slope * t
 			if (needed < beamBase) beamBase = needed
 		}
@@ -320,6 +328,7 @@ function drawBeamGroup(group) {
 		// Stem-down: start at (relativePos - stemLen), draws up by stemLen → reaches notehead
 		const stemY = stemUp ? data.relativePos : data.relativePos - data.stemLen
 		const stem = new Stem(stemY, data.stemLen)
+		if (isGraceGroup) stem._graceScale = graceScale
 		stem.moveTo(data.x, data.y)
 		drawing.add(stem)
 	})
@@ -333,6 +342,7 @@ function drawBeamGroup(group) {
 
 	const primaryBeam = new Beam(beamStartRelative, beamEndRelative, 0, lastStem.x - firstStem.x, primaryBeamCount)
 	primaryBeam.stemUp = stemUp
+	if (isGraceGroup) primaryBeam._graceScale = graceScale
 	primaryBeam.moveTo(firstStem.x, firstStem.y)
 	drawing.add(primaryBeam)
 
@@ -362,6 +372,7 @@ function drawBeamGroup(group) {
 
 		const subBeam = new Beam(segStartY, segEndY, segStartX, segEndX, 1)
 		subBeam.stemUp = stemUp
+		if (isGraceGroup) subBeam._graceScale = graceScale
 		subBeam._beamOffset = seg.level
 		subBeam.moveTo(firstStem.x, firstStem.y)
 		drawing.add(subBeam)
@@ -384,8 +395,12 @@ function handleChord(token) {
 	const topNote = notes.reduce((a, b) => a.position > b.position ? a : b)
 	const bottomNote = notes.reduce((a, b) => a.position < b.position ? a : b)
 
-	const stemUp =
-		token.Stem === 'Up' || token.stem === 1
+	const isGrace = !!token.grace
+	const graceScale = isGrace ? 0.6 : 1.0
+
+	// Grace notes: stems almost always point up.
+	const stemUp = isGrace ? true
+		: token.Stem === 'Up' || token.stem === 1
 			? true
 			: token.Stem === 'Down' || token.stem === 2
 			? false
@@ -397,27 +412,31 @@ function handleChord(token) {
 
 	const relativePos = anchorNote.position + 4
 	const chordSpan = topNote.position - bottomNote.position
-	// Standalone chords: beamCount=0 (extra beam length only applies in beam groups)
-	const stemLen = computeStemLength(anchorNote.position, stemUp, chordSpan, 0)
+	const stemLen = isGrace ? 5 + chordSpan
+		: computeStemLength(anchorNote.position, stemUp, chordSpan, 0)
 	const requireFlag = duration >= 8
 
 	if (!stemUp) {
 		const stem = new Stem(relativePos - stemLen, stemLen)
+		if (isGrace) { stem._graceScale = graceScale; stem._slash = true }
 		stem.moveTo(notehead.x, notehead.y)
 		drawing.add(stem)
 
 		if (requireFlag) {
 			var flag = new Glyph(`flag${duration}thDown`, relativePos - stemLen - 0.5)
+			if (isGrace) flag._graceScale = graceScale
 			flag.moveTo(notehead.x, notehead.y)
 			drawing.add(flag)
 		}
 	} else {
 		const stem = new Stem(relativePos, stemLen)
+		if (isGrace) { stem._graceScale = graceScale; stem._slash = true }
 		stem.moveTo(notehead.x + notehead.width, notehead.y)
 		drawing.add(stem)
 
 		if (requireFlag) {
 			var flag = new Glyph(`flag${duration}thUp`, relativePos + stemLen)
+			if (isGrace) flag._graceScale = graceScale
 			flag.moveTo(notehead.x + notehead.width, notehead.y)
 			drawing.add(flag)
 		}
@@ -431,35 +450,44 @@ function handleNote(token) {
 	const notehead = token.drawingNoteHead
 	if (!notehead) return
 
-	const stemUp =
-		token.Stem === 'Up' || token.stem === 1
+	const isGrace = !!token.grace
+	const graceScale = isGrace ? 0.6 : 1.0
+
+	// Grace notes: stems almost always point up (standard engraving).
+	const stemUp = isGrace ? true
+		: token.Stem === 'Up' || token.stem === 1
 			? true
 			: token.Stem === 'Down' || token.stem === 2
 			? false
 			: token.position < 0
 
 	const relativePos = token.position + 4
-	// Standalone notes: beamCount=0 (extra beam length only applies in beam groups)
-	const stemLen = computeStemLength(token.position, stemUp, 0, 0)
+	// Grace notes: ~5 half-spaces stem (shorter than the standard 7).
+	const stemLen = isGrace ? 5
+		: computeStemLength(token.position, stemUp, 0, 0)
 	const requireFlag = duration >= 8
 
 	if (!stemUp) {
 		const stem = new Stem(relativePos - stemLen, stemLen)
+		if (isGrace) { stem._graceScale = graceScale; stem._slash = true }
 		stem.moveTo(notehead.x, notehead.y)
 		drawing.add(stem)
 
 		if (requireFlag) {
 			var flag = new Glyph(`flag${duration}thDown`, relativePos - stemLen - 0.5)
+			if (isGrace) flag._graceScale = graceScale
 			flag.moveTo(notehead.x, notehead.y)
 			drawing.add(flag)
 		}
 	} else {
 		const stem = new Stem(relativePos, stemLen)
+		if (isGrace) { stem._graceScale = graceScale; stem._slash = true }
 		stem.moveTo(notehead.x + notehead.width, notehead.y)
 		drawing.add(stem)
 
 		if (requireFlag) {
 			var flag = new Glyph(`flag${duration}thUp`, relativePos + stemLen)
+			if (isGrace) flag._graceScale = graceScale
 			flag.moveTo(notehead.x + notehead.width, notehead.y)
 			drawing.add(flag)
 		}

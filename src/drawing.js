@@ -561,11 +561,26 @@ class Stem extends Draw {
 	}
 
 	draw(ctx) {
+		var scale = this._graceScale || 1
 		ctx.beginPath()
-		ctx.lineWidth = getFontSize() / 30 // 1.2
+		ctx.lineWidth = (getFontSize() / 30) * scale
 		ctx.moveTo(0, 0)
 		ctx.lineTo(0, this.unitsToY(this.len))
 		ctx.stroke()
+
+		// Acciaccatura slash: diagonal line through the stem
+		if (this._slash) {
+			var fs = getFontSize()
+			var slashLen = fs * 0.25 * scale
+			// Position the slash roughly 1/3 up the stem
+			var stemPixels = this.unitsToY(this.len)
+			var slashY = stemPixels * 0.35
+			ctx.beginPath()
+			ctx.lineWidth = (fs / 24) * scale
+			ctx.moveTo(-slashLen * 0.6, slashY - slashLen * 0.5)
+			ctx.lineTo(slashLen * 0.6, slashY + slashLen * 0.5)
+			ctx.stroke()
+		}
 	}
 }
 
@@ -968,7 +983,8 @@ class Beam extends Draw {
 	}
 
 	draw(ctx) {
-		const beamThickness = getFontSize() / 10
+		var scale = this._graceScale || 1
+		const beamThickness = (getFontSize() / 10) * scale
 		const beamSpacing = beamThickness * 1.0
 		// Stems-up: additional beams stack downward (toward noteheads) → positive offset.
 		// Stems-down: additional beams stack upward (toward noteheads) → negative offset.
