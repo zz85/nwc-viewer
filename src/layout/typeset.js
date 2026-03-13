@@ -1105,19 +1105,20 @@ function layoutTripletBrackets(drawing, staves) {
 						}
 
 						// Stem extent (~3.5 staff spaces = 7 half-spaces)
-						// and padding (2 half-spaces for breathing room)
+						// Beamed groups: numeral sits close to the beam (~0.5sp = 1 half-space pad).
+						// Unbeamed groups: bracket clears the notehead + bracket hook (~1sp = 2 half-space pad).
 						var stemExtent = 7
-						var bracketPad = 3
+						var bracketPad = allBeamed ? 1 : 2
 						var bracketPos
 						if (above) {
 							bracketPos = maxRelPos + stemExtent + bracketPad
-							if (bracketPos < 14) bracketPos = 14  // never closer than ~1.5 spaces above top line
+							if (bracketPos < 12) bracketPos = 12  // never closer than 1 space above top line
 						} else {
 							bracketPos = minRelPos - stemExtent - bracketPad
-							if (bracketPos > -6) bracketPos = -6  // never closer than ~1.5 spaces below bottom line
+							if (bracketPos > -4) bracketPos = -4  // never closer than 0 below bottom line
 						}
 						var below = !above
-						var bracket = new TupletBracket('3', spanW, bracketPos, below, allBeamed)
+						var bracket = new TupletBracket('3', spanW, below, allBeamed)
 						bracket.moveTo(startX, getStaffY(si))
 						bracket.positionY(bracketPos)
 						drawing.add(bracket)

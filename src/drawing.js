@@ -922,7 +922,7 @@ class VoltaBracket extends Draw {
  * When numeralOnly=true, draws just the centered numeral without bracket lines.
  */
 class TupletBracket extends Draw {
-	constructor(numeral, spanWidth, adjustY, below, numeralOnly) {
+	constructor(numeral, spanWidth, below, numeralOnly) {
 		super()
 		this.numeral = numeral || '3'
 		this.spanWidth = spanWidth || getFontSize() * 2
@@ -930,7 +930,6 @@ class TupletBracket extends Draw {
 		this.below = below || false
 		this.numeralOnly = numeralOnly || false
 		this.fontSize = getFontSize()
-		if (adjustY) this.positionY(adjustY)
 	}
 
 	draw(ctx) {

@@ -355,12 +355,36 @@ const SYNTHETIC_FIXTURES = [
 				]]),
 			},
 			{
+				label: 'Triplet Beams — Stem Down',
+				desc: 'Beamed triplets, stems down — numeral below beam',
+				data: () => makeScore('Triplet Beams Stem Down', [[
+					clef(), keySig(), timeSig(),
+					note(0, 8, { beam: 1, triplet: 1, stem: 2 }), note(1, 8, { beam: 2, triplet: 2, stem: 2 }),
+					note(2, 8, { beam: 3, triplet: 3, stem: 2 }),
+					note(3, 8, { beam: 1, triplet: 1, stem: 2 }), note(4, 8, { beam: 2, triplet: 2, stem: 2 }),
+					note(5, 8, { beam: 3, triplet: 3, stem: 2 }),
+					note(0, 4), note(2, 4),
+					bar(3),
+				]]),
+			},
+			{
 				label: 'Unbeamed Triplets',
 				desc: 'Quarter-note triplets — bracket + numeral',
 				data: () => makeScore('Unbeamed Triplets', [[
 					clef(), keySig(), timeSig(),
 					note(0, 4, { triplet: 1 }), note(2, 4, { triplet: 2 }), note(4, 4, { triplet: 3 }),
 					note(-2, 4, { triplet: 1, stem: 2 }), note(0, 4, { triplet: 2, stem: 2 }), note(2, 4, { triplet: 3, stem: 2 }),
+					bar(3),
+				]]),
+			},
+			{
+				label: 'Triplets with Rests',
+				desc: 'Triplet group containing a rest — requires bracket',
+				data: () => makeScore('Triplets with Rests', [[
+					clef(), keySig(), timeSig(),
+					note(0, 8, { triplet: 1 }), rest(8, { triplet: 2 }), note(2, 8, { triplet: 3 }),
+					note(-2, 8, { triplet: 1, stem: 2 }), rest(8, { triplet: 2 }), note(0, 8, { triplet: 3, stem: 2 }),
+					note(0, 4), note(0, 4),
 					bar(3),
 				]]),
 			},
