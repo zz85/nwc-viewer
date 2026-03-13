@@ -689,11 +689,11 @@ const SYNTHETIC_FIXTURES = [
 			data: () => makeScore('Beamed Articulations', [[
 				clef(), keySig(), timeSig(),
 				// Stems up: staccato pair
-				note(0, 8, { staccato: 1, beam: 1 }),
-				note(2, 8, { staccato: 1, beam: 3 }),
+				note(0, 8, { staccato: 1, stem: 1, beam: 1 }),
+				note(2, 8, { staccato: 1, stem: 1, beam: 3 }),
 				// Stems up: accent + tenuto
-				note(-2, 8, { accent: 1, beam: 1 }),
-				note(0, 8, { tenuto: 1, beam: 3 }),
+				note(-2, 8, { accent: 1, stem: 1, beam: 1 }),
+				note(0, 8, { tenuto: 1, stem: 1, beam: 3 }),
 				// Stems down: staccato pair
 				note(2, 8, { staccato: 1, stem: 2, beam: 1 }),
 				note(0, 8, { staccato: 1, stem: 2, beam: 3 }),

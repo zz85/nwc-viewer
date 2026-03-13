@@ -250,6 +250,60 @@ describe('Articulation glyph map', () => {
 	})
 })
 
+describe('Articulation Y positioning', () => {
+	// Mirrors the positioning math in typeset.js drawForNote.
+	// relativePos = token.position + 4;  staff lines are even, spaces are odd.
+	function isOnLine(pos) { return pos % 2 === 0 }
+
+	// ±2 base offset, then nudge off staff lines
+	function articulationY(relativePos, stemUp, artIndex = 0, artFlag = 'staccato') {
+		var above = artFlag === 'fermata' ? true : !stemUp
+		var artPos = above
+			? relativePos + 2 + artIndex * 2
+			: relativePos - 2 - artIndex * 2
+		if (isOnLine(artPos)) artPos += above ? 1 : -1
+		return artPos
+	}
+
+	test('result always lands in a space (odd position)', () => {
+		for (var pos = -2; pos <= 12; pos++) {
+			var yAbove = articulationY(pos, false)
+			var yBelow = articulationY(pos, true)
+			expect(yAbove % 2 !== 0).toBe(true)
+			expect(yBelow % 2 !== 0).toBe(true)
+		}
+	})
+
+	test('note on a line: nudged to 3 half-spaces away', () => {
+		// relativePos 4 = second line (B4), on a line
+		// 4 - 2 = 2 (on line) → nudge to 1
+		expect(articulationY(4, true)).toBe(1)
+		// 4 + 2 = 6 (on line) → nudge to 7
+		expect(articulationY(4, false)).toBe(7)
+	})
+
+	test('note in a space: 2 half-spaces away (already in a space)', () => {
+		// relativePos 5 = second space (C5), in a space
+		// 5 - 2 = 3 (odd, in space) → no nudge
+		expect(articulationY(5, true)).toBe(3)
+		// 5 + 2 = 7 (odd, in space) → no nudge
+		expect(articulationY(5, false)).toBe(7)
+	})
+
+	test('stacked articulations move outward by 2 half-spaces each', () => {
+		// Note in space (relativePos 5), stem up (below):
+		expect(articulationY(5, true, 0)).toBe(3)
+		expect(articulationY(5, true, 1)).toBe(1)
+		expect(articulationY(5, true, 2)).toBe(-1)
+	})
+
+	test('fermata always goes above regardless of stem direction', () => {
+		// relativePos 5 (in space): 5 + 2 = 7
+		expect(articulationY(5, true, 0, 'fermata')).toBe(7)
+		expect(articulationY(5, false, 0, 'fermata')).toBe(7)
+	})
+})
+
 describe('SMuFL codepoints for new rendering', () => {
 	test('articulation codepoints are in the correct range', () => {
 		const codepoints = {

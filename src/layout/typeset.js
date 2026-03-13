@@ -2613,6 +2613,37 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			if (token.notes.length > 0 && token.notes[0].drawingNoteHead) {
 				token.drawingNoteHead = token.notes[0].drawingNoteHead
 			}
+
+			// --- Chord-level articulations (drawn once, not per child note) ---
+			{
+				var chordStemUp = token.Stem === 'Up' || token.stem === 1 ? true :
+				                  token.Stem === 'Down' || token.stem === 2 ? false :
+				                  (token.notes[0] ? token.notes[0].position < 0 : true)
+				// Use the outermost note on the notehead side:
+				//   stem up → articulation below → anchor to lowest note
+				//   stem down → articulation above → anchor to highest note
+				var artAnchorPos = chordStemUp ? chordMinPos : chordMaxPos
+				var artNoteHead = token.notes[0] && token.notes[0].drawingNoteHead
+				var artNhWidth = artNoteHead ? artNoteHead.width : chordNhWidth
+				var artNhX = artNoteHead ? artNoteHead.x : tmp
+
+				var chordArtFlags = ['staccato', 'accent', 'tenuto', 'marcato', 'staccatissimo', 'fermata']
+				var chordArtOffset = 0
+				for (var cai = 0; cai < chordArtFlags.length; cai++) {
+					var caf = chordArtFlags[cai]
+					if (!token[caf]) continue
+					var cabove = caf === 'fermata' ? true : !chordStemUp
+					var caPos = cabove
+						? artAnchorPos + 2 + chordArtOffset * 2
+						: artAnchorPos - 2 - chordArtOffset * 2
+					if (isOnLine(caPos)) caPos += cabove ? 1 : -1
+					var cam = new ArticulationMark(caf, caPos)
+					cursor.posGlyph(cam)
+					cam.offsetX = artNhX - cam.x + (artNhWidth - cam.width) / 2
+					drawing.add(cam)
+					chordArtOffset++
+				}
+			}
 			break
 
 		case 'Note':
@@ -2949,6 +2980,8 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 	//   stem up → articulation below,  stem down → articulation above.
 	// Multiple articulations stack outward from the notehead.
 	// Staff-line avoidance: nudge into the nearest space so dots aren't hidden.
+	// For chords, articulations are drawn once at the chord level (not per child note).
+	if (!skipLedger) {
 	var articulationFlags = ['staccato', 'accent', 'tenuto', 'marcato', 'staccatissimo', 'fermata']
 	var artOffset = 0
 	for (var ai = 0; ai < articulationFlags.length; ai++) {
@@ -2957,7 +2990,9 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 		// Place above if stem down, below if stem up (standard engraving).
 		// Fermata always goes above.
 		var above = artFlag === 'fermata' ? true : !stemUp
-		var artPos = relativePos + (above ? 2 : -2) + artOffset * (above ? 2 : -2)
+		var artPos = above
+			? relativePos + 2 + artOffset * 2
+			: relativePos - 2 - artOffset * 2
 		// Avoid landing on a staff line (e.g. staccato dot would be invisible)
 		if (isOnLine(artPos)) artPos += above ? 1 : -1
 		var artMark = new ArticulationMark(artFlag, artPos)
@@ -2967,6 +3002,7 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 		artMark.offsetX = noteHead.x - artMark.x + (noteHeadWidth - artMark.width) / 2
 		drawing.add(artMark)
 		artOffset++
+	}
 	}
 
 	// cursor.incStaveX(spacerWidth())
