@@ -206,6 +206,7 @@ function buildMeasureGeometry(staves) {
 		}
 
 		measures.push({
+			measureIndex: bi + 1,   // 1-based measure number
 			startX: prevBarX,
 			endX: bar.x,
 			topY: sys.topY,
@@ -1500,6 +1501,7 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	drawBracketsAndBraces(drawing, staves, 0)
 	drawStaffLabels(drawing, staves, 0)
+	drawBarNumbers(drawing, staves, 0, fs, 1, 'scroll')
 	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
 	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
 }
@@ -1787,6 +1789,10 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		// Draw brackets, braces, and labels for each system
 		drawBracketsAndBraces(drawing, staves, yOffset, leftMargin)
 		drawStaffLabels(drawing, staves, yOffset, leftMargin)
+
+		// Draw bar number at system start
+		var firstMeasure = sysIdx === 0 ? 1 : systemBreaks[sysIdx - 1].boundaryIndex + 2
+		drawBarNumbers(drawing, staves, yOffset, leftMargin, firstMeasure)
 	}
 
 	// Calculate canvas dimensions for wrapped layout
@@ -2134,6 +2140,10 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 		drawBracketsAndBraces(drawing, staves, yOffset, leftMargin + horizontalPad)
 		drawStaffLabels(drawing, staves, yOffset, leftMargin + horizontalPad)
+
+		// Draw bar number at system start
+		var firstMeasureP = sysIdx === 0 ? 1 : systemBreaks[sysIdx - 1].boundaryIndex + 2
+		drawBarNumbers(drawing, staves, yOffset, leftMargin + horizontalPad, firstMeasureP)
 	}
 
 	// --- Title and author on page 1 ---
@@ -2298,6 +2308,52 @@ function drawStaffLabels(drawing, staves, yOffset, leftMarginOverride) {
 		})
 		labelDraw.moveTo(labelX, labelY)
 		drawing.add(labelDraw)
+	}
+}
+
+/**
+ * Draw bar/measure numbers above the first staff.
+ * In multi-system modes, draws the first measure number of each system.
+ * In scroll mode, draws a number above every barline.
+ *
+ * @param {Drawing} drawing
+ * @param {Array} staves
+ * @param {number} yOffset - Y shift for this system
+ * @param {number} leftMarginX - X position for the system start number
+ * @param {number} firstMeasureNum - 1-based measure number of the first bar in this system
+ * @param {string} [mode] - 'scroll' for every-bar numbers, otherwise system-start only
+ */
+function drawBarNumbers(drawing, staves, yOffset, leftMarginX, firstMeasureNum, mode) {
+	var fs = getFontSize()
+	var numY = getStaffY(0) + yOffset - fs * 1.1  // above the top staff
+	var numFont = Math.round(fs * 0.36) + 'px ' + getMusicTextFamily()
+
+	// Always draw the first measure number at the system start
+	if (firstMeasureNum > 1) {
+		var numDraw = new Claire.Text(String(firstMeasureNum), 0, {
+			font: numFont,
+			textAlign: 'left',
+		})
+		numDraw.moveTo(leftMarginX, numY)
+		drawing.add(numDraw)
+	}
+
+	// In scroll mode, also draw numbers above every barline
+	if (mode === 'scroll') {
+		var tokens = staves[0]?.tokens || []
+		var barNum = 1
+		for (var i = 0; i < tokens.length; i++) {
+			var tok = tokens[i]
+			if (tok.type !== 'Barline' || !tok.drawingBarline) continue
+			barNum++
+			var bx = tok.drawingBarline.x
+			var barNumDraw = new Claire.Text(String(barNum), 0, {
+				font: numFont,
+				textAlign: 'center',
+			})
+			barNumDraw.moveTo(bx, numY)
+			drawing.add(barNumDraw)
+		}
 	}
 }
 
