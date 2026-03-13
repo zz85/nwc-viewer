@@ -348,6 +348,73 @@ describe('PlaybackHighlighter', () => {
 	})
 })
 
+// ── Click-to-seek (getTimeAtPosition) tests ────────────────────────────────
+
+describe('PlaybackHighlighter.getTimeAtPosition', () => {
+	test('returns null when time index is empty', () => {
+		const h = new PlaybackHighlighter(mockElement)
+		expect(h.getTimeAtPosition(100, 240)).toBeNull()
+	})
+
+	test('snaps to first note when clicking before it', () => {
+		const h = new PlaybackHighlighter(mockElement)
+		h._timeIndex = [
+			{ time: 0, x: 50, y: 240 },
+			{ time: 1, x: 250, y: 240 },
+			{ time: 2, x: 450, y: 240 },
+		]
+		// Click before the first note
+		expect(h.getTimeAtPosition(10, 240)).toBe(0)
+	})
+
+	test('snaps to last note when clicking after it', () => {
+		const h = new PlaybackHighlighter(mockElement)
+		h._timeIndex = [
+			{ time: 0, x: 50, y: 240 },
+			{ time: 1, x: 250, y: 240 },
+			{ time: 2, x: 450, y: 240 },
+		]
+		expect(h.getTimeAtPosition(600, 240)).toBe(2)
+	})
+
+	test('interpolates time between notes', () => {
+		const h = new PlaybackHighlighter(mockElement)
+		h._timeIndex = [
+			{ time: 0, x: 50, y: 240 },
+			{ time: 2, x: 250, y: 240 },
+		]
+		// Halfway between x=50 and x=250 → time = 1
+		const t = h.getTimeAtPosition(150, 240)
+		expect(t).toBeCloseTo(1, 5)
+	})
+
+	test('matches correct system by Y coordinate', () => {
+		const h = new PlaybackHighlighter(mockElement)
+		h._timeIndex = [
+			// System 1 (y ≈ 240)
+			{ time: 0, x: 50, y: 240 },
+			{ time: 1, x: 250, y: 240 },
+			// System 2 (y ≈ 500)
+			{ time: 2, x: 50, y: 500 },
+			{ time: 3, x: 250, y: 500 },
+		]
+		// Click in system 2 at x=50 → should get time=2, not time=0
+		expect(h.getTimeAtPosition(50, 500)).toBe(2)
+		// Click in system 2 midway → should interpolate between 2 and 3
+		const t = h.getTimeAtPosition(150, 500)
+		expect(t).toBeCloseTo(2.5, 5)
+	})
+
+	test('returns null when Y does not match any system', () => {
+		const h = new PlaybackHighlighter(mockElement)
+		h._timeIndex = [
+			{ time: 0, x: 50, y: 240 },
+		]
+		// Y is way off from any entry
+		expect(h.getTimeAtPosition(50, 9000)).toBeNull()
+	})
+})
+
 // ── Solo / Mute filtering tests ────────────────────────────────────────────
 
 import { PlaybackController } from '../src/audio.js'

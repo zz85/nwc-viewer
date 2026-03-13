@@ -1,5 +1,5 @@
 import './constants.js'
-import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont, getSpacingModel, setSpacingModel, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality } from './constants.js'
+import { getLayoutMode, setPageSize, getPageSize, getMusicFont, setMusicFont, getSpacingModel, setSpacingModel, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -442,6 +442,44 @@ if (highlightSelect) {
 	highlightSelect.onchange = () => {
 		highlighter.setHighlightMode(highlightSelect.value)
 	}
+}
+
+// Click-to-seek: clicking on the score positions the playback cursor.
+// Distinguishes clicks from drag-scrolls using a 5px movement threshold.
+{
+	const scoreElm = document.getElementById('score')
+	let _clickX = 0, _clickY = 0
+	scoreElm.addEventListener('pointerdown', (e) => {
+		_clickX = e.clientX
+		_clickY = e.clientY
+	})
+	scoreElm.addEventListener('pointerup', (e) => {
+		// Ignore if mouse moved (drag-scroll, not a click)
+		const dx = e.clientX - _clickX
+		const dy = e.clientY - _clickY
+		if (dx * dx + dy * dy > 25) return
+
+		// Convert click position to score-space coordinates
+		const canvasEl = window.canvas
+		if (!canvasEl) return
+		const rect = canvasEl.getBoundingClientRect()
+		const zoom = getZoomLevel()
+		const scoreX = (e.clientX - rect.left + scoreElm.scrollLeft) / zoom
+		const scoreY = (e.clientY - rect.top + scoreElm.scrollTop) / zoom
+
+		// Find the playback time at this position
+		const time = highlighter.getTimeAtPosition(scoreX, scoreY)
+		if (time == null) return
+
+		// Seek the playback engine and update the visual cursor
+		playback.seek(time)
+		highlighter.updateTime(time)
+
+		// Update progress bar position
+		if (playback.duration > 0) {
+			progressBar.value = time / playback.duration
+		}
+	})
 }
 
 // Auto-scroll toggle

@@ -116,6 +116,56 @@ export class PlaybackHighlighter {
 		this._timeIndex = deduped
 	}
 
+	/**
+	 * Given score-space coordinates, find the corresponding playback time.
+	 * Filters the time index to entries in the same system (matching Y),
+	 * then interpolates between the flanking entries based on X position.
+	 *
+	 * @param {number} scoreX - X position in score-space
+	 * @param {number} scoreY - Y position in score-space
+	 * @returns {number|null} Time in seconds, or null if no match
+	 */
+	getTimeAtPosition(scoreX, scoreY) {
+		const idx = this._timeIndex
+		if (idx.length === 0) return null
+
+		const fs = getFontSize()
+
+		// Filter to entries in the same system (Y within ~3 staff heights)
+		const sameSystem = []
+		for (var i = 0; i < idx.length; i++) {
+			if (Math.abs(idx[i].y - scoreY) < fs * 3) {
+				sameSystem.push(idx[i])
+			}
+		}
+
+		if (sameSystem.length === 0) return null
+
+		// Entries are sorted by time; within a system, X is monotonically
+		// increasing, so sorting by X preserves relative time ordering.
+		sameSystem.sort((a, b) => a.x - b.x)
+
+		// Before first note in this system
+		if (scoreX <= sameSystem[0].x) return sameSystem[0].time
+		// After last note in this system
+		var last = sameSystem[sameSystem.length - 1]
+		if (scoreX >= last.x) return last.time
+
+		// Find the interval containing scoreX and interpolate
+		for (var i = 0; i < sameSystem.length - 1; i++) {
+			var a = sameSystem[i]
+			var b = sameSystem[i + 1]
+			if (scoreX >= a.x && scoreX <= b.x) {
+				var dx = b.x - a.x
+				if (dx <= 0) return a.time
+				var t = (scoreX - a.x) / dx
+				return a.time + (b.time - a.time) * t
+			}
+		}
+
+		return last.time
+	}
+
 	// ── Event handlers ─────────────────────────────────────────────────────
 
 	/**
