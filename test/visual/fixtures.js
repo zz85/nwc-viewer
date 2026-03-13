@@ -311,6 +311,16 @@ const SYNTHETIC_FIXTURES = [
 				]]),
 			},
 			{
+				label: '32nd Beams',
+				desc: 'Groups of 32nd notes with triple beams — verifies beam thickness and spacing',
+				data: () => makeScore('32nd Beams', [[
+					clef(), keySig(), timeSig(),
+					note(0, 32, { beam: 1 }), note(1, 32, { beam: 2 }), note(2, 32, { beam: 2 }), note(3, 32, { beam: 3 }),
+					note(4, 32, { beam: 1 }), note(3, 32, { beam: 2 }), note(2, 32, { beam: 2 }), note(1, 32, { beam: 3 }),
+					bar(3),
+				]]),
+			},
+			{
 				label: 'Wide Interval Beam',
 				desc: 'D4→G5 — tests slope clamping (max 1 staff space)',
 				data: () => makeScore('Wide Interval Beam', [[

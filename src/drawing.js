@@ -984,8 +984,11 @@ class Beam extends Draw {
 
 	draw(ctx) {
 		var scale = this._graceScale || 1
-		const beamThickness = (getFontSize() / 10) * scale
-		const beamSpacing = beamThickness * 1.0
+		// Standard engraving: beam thickness = 0.5 staff spaces = getFontSize()/8
+		// Beam separation (gap between beams) = 0.25 staff spaces = getFontSize()/16
+		// Center-to-center = thickness + gap = 0.75 staff spaces = 3*getFontSize()/16
+		const beamThickness = (getFontSize() / 8) * scale
+		const beamSpacing = (getFontSize() * 3 / 16) * scale
 		// Stems-up: additional beams stack downward (toward noteheads) → positive offset.
 		// Stems-down: additional beams stack upward (toward noteheads) → negative offset.
 		const dir = this.stemUp === false ? -1 : 1

@@ -62,7 +62,7 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Accidentals — sharp, flat, natural drawn before note head
 - [x] Ledger lines — above and below staff for notes outside the 5-line range
 - [x] Chords — multiple note heads on a single stem
-- [ ] Grace notes — small notes before the principal note, no time value
+- [x] Grace notes — small notes before the principal note, no time value
 - [ ] Triplet/tuplet brackets — number and bracket above/below note group
 - [x] Ties — cubic bezier curves with proportional arc height, edge-anchored (gap from noteheads), staff-line avoidance, accidental collision clearance, chord inner/outer direction rule
 - [x] Slurs — separate Slur class (thinner, more open profile than ties), center-anchored on noteheads, mixed-stem phrases default above, staff-line avoidance
