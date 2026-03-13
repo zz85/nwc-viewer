@@ -436,12 +436,11 @@ stopBtn.onclick = () => {
 
 progressBar.addEventListener('pointerdown', () => { _seeking = true })
 
-// Highlight style toggle
-const highlightBtn = document.getElementById('highlight_toggle')
-if (highlightBtn) {
-	highlightBtn.onclick = () => {
-		const newStyle = highlighter.toggleStyle()
-		highlightBtn.textContent = 'Highlight: ' + (newStyle === 'glow' ? 'Glow' : 'Color')
+// Highlight mode selector
+const highlightSelect = document.getElementById('highlight_mode')
+if (highlightSelect) {
+	highlightSelect.onchange = () => {
+		highlighter.setHighlightMode(highlightSelect.value)
 	}
 }
 

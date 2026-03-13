@@ -18,6 +18,11 @@ const GLOW_COLOR = 'rgba(30, 120, 255, 0.35)'        // soft blue glow
 const GLOW_RADIUS_FACTOR = 2.5                        // glow radius = noteWidth * factor
 const CURSOR_COLOR = 'rgba(30, 120, 255, 0.4)'        // vertical cursor line
 const CURSOR_WIDTH = 2                                 // px in score-space
+const BAR_HIGHLIGHT_COLOR = 'rgba(255, 80, 80, 0.08)' // light red translucent bar overlay
+const COLUMN_HIGHLIGHT_COLOR = 'rgba(100, 60, 220, 0.10)' // light purple translucent column
+
+// Valid highlight modes
+const HIGHLIGHT_MODES = ['notes', 'glow', 'bar', 'column', 'none']
 
 // ── PlaybackHighlighter ────────────────────────────────────────────────────
 
@@ -40,8 +45,8 @@ export class PlaybackHighlighter {
 		// Current playback time (updated ~46ms from scheduler)
 		this._currentTime = 0
 
-		// Highlight style: 'colored' or 'glow'
-		this._style = 'colored'
+		// Highlight mode: 'notes' (colored), 'glow', 'bar', 'column', 'none'
+		this._highlightMode = 'notes'
 
 		// Auto-scroll: enabled by default
 		this._autoScrollEnabled = true
@@ -141,20 +146,33 @@ export class PlaybackHighlighter {
 		this._currentTime = time
 	}
 
-	// ── Style ──────────────────────────────────────────────────────────────
+	// ── Highlight mode ────────────────────────────────────────────────────
 
 	/**
-	 * Set the highlight rendering style.
+	 * Set the highlight mode.
+	 * @param {'notes' | 'glow' | 'bar' | 'column' | 'none'} mode
+	 */
+	setHighlightMode(mode) {
+		if (HIGHLIGHT_MODES.includes(mode)) {
+			this._highlightMode = mode
+		}
+	}
+
+	/** Get the current highlight mode. */
+	get highlightMode() { return this._highlightMode }
+
+	/**
+	 * Legacy: set highlight style ('colored' → 'notes', 'glow' → 'glow').
 	 * @param {'colored' | 'glow'} style
 	 */
 	setHighlightStyle(style) {
-		this._style = style === 'glow' ? 'glow' : 'colored'
+		this._highlightMode = style === 'glow' ? 'glow' : 'notes'
 	}
 
-	/** Toggle between 'colored' and 'glow' styles. Returns the new style. */
+	/** Legacy: toggle between 'notes' and 'glow'. Returns the new mode. */
 	toggleStyle() {
-		this._style = this._style === 'colored' ? 'glow' : 'colored'
-		return this._style
+		this._highlightMode = this._highlightMode === 'glow' ? 'notes' : 'glow'
+		return this._highlightMode
 	}
 
 	// ── Auto-scroll ───────────────────────────────────────────────────────
@@ -240,17 +258,30 @@ export class PlaybackHighlighter {
 	 * score-space transform (scroll + zoom) is still active.
 	 *
 	 * @param {CanvasRenderingContext2D} ctx - The score canvas context
-	 * @param {Array<{topY: number, bottomY: number}>} [systemGeometry] -
+	 * @param {Array<{topY: number, bottomY: number, startX: number, endX: number}>} [systemGeometry] -
 	 *   Per-system vertical bounds for full-system cursor spanning.
+	 * @param {Array<{startX: number, endX: number, topY: number, bottomY: number}>} [measureGeometry] -
+	 *   Per-measure bounds for bar highlighting.
 	 */
-	drawHighlights(ctx, systemGeometry) {
+	drawHighlights(ctx, systemGeometry, measureGeometry) {
 		if (!this._running && !this._paused) return
 
-		// Draw position cursor
+		const mode = this._highlightMode
+
+		// Draw background highlights first (behind cursor and notes)
+		if (mode === 'bar' && measureGeometry) {
+			this._drawBarHighlight(ctx, systemGeometry, measureGeometry)
+		} else if (mode === 'column') {
+			this._drawColumnHighlight(ctx, systemGeometry)
+		}
+
+		// Draw position cursor (always visible during playback)
 		this._drawCursor(ctx, systemGeometry)
 
-		// Draw active note highlights
-		this._drawNoteHighlights(ctx)
+		// Draw active note highlights (only in note-based modes)
+		if (mode === 'notes' || mode === 'glow') {
+			this._drawNoteHighlights(ctx)
+		}
 	}
 
 	// ── Cursor drawing ─────────────────────────────────────────────────────
@@ -366,6 +397,85 @@ export class PlaybackHighlighter {
 		}
 	}
 
+	// ── Bar highlight drawing ─────────────────────────────────────────────
+
+	/**
+	 * Draw a translucent overlay behind the active measure.
+	 * Finds the measure containing the current cursor position and fills
+	 * a rectangle spanning the measure width and full system height.
+	 */
+	_drawBarHighlight(ctx, systemGeometry, measureGeometry) {
+		// Get the cursor position to determine which measure is active
+		const pos = this._getCursorPosition(this._currentTime)
+		if (!pos) return
+
+		const fs = getFontSize()
+
+		// Find the measure containing the cursor position.
+		// Match on X within the measure bounds, and Y within the system
+		// (with tolerance for cross-system edge cases).
+		var activeMeasure = null
+		for (var i = 0; i < measureGeometry.length; i++) {
+			var m = measureGeometry[i]
+			if (pos.x >= m.startX - 1 && pos.x <= m.endX + 1 &&
+				pos.y >= m.topY - fs * 2 && pos.y <= m.bottomY + fs * 2) {
+				activeMeasure = m
+				break
+			}
+		}
+
+		if (!activeMeasure) return
+
+		ctx.save()
+		ctx.fillStyle = BAR_HIGHLIGHT_COLOR
+		ctx.fillRect(
+			activeMeasure.startX,
+			activeMeasure.topY,
+			activeMeasure.endX - activeMeasure.startX,
+			activeMeasure.bottomY - activeMeasure.topY
+		)
+		ctx.restore()
+	}
+
+	// ── Column highlight drawing ──────────────────────────────────────────
+
+	/**
+	 * Draw a translucent vertical band at the current cursor position,
+	 * spanning all staves in the system.  About one staff-space wide.
+	 */
+	_drawColumnHighlight(ctx, systemGeometry) {
+		const pos = this._getCursorPosition(this._currentTime)
+		if (!pos) return
+
+		const fs = getFontSize()
+		const halfWidth = fs * 0.4  // column half-width: ~0.8 staff spaces total
+
+		// Find the system containing the cursor Y
+		var topY = pos.y - fs * 1.5
+		var botY = pos.y + fs * 2
+
+		if (systemGeometry && systemGeometry.length > 0) {
+			for (var i = 0; i < systemGeometry.length; i++) {
+				var sys = systemGeometry[i]
+				if (pos.y >= sys.topY - fs && pos.y <= sys.bottomY + fs) {
+					topY = sys.topY - fs * 0.5
+					botY = sys.bottomY + fs * 0.5
+					break
+				}
+			}
+		}
+
+		ctx.save()
+		ctx.fillStyle = COLUMN_HIGHLIGHT_COLOR
+		ctx.fillRect(
+			pos.x - halfWidth,
+			topY,
+			halfWidth * 2,
+			botY - topY
+		)
+		ctx.restore()
+	}
+
 	// ── Note highlight drawing ─────────────────────────────────────────────
 
 	_drawNoteHighlights(ctx) {
@@ -411,7 +521,7 @@ export class PlaybackHighlighter {
 		ctx.save()
 		ctx.translate(x, y)
 
-		if (this._style === 'glow') {
+		if (this._highlightMode === 'glow') {
 			// Glow / halo effect: draw a blurred circle behind the notehead
 			const r = w * GLOW_RADIUS_FACTOR
 			ctx.save()

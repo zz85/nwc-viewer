@@ -148,6 +148,72 @@ function collectMeasureBoundaries(staves) {
 }
 
 /**
+ * Build measure geometry from final barline positions after layout/reflow.
+ * Returns a flat array of { startX, endX, topY, bottomY } — one entry per
+ * measure.  Uses _systemGeometry to determine vertical bounds and the left
+ * edge of the first measure in each system.
+ *
+ * Must be called AFTER _systemGeometry is populated and all barline drawing
+ * objects have their final reflowed X/Y positions.
+ */
+function buildMeasureGeometry(staves) {
+	if (!_systemGeometry || _systemGeometry.length === 0) return []
+
+	const tokens = staves[0]?.tokens || []
+	const fs = getFontSize()
+
+	// Collect final barline positions and match each to a system
+	const barlines = []
+	for (var i = 0; i < tokens.length; i++) {
+		var tok = tokens[i]
+		if (tok.type !== 'Barline' || !tok.drawingBarline) continue
+
+		var bx = tok.drawingBarline.x
+		var by = tok.drawingBarline.y
+
+		// Find the system this barline belongs to (compare Y with system bounds)
+		var sysIdx = 0
+		for (var si = 0; si < _systemGeometry.length; si++) {
+			var sys = _systemGeometry[si]
+			if (by >= sys.topY - fs * 2 && by <= sys.bottomY + fs * 2) {
+				sysIdx = si
+				break
+			}
+		}
+
+		barlines.push({ x: bx, sysIdx: sysIdx })
+	}
+
+	if (barlines.length === 0) return []
+
+	var measures = []
+	var prevBarX = -1
+	var prevSysIdx = -1
+
+	for (var bi = 0; bi < barlines.length; bi++) {
+		var bar = barlines[bi]
+		var sys = _systemGeometry[bar.sysIdx]
+
+		if (bar.sysIdx !== prevSysIdx) {
+			// New system — first measure starts at the system's left stave edge
+			prevBarX = sys.startX
+			prevSysIdx = bar.sysIdx
+		}
+
+		measures.push({
+			startX: prevBarX,
+			endX: bar.x,
+			topY: sys.topY,
+			bottomY: sys.bottomY,
+		})
+
+		prevBarX = bar.x
+	}
+
+	return measures
+}
+
+/**
  * Collect note/rest/chord X positions as anchor points for justification.
  * Returns an array of X positions (absolute, in single-line coords) sorted
  * in ascending order.  Merges across ALL staves so that anchors from any
@@ -832,7 +898,7 @@ function quickDraw(dataOrContext, x, y) {
 	// Draw playback highlights on top of the score (cursor + active notes).
 	// The highlighter is set externally via setPlaybackHighlighter().
 	if (_playbackHighlighter) {
-		_playbackHighlighter.drawHighlights(ctx, _systemGeometry)
+		_playbackHighlighter.drawHighlights(ctx, _systemGeometry, _measureGeometry)
 	}
 	ctx.restore()
 }
@@ -849,8 +915,12 @@ let _pageGeometry = null
 
 // System geometry — set by all layout modes, read by quickDraw() to pass
 // to the playback highlighter for full-system cursor spanning.
-// Array of { topY, bottomY } per system in absolute canvas coordinates.
+// Array of { topY, bottomY, startX, endX } per system in absolute canvas coordinates.
 let _systemGeometry = null
+
+// Measure geometry — set by all layout modes after _systemGeometry is built.
+// Flat array of { startX, endX, topY, bottomY } per measure, for bar highlighting.
+let _measureGeometry = null
 
 /** Register the playback highlighter so quickDraw can call drawHighlights(). */
 function setPlaybackHighlighter(highlighter) {
@@ -1410,10 +1480,16 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// Build system geometry (single system for scroll mode)
 	var firstStaffY = getStaffY(0)
+	var staveStartX = fs  // StaveCursor starts at getFontSize() in scroll mode
 	_systemGeometry = [{
 		topY: firstStaffY - fs,
 		bottomY: lastStaveY,
+		startX: staveStartX,
+		endX: maxCanvasWidth,
 	}]
+
+	// Build measure geometry from barline positions
+	_measureGeometry = buildMeasureGeometry(staves)
 
 	drawBracketsAndBraces(drawing, staves, 0)
 	drawStaffLabels(drawing, staves, 0)
@@ -1721,11 +1797,22 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	_systemGeometry = []
 	for (var gi = 0; gi < systemCount; gi++) {
 		var gYOffset = gi * (systemHeight + interSystemGap)
+		var sysNatWidth = systemNaturalWidths[gi]
+		var sysCourtW = courtesyWidths[gi]
+		var sysContentW = pageWidth - sysCourtW
+		var isLastSys = gi === systemCount - 1
+		var sysFillRatio = sysNatWidth / sysContentW
+		var sysJustW = (!isLastSys || sysFillRatio > 0.2) ? pageWidth : sysNatWidth + sysCourtW
 		_systemGeometry.push({
 			topY: firstStaffY + gYOffset - fs,
 			bottomY: lastStaffY + gYOffset,
+			startX: leftMargin,
+			endX: leftMargin + sysJustW,
 		})
 	}
+
+	// Build measure geometry from barline positions
+	_measureGeometry = buildMeasureGeometry(staves)
 
 	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
 	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
@@ -2080,12 +2167,23 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// Build system geometry for playback cursor spanning
 	_systemGeometry = []
 	for (var gi = 0; gi < systemCount; gi++) {
+		var sysNatWidthP = systemNaturalWidths[gi]
+		var sysCourtWP = courtesyWidths[gi]
+		var sysContentWP = contentW - sysCourtWP
+		var isLastSysP = gi === systemCount - 1
+		var sysFillP = sysNatWidthP / sysContentWP
+		var sysJustWP = (!isLastSysP || sysFillP > 0.2) ? contentW : sysNatWidthP + sysCourtWP
 		// After reflow, first staff bottom line is at systemYOffsets[gi]
 		_systemGeometry.push({
 			topY: systemYOffsets[gi] - fs,
 			bottomY: systemYOffsets[gi] + (lastStaffY - firstStaffY),
+			startX: leftMargin + horizontalPad,
+			endX: leftMargin + horizontalPad + sysJustWP,
 		})
 	}
+
+	// Build measure geometry from barline positions
+	_measureGeometry = buildMeasureGeometry(staves)
 
 	// --- Canvas sizing ---
 	maxCanvasWidth = PAGE_W + horizontalPad * 2

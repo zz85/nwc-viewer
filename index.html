@@ -152,7 +152,13 @@
 
 				<button id="play" title="Play / Pause">Play</button>
 				<button id="stop" title="Stop">Stop</button>
-				<button id="highlight_toggle" title="Toggle highlight style (colored / glow)">Highlight: Color</button>
+				<select id="highlight_mode" title="Highlight mode during playback">
+					<option value="notes">Highlight: Notes</option>
+					<option value="glow">Highlight: Glow</option>
+					<option value="bar">Highlight: Bar</option>
+					<option value="column">Highlight: Column</option>
+					<option value="none">Highlight: Off</option>
+				</select>
 				<button id="autoscroll_toggle" title="Toggle auto-scroll during playback">Auto-scroll: On</button>
 				<select id="solo_staff" title="Solo a single staff (or play all)">
 					<option value="all">All Staves</option>

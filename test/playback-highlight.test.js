@@ -297,15 +297,39 @@ describe('PlaybackHighlighter', () => {
 		expect(h._activeTokens.size).toBe(0)
 	})
 
-	test('toggleStyle alternates between colored and glow', () => {
+	test('toggleStyle alternates between notes and glow modes', () => {
 		const h = new PlaybackHighlighter(mockElement)
-		expect(h._style).toBe('colored')
+		expect(h._highlightMode).toBe('notes')
 		const s1 = h.toggleStyle()
 		expect(s1).toBe('glow')
-		expect(h._style).toBe('glow')
+		expect(h._highlightMode).toBe('glow')
 		const s2 = h.toggleStyle()
-		expect(s2).toBe('colored')
-		expect(h._style).toBe('colored')
+		expect(s2).toBe('notes')
+		expect(h._highlightMode).toBe('notes')
+	})
+
+	test('setHighlightMode switches between all valid modes', () => {
+		const h = new PlaybackHighlighter(mockElement)
+		expect(h.highlightMode).toBe('notes')
+
+		h.setHighlightMode('glow')
+		expect(h.highlightMode).toBe('glow')
+
+		h.setHighlightMode('bar')
+		expect(h.highlightMode).toBe('bar')
+
+		h.setHighlightMode('column')
+		expect(h.highlightMode).toBe('column')
+
+		h.setHighlightMode('none')
+		expect(h.highlightMode).toBe('none')
+
+		h.setHighlightMode('notes')
+		expect(h.highlightMode).toBe('notes')
+
+		// Invalid mode is ignored
+		h.setHighlightMode('invalid')
+		expect(h.highlightMode).toBe('notes')
 	})
 
 	test('auto-scroll is enabled by default', () => {

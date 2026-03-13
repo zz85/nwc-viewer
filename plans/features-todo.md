@@ -13,7 +13,7 @@ Planned features and improvements, roughly prioritized.
 - [x] Piano keyboard visualization — 88-key piano with per-staff color-coded key lighting
 - [x] Keep highlights on pause — score and piano highlights stay visible when paused
 - [x] Fix chord accidental MIDI — accidentals on chord child notes now resolve correctly (key sig + running + explicit)
-- [ ] Highlight current bar — light red translucent overlay behind the active measure during playback
+- [x] Highlight current bar — light red translucent overlay behind the active measure during playback
 - [x] Instrument/channel assignment per staff — each staff gets its own MIDI channel (skipping ch9 for non-percussion), with GM program change sent before playback using the NWC patchName
 - [x] Tempo beat unit conversion — tempo markings with non-quarter beat units (half, eighth, dotted) are converted to equivalent quarter-note BPM for correct playback speed
 - [x] NoteOff overlap fix — reference-counted active notes prevent premature noteOff when overlapping notes share the same pitch on the same channel
@@ -71,7 +71,7 @@ Planned features and improvements, roughly prioritized.
 - [ ] **Chord tie orientation wrong** — ties on chord notes don't always follow the inner/outer rule correctly in all cases. The top note should curve above, bottom note below, inner notes follow nearest outer.
 - [ ] **Slur direction with mixed beams** — when a slur spans notes that belong to different beam groups or a mix of beamed and unbeamed notes, the slur direction heuristic can pick the wrong side. Should consider the overall phrase contour and stem directions of all spanned notes, not just the start/end.
 - [x] **Playback cursor spans across staves** — the position cursor draws a vertical line spanning all staves in the system (top of first staff to bottom of last staff) using persisted system geometry from the layout pass. When notes are actively sounding, the cursor snaps to the leftmost active notehead X for exact alignment with note highlights. Works in scroll, wrap, and page modes.
-- [ ] **More highlight modes** — currently only translucent yellow overlay and glow. Add: columnar highlighting (vertical band across all staves at current beat), bar/measure highlighting (light background behind the active measure), and a "no highlighting" option to disable visual feedback entirely.
+- [x] **More highlight modes** — unified highlight mode system with five options: Notes (colored overlay), Glow (blue halo), Bar (translucent measure overlay), Column (vertical band at current beat), and Off (no highlighting). Dropdown selector in toolbar replaces the old toggle button. Cursor always visible during playback regardless of mode.
 - [ ] **Click to select/position cursor** — clicking on a note, rest, or empty space on the score should either select that element (for editing) or move the playback cursor to that position. Requires hit-testing against drawn elements (noteheads, rests, barlines) based on canvas click coordinates mapped back to score-space.
 - [ ] **Bar numbers** — display measure/bar numbers at the start of each system (or above every bar). Should be configurable: every bar, every N bars, start of system only, or hidden.
 - [ ] **Page numbers** — display page numbers in page layout mode (footer or header position, configurable).
