@@ -63,7 +63,7 @@ Planned features and improvements, roughly prioritized.
 
 ## Known Bugs
 
-- [ ] **Staves need sufficient vertical space** — when notes extend far above/below the staff (ledger lines, high beams, triplet brackets, slur arcs), adjacent staves can overlap. The vertical gap between staves should be computed dynamically based on the actual content extent (highest/lowest drawn element) rather than using a fixed inter-staff gap. This affects both scroll and wrap modes.
+- [x] **Staves need sufficient vertical space** — `computeStaffExtents()` estimates per-staff content bounds (note positions, stem tips, dynamics, tempo marks, lyrics, voltas) in half-space units before layout. `buildStaffYMap()` uses these extents to compute inter-staff gaps that prevent content overlap, with a minimum clearance padding. Falls back to static `boundaryTop`/`boundaryBottom` from the file or fixed defaults when extents aren't needed.
 - [ ] **Hairpins collide with adjacent dynamics** — a crescendo/decrescendo wedge that leads into a dynamic marking (e.g. cresc → ff) can overlap the dynamic glyph. The hairpin end-point should stop short to leave clearance, or the dynamic should be nudged right.
 - [ ] **Hairpins and dynamics vertical alignment** — hairpin wedges and dynamic markings on the same staff should share a consistent baseline Y position so they read as a continuous expression lane, rather than each sitting at its own independent vertical offset.
 - [x] **Grace notes: stem/flag not scaled** — Fixed: stems shortened to ~5 half-spaces with 60% thickness, flag glyphs scaled, acciaccatura slash drawn, stems forced up. Beam groups also scaled (thinner beams, shorter stems).

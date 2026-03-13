@@ -1327,7 +1327,8 @@ function score(dataOrContext) {
 	const staves = data.score.staves
 	currentStaves = staves
 	currentAllowLayering = data.score.allowLayering !== false
-	buildStaffYMap(staves, data.score.allowLayering)
+	var extents = computeStaffExtents(staves)
+	buildStaffYMap(staves, data.score.allowLayering, extents)
 	const stavePointers = staves.map(
 		(stave, staveIndex) => new StaveCursor(stave, staveIndex)
 	)
@@ -2425,11 +2426,87 @@ var staffYMap = []
 var currentStaves = [] // reference to current staves array for handleToken
 var currentAllowLayering = true // file-level allowLayering flag
 
-function buildStaffYMap(staves, allowLayering) {
+/**
+ * Estimate per-staff content extents from token data (before full layout).
+ * Returns an array of { minPos, maxPos } in NWC staff position units
+ * (0 = bottom line, 8 = top line; negative = below staff, >8 = above staff).
+ *
+ * Estimates stem length as ~7 half-spaces from the notehead (one octave).
+ * Accounts for dynamics below and tempo/flow marks above.
+ */
+function computeStaffExtents(staves) {
+	var extents = []
+	for (var si = 0; si < staves.length; si++) {
+		var minPos = 0   // bottom staff line
+		var maxPos = 8   // top staff line
+		var tokens = staves[si].tokens || []
+
+		for (var ti = 0; ti < tokens.length; ti++) {
+			var tok = tokens[ti]
+
+			if (tok.type === 'Note' || tok.type === 'Rest') {
+				var pos = tok.position || 0
+				minPos = Math.min(minPos, pos)
+				maxPos = Math.max(maxPos, pos)
+				// Estimate stem tip: ~7 half-spaces from notehead
+				if (tok.type === 'Note') {
+					var stemUp = pos < 4  // stem up if below middle line
+					var stemTip = stemUp ? pos + 7 : pos - 7
+					minPos = Math.min(minPos, stemTip)
+					maxPos = Math.max(maxPos, stemTip)
+				}
+			}
+
+			if (tok.type === 'Chord' && tok.notes) {
+				var chordMin = Infinity, chordMax = -Infinity
+				for (var ni = 0; ni < tok.notes.length; ni++) {
+					var npos = tok.notes[ni].position || 0
+					chordMin = Math.min(chordMin, npos)
+					chordMax = Math.max(chordMax, npos)
+				}
+				if (chordMin < Infinity) {
+					minPos = Math.min(minPos, chordMin)
+					maxPos = Math.max(maxPos, chordMax)
+					// Chord stem direction: up if lowest note is further from
+					// middle line than highest; one octave from the stem-side note
+					var stemUp = (4 - chordMin) >= (chordMax - 4)
+					var stemTip = stemUp ? chordMax + 7 : chordMin - 7
+					minPos = Math.min(minPos, stemTip)
+					maxPos = Math.max(maxPos, stemTip)
+				}
+			}
+
+			// Dynamics and hairpins extend below the staff
+			if (tok.type === 'Dynamic' || tok.type === 'DynamicVariance') {
+				minPos = Math.min(minPos, -9)
+			}
+
+			// Tempo, flow marks, and voltas extend above
+			if (tok.type === 'Tempo' || tok.type === 'Flow' || tok.type === 'TempoVariance') {
+				maxPos = Math.max(maxPos, 15)
+			}
+			if (tok.type === 'Ending') {
+				maxPos = Math.max(maxPos, 16)
+			}
+		}
+
+		// Account for lyrics below the staff (if present)
+		var stLyrics = staves[si].lyrics
+		if (stLyrics && stLyrics.length && stLyrics.some(function(l) { return l && l.length > 0 })) {
+			minPos = Math.min(minPos, -10)
+		}
+
+		extents.push({ minPos: minPos, maxPos: maxPos })
+	}
+	return extents
+}
+
+function buildStaffYMap(staves, allowLayering, extents) {
 	var fs = getFontSize()
 	var halfSpace = fs / 8  // 1 NWC staff position = half a space = fontSize/8 px
 	var initialOffset = fs * 4
 	var layerSpacing = 0               // layered staves overlap completely
+	var padding = fs * 0.6             // minimum clearance between content extents
 
 	staffYMap = []
 	var y = initialOffset
@@ -2456,8 +2533,9 @@ function buildStaffYMap(staves, allowLayering) {
 		// boundaryTop is stored as negative, so negate to get positive distance
 		var gapHalfSpaces = botBound + Math.abs(topBound)
 
+		var gapPixels = 0
 		if (gapHalfSpaces > 0) {
-			y += gapHalfSpaces * halfSpace
+			gapPixels = gapHalfSpaces * halfSpace
 		} else {
 			// Fallback when boundaries are not set (both 0):
 			// Use wider spacing if lyrics exist between these staves
@@ -2470,8 +2548,21 @@ function buildStaffYMap(staves, allowLayering) {
 					break
 				}
 			}
-			y += hasLyrics ? fs * 5 : fs * 2.8
+			gapPixels = hasLyrics ? fs * 5 : fs * 2.8
 		}
+
+		// Dynamic spacing: if content extents are provided, ensure the gap
+		// is large enough that content from adjacent staves doesn't overlap.
+		// minPos (lowest position on staff i, negative = below staff) and
+		// maxPos (highest position on staff i+1, positive = above staff)
+		// are in half-space units.  The needed gap is the distance between
+		// the lowest point of staff i and the highest point of staff i+1.
+		if (extents && extents[i] && extents[i + 1]) {
+			var contentGap = (extents[i + 1].maxPos - extents[i].minPos) * halfSpace + padding
+			gapPixels = Math.max(gapPixels, contentGap)
+		}
+
+		y += gapPixels
 	}
 }
 
