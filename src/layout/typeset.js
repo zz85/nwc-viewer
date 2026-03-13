@@ -2223,6 +2223,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
  */
 function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 	var fs = getFontSize()
+	var sysBarX = leftMarginOverride !== undefined ? leftMarginOverride : fs * 0.9
 	var bracketX = leftMarginOverride !== undefined ? leftMarginOverride * 0.6 : fs * 0.55
 	var braceX = leftMarginOverride !== undefined ? leftMarginOverride * 0.4 : fs * 0.35
 
@@ -2230,9 +2231,7 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 		return getStaffY(si) + yOffset
 	}
 
-	// Collect unique visible Y positions for the system bracket.
-	// A system bracket is drawn when there are multiple distinct visible stave
-	// positions AND at least one bracketWithNext flag is set.
+	// Collect unique visible Y positions
 	var visibleYs = []
 	var hasBracket = false
 	for (var vi = 0; vi < staves.length; vi++) {
@@ -2241,6 +2240,23 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 			visibleYs.push(vy)
 		}
 		if (staves[vi].bracketWithNext) hasBracket = true
+	}
+
+	// System barline: a thin vertical line at the left edge connecting the
+	// top of the first staff to the bottom of the last staff.  Drawn for
+	// any score with 2+ distinct visible stave positions.
+	if (visibleYs.length > 1) {
+		let sysTopY = visibleYs[0] - fs                  // top line of first staff
+		let sysBotY = visibleYs[visibleYs.length - 1]    // bottom line of last staff
+		let sysLw = fs / 14
+		var sysBarline = new Claire.Path(function(ctx) {
+			ctx.beginPath()
+			ctx.lineWidth = sysLw
+			ctx.moveTo(sysBarX, sysTopY)
+			ctx.lineTo(sysBarX, sysBotY)
+			ctx.stroke()
+		})
+		drawing.add(sysBarline)
 	}
 
 	if (hasBracket && visibleYs.length > 1) {

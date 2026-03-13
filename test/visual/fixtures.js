@@ -820,8 +820,8 @@ const SYNTHETIC_FIXTURES = [
 		category: 'Grand Staff & Multi-Staff',
 		tests: [
 			{
-				label: 'Piano Grand Staff',
-				desc: 'Treble + bass clef with bracket',
+				label: 'Piano Grand Staff (Brace)',
+				desc: 'Treble + bass clef with curly brace',
 				data: () => makeScore('Grand Staff', [
 					makeStaff([
 						clef('treble'), keySig(), timeSig(),
@@ -834,6 +834,56 @@ const SYNTHETIC_FIXTURES = [
 						note(0, 4), note(-2, 4), note(-4, 4), note(-6, 4), bar(),
 						chord([-7, -4, 0], 2), chord([-9, -5, -2], 2),
 						bar(3),
+					]),
+				]),
+			},
+			{
+				label: 'Orchestral Bracket',
+				desc: 'Three staves with system bracket',
+				data: () => makeScore('Orchestral', [
+					makeStaff([
+						clef('treble'), keySig(), timeSig(),
+						note(4, 4), note(6, 4), note(8, 4), note(6, 4), bar(3),
+					], { bracketWithNext: true }),
+					makeStaff([
+						clef('treble'), keySig(), timeSig(),
+						note(0, 4), note(2, 4), note(4, 4), note(2, 4), bar(3),
+					], { bracketWithNext: true }),
+					makeStaff([
+						clef('bass'), keySig(), timeSig(),
+						note(-2, 4), note(0, 4), note(2, 4), note(0, 4), bar(3),
+					]),
+				]),
+			},
+			{
+				label: 'Brace + Bracket',
+				desc: 'Piano brace inside orchestral bracket',
+				data: () => makeScore('Piano + Orchestral', [
+					makeStaff([
+						clef('treble'), keySig(), timeSig(),
+						note(4, 4), note(6, 2), bar(3),
+					], { bracketWithNext: true }),
+					makeStaff([
+						clef('treble'), keySig(), timeSig(),
+						chord([0, 4, 7], 2), chord([2, 5, 9], 2), bar(3),
+					], { bracketWithNext: true, braceWithNext: true, connectBarsWithNext: true }),
+					makeStaff([
+						clef('bass'), keySig(), timeSig(),
+						chord([-7, -4, 0], 2), chord([-5, -2, 2], 2), bar(3),
+					]),
+				]),
+			},
+			{
+				label: 'System Barline',
+				desc: 'All staves connected with vertical line at system start',
+				data: () => makeScore('System Barline', [
+					makeStaff([
+						clef('treble'), keySig(), timeSig(),
+						note(0, 4), note(4, 4), note(2, 2), bar(3),
+					]),
+					makeStaff([
+						clef('bass'), keySig(), timeSig(),
+						note(0, 4), note(-4, 4), note(-2, 2), bar(3),
 					]),
 				]),
 			},
