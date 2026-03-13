@@ -687,7 +687,7 @@ class Barline extends Draw {
 class Dot extends Glyph {
 	constructor(pos) {
 		super('augmentationDot', pos)
-		this.offsetX = 5
+		this.offsetX = getFontSize() * 0.18
 	}
 }
 
@@ -897,7 +897,7 @@ class VoltaBracket extends Draw {
 		ctx.fillStyle = '#000'
 		ctx.font = textSize + 'px ' + getMusicTextFamily()
 		ctx.textAlign = 'left'
-		ctx.fillText(this.text, lw + 2, textSize * 0.9)
+		ctx.fillText(this.text, lw + this.fontSize * 0.07, textSize * 0.9)
 	}
 }
 
@@ -1008,7 +1008,7 @@ class Text extends Draw {
 	}
 
 	draw(ctx) {
-		ctx.font = this.font || ('italic bold 12px ' + getMusicTextFamily())
+		ctx.font = this.font || ('italic bold ' + Math.round(getFontSize() * 0.43) + 'px ' + getMusicTextFamily())
 		if (this.textAlign) ctx.textAlign = this.textAlign
 		ctx.fillText(this.text, 0, 0)
 	}

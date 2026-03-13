@@ -1810,10 +1810,11 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// --- Assign systems to pages ---
 	// Title/author consumes space on page 1
+	var fs = getFontSize()
 	var titleHeight = 0
-	if (data.info?.title) titleHeight += 30
-	if (data.info?.author) titleHeight += 20
-	if (titleHeight > 0) titleHeight += 15  // gap after title block
+	if (data.info?.title) titleHeight += Math.round(fs * 1.07)
+	if (data.info?.author) titleHeight += Math.round(fs * 0.71)
+	if (titleHeight > 0) titleHeight += Math.round(fs * 0.54)  // gap after title block
 
 	var pages = []        // [{systemStart, systemEnd}]
 	var currentPage = 0
@@ -1952,20 +1953,21 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// --- Title and author on page 1 ---
 	var page1TopY = interPageGap + margins.top
 	var titleCenterX = horizontalPad + PAGE_W / 2
+	var titleFs = getFontSize()
 	if (data.info?.title) {
 		const titleDraw = new Claire.Text(data.info.title, 0, {
-			font: 'bold 20px ' + getMusicTextFamily(),
+			font: 'bold ' + Math.round(titleFs * 0.71) + 'px ' + getMusicTextFamily(),
 			textAlign: 'center',
 		})
-		titleDraw.moveTo(titleCenterX, page1TopY + 10)
+		titleDraw.moveTo(titleCenterX, page1TopY + Math.round(titleFs * 0.36))
 		drawing.add(titleDraw)
 	}
 	if (data.info?.author) {
 		const authorDraw = new Claire.Text(data.info.author, 0, {
-			font: 'italic 14px ' + getMusicTextFamily(),
+			font: 'italic ' + Math.round(titleFs * 0.50) + 'px ' + getMusicTextFamily(),
 			textAlign: 'center',
 		})
-		authorDraw.moveTo(titleCenterX, page1TopY + 30)
+		authorDraw.moveTo(titleCenterX, page1TopY + Math.round(titleFs * 1.07))
 		drawing.add(authorDraw)
 	}
 
@@ -2099,21 +2101,22 @@ function drawTitleAndAuthor(drawing, data, canvasWidth) {
 	var { title, author, copyright1, copyright2 } = data.info || {}
 
 	var middle = canvasWidth / 2
+	var fs = getFontSize()
 	if (title) {
 		const titleDrawing = new Claire.Text(title, 0, {
-			font: 'bold 20px ' + getMusicTextFamily(),
+			font: 'bold ' + Math.round(fs * 0.71) + 'px ' + getMusicTextFamily(),
 			textAlign: 'center',
 		})
-		titleDrawing.moveTo(middle, 40)
+		titleDrawing.moveTo(middle, Math.round(fs * 1.43))
 		drawing.add(titleDrawing)
 	}
 
 	if (author) {
 		const authorDrawing = new Claire.Text(author, 0, {
-			font: 'italic 14px ' + getMusicTextFamily(),
+			font: 'italic ' + Math.round(fs * 0.50) + 'px ' + getMusicTextFamily(),
 			textAlign: 'center',
 		})
-		authorDrawing.moveTo(middle, 60)
+		authorDrawing.moveTo(middle, Math.round(fs * 2.14))
 		drawing.add(authorDrawing)
 	}
 	var footerEl = document.getElementById('footer')
@@ -2427,7 +2430,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 		case 'PerformanceStyle':
 			var pos = token.position !== undefined ? token.position : 9
 			var text = new Text(token.text, -(pos + 4), {
-				font: 'italic 11px ' + getMusicTextFamily(),
+				font: 'italic ' + Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily(),
 			})
 			cursor.posGlyph(text)
 			drawing.add(text)
@@ -2437,7 +2440,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			var text = new Text(
 				`(${token.duration})`,
 				-(pos + 4),
-				{ font: '11px ' + getMusicTextFamily() }
+				{ font: Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily() }
 			)
 			cursor.posGlyph(text)
 			drawing.add(text)
@@ -2508,7 +2511,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			} else {
 				// Render as italic text
 				var flowText = new Text(flowStyleName, -(flowPos + 4), {
-					font: 'bold italic 11px ' + getMusicTextFamily(),
+					font: 'bold italic ' + Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily(),
 				})
 				cursor.posGlyph(flowText)
 				drawing.add(flowText)
@@ -2545,7 +2548,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				}
 				var tvDisplayText = tvTextMap[tvStyleName] || tvStyleName
 				var tvText = new Text(tvDisplayText, -(tvPos + 4), {
-					font: 'italic 11px ' + getMusicTextFamily(),
+					font: 'italic ' + Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily(),
 				})
 				cursor.posGlyph(tvText)
 				drawing.add(tvText)

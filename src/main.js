@@ -493,6 +493,14 @@ if (pianoToggleBtn) {
 	pianoToggleBtn.onclick = () => {
 		const visible = pianoKeyboard.toggle()
 		pianoToggleBtn.textContent = 'Piano: ' + (visible ? 'On' : 'Off')
+		// Resize canvas to reclaim/release space from the keyboard area
+		if (getLayoutMode() === 'wrap') {
+			rerender()
+		} else {
+			resizeToFit()
+			var scoreElm = document.getElementById('score')
+			quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+		}
 	}
 }
 

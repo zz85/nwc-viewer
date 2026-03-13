@@ -75,6 +75,7 @@ Planned features and improvements, roughly prioritized.
 - [ ] **Click to select/position cursor** — clicking on a note, rest, or empty space on the score should either select that element (for editing) or move the playback cursor to that position. Requires hit-testing against drawn elements (noteheads, rests, barlines) based on canvas click coordinates mapped back to score-space.
 - [ ] **Bar numbers** — display measure/bar numbers at the start of each system (or above every bar). Should be configurable: every bar, every N bars, start of system only, or hidden.
 - [ ] **Page numbers** — display page numbers in page layout mode (footer or header position, configurable).
+- [ ] **Triplet numeral misaligned with bracket** — the "3" numeral on triplet brackets is not horizontally centered or vertically aligned with the square bracket. The numeral should sit centered in the gap of the bracket.
 
 ## UI / UX
 
