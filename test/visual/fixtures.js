@@ -103,6 +103,9 @@ function chord(positions, dur = 4, opts = {}) {
 		staccato: opts.staccato || 0,
 		accent: opts.accent || 0,
 		tenuto: opts.tenuto || 0,
+		marcato: opts.marcato || 0,
+		staccatissimo: opts.staccatissimo || 0,
+		fermata: opts.fermata || 0,
 		grace: opts.grace || 0,
 		lyricSyllable: opts.lyricSyllable || 0,
 		notes: positions.map((p, i) => {
@@ -668,18 +671,57 @@ const SYNTHETIC_FIXTURES = [
 					bar(3),
 				]]),
 			},
-			{
-				label: 'Stacked Articulations',
-				desc: 'Multiple articulations on one note',
-				data: () => makeScore('Stacked Articulations', [[
-					clef(), keySig(), timeSig(),
-					note(0, 4, { staccato: 1, accent: 1 }),
-					note(2, 4, { staccato: 1, tenuto: 1 }),
-					note(4, 4, { accent: 1, fermata: 1 }),
-					note(0, 2),
-					bar(3),
-				]]),
-			},
+		{
+			label: 'Stacked Articulations',
+			desc: 'Multiple articulations on one note',
+			data: () => makeScore('Stacked Articulations', [[
+				clef(), keySig(), timeSig(),
+				note(0, 4, { staccato: 1, accent: 1 }),
+				note(2, 4, { staccato: 1, tenuto: 1 }),
+				note(4, 4, { accent: 1, fermata: 1 }),
+				note(0, 2),
+				bar(3),
+			]]),
+		},
+		{
+			label: 'Beamed Articulations',
+			desc: 'Beamed 8ths with articulations — stems up and stems down',
+			data: () => makeScore('Beamed Articulations', [[
+				clef(), keySig(), timeSig(),
+				// Stems up: staccato pair
+				note(0, 8, { staccato: 1, beam: 1 }),
+				note(2, 8, { staccato: 1, beam: 3 }),
+				// Stems up: accent + tenuto
+				note(-2, 8, { accent: 1, beam: 1 }),
+				note(0, 8, { tenuto: 1, beam: 3 }),
+				// Stems down: staccato pair
+				note(2, 8, { staccato: 1, stem: 2, beam: 1 }),
+				note(0, 8, { staccato: 1, stem: 2, beam: 3 }),
+				// Stems down: marcato group
+				note(4, 8, { marcato: 1, stem: 2, beam: 1 }),
+				note(2, 8, { marcato: 1, stem: 2, beam: 3 }),
+				bar(3),
+			]]),
+		},
+		{
+			label: 'Chord Articulations',
+			desc: 'Chords with staccato, accent, tenuto, marcato — both stem dirs',
+			data: () => makeScore('Chord Articulations', [[
+				clef(), keySig(), timeSig(),
+				// Stem up (default) chords with articulations
+				chord([0, 4], 4, { staccato: 1 }),
+				chord([2, 5], 4, { accent: 1 }),
+				chord([0, 4, 7], 4, { tenuto: 1 }),
+				chord([-2, 2], 4, { marcato: 1 }),
+				bar(),
+				// Stem down chords with articulations
+				chord([0, 4], 4, { staccato: 1, stem: 2 }),
+				chord([2, 5], 4, { accent: 1, stem: 2 }),
+				chord([0, 4, 7], 4, { fermata: 1, stem: 2 }),
+				chord([-2, 2], 4, { staccato: 1, accent: 1, stem: 2 }),
+				bar(3),
+			]]),
+		},
 			{
 				label: 'Grace Notes',
 				desc: 'Grace note before regular note — 60% scale',

@@ -2945,8 +2945,10 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 	}
 
 	// --- Articulation glyphs ---
-	// Articulations are placed above the notehead (stems up) or below (stems down).
+	// Articulations are placed on the notehead side (opposite the stem):
+	//   stem up → articulation below,  stem down → articulation above.
 	// Multiple articulations stack outward from the notehead.
+	// Staff-line avoidance: nudge into the nearest space so dots aren't hidden.
 	var articulationFlags = ['staccato', 'accent', 'tenuto', 'marcato', 'staccatissimo', 'fermata']
 	var artOffset = 0
 	for (var ai = 0; ai < articulationFlags.length; ai++) {
@@ -2955,13 +2957,14 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 		// Place above if stem down, below if stem up (standard engraving).
 		// Fermata always goes above.
 		var above = artFlag === 'fermata' ? true : !stemUp
-		var artPos = above
-			? relativePos + 10 + artOffset * 3
-			: relativePos - 2 - artOffset * 3
+		var artPos = relativePos + (above ? 2 : -2) + artOffset * (above ? 2 : -2)
+		// Avoid landing on a staff line (e.g. staccato dot would be invisible)
+		if (isOnLine(artPos)) artPos += above ? 1 : -1
 		var artMark = new ArticulationMark(artFlag, artPos)
 		cursor.posGlyph(artMark)
-		// Center the articulation on the notehead
-		artMark.offsetX = (noteHeadWidth - artMark.width) / 2
+		// Align with the notehead: cursor has advanced past it,
+		// so pull back to noteHead.x and center within the notehead width.
+		artMark.offsetX = noteHead.x - artMark.x + (noteHeadWidth - artMark.width) / 2
 		drawing.add(artMark)
 		artOffset++
 	}
