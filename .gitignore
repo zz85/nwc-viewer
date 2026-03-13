@@ -1,8 +1,26 @@
 .aider*
 
-# Integration test ephemeral output (screenshots and AI reports)
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+bun.lock
+
+# Build/test artifacts
+test-results/
 test/integration/output/
 test/integration/reports/
 
-# Playwright cache
-node_modules/
+# Binary files and reference materials
+*.exe
+*.iso
+*.bin
+*.paf.exe
+nwc-extract/
+nwc2xml
+references/*.iso
+references/*.bin
+references/*.exe
+vendor/.DS_Store
