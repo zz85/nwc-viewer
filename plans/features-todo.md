@@ -18,8 +18,8 @@ Planned features and improvements, roughly prioritized.
 - [x] Tempo beat unit conversion — tempo markings with non-quarter beat units (half, eighth, dotted) are converted to equivalent quarter-note BPM for correct playback speed
 - [x] NoteOff overlap fix — reference-counted active notes prevent premature noteOff when overlapping notes share the same pitch on the same channel
 - [x] Staff transposition — per-staff semitone transposition extracted from binary/nwctxt formats, applied to MIDI output for correct sounding pitch of transposing instruments
-- [ ] Dynamic markings affect playback velocity
-- [ ] Repeat/volta playback support
+- [x] Dynamic markings affect playback velocity — NWC 2.75 spec velocity mapping (ppp=10..fff=127), per-staff running velocity tracked through `buildNoteEvents`, default mf
+- [x] Repeat/volta playback support — segment-based playback order walker in `src/playback-order.js` handles local repeats, master repeats with special endings, and flow directions (D.C., D.S., Coda, Segno, Fine, To Coda). Post-D.C./D.S. rules: master repeats disabled, default endings (D) taken, re-enabled after To Coda. Ties broken at segment boundaries.
 - [ ] Tempo changes during playback (rit., accel.)
 
 ## Tier 2 — Critical for correct visual rendering (score looks wrong without these)
@@ -60,8 +60,21 @@ Planned features and improvements, roughly prioritized.
 - [x] Triplet/tuplet brackets — numeral on stem/beam side; fully-beamed triplets get numeral only (no bracket); unbeamed/mixed get bracket+numeral; vocal staves place numeral above to clear lyrics
 - [ ] **Future: Full OSMD-style slur math** — Coordinate-rotation bezier calculation (tangent angles with 30-80 degree clamping), skyline/bottomline collision system, `SlurHeightFlatten` factors for long slurs, per-note articulation Y offsets at slur endpoints. See `references/osmd-engraving-notes.md`.
 - [ ] Alto and tenor clef support
-- [x] Ending brackets (1st/2nd endings) — VoltaBracket class with ending numbers
-- [x] Hairpins (crescendo/diminuendo) — Hairpin class with auto-spanning
+
+## Known Bugs
+
+- [ ] **Staves need sufficient vertical space** — when notes extend far above/below the staff (ledger lines, high beams, triplet brackets, slur arcs), adjacent staves can overlap. The vertical gap between staves should be computed dynamically based on the actual content extent (highest/lowest drawn element) rather than using a fixed inter-staff gap. This affects both scroll and wrap modes.
+- [ ] **Hairpins collide with adjacent dynamics** — a crescendo/decrescendo wedge that leads into a dynamic marking (e.g. cresc → ff) can overlap the dynamic glyph. The hairpin end-point should stop short to leave clearance, or the dynamic should be nudged right.
+- [ ] **Hairpins and dynamics vertical alignment** — hairpin wedges and dynamic markings on the same staff should share a consistent baseline Y position so they read as a continuous expression lane, rather than each sitting at its own independent vertical offset.
+- [ ] **Grace notes: stem/flag not scaled** — grace note noteheads and accidentals render at 60% scale, but stems are full length/thickness and flags are full-sized. `beams.js` has zero grace-note awareness. Need: shorter stems (~4 half-spaces), 60%-scaled flag glyphs, thinner stem lines, and optionally an acciaccatura slash through the stem.
+- [ ] **Stave brackets misaligned** — bracket/brace rendering for staff groups (`bracketWithNext`, `braceWithNext`) is visually incorrect or mispositioned.
+- [ ] **Chord tie orientation wrong** — ties on chord notes don't always follow the inner/outer rule correctly in all cases. The top note should curve above, bottom note below, inner notes follow nearest outer.
+- [ ] **Slur direction with mixed beams** — when a slur spans notes that belong to different beam groups or a mix of beamed and unbeamed notes, the slur direction heuristic can pick the wrong side. Should consider the overall phrase contour and stem directions of all spanned notes, not just the start/end.
+- [ ] **Playback cursor should span across staves** — the position cursor currently only highlights on a single staff. It should draw a vertical line spanning all staves in the system so the current playback position is visible across the full score.
+- [ ] **More highlight modes** — currently only translucent yellow overlay and glow. Add: columnar highlighting (vertical band across all staves at current beat), bar/measure highlighting (light background behind the active measure), and a "no highlighting" option to disable visual feedback entirely.
+- [ ] **Click to select/position cursor** — clicking on a note, rest, or empty space on the score should either select that element (for editing) or move the playback cursor to that position. Requires hit-testing against drawn elements (noteheads, rests, barlines) based on canvas click coordinates mapped back to score-space.
+- [ ] **Bar numbers** — display measure/bar numbers at the start of each system (or above every bar). Should be configurable: every bar, every N bars, start of system only, or hidden.
+- [ ] **Page numbers** — display page numbers in page layout mode (footer or header position, configurable).
 
 ## UI / UX
 
