@@ -2836,7 +2836,16 @@ function calculatePadding(durValue) {
 	const baseSpacing = (quarterBaseline + (rawSpacing - quarterBaseline) * prop) * densityScale
 	
 	// Clamp between reasonable bounds
-	return Math.min(Math.max(baseSpacing, 0.5), 10)
+	const clamped = Math.min(Math.max(baseSpacing, 0.5), 10)
+
+	// Apply rod/spring balance so it affects line breaking (not just justification).
+	// Rod portion (1.0) = minimum readable spacing (one notehead width of gap).
+	// Spring portion = anything above 1.0, scaled by balance.
+	// balance=0: tight (rod-only), balance=1: standard, balance>1: extra wide.
+	const balance = getRodSpringBalance()
+	const rodMin = Math.min(clamped, 1.0)
+	const springExtra = Math.max(0, clamped - 1.0)
+	return rodMin + springExtra * balance
 }
 
 function clefFromString(str) {
