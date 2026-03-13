@@ -6,11 +6,12 @@ import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
 import { interpret } from './interpreter.js'
 import { setup, resizeToFit, changeFont } from './drawing.js'
 import { exportLilypond } from './exporter.js'
-import { score, setPlaybackHighlighter } from './layout/typeset.js'
+import { score, setPlaybackHighlighter, setInkBleedRenderer } from './layout/typeset.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
 import { PlaybackController } from './audio.js'
 import { PlaybackHighlighter } from './playback-highlight.js'
+import { InkBleedRenderer } from './ink-bleed.js'
 import { PianoKeyboard } from './piano-keyboard.js'
 
 /**********************
@@ -550,6 +551,26 @@ progressBar.addEventListener('input', () => {
 	const t = parseFloat(progressBar.value) * playback.duration
 	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(playback.duration)
 })
+
+// Ink bleed / print emulation toggle
+let inkBleed = null
+const inkBleedBtn = document.getElementById('ink_bleed_toggle')
+if (inkBleedBtn) {
+	inkBleedBtn.onclick = () => {
+		// Lazy init: create the renderer on first toggle
+		if (!inkBleed && window.canvas) {
+			inkBleed = new InkBleedRenderer(window.canvas)
+			setInkBleedRenderer(inkBleed)
+		}
+		if (inkBleed) {
+			const on = inkBleed.toggle()
+			inkBleedBtn.classList.toggle('active', on)
+			// Trigger a repaint so the effect shows immediately
+			var scoreElm = document.getElementById('score')
+			quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+		}
+	}
+}
 
 const rerender = () => {
 	try {

@@ -908,9 +908,24 @@ function quickDraw(dataOrContext, x, y) {
 		_playbackHighlighter.drawHighlights(ctx, _systemGeometry, _measureGeometry)
 	}
 	ctx.restore()
+
+	// Post-processing: ink bleed / print emulation
+	// Pass scroll offset and zoom so the paper texture pins to score coordinates.
+	if (_inkBleedRenderer && _inkBleedRenderer.enabled) {
+		var scrollX = -(x || 0)  // x is -scrollLeft, so negate to get scrollLeft
+		var scrollY = -(y || 0)
+		_inkBleedRenderer.render(scrollX, scrollY, getZoomLevel())
+	}
 }
 
 window.quickDraw = quickDraw
+
+// Ink bleed renderer — set externally via setInkBleedRenderer().
+var _inkBleedRenderer = null
+
+function setInkBleedRenderer(renderer) {
+	_inkBleedRenderer = renderer
+}
 
 // Playback highlighter reference — set by main.js to allow quickDraw to
 // paint highlights after the score without a circular import.
@@ -3285,4 +3300,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, reflowIfSparse }
+export { score, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }
