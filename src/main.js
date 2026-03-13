@@ -589,6 +589,52 @@ if (paperColorInput) {
 	})
 }
 
+// Ink controls popover + sliders
+const inkToggle = document.getElementById('ink_controls_toggle')
+const inkPanel = document.getElementById('ink_controls_panel')
+if (inkToggle && inkPanel) {
+	inkToggle.onclick = (e) => {
+		e.stopPropagation()
+		const isOpen = inkPanel.classList.toggle('open')
+		inkToggle.classList.toggle('active', isOpen)
+	}
+	document.addEventListener('click', (e) => {
+		if (!inkPanel.contains(e.target) && e.target !== inkToggle) {
+			inkPanel.classList.remove('open')
+			inkToggle.classList.remove('active')
+		}
+	})
+}
+
+function inkRepaint() {
+	if (!inkBleed) return
+	var scoreElm = document.getElementById('score')
+	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+}
+
+const inkSliders = [
+	['ink_bleed_slider',     'ink_bleed_label',     'bleed'],
+	['ink_roughness_slider', 'ink_roughness_label',  'roughness'],
+	['ink_density_slider',   'ink_density_label',    'inkDensity'],
+	['ink_grain_slider',     'ink_grain_label',      'paperGrain'],
+	['ink_pool_slider',      'ink_pool_label',       'edgePool'],
+]
+
+for (const [sliderId, labelId, paramKey] of inkSliders) {
+	const slider = document.getElementById(sliderId)
+	const label = document.getElementById(labelId)
+	if (slider && label) {
+		slider.addEventListener('input', () => {
+			const val = parseFloat(slider.value) / 100
+			label.textContent = val.toFixed(2)
+			if (inkBleed) {
+				inkBleed.setParams({ [paramKey]: val })
+				inkRepaint()
+			}
+		})
+	}
+}
+
 const rerender = () => {
 	try {
 		setup(

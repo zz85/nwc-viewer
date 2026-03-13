@@ -334,6 +334,38 @@
 						<input type="color" id="ink_paper_color" value="#f1ece3" title="Paper color" style="width: 28px; height: 24px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; vertical-align: middle;" />
 					</div>
 
+					<!-- Ink bleed controls (popover) -->
+					<div class="toolbar-group" style="position: relative;">
+						<button id="ink_controls_toggle" title="Ink bleed parameters">Ink</button>
+						<div id="ink_controls_panel" class="popover">
+							<label title="Ink spread amount">
+								<span>Bleed</span>
+								<input type="range" id="ink_bleed_slider" min="0" max="100" step="1" value="14" />
+								<span id="ink_bleed_label" class="slider-value">0.14</span>
+							</label>
+							<label title="Edge noise / organic variation">
+								<span>Roughness</span>
+								<input type="range" id="ink_roughness_slider" min="0" max="100" step="1" value="58" />
+								<span id="ink_roughness_label" class="slider-value">0.58</span>
+							</label>
+							<label title="Overall ink darkness">
+								<span>Ink Density</span>
+								<input type="range" id="ink_density_slider" min="0" max="100" step="1" value="100" />
+								<span id="ink_density_label" class="slider-value">1.00</span>
+							</label>
+							<label title="Paper fiber texture strength">
+								<span>Paper Grain</span>
+								<input type="range" id="ink_grain_slider" min="0" max="100" step="1" value="13" />
+								<span id="ink_grain_label" class="slider-value">0.13</span>
+							</label>
+							<label title="Letterpress edge darkening">
+								<span>Edge Pool</span>
+								<input type="range" id="ink_pool_slider" min="0" max="100" step="1" value="2" />
+								<span id="ink_pool_label" class="slider-value">0.02</span>
+							</label>
+						</div>
+					</div>
+
 					<!-- Spacing tuning (popover) -->
 					<div class="toolbar-group" style="position: relative;">
 						<button id="tuning_toggle" title="Spacing tuning parameters">Advanced</button>

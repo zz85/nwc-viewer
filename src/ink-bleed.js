@@ -61,6 +61,8 @@ uniform float uInkDensity;
 uniform float uPaperGrain;
 uniform float uEdgePool;
 uniform vec3 uPaperColor;    // paper base color (RGB, 0-1)
+uniform float uPageMode;     // 1.0 if page layout (has non-page gray areas)
+uniform vec3 uBgColor;       // background color for non-page areas
 
 in vec2 vUv;
 out vec4 fragColor;
@@ -117,6 +119,17 @@ float cellNoise(vec2 p) {
 void main() {
   vec2 uv = vUv;
   vec2 px = 1.0 / uResolution;
+
+  // In page mode, skip ink processing for non-page background areas.
+  // These are filled with a distinctive gray by the host; output as-is.
+  if (uPageMode > 0.5) {
+    vec3 origRgb = texture(uOriginal, uv).rgb;
+    float bgDist = length(origRgb - uBgColor);
+    if (bgDist < 0.03) {
+      fragColor = vec4(origRgb, 1.0);
+      return;
+    }
+  }
 
   // Score-pinned noise coordinate: convert screen pixel to score-space position
   // so the paper texture is attached to the score, not the viewport.
@@ -313,7 +326,8 @@ export class InkBleedRenderer {
 		this._inkProg = linkProgram(gl, VERT_QUAD, FRAG_INK)
 		this._inkU = uniforms(gl, this._inkProg, [
 			'uOriginal', 'uBlurred', 'uResolution', 'uScale', 'uScroll', 'uZoom',
-			'uBleed', 'uRoughness', 'uInkDensity', 'uPaperGrain', 'uEdgePool', 'uPaperColor',
+			'uBleed', 'uRoughness', 'uInkDensity', 'uPaperGrain', 'uEdgePool',
+			'uPaperColor', 'uPageMode', 'uBgColor',
 		])
 
 		// Fullscreen quad
@@ -373,8 +387,9 @@ export class InkBleedRenderer {
 	 * @param {number} [scrollX=0] - Score container scrollLeft (CSS px)
 	 * @param {number} [scrollY=0] - Score container scrollTop (CSS px)
 	 * @param {number} [zoom=1] - Current zoom level
+	 * @param {boolean} [pageMode=false] - Whether page layout is active
 	 */
-	render(scrollX, scrollY, zoom) {
+	render(scrollX, scrollY, zoom, pageMode) {
 		if (!this._enabled || !this._gl) return
 
 		const gl = this._gl
@@ -441,6 +456,9 @@ export class InkBleedRenderer {
 		gl.uniform1f(this._inkU.uEdgePool, p.edgePool)
 		var pc = p.paperColor || [0.945, 0.925, 0.890]
 		gl.uniform3f(this._inkU.uPaperColor, pc[0], pc[1], pc[2])
+		gl.uniform1f(this._inkU.uPageMode, pageMode ? 1.0 : 0.0)
+		// #c8c8c8 = rgb(200,200,200) = 200/255 ≈ 0.784
+		gl.uniform3f(this._inkU.uBgColor, 0.784, 0.784, 0.784)
 
 		this._drawQuad()
 	}

@@ -890,12 +890,13 @@ function quickDraw(dataOrContext, x, y) {
 		return
 	}
 	
-	// Fill with opaque white rather than clearRect (which leaves transparent pixels).
-	// The ink bleed shader reads the R channel: 0=ink, 1=paper.  Transparent pixels
-	// (from clearRect) have R=0, which the shader misinterprets as solid ink.
+	// Fill with opaque background rather than clearRect (which leaves transparent
+	// pixels that the ink bleed shader misinterprets as solid ink).
+	// In page mode, use a gray background for the areas between pages; the
+	// shader detects this gray and skips ink processing there.
 	ctx.save()
 	ctx.setTransform(1, 0, 0, 1, 0, 0)  // reset to device pixels for full-canvas fill
-	ctx.fillStyle = '#ffffff'
+	ctx.fillStyle = _pageGeometry ? '#c8c8c8' : '#ffffff'
 	ctx.fillRect(0, 0, canvas.width, canvas.height)
 	ctx.restore()
 
@@ -924,7 +925,7 @@ function quickDraw(dataOrContext, x, y) {
 		var dpr = canvas.width / (parseFloat(canvas.style.width) || canvas.width)
 		var scrollX = -(x || 0) * dpr  // x is -scrollLeft; negate and scale to device px
 		var scrollY = -(y || 0) * dpr
-		_inkBleedRenderer.render(scrollX, scrollY, getZoomLevel())
+		_inkBleedRenderer.render(scrollX, scrollY, getZoomLevel(), !!_pageGeometry)
 	}
 }
 
