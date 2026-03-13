@@ -41,20 +41,17 @@ accidental zone so subsequent elements don't overlap it.
 
 ---
 
-## 3. Cross-System Ties
+## 3. Cross-System Ties — DONE
 
 **Impact: HIGH | Files: ties.js, typeset.js**
 
-Ties spanning system breaks produce incorrect rendering. The `Tie` constructor
-computes width from start.x to end.x, but when these are on different systems
-the reflow pass applies the wrong system's justification to the end coordinate.
-
-**Fix:** In `layoutTies()`, detect when start and end notes span a system break
-(using `collectMeasureBoundaries` or breakXs). When detected:
-1. Replace the single tie with two partial arcs.
-2. Arc 1 (system N): from start note to the right edge of system N.
-3. Arc 2 (system N+1): from the left edge (after courtesy items) to end note.
-4. Both arcs use correct Y coordinates for their respective systems.
+Cross-system ties are detected using `_sysIdx` stored during reflow (not
+Y-threshold heuristic). When start and end notes span a system break, the
+single tie is replaced with two partial arcs:
+1. Arc 1 (system N): from start note to the right edge of system N
+2. Arc 2 (system N+1): from the left edge (after courtesy items) to end note
+Both arcs use correct Y coordinates for their respective systems. Direction
+is propagated via `PartialTie` class.
 
 ---
 
@@ -91,18 +88,15 @@ exist in all SMuFL fonts (`rest32nd`, `rest64th`).
 
 ---
 
-## 6. Grace Note Spacing
+## 6. Grace Note Spacing — DONE
 
 **Impact: MEDIUM | Files: typeset.js (drawForNote)**
 
-Grace notes with accidentals get no space reservation (same accidental
-collision issue as #2, but worse due to 0.6x scale). The spring is a fixed
-`spacerWidth() * 0.5` (~3.5px) regardless of duration — too tight.
-
-**Fix:**
-- Apply accidental space reservation (same as #2) scaled by `graceScale`.
-- Set grace note spring to `rossSpringWidth(durValue) * 0.4` (duration-
-  proportional but compressed to 40%) instead of the fixed value.
+Grace notes now have duration-proportional spacing:
+- Spring set to `rossSpringWidth(durValue) * 0.4` (40% of normal spring)
+- Padding reduced to 50% of normal
+- Accidental space reservation scaled by `graceScale`
+- Width scaled on glyph object itself for correct beam/tie calculations
 
 ---
 

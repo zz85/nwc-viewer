@@ -44,7 +44,7 @@ Planned features and improvements, roughly prioritized.
 - [x] Additional music fonts — SMuFL-compliant fonts: Bravura (default), [Petaluma](https://github.com/steinbergmedia/petaluma), [Leland](https://github.com/MuseScoreFonts/Leland), [Sebastian](https://github.com/fkretlow/sebastian), [Golden Age](https://github.com/benwiggy/GoldenAge), [Leipzig](https://github.com/rism-digital/leipzig); dynamic switching via dropdown with localStorage persistence
 - [x] Companion text fonts — BravuraText, LelandText, PetalumaText, SebastianText loaded via @font-face; all text elements (lyrics, titles, tempo, staff labels) use the matching text font; GoldenAge/Leipzig fall back to serif
 - [x] Dynamic markings rendered as SMuFL glyphs — pre-composed glyphs (pp, mp, mf, ff, etc.) from the music font instead of italic text; falls back to individual letter glyph composition for unknown combinations
-- [ ] Landscape / portrait page orientation toggle (page layout mode)
+- [x] Landscape / portrait page orientation toggle — `[Portrait | Landscape]` segmented button group in page mode, swaps page width/height via `getPageDimensions()`, persisted to localStorage
 - [ ] Multi-page rendering — display all pages vertically like a PDF viewer (currently only lays out pages but rendering may clip)
 - [ ] Page navigation — jump to page N (page indicator + input or prev/next buttons)
 - [ ] Page numbers, headers/footers in page mode
@@ -53,7 +53,7 @@ Planned features and improvements, roughly prioritized.
 - [ ] Melisma/extender lines for slurred notes under one syllable
 - [ ] Multiple lyric verses (currently only verse 1 rendered; NWC supports up to 8)
 - [x] Grand staff brace rendering (`braceWithNext` parsed and drawn as SMuFL glyph)
-- [ ] Proportional / spring-and-rod spacing (currently fixed-width-per-duration)
+- [x] Spring-and-rod spacing model — Ross/Gould duration tables, per-system spring factor, rod = max of musical width and lyric width. Fixed spacing mode removed from UI. Tuning sliders (density, rod/spring, visual/timing) hidden behind a "Tuning" popover button.
 - [x] Grace notes — 60% scale noteheads/accidentals, stems always up, shorter stems (~5 half-spaces), thinner stem/beam lines, scaled flag glyphs, acciaccatura slash through stem. Beamed grace groups get scaled beams. Reduced horizontal spacing (40% spring, 50% padding).
 - [x] Ties and slurs — direction follows stem (up→below, down→above); anchored at notehead pitch (offsetY); per-child-note chord ties; cross-system tie splitting preserves direction; slurs use outer chord note as anchor
 - [x] **Professional tie/slur engraving** — Cubic bezier curves with proportional arc height (short ties = round, long ties = flat); separate Tie/Slur classes (ties thicker+rounder, slurs thinner+more open); edge-anchored ties (gap from notehead edges, "never touch"); chord inner/outer direction (top curves above, bottom below, inner follows nearest); mixed-stem slurs default above; staff-line avoidance (peak nudged into spaces); accidental collision clearance; engraving constants in `src/engraving-rules.js`

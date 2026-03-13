@@ -1,5 +1,7 @@
 # Notably Music Viewer - Improvement Plan
 
+> **STATUS: LARGELY SUPERSEDED.** This was the initial improvement plan from the early project phase. Most High Priority items (global variable refactoring, beams, ties, error handling) were completed in Phases 1-4 (see `phases_complete.md`). Most Medium and Low Priority items have also been addressed: beams with slope clamping, professional tie/slur engraving, 13 SMuFL music fonts, spring-rod spacing model, page layout, SoundFont playback with highlights, MIDI import, 525+ tests with CI. See `features-todo.md` for the current status of all features.
+
 ## Current Architecture Overview
 
 The Notably music viewer is a JavaScript-based application that renders NWC (Noteworthy Composer) files in the browser. The architecture follows a clear pipeline:

@@ -33,8 +33,7 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Layered staves share the same Y position (overlap completely)
 - [x] Boundary-based vertical spacing — `boundaryTop`/`boundaryBottom` staff properties control inter-stave gaps
 - [x] Barline connections respect `bracketWithNext`, `connectBarsWithNext`, `layerWithNext` flags
-- [ ] Multi-system line breaks — ~~currently all measures flow on one infinite line; should wrap to fit canvas/page width~~ basic wrap mode implemented with DP-optimal and greedy break algorithms; needs refinement
-- [x] Multi-system line breaks (basic) — wrap mode reflows measures into systems; respects NWC systemBreak flags; DP-optimal (Knuth-Plass style) and greedy algorithms; per-system justification; courtesy clef/key at system starts; scroll/wrap toggle
+- [x] Multi-system line breaks — wrap mode reflows measures into systems; respects NWC systemBreak flags; DP-optimal (Knuth-Plass style) algorithm (greedy removed); per-system justification via anchor-point stretching; courtesy clef/key at system starts; scroll/wrap/page layout toggle
 - [ ] First-system indent — first system should be indented to leave room for instrument names
 - [ ] Staff visibility — some staves may be hidden; should respect visibility flags
 - [ ] **Viewer/Editor mode toggle** — a view mode that hides invisible items (tokens with Visibility=Never, hidden barlines, etc.) vs editor mode that shows everything with visual indicators
@@ -63,14 +62,14 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Ledger lines — above and below staff for notes outside the 5-line range
 - [x] Chords — multiple note heads on a single stem
 - [x] Grace notes — small notes before the principal note, no time value
-- [ ] Triplet/tuplet brackets — number and bracket above/below note group
+- [x] Triplet/tuplet brackets — TupletBracket class; numeral on stem/beam side; fully-beamed triplets get numeral only (no bracket); unbeamed/mixed get bracket+hooks+numeral; vocal staves force numeral above to clear lyrics
 - [x] Ties — cubic bezier curves with proportional arc height, edge-anchored (gap from noteheads), staff-line avoidance, accidental collision clearance, chord inner/outer direction rule
 - [x] Slurs — separate Slur class (thinner, more open profile than ties), center-anchored on noteheads, mixed-stem phrases default above, staff-line avoidance
 - [ ] Double sharp / double flat accidentals
 
 ## Beams
 
-- [x] Beam grouping from NWC beam markers (1=start, 3=middle, 2=end)
+- [x] Beam grouping from NWC beam markers (1=start, 2=middle, 3=end)
 - [x] Primary beam count from coarsest duration in group (8th=1, 16th=2, 32nd=3)
 - [x] Sub-beams for finer-duration notes — partial beams drawn per contiguous run, no double-drawing
 - [x] Stem direction from NWC data, fallback to average-position heuristic
@@ -78,7 +77,7 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Sub-beam stub length — 40% of gap to nearest neighbor
 - [x] Beam spacing — 1.0x beam thickness center-to-center
 - [ ] Cross-staff beams — beam connecting notes on different staves (e.g. piano left/right hand)
-- [ ] Beam angle limits — beams should not exceed ~15 degree slope; currently follows raw stem endpoints
+- [x] Beam angle limits — MAX_BEAM_SLOPE = 2 half-spaces (1 staff space); non-monotonic pitch contour forces horizontal beam (slope=0); beams rendered as filled parallelograms for correct visual thickness at slanted angles
 
 ## Barlines
 
@@ -94,7 +93,7 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Barline connectors between grouped staves (layered or `connectBarsWithNext`)
 - [x] Connectors suppressed when lyrics exist between staves
 - [ ] Repeat barline with custom repeat count — should display "x3" etc. when `repeatCount > 2`
-- [ ] Ending brackets (1st/2nd endings) — `Ending` tokens parsed but not rendered
+- [x] Ending brackets (1st/2nd endings) — VoltaBracket class draws left hook + horizontal line + optional right hook (closed endings) + ending number text. Width calculated in `layoutVoltaSpans()` to reach next ending/barline.
 
 ## Lyrics
 
@@ -120,26 +119,26 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Dynamic markings parsed (pp, p, mp, mf, f, ff, fff)
 - [x] Dynamic text rendered below staff
 - [x] Dynamic positioning — uses `position` field from file; consistent -(pos+4) conversion
-- [ ] Hairpins (crescendo/diminuendo) — wedge shapes spanning note ranges
+- [x] Hairpins (crescendo/diminuendo) — canvas-drawn wedges; span auto-calculated in `layoutHairpinSpans()` to reach next Dynamic/DynamicVariance/Barline. DynamicVariance styles 0-2 as hairpin wedges, Rinforzando as "rfz", Sforzando as "sfz".
 - [x] Tempo markings — uses file position; renders BPM value above staff
 - [x] Text expressions — user text annotations at file-specified positions
 - [x] Performance directions (e.g. "Legato", "rit.") — uses file position
 
 ## Spacing & Layout
 
-- [ ] **Staff boundary properties for layout** — NWC stores `boundaryTop` / `boundaryBottom` in staff properties (visual extent above/below center); should use these to compute inter-stave spacing instead of fixed gaps
+- [x] **Staff boundary properties for layout** — `computeStaffExtents()` estimates per-staff content bounds (note positions, stem tips, dynamics, tempo marks, lyrics, voltas) in half-space units. `buildStaffYMap()` uses these extents to compute inter-staff gaps preventing content overlap, with minimum clearance padding. Falls back to static `boundaryTop`/`boundaryBottom` from the file.
 - [ ] **Staff labels shift stave X origin** — rendering of staff labels currently doesn't offset where notes/staves begin; labels should push the stave start rightward
-- [ ] **Lyrics-aware vertical spacing** — Y positioning of staves should account for the height of lyrics (number of verses × line height) rather than a fixed gap
-- [ ] Adaptive inter-stave spacing — currently a fixed large gap (5x fontSize) between all stave groups; staves without lyrics between them should stack tighter (e.g. 2.5-3x), only expanding when lyrics need to be rendered in the gap
+- [x] **Lyrics-aware vertical spacing** — `computeStaffExtents()` accounts for lyric line height; `buildStaffYMap()` allocates extra vertical space when lyrics are present between staves
+- [x] Adaptive inter-stave spacing — `buildStaffYMap()` uses content extents for dynamic gaps: tighter within groups, wider between groups, expanded when lyrics or other below-staff content needs space
 - [x] Inter-stave spacing — wider gap between groups, tighter within groups (1.8x)
 - [x] Layered staves at zero spacing (complete overlap)
-- [ ] Horizontal note density — currently too generous; should fit approximately 4 measures per system line, matching standard engraving density
-- [ ] Proportional spacing — note spacing should reflect duration (half note gets ~2x quarter note width)
+- [x] Horizontal note density — spring-and-rod model with Ross/Gould duration tables; per-system spring factor; natural note spacing reflects duration
+- [x] Proportional spacing — spring-rod model: rod = max of musical width and lyric width; spring stretches proportionally to fill system; tuning sliders for density, rod/spring, visual/timing balance
 - [x] Measure-level justification — anchor-point stretching distributes extra space at note/rest gaps (capped at MAX_INTRA_STRETCH), overflow goes to barline padding; piecewise-constant offsets keep note units (head, stem, dot, beam, accidental) rigid
 - [x] Last-line barline alignment — justified systems stretch the final barline to the page edge; unjustified last systems (fill < 20%) keep natural width
 - [x] Line breaking algorithm — determine optimal points to break into new system lines
 - [ ] Page breaks — support for page-level layout when printing/exporting
-- [ ] **Preset paper sizes** — wrap layout currently uses viewport width; should offer standard paper sizes (A4, Letter, etc.) so the score wraps to a fixed width independent of browser window size
+- [x] **Preset paper sizes** — Letter (8.5x11") and A4 (210x297mm) page sizes; page size selector visible only in page mode; Portrait/Landscape orientation toggle; all persisted to localStorage
 - [ ] Minimum measure width — very short measures (e.g. pickup bars) should still have readable spacing
 
 ## Investigation Notes (adohn.nwc reference)
@@ -263,9 +262,15 @@ split-stem chord correctly render as open noteheads while quarter notes render f
 
 ## Testing
 
-- [x] 22 beam unit tests (computeBeamLayout, groupBeamableNotes)
-- [x] 20 score feature tests (staff labels, barline styles, lyrics flow, connector logic, ending barlines)
+- [x] 41 line-breaking tests (DP-optimal breaks, justification)
+- [x] 25 score feature tests (staff labels, barline styles, lyrics flow, connector logic, ending barlines)
 - [x] 108 NWC corpus parse tests
-- [x] 185 existing parser/interpreter/layout tests
+- [x] 65 tier-2 rendering tests (articulations, hairpins, voltas, triplets, grace notes, flow directions)
+- [x] 76 MIDI import tests (quantization, key detection, accidental spelling, 88-key round-trip)
+- [x] 19 playback highlight tests (time index, cursor position, note events)
+- [x] 8 piano keyboard tests
+- [x] 31 tie/slur engraving tests (proportional height, chord direction, clearance, avoidance)
+- [x] 525 total tests passing
+- [x] GitHub Actions CI — `bun test` on every push and PR
 - [ ] Visual regression screenshots — baselines need updating after recent changes
 - [ ] Integration tests for rendering output (Playwright)

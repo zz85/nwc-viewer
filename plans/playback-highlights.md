@@ -1,5 +1,7 @@
 # Playback Highlights — Implementation Plan
 
+> **STATUS: IMPLEMENTED.** Playback highlighting is fully working, evolved beyond the original plan. Key differences from plan: uses single-canvas rendering (not overlay canvas) with `PlaybackHighlighter.drawHighlights(ctx)` called from `quickDraw()`. Five highlight modes: Notes (translucent yellow overlay), Glow (blue halo), Bar (measure overlay), Column (vertical band), Off. Position cursor spans all staves. Auto-scroll in both wrap and scroll modes. Click-to-seek. Highlights persist on pause, clear on stop.
+
 ## Problem
 
 During playback, there's no visual feedback on the score — notes don't highlight

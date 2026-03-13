@@ -1,5 +1,7 @@
 # Page Layout View — Implementation Plan
 
+> **STATUS: IMPLEMENTED.** Page layout mode is fully working with Letter/A4 sizes, Portrait/Landscape orientation, white pages with drop shadows, proper margins, and automatic page breaks. Systems reuse DP line-breaking from wrap mode. Layout, page size, and orientation persisted to localStorage.
+
 ## Goal
 
 Add a "Page" layout mode that renders the score on fixed-size pages (Letter or A4),
