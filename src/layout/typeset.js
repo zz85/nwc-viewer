@@ -389,6 +389,68 @@ function computeBadness(lineWidth, pageWidth, isLastLine) {
 	return shortfall * shortfall * 10
 }
 
+/**
+ * Two-pass line breaking refinement.
+ *
+ * After the first DP pass, checks how well each system fills its target width.
+ * If any non-last system fills less than REFLOW_THRESHOLD (75%), the measure
+ * widths are scaled down (using the median fill ratio) and the DP is re-run.
+ * This produces line breaks that match the effective post-justification widths,
+ * eliminating large gaps when rod/spring balance compresses spacing.
+ *
+ * @param {Array} boundaries - Original measure boundary array
+ * @param {Array} firstBreaks - Break positions from pass 1
+ * @param {number} pageWidth - Target content width
+ * @param {number} leftMargin - Left margin width
+ * @param {number} singleLineWidth - Total single-line layout width
+ * @returns {Array} Possibly improved break positions
+ */
+const REFLOW_THRESHOLD = 0.75
+
+function reflowIfSparse(boundaries, firstBreaks, pageWidth, leftMargin, singleLineWidth) {
+	if (firstBreaks.length === 0) return firstBreaks
+
+	var breakXs = firstBreaks.map(b => b.x)
+	var systemCount = breakXs.length + 1
+
+	// Compute fill ratios for non-last systems
+	var ratios = []
+	for (let sysIdx = 0; sysIdx < systemCount - 1; sysIdx++) {
+		var sysStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
+		var sysEndX = breakXs[sysIdx]
+		var naturalWidth = sysEndX - sysStartX
+		if (pageWidth > 0) ratios.push(naturalWidth / pageWidth)
+	}
+
+	if (ratios.length === 0) return firstBreaks
+
+	var worstRatio = Math.min(...ratios)
+
+	// Only reflow if fill is clearly insufficient
+	if (worstRatio >= REFLOW_THRESHOLD) return firstBreaks
+
+	// Use median ratio as scale factor — more stable than worst or mean
+	var sorted = [...ratios].sort((a, b) => a - b)
+	var medianRatio = sorted[Math.floor(sorted.length / 2)]
+	var scale = Math.max(0.3, Math.min(medianRatio, 0.95))
+
+	// Scale boundary X positions and re-run DP.
+	// The DP sees narrower measures → packs more per line.
+	var scaledBoundaries = boundaries.map(b => ({
+		...b,
+		x: b.x * scale,
+	}))
+
+	var newBreaks = computeSystemBreaks(scaledBoundaries, pageWidth, leftMargin)
+
+	// Map break X positions back to original (unscaled) coordinates.
+	// The boundaryIndex is still valid since both arrays have the same length.
+	return newBreaks.map(brk => ({
+		...brk,
+		x: boundaries[brk.boundaryIndex].x,
+	}))
+}
+
 // Maximum stretch factor per gap between adjacent anchors (note positions).
 // Keeps note spacing from becoming unnaturally wide.
 const MAX_INTRA_STRETCH = 5.0
@@ -1420,6 +1482,10 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var effectivePageWidth = pageWidth - estimatedCourtesyWidth
 	var systemBreaks = computeSystemBreaks(boundaries, effectivePageWidth, leftMargin)
 
+	// Two-pass refinement: if systems are poorly filled (large gaps from
+	// spring compression), re-run DP with scaled widths to pack more bars.
+	systemBreaks = reflowIfSparse(boundaries, systemBreaks, effectivePageWidth, leftMargin, singleLineWidth)
+
 	// Build the break X list for the reflow
 	var breakXs = systemBreaks.map(b => b.x)
 	var systemCount = breakXs.length + 1
@@ -1728,6 +1794,10 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	var effectiveContentW = contentW - estimatedCourtesyWidth
 	var systemBreaks = computeSystemBreaks(boundaries, effectiveContentW, leftMargin)
+
+	// Two-pass refinement: same as wrap mode
+	systemBreaks = reflowIfSparse(boundaries, systemBreaks, effectiveContentW, leftMargin, singleLineWidth)
+
 	var breakXs = systemBreaks.map(b => b.x)
 	var systemCount = breakXs.length + 1
 
@@ -2863,4 +2933,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter }
+export { score, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, reflowIfSparse }
