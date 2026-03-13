@@ -890,7 +890,15 @@ function quickDraw(dataOrContext, x, y) {
 		return
 	}
 	
-	ctx.clearRect(0, 0, canvas.width, canvas.height)
+	// Fill with opaque white rather than clearRect (which leaves transparent pixels).
+	// The ink bleed shader reads the R channel: 0=ink, 1=paper.  Transparent pixels
+	// (from clearRect) have R=0, which the shader misinterprets as solid ink.
+	ctx.save()
+	ctx.setTransform(1, 0, 0, 1, 0, 0)  // reset to device pixels for full-canvas fill
+	ctx.fillStyle = '#ffffff'
+	ctx.fillRect(0, 0, canvas.width, canvas.height)
+	ctx.restore()
+
 	ctx.save()
 	// Translate by screen-space scroll offset, then scale into score-space.
 	// The transform chain is: DPR (from resize) → scroll translate → zoom scale.
@@ -910,10 +918,12 @@ function quickDraw(dataOrContext, x, y) {
 	ctx.restore()
 
 	// Post-processing: ink bleed / print emulation
-	// Pass scroll offset and zoom so the paper texture pins to score coordinates.
+	// Pass scroll offset (scaled to device pixels) and zoom so the paper
+	// texture pins to score coordinates.
 	if (_inkBleedRenderer && _inkBleedRenderer.enabled) {
-		var scrollX = -(x || 0)  // x is -scrollLeft, so negate to get scrollLeft
-		var scrollY = -(y || 0)
+		var dpr = canvas.width / (parseFloat(canvas.style.width) || canvas.width)
+		var scrollX = -(x || 0) * dpr  // x is -scrollLeft; negate and scale to device px
+		var scrollY = -(y || 0) * dpr
 		_inkBleedRenderer.render(scrollX, scrollY, getZoomLevel())
 	}
 }

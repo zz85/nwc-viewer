@@ -572,6 +572,23 @@ if (inkBleedBtn) {
 	}
 }
 
+// Paper color picker for ink bleed
+const paperColorInput = document.getElementById('ink_paper_color')
+if (paperColorInput) {
+	paperColorInput.addEventListener('input', () => {
+		if (!inkBleed) return
+		// Convert hex color to RGB 0-1 array
+		const hex = paperColorInput.value
+		const r = parseInt(hex.slice(1, 3), 16) / 255
+		const g = parseInt(hex.slice(3, 5), 16) / 255
+		const b = parseInt(hex.slice(5, 7), 16) / 255
+		inkBleed.setParams({ paperColor: [r, g, b] })
+		// Repaint
+		var scoreElm = document.getElementById('score')
+		quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+	})
+}
+
 const rerender = () => {
 	try {
 		setup(
