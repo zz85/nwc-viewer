@@ -134,6 +134,62 @@ Notes near endpoints (fraction < 0.03 or > 0.97) are skipped.
 
 ---
 
+## Chord Note Layout (Seconds and Clusters)
+
+When a chord contains notes a second apart (adjacent positions on the
+staff), the noteheads would overlap if placed on the same side of the
+stem. Standard engraving practice offsets one notehead to the opposite
+side.
+
+### Alternating Noteheads for Seconds
+
+- **Stems up** (noteheads default to left of stem): in a second pair,
+  the higher note stays on the default (left) side; the lower note is
+  displaced to the right side of the stem (offset by one notehead
+  width).
+- **Stems down** (noteheads default to right of stem): the lower note
+  stays on the default (right) side; the higher note is displaced to
+  the left.
+- **Multiple consecutive seconds**: alternate sides in a zigzag
+  pattern, always keeping as many notes as possible on the default
+  side.
+- **Shared stems**: all notes in the chord share a single stem,
+  typically one octave in length (extended if needed for the span).
+
+### Cluster Chords (Specific Pitches)
+
+Dense chords with many seconds use the same alternating rule applied
+iteratively. The visual result is a zigzag column of noteheads on
+alternating sides of the stem.
+
+### Indeterminate/Range Clusters (Cowell Notation)
+
+For clusters that represent a range of pitches (not specific notes):
+- A thick vertical rectangle connects the highest and lowest notes.
+- Accidentals indicate which keys: natural = white keys only,
+  sharp/flat = black keys only, none = chromatic (all keys).
+- Duration shown via a standard stem with flags/beams attached to
+  the rectangle.
+
+### Practical Tips
+
+- Accidentals on cluster chords need extra horizontal space to avoid
+  collisions. Stagger accidentals that would overlap vertically.
+- Consistency: identical clusters should be engraved identically.
+- A prefatory note explaining non-standard cluster notation is
+  standard practice.
+
+### Implementation Status
+
+- Alternating noteheads for seconds: implemented in chord layout
+  (`typeset.js`). Notes are sorted by position; adjacent seconds are
+  detected and the appropriate note is offset by one notehead width.
+- Indeterminate range clusters: NOT implemented (NWC does not use
+  this notation style).
+- Accidental staggering for dense chords: NOT implemented.
+
+---
+
 ## Beams
 
 ### Thickness and Separation

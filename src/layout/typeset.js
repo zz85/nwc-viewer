@@ -2808,11 +2808,72 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				cursor.incStaveX(getFontSize() * BARLINE_NOTE_EXTRA)
 				cursor._afterBarline = false
 			}
+
+			// --- Detect seconds and compute notehead offsets ---
+			// When two chord notes are a second apart (adjacent positions),
+			// one notehead must be displaced to the other side of the stem.
+			// For consecutive seconds, displacements alternate (toggle).
+			//
+			// Algorithm (matches VexFlow/MuseScore):
+			//   Stems UP:   walk bottom-to-top.  First note = default (left).
+			//   Stems DOWN: walk top-to-bottom.   First note = default (right).
+			//   For each note, if it's a second from the previous:
+			//     toggle `displaced`.  Otherwise reset to false.
+			//   Displaced notes shift: right (+1) for stems up, left (-1) for stems down.
+			{
+				// Stem direction must match beams.js handleChord():
+				// use sum of extreme positions (average of top+bottom note).
+				var sortedNotes = [...token.notes].sort((a, b) => a.position - b.position)
+				var chordTopPos = sortedNotes[sortedNotes.length - 1].position
+				var chordBotPos = sortedNotes[0].position
+				var chordStemUp = token.Stem === 'Up' || token.stem === 1 ? true :
+				                  token.Stem === 'Down' || token.stem === 2 ? false :
+				                  (chordTopPos + chordBotPos < 0)
+				for (var ni = 0; ni < sortedNotes.length; ni++) {
+					sortedNotes[ni]._chordOffsetX = 0
+				}
+				var displaced = false
+				var lastPos = undefined
+				var displacedDir = chordStemUp ? 1 : -1
+				// Stems up: walk bottom-to-top (ascending).
+				// Stems down: walk top-to-bottom (descending).
+				var start = chordStemUp ? 0 : sortedNotes.length - 1
+				var end = chordStemUp ? sortedNotes.length : -1
+				var step = chordStemUp ? 1 : -1
+				for (var ni = start; ni !== end; ni += step) {
+					var pos = sortedNotes[ni].position
+					if (lastPos !== undefined) {
+						var diff = Math.abs(pos - lastPos)
+						if (diff === 1) {
+							displaced = !displaced  // toggle for each second
+						} else {
+							displaced = false        // reset for larger intervals
+						}
+					}
+					lastPos = pos
+					if (displaced) {
+						sortedNotes[ni]._chordOffsetX = displacedDir
+					}
+				}
+			}
+
 			let tmp = cursor.staveX
 			token.notes.forEach((note) => {
 				cursor.staveX = tmp
 				drawForNote(note, cursor, token, true)  // skip ledger — consolidated below
+				// Apply second-displacement offset to the drawn notehead
+				if (note._chordOffsetX && note.drawingNoteHead) {
+					var nhW = note.drawingNoteHead.width
+					note.drawingNoteHead.offsetX = (note.drawingNoteHead.offsetX || 0) + note._chordOffsetX * nhW
+					// Shift accidental with the notehead so it stays attached
+					if (note.drawingAccidental) {
+						note.drawingAccidental.offsetX += note._chordOffsetX * nhW
+					}
+				}
 			})
+			// Account for rightward-displaced noteheads in chord width.
+			// If any note was shifted right (seconds), the chord needs extra width.
+			var hasRightDisplacement = token.notes.some(n => n._chordOffsetX > 0)
 			// Consolidated ledger lines for the chord: compute the full
 			// range across all notes and create a single Ledger per side.
 			cursor.staveX = tmp
@@ -2821,6 +2882,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			var chordMaxPos = Math.max.apply(null, chordPositions)
 			var chordNhWidth = (token.notes[0] && token.notes[0].drawingNoteHead)
 				? token.notes[0].drawingNoteHead.width : getFontSize() * 0.3
+			// Effective width: add a notehead width when seconds are displaced
+			var chordEffectiveWidth = chordNhWidth + (hasRightDisplacement ? chordNhWidth : 0)
 			if (chordMinPos < 0) {
 				var chordLedgerStart = ((chordMinPos / 2) | 0) * 2
 				if (chordLedgerStart < 0) {
@@ -2845,13 +2908,12 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 			// --- Chord-level articulations (drawn once, not per child note) ---
 			{
-				var chordStemUp = token.Stem === 'Up' || token.stem === 1 ? true :
-				                  token.Stem === 'Down' || token.stem === 2 ? false :
-				                  (token.notes[0] ? token.notes[0].position < 0 : true)
+				// Use same stem direction as seconds detection and beams.js
+				var chordArtStemUp = chordStemUp
 				// Use the outermost note on the notehead side:
 				//   stem up → articulation below → anchor to lowest note
 				//   stem down → articulation above → anchor to highest note
-				var artAnchorPos = chordStemUp ? chordMinPos : chordMaxPos
+				var artAnchorPos = chordArtStemUp ? chordMinPos : chordMaxPos
 				var artNoteHead = token.notes[0] && token.notes[0].drawingNoteHead
 				var artNhWidth = artNoteHead ? artNoteHead.width : chordNhWidth
 				var artNhX = artNoteHead ? artNoteHead.x : tmp
@@ -2861,7 +2923,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				for (var cai = 0; cai < chordArtFlags.length; cai++) {
 					var caf = chordArtFlags[cai]
 					if (!token[caf]) continue
-					var cabove = caf === 'fermata' ? true : !chordStemUp
+					var cabove = caf === 'fermata' ? true : !chordArtStemUp
 					var caPos = cabove
 						? artAnchorPos + 2 + chordArtOffset * 2
 						: artAnchorPos - 2 - chordArtOffset * 2
@@ -2872,6 +2934,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 					drawing.add(cam)
 					chordArtOffset++
 				}
+			}
+			// Widen the chord's rod when seconds cause notehead displacement
+			if (hasRightDisplacement && token._rod) {
+				token._rod += chordNhWidth
 			}
 			break
 
