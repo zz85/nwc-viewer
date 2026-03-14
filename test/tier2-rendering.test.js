@@ -1015,10 +1015,12 @@ describe('Chord tie direction: inner/outer rule', () => {
 		}
 		const sorted = [...tiedPositions].sort((a, b) => a - b)
 		const pos = childNote.position
-		if (pos === sorted[0]) return -1                     // top note -> above
-		if (pos === sorted[sorted.length - 1]) return 1      // bottom note -> below
-		const distToTop = Math.abs(pos - sorted[0])
-		const distToBottom = Math.abs(pos - sorted[sorted.length - 1])
+		const topPos = sorted[sorted.length - 1]              // most positive = highest on staff
+		const bottomPos = sorted[0]                            // most negative = lowest on staff
+		if (pos === topPos) return -1                           // top note -> above
+		if (pos === bottomPos) return 1                         // bottom note -> below
+		const distToTop = Math.abs(pos - topPos)
+		const distToBottom = Math.abs(pos - bottomPos)
 		return distToTop <= distToBottom ? -1 : 1
 	}
 
@@ -1026,38 +1028,38 @@ describe('Chord tie direction: inner/outer rule', () => {
 		const chord = {
 			type: 'Chord',
 			notes: [
-				{ position: -4, tie: true },  // top (high pitch, negative position)
-				{ position: 2, tie: true },    // bottom
+				{ position: -4, tie: true },  // bottom (lower on staff)
+				{ position: 2, tie: true },    // top (higher on staff)
 			]
 		}
-		expect(getChordTieDirection(chord, chord.notes[0])).toBe(-1)  // above
-		expect(getChordTieDirection(chord, chord.notes[1])).toBe(1)   // below
+		expect(getChordTieDirection(chord, chord.notes[0])).toBe(1)   // bottom -> below
+		expect(getChordTieDirection(chord, chord.notes[1])).toBe(-1)  // top -> above
 	})
 
 	test('three-note chord: inner note follows nearest outer', () => {
 		const chord = {
 			type: 'Chord',
 			notes: [
-				{ position: -6, tie: true },  // top
-				{ position: -2, tie: true },  // inner (closer to top)
-				{ position: 4, tie: true },   // bottom
+				{ position: -6, tie: true },  // bottom
+				{ position: -2, tie: true },  // inner (closer to bottom)
+				{ position: 4, tie: true },   // top
 			]
 		}
-		expect(getChordTieDirection(chord, chord.notes[0])).toBe(-1)  // top -> above
-		expect(getChordTieDirection(chord, chord.notes[1])).toBe(-1)  // inner -> follows top (closer)
-		expect(getChordTieDirection(chord, chord.notes[2])).toBe(1)   // bottom -> below
+		expect(getChordTieDirection(chord, chord.notes[0])).toBe(1)   // bottom -> below
+		expect(getChordTieDirection(chord, chord.notes[1])).toBe(1)   // inner -> follows bottom (closer)
+		expect(getChordTieDirection(chord, chord.notes[2])).toBe(-1)  // top -> above
 	})
 
-	test('three-note chord: inner note closer to bottom follows bottom', () => {
+	test('three-note chord: inner note closer to top follows top', () => {
 		const chord = {
 			type: 'Chord',
 			notes: [
-				{ position: -6, tie: true },  // top
-				{ position: 2, tie: true },   // inner (closer to bottom)
-				{ position: 4, tie: true },   // bottom
+				{ position: -6, tie: true },  // bottom
+				{ position: 2, tie: true },   // inner (closer to top)
+				{ position: 4, tie: true },   // top
 			]
 		}
-		expect(getChordTieDirection(chord, chord.notes[1])).toBe(1)  // follows bottom
+		expect(getChordTieDirection(chord, chord.notes[1])).toBe(-1)  // follows top
 	})
 
 	test('single tied note in chord falls back to stem direction', () => {
@@ -1077,16 +1079,16 @@ describe('Chord tie direction: inner/outer rule', () => {
 		const chord = {
 			type: 'Chord',
 			notes: [
-				{ position: -8, tie: true },  // top
-				{ position: -4, tie: true },  // inner-upper (closer to top)
-				{ position: 2, tie: true },   // inner-lower (closer to bottom)
-				{ position: 6, tie: true },   // bottom
+				{ position: -8, tie: true },  // bottom
+				{ position: -4, tie: true },  // inner-lower (closer to bottom)
+				{ position: 2, tie: true },   // inner-upper (closer to top)
+				{ position: 6, tie: true },   // top
 			]
 		}
-		expect(getChordTieDirection(chord, chord.notes[0])).toBe(-1)  // top
-		expect(getChordTieDirection(chord, chord.notes[1])).toBe(-1)  // inner-upper -> top
-		expect(getChordTieDirection(chord, chord.notes[2])).toBe(1)   // inner-lower -> bottom
-		expect(getChordTieDirection(chord, chord.notes[3])).toBe(1)   // bottom
+		expect(getChordTieDirection(chord, chord.notes[0])).toBe(1)   // bottom
+		expect(getChordTieDirection(chord, chord.notes[1])).toBe(1)   // inner-lower -> bottom
+		expect(getChordTieDirection(chord, chord.notes[2])).toBe(-1)  // inner-upper -> top
+		expect(getChordTieDirection(chord, chord.notes[3])).toBe(-1)  // top
 	})
 })
 

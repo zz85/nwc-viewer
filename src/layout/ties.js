@@ -83,8 +83,8 @@ function getChordTieDirection(token, childNote) {
 
 	const sorted = [...tiedPositions].sort((a, b) => a - b)
 	const pos = childNote.position
-	const topPos = sorted[0]                      // most negative = highest pitch
-	const bottomPos = sorted[sorted.length - 1]   // most positive = lowest
+	const topPos = sorted[sorted.length - 1]      // most positive = highest on staff
+	const bottomPos = sorted[0]                    // most negative = lowest on staff
 
 	// Top note -> above
 	if (pos === topPos) return -1
