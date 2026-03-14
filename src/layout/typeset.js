@@ -2,7 +2,7 @@ import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMar
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie, getCode, glyphPathGet } from '../drawing.js'
-import { CLEF_LEFT_MARGIN, AFTER_CLEF_GAP, AFTER_KEYSIG_GAP, AFTER_TIMESIG_GAP } from '../engraving-rules.js'
+import { CLEF_LEFT_MARGIN, AFTER_CLEF_GAP, AFTER_KEYSIG_GAP, AFTER_TIMESIG_GAP, AFTER_BARLINE_GAP, BARLINE_NOTE_EXTRA, headerGap } from '../engraving-rules.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
@@ -29,7 +29,7 @@ class StaveCursor {
 		var leftEdge = getLayoutMode() === 'scroll' ? getFontSize() : 0
 		this.lastBarline = leftEdge
 		// Stave-to-clef gap (standard engraving: 0.75 staff-space).
-		this.staveX = leftEdge + getFontSize() * CLEF_LEFT_MARGIN
+		this.staveX = leftEdge + getFontSize() * headerGap(CLEF_LEFT_MARGIN)
 		this.stave = stave
 		this.tokens = stave.tokens
 	}
@@ -71,6 +71,7 @@ class StaveCursor {
 
 	updateBarline() {
 		this.lastBarline = this.staveX
+		this._afterBarline = true
 	}
 }
 
@@ -292,20 +293,20 @@ function collectRunningState(staves) {
 function createCourtesyItems(clefStr, accidentals, clefForKey, staffY) {
 	const elements = []
 	// Stave-to-clef gap (matches initial system start)
-	let x = getFontSize() * CLEF_LEFT_MARGIN
+	let x = getFontSize() * headerGap(CLEF_LEFT_MARGIN)
 
 	// Courtesy clef
 	const clef = clefFromString(clefStr)
 	clef.moveTo(x, staffY)
 	elements.push(clef)
-	x += clef.width + getFontSize() * AFTER_CLEF_GAP
+	x += clef.width + getFontSize() * headerGap(AFTER_CLEF_GAP)
 
 	// Courtesy key signature (only if there are accidentals)
 	if (accidentals && accidentals.length > 0) {
 		const keySig = new KeySignature(accidentals, clefForKey)
 		keySig.moveTo(x, staffY)
 		elements.push(keySig)
-		x += (keySig.width || 0) + getFontSize() * AFTER_KEYSIG_GAP
+		x += (keySig.width || 0) + getFontSize() * headerGap(AFTER_KEYSIG_GAP)
 	}
 
 	return { elements, totalWidth: x }
@@ -2657,7 +2658,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			clef = clefFromString(token.clef)
 			cursor.posGlyph(clef)
 			drawing.add(clef)
-			cursor.incStaveX(clef.width + getFontSize() * AFTER_CLEF_GAP)
+			cursor.incStaveX(clef.width + getFontSize() * headerGap(AFTER_CLEF_GAP))
+			cursor._afterBarline = false
 			break
 
 		case 'TimeSignature':
@@ -2671,7 +2673,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				cursor.posGlyph(t)
 				drawing.add(t)
 
-				cursor.incStaveX(t.width + getFontSize() * AFTER_TIMESIG_GAP)
+				cursor.incStaveX(t.width + getFontSize() * headerGap(AFTER_TIMESIG_GAP))
 			} else if (token.group && token.beat) {
 				// Numeric time signature: stack numerator (top) and denominator (bottom)
 				// Both glyphs share the same x position — they are vertically stacked.
@@ -2683,9 +2685,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				drawing.add(numerator)
 				drawing.add(denominator)
 
-				cursor.incStaveX(numerator.width + getFontSize() * AFTER_TIMESIG_GAP)
+				cursor.incStaveX(numerator.width + getFontSize() * headerGap(AFTER_TIMESIG_GAP))
 			}
 
+			cursor._afterBarline = false
 			break
 		case 'KeySignature':
 			const key = new KeySignature(token.accidentals, token.clef)
@@ -2695,11 +2698,17 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			// Only add gap when key signature has visible accidentals;
 			// C major (no accidentals, width=0) should not consume space.
 			if (key.width > 0) {
-				cursor.incStaveX(key.width + getFontSize() * AFTER_KEYSIG_GAP)
+				cursor.incStaveX(key.width + getFontSize() * headerGap(AFTER_KEYSIG_GAP))
 			}
+			cursor._afterBarline = false
 			break
 
 		case 'Rest':
+			// First rest after a barline gets extra indent (same as notes)
+			if (cursor._afterBarline) {
+				cursor.incStaveX(getFontSize() * BARLINE_NOTE_EXTRA)
+				cursor._afterBarline = false
+			}
 			var duration = token.duration
 			var sym = {
 				1: 'restWhole',
@@ -2780,18 +2789,20 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 			addStave(cursor, staveIndex)
 			cursor.updateBarline()
-			// Reserve enough space after the barline for an accidental on the
-			// first note of the next measure.  Accidentals hang left via
-			// offsetX (~fontSize * 0.36), so the gap must be at least that
-			// wide plus comfortable breathing room.  3 spacerWidths
-			// (= 0.75 * fontSize ≈ 3 staff spaces) matches traditional
-			// engraving practice for the first-beat indent.
-			cursor.incStaveX(spacerWidth() * 3)
+			// Gap after barline: 1.25 sp covers accidental clearance on the
+			// first note (accidentals hang left ~0.36 fontSize) plus breathing
+			// room.  MuseScore uses barNoteDistance=1.25 sp.
+			cursor.incStaveX(getFontSize() * AFTER_BARLINE_GAP)
 			// cursor.tokenPadRight(spacerWidth())
 			// 10
 			break
 
 		case 'Chord':
+			// First chord after a barline gets extra indent (same as notes)
+			if (cursor._afterBarline) {
+				cursor.incStaveX(getFontSize() * BARLINE_NOTE_EXTRA)
+				cursor._afterBarline = false
+			}
 			let tmp = cursor.staveX
 			token.notes.forEach((note) => {
 				cursor.staveX = tmp
@@ -3025,6 +3036,13 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 			: 'noteheadBlack'
 
 	const relativePos = token.position + 4
+
+	// First note/rest/chord after a barline gets extra indent so notes
+	// don't crowd the barline while key/time sigs stay tight.
+	if (cursor._afterBarline) {
+		cursor.incStaveX(getFontSize() * BARLINE_NOTE_EXTRA)
+		cursor._afterBarline = false
+	}
 
 	if (token.accidental) {
 		var acc = new Accidental(token.accidental, relativePos)

@@ -756,6 +756,37 @@ const SYNTHETIC_FIXTURES = [
 				bar(3),
 			]]),
 		},
+		{
+			label: 'Dotted Note Articulations',
+			desc: 'Articulations on dotted notes — should center on notehead, not dot',
+			data: () => makeScore('Dotted Note Articulations', [[
+				clef(), keySig(), timeSig(),
+				// Single dot + staccato, various positions & stem dirs
+				note(0, 4, { dots: 1, staccato: 1 }),
+				note(2, 4, { dots: 1, accent: 1 }),
+				note(-2, 4, { dots: 1, tenuto: 1 }),
+				note(4, 4, { dots: 1, marcato: 1 }),
+				bar(),
+				// Stem down, dotted + articulations
+				note(0, 4, { dots: 1, staccato: 1, stem: 2 }),
+				note(2, 4, { dots: 1, accent: 1, stem: 2 }),
+				note(-4, 4, { dots: 1, fermata: 1 }),
+				note(0, 2, { dots: 1, staccato: 1 }),
+				bar(),
+				// Double-dotted + articulations
+				note(0, 4, { dots: 2, staccato: 1 }),
+				note(2, 4, { dots: 2, accent: 1, stem: 2 }),
+				// Dotted eighth (flagged) + staccato
+				note(0, 8, { dots: 1, staccato: 1 }),
+				note(-2, 8, { dots: 1, accent: 1, stem: 2 }),
+				bar(),
+				// Dotted chord + articulations
+				chord([0, 4], 4, { dots: 1, staccato: 1 }),
+				chord([2, 5], 4, { dots: 1, accent: 1, stem: 2 }),
+				rest(2),
+				bar(3),
+			]]),
+		},
 			{
 			label: 'Grace Notes',
 			desc: 'Acciaccatura (slashed stem), scaled flag, stems up',

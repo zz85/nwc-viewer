@@ -80,6 +80,7 @@ Planned features and improvements, roughly prioritized.
 - [ ] **Ties/voltas break across systems** — ties and volta brackets have rendering issues at line breaks. Partial ties at system edges may be mispositioned or missing; volta brackets may not continue correctly across system boundaries.
 - [ ] **Glow highlight renders on top of stems** — glow mode highlight halo paints over stem lines instead of behind them. Should render in a lower z-layer so stems remain crisp. Also the glow shape could be more rectangular (less circular) to better match the notehead footprint.
 - [ ] **MIDI tempo not restored after rit./a tempo** — when a TempoVariance (e.g. rit., rallentando) slows playback, a subsequent "a tempo" or "Tempo Primo" should restore the previous base tempo. Currently the tempo stays reduced.
+- [ ] **Articulation placed on dot instead of notehead** — when a note has an augmentation dot, the articulation glyph (staccato, accent, etc.) is horizontally aligned with the dot rather than centered on the notehead. Visual test: "Dotted Note Articulations" in fixtures.js.
 
 ## UI / UX
 
@@ -137,5 +138,6 @@ Rules for rendering beams (especially across triplets) to achieve professional a
 - [x] Parent Chord drawingNoteHead — set from first child note for slur/highlight anchoring
 - [ ] V205+ staff visual property parsing (only 4 test files affected)
 - [ ] Fix 4 files that fail new parser ("Unknown object type: 256")
+- [ ] **Constraint-based spacing model** — replace imperative offset calculations (accidental offsetX, dot offsetX, articulation offsetX, barline-note extra indent, etc.) with a constraint/solver approach. Each element declares spacing relationships to its neighbours (e.g., "accidental is 0.25 sp left of notehead", "dot is 0.18 fontSize right of notehead", "articulation centered on notehead"). A layout pass resolves these constraints and assigns final positions. This avoids ordering bugs (like the barline-note accidental gap) and makes spacing rules easier to maintain.
 - [ ] Visual regression test baselines
 - [ ] Integration tests (Playwright)

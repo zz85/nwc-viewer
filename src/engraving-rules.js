@@ -81,32 +81,67 @@ export const SLUR_THICKNESS = 0.045
 // ── System header spacing ──────────────────────────────────────────
 // Gaps between elements at the start of each system (clef, key sig,
 // time sig).  All fractions of fontSize (= 4 staff-spaces).
+// Effective gap = constant * HEADER_SPACING_MULTIPLIER.
+
+/**
+ * Global multiplier for all system header gaps.
+ * 1.0 = tight/professional (MuseScore-calibrated defaults).
+ * 1.25 = relaxed.  Range: 0.75 – 1.5.
+ */
+export let HEADER_SPACING_MULTIPLIER = 1.15
+
+export function setHeaderSpacingMultiplier(v) {
+	HEADER_SPACING_MULTIPLIER = Math.max(0.75, Math.min(1.5, v))
+}
 
 /**
  * Left margin before the clef glyph (from system edge / barline).
- * 0.19 = 0.75 sp (MuseScore: 0.75, OSMD: 0.50).
+ * Base 0.19 = 0.75 sp (MuseScore: 0.75, OSMD: 0.50).
  */
 export const CLEF_LEFT_MARGIN = 0.19
 
 /**
  * Gap after the clef, before the key signature (or time signature
  * when no key signature is present).
- * 0.20 = 0.80 sp (LilyPond: 0.82, MuseScore: 0.75).
+ * Base 0.20 = 0.80 sp (LilyPond: 0.82, MuseScore: 0.75).
  */
 export const AFTER_CLEF_GAP = 0.20
 
 /**
  * Gap after the key signature, before the time signature (or first
  * note when no time signature follows).
- * 0.25 = 1.00 sp (MuseScore: 1.00, LilyPond: 1.15).
+ * Base 0.25 = 1.00 sp (MuseScore: 1.00, LilyPond: 1.15).
  */
 export const AFTER_KEYSIG_GAP = 0.25
 
 /**
  * Gap after the time signature, before the first note/rest.
- * 0.56 = 2.25 sp (LilyPond: 2.00, MuseScore: 2.50).
+ * Base 0.56 = 2.25 sp (LilyPond: 2.00, MuseScore: 2.50).
  */
 export const AFTER_TIMESIG_GAP = 0.56
+
+/**
+ * Gap after a barline before the next element (key sig, time sig, etc.).
+ * Base 0.31 = 1.25 sp (MuseScore: keyBarlineDistance=1.0,
+ * timesigBarlineDistance=0.5).
+ * Covers accidental clearance (~0.36 fontSize overhang).
+ */
+export const AFTER_BARLINE_GAP = 0.31
+
+/**
+ * Extra indent for the first note/rest/chord after a barline.
+ * Added on top of AFTER_BARLINE_GAP so notes get more breathing room
+ * than key/time signatures do.  Must accommodate accidental overhang
+ * (~0.36 fontSize).  Total note gap = 0.31 + 0.19 = 0.50 = 2.0 sp.
+ */
+export const BARLINE_NOTE_EXTRA = 0.19
+
+/**
+ * Get effective header gap (base * multiplier).
+ */
+export function headerGap(base) {
+	return base * HEADER_SPACING_MULTIPLIER
+}
 
 // ── Collision avoidance ────────────────────────────────────────────
 
