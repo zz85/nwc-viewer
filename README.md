@@ -11,6 +11,27 @@ And if you like this project, you can also chat me up [@blurspline on twitter](h
 
 ## Changelog
 
+### v2.3 - March 2026
+- **Print emulation** — WebGL2 ink-bleed post-processing filter for paper-like rendering; paper color picker; page-mode background masking
+- **Advanced controls panel** — collapsible panel with spacing density, rod/spring balance, duration proportionality, and ink-bleed sliders
+- **Dynamic inter-staff spacing** — content-aware vertical gaps based on actual note extents rather than fixed multipliers
+- **System barline** — single barline connecting all staves at the left edge of each system
+- **Grand staff braces** — SMuFL glyph-rendered `{` brace for piano/organ staves
+- **Bar numbers** — measure numbers displayed at the start of each system
+- **Articulations** — staccato, accent, tenuto, marcato, staccatissimo, fermata; correct stem-side placement with staff-line avoidance
+- **Grace notes** — acciaccatura (slashed) and appoggiatura; scaled stems/flags/beams, stems forced up
+- **Triplet brackets** — bracket-less numeral for beamed groups; bracketed for unbeamed/rest-containing groups; stem-side placement
+- **Beam engraving** — standard 0.5 staff-space thickness and 0.25 staff-space separation per Gould/Dorico spec
+- **Playback highlights** — bar overlay, columnar, and note-column modes; click-to-seek
+- **Per-staff MIDI** — GM instrument assignment and transposition per staff; dynamic velocity; repeat/volta playback
+- **Hairpin rendering** — correct wedge geometry spanning note ranges
+- **Volta brackets** — first/second ending brackets rendered above staff
+- **Multiple music fonts** — dynamic font switching with matched companion text fonts
+- **MIDI import** — load `.mid`/`.midi` files as rendered score
+- **Spacing model** — spring-rod spacing with duration proportionality; interactive sliders
+- **Professional ties/slurs** — cubic bezier curves, separate Slur class, staff-line collision avoidance, beam slope clamping
+- 530 unit tests; 50+ synthetic visual test fixtures (open `test/visual/index.html`)
+
 ### v2.2 - March 2026
 - **Wrap layout** with DP-optimal line breaking and anchor-point justification
 - **Lyrics** — syllable assignment respecting slur/tie/LyricSyllable rules, inter-syllable dashes
@@ -94,6 +115,7 @@ See [lib/nwc2xml/README.md](lib/nwc2xml/README.md) for more details.
 
 - **[index.html](index.html)** - Music viewer and player for NWC files
 - **[nwc2xml_converter.html](nwc2xml_converter.html)** - NWC to MusicXML converter with drag-and-drop interface
+- **[test/visual/index.html](test/visual/index.html)** - Visual test suite: isolated rendering fixtures for individual notation features
 
 ## Internals
 
