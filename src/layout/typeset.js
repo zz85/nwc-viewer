@@ -2252,7 +2252,6 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 	var fs = getFontSize()
 	var sysBarX = leftMarginOverride !== undefined ? leftMarginOverride : fs * 0.9
 	var bracketX = leftMarginOverride !== undefined ? leftMarginOverride * 0.6 : fs * 0.55
-	var braceX = leftMarginOverride !== undefined ? leftMarginOverride * 0.4 : fs * 0.35
 
 	function visibleStaffY(si) {
 		return getStaffY(si) + yOffset
@@ -2332,9 +2331,15 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 			// Keep X proportional but cap to prevent overly wide braces
 			var xScale = Math.min(yScale, 1.5)
 
+			// Position brace so its right edge (tips) sits just left of the
+			// system barline / stave left edge.  LilyPond uses 0.3 sp padding.
+			var braceRightEdge = bbox.x2 * xScale
+			var bracePadding = fs * 0.075   // 0.3 staff-spaces
+			var braceTipX = sysBarX - braceRightEdge - bracePadding
+
 			var brace = new Claire.Path(function(ctx) {
 				ctx.save()
-				ctx.translate(braceX, topY - bbox.y1 * yScale)
+				ctx.translate(braceTipX, topY - bbox.y1 * yScale)
 				ctx.scale(xScale, yScale)
 				ctx.fillStyle = '#000'
 				refPath.draw(ctx)
