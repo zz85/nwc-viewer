@@ -136,17 +136,45 @@ Notes near endpoints (fraction < 0.03 or > 0.97) are skipped.
 
 ## Beams
 
+### Thickness and Separation
+
+Standard engraving rule: beam thickness is measured in staff-spaces to
+scale with the music. These values are consistent across Gould, Ross,
+and modern software (Dorico, Finale, MuseScore).
+
+- **Beam thickness**: 0.5 staff-spaces. A horizontal beam can sit on
+  top of a staff line, hang just below, or straddle it perfectly.
+- **Beam separation** (gap between primary and secondary beams):
+  0.25 staff-spaces.
+- **Centre-to-centre distance**: thickness + gap = 0.75 staff-spaces.
+- **Stacking direction**: additional beams stack toward the noteheads
+  (stems-up beams stack downward, stems-down beams stack upward).
+
+Variations in house styles:
+- Breitkopf & Hartel: slightly thicker than 0.5 sp with narrower gap.
+- Durand: ~0.56 sp thickness with 0.25 sp separation.
+- "New Complexity" scores: thicker beams for visual impact.
+
+Our values (`drawing.js` Beam.draw):
+- `beamThickness = fontSize / 8` = 0.5 sp
+- `beamSpacing = fontSize * 3 / 16` = 0.75 sp (centre-to-centre)
+- Gap = beamSpacing - beamThickness = 0.25 sp
+
+These match the standard exactly.
+
 ### Stem Length
 
-- **Standard**: one octave = 3.5 staff spaces.
-- **Minimum within staff**: 3 staff spaces.
-- **Minimum outside staff**: 2.5 staff spaces.
+- **Standard**: one octave = 3.5 staff-spaces (7 half-spaces).
+- **Minimum within staff**: 3 staff-spaces.
+- **Minimum outside staff**: 2.5 staff-spaces.
 - **Anchor stem**: in a beamed group, the note farthest from the
   middle staff line gets the standard length. Other stems are adjusted
   to meet the beam line.
 - **Ledger line notes**: stem must reach at least the middle staff line.
-- **32nd notes**: stems slightly longer (~4-4.5 staff spaces) to
-  accommodate extra beam lines.
+- **16th notes and shorter**: stems slightly longer (~4-4.5
+  staff-spaces) to accommodate extra beam lines without crowding the
+  noteheads. Each additional beam requires 0.75 sp (centre-to-centre),
+  so 16th notes need ~0.75 sp extra, 32nd notes ~1.5 sp extra.
 
 ### Slope
 
@@ -174,6 +202,80 @@ Binary format 2-bit field: `1=start, 2=middle/continue, 3=end`.
 end.)
 
 **Status**: Implemented in `src/layout/beams.js`.
+
+---
+
+## Braces and Brackets
+
+### Curly Brace (Grand Staff)
+
+A curly brace groups staves that belong to a single instrument
+(typically piano, harp, organ). All three major engines agree on the
+core rules:
+
+#### Y Position (vertical extent)
+
+The brace tips **touch the outer staff lines exactly** with zero
+padding:
+- Top = top line of the first staff in the group.
+- Bottom = bottom line of the last staff in the group.
+- MuseScore: `firstStaff.bbox().top()` to `lastStaff.bbox().bottom()`.
+- LilyPond: union of all child staff Y extents.
+- OSMD/VexFlow: `getYForLine(0)` to `getYForLine(lastLine) + thickness`.
+
+#### X Position
+
+- LilyPond: 0.3 sp padding from brace to staff, plus 0.2 sp leftward
+  nudge. `(padding . 0.3)` in the grob definition.
+- MuseScore: positioned at `xPosition - bracketWidth`. Width includes
+  `akkoladeBarDistance` gap to the system barline.
+- OSMD: 2 pixels left of the stave X, hardcoded.
+
+#### Glyph Selection and Scaling
+
+- **LilyPond**: uses a family of ~256 pre-made brace glyphs (the
+  `fetaBraces` font). Binary search selects the glyph whose height
+  best matches the target size. No scaling or stretching -- the
+  closest discrete glyph is used. This gives the best visual quality.
+- **MuseScore**: uses SMuFL glyph variants sized by staff count:
+  `braceSmall` (1 staff), `brace` (2), `braceLarge` (3),
+  `braceLarger` (4+). Scaled vertically by `h / glyphHeight` and
+  horizontally by a computed `magx` factor based on staff count and
+  `akkoladeDistance`. For Emmentaler/Gonville fonts, a parametric
+  bezier path is constructed instead.
+- **OSMD/VexFlow**: draws the brace as a filled bezier path (not a
+  font glyph). Width is fixed at 12px; control points use proportional
+  factors (0.2, 0.135 of total height) so taller braces get
+  proportionally wider curves.
+
+#### Our Implementation
+
+We use the SMuFL `brace` glyph (U+E000), rendered at a reference
+size and then scaled vertically and horizontally to fit. The brace
+tips sit exactly on the outer staff lines (zero padding), matching
+all three engines.
+
+Constants:
+- `braceX` = 40% of left margin (or `fontSize * 0.35` in scroll mode)
+- Vertical scale: `braceH / designH` where `designH` is the glyph's
+  natural bounding box height at the reference size.
+- Horizontal scale: `min(yScale, 1.5)` to cap overly wide braces.
+
+**Status**: Implemented in `drawBracketsAndBraces()` (`typeset.js`).
+
+### Square Bracket (Orchestral)
+
+A square bracket groups staves from different instruments in the same
+section (e.g., woodwinds, strings). Drawn as a vertical line with
+hooks at top and bottom.
+
+- Spans from the top line of the first staff to the bottom line of
+  the last staff.
+- Hook length: `fontSize * 0.25`.
+- Line width: `fontSize / 12`.
+- System barline connects all staves with a thin vertical line.
+
+**Status**: Implemented.
 
 ---
 
@@ -256,16 +358,45 @@ default mf.
 
 ## Triplet/Tuplet Brackets
 
-- **Numeral placement**: on the beam/stem side of notes. Vocal staves
-  (with lyrics) force the numeral above to avoid collision.
-- **Fully beamed triplets**: numeral only, no bracket (the beam already
-  groups the notes visually).
-- **Unbeamed or mixed groups** (containing rests, quarter notes, or
-  notes without beam markers): full bracket with hooks + numeral.
+Standard engraving practice per Gould, Ross, and modern software
+(Dorico, MuseScore).
+
+### Numeral Placement
+
+- **Stem-side default**: the "3" (or other tuplet number) is placed
+  on the stem side of the notes.
+  - Stems up: numeral below.
+  - Stems down: numeral above.
+- **Beamed triplets**: the numeral is positioned near the centre of
+  the beam. No bracket is needed -- the beam itself groups the notes
+  visually.
+- **Outside the staff**: ideally the numeral sits outside the staff
+  for clarity, though it may appear within the staff if needed for
+  readability.
+- **Vocal staves**: when lyrics are present below the staff, the
+  numeral is forced above regardless of stem direction. A bracket is
+  required when the numeral is on the notehead side (opposite stems)
+  to clearly define the grouping.
 - **Stem side determination**: uses majority stem direction of all
   notes in the group, not just the first note.
-- **Bracket position**: computed from actual note positions (extreme
+
+### Beamed Triplets (no bracket)
+
+- When all notes in the triplet are connected by a beam, the beam
+  serves as the visual boundary. The bracket is omitted.
+- The numeral sits at the beam side, centred horizontally over the
+  group.
+
+### Unbeamed Triplets (bracket required)
+
+- For notes that cannot be beamed (quarter notes, half notes, or
+  mixed groups containing rests), a square bracket with hooks
+  encloses the group.
+- The numeral is centred within the bracket.
+- Bracket position computed from actual note positions (extreme
   note position + stem extent + padding), not hardcoded offsets.
+- In older or handwritten styles a slur may substitute for the
+  bracket; square brackets are the modern professional standard.
 
 **Status**: Implemented in `TupletBracket` class and
 `layoutTripletBrackets()` post-layout pass.

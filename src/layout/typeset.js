@@ -2312,8 +2312,8 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 			while (endSi < staves.length - 1 && staves[endSi].braceWithNext) {
 				endSi++
 			}
-			let topY = visibleStaffY(si) - fs * 0.15
-			let botY = visibleStaffY(endSi) + fs * 1.05
+			let topY = visibleStaffY(si) - fs     // top line of first staff
+			let botY = visibleStaffY(endSi)        // bottom line of last staff
 			let braceH = botY - topY
 
 			// Render the SMuFL brace glyph, scaled vertically to span the
