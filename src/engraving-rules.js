@@ -3,76 +3,110 @@
  *
  * All dimensional values are expressed as fractions of fontSize unless
  * otherwise noted.  The layout and drawing code multiplies these by
- * getFontSize() at render time.
+ * getFontSize() at render time.  fontSize = 4 staff-spaces.
  *
- * Tie height uses linear interpolation on the normalized span
+ * Tie/slur height uses linear interpolation on the normalized span
  * (width / fontSize):
  *
  *     height = clamp(K * normalizedWidth + D, min, max) * fontSize
  *
  * This gives short ties a round arc and long ties a flatter profile.
+ *
+ * Reference values (staff-spaces):
+ *   MuseScore 4: tieMidWidth=0.21, tieMinShoulder=0.30, tieMaxShoulder=2.0
+ *   LilyPond:    tie ratio=0.333, height-limit=1.0; slur ratio=0.25, height-limit=2.0
  */
 
 // ── Tie constants ──────────────────────────────────────────────────
 
 /** Slope for tie height interpolation. */
-export const TIE_HEIGHT_K = 0.04
+export const TIE_HEIGHT_K = 0.06
 
 /** Y-intercept for tie height interpolation. */
-export const TIE_HEIGHT_D = 0.16
+export const TIE_HEIGHT_D = 0.06
 
-/** Minimum tie height (fraction of fontSize). */
-export const TIE_HEIGHT_MIN = 0.15
+/** Minimum tie height (fraction of fontSize).  0.08 = 0.32 sp. */
+export const TIE_HEIGHT_MIN = 0.08
 
-/** Maximum tie height (fraction of fontSize). */
-export const TIE_HEIGHT_MAX = 0.55
+/** Maximum tie height (fraction of fontSize).  0.45 = 1.80 sp. */
+export const TIE_HEIGHT_MAX = 0.45
 
 /**
  * Horizontal gap between the notehead edge and the tie endpoint.
- * "A tie begins just to the right of the first notehead and ends
- * just to the left of the second.  It should never touch the noteheads."
+ * 0.06 = 0.24 sp (LilyPond note-head-gap = 0.20 sp).
  */
-export const TIE_X_GAP = 0.1
+export const TIE_X_GAP = 0.06
 
 /**
  * Vertical offset from the notehead centre toward the curve direction.
  * Pushes the tie anchor slightly above or below the notehead centre
  * so the arc originates from the notehead edge, not the middle.
  */
-export const TIE_Y_OFFSET = 0.15
+export const TIE_Y_OFFSET = 0.10
 
 /**
  * Tie thickness at the midpoint (fraction of fontSize).
+ * 0.055 = 0.22 sp (MuseScore tieMidWidth = 0.21 sp).
  * The shape tapers to zero at both endpoints.
  */
-export const TIE_THICKNESS = 0.10
+export const TIE_THICKNESS = 0.055
 
 // ── Slur constants ─────────────────────────────────────────────────
 
-/** Slope for slur height interpolation (flatter than ties). */
-export const SLUR_HEIGHT_K = 0.03
+/** Slope for slur height interpolation. */
+export const SLUR_HEIGHT_K = 0.05
 
 /** Y-intercept for slur height interpolation. */
-export const SLUR_HEIGHT_D = 0.18
+export const SLUR_HEIGHT_D = 0.08
 
-/** Minimum slur height (fraction of fontSize). */
-export const SLUR_HEIGHT_MIN = 0.18
+/** Minimum slur height (fraction of fontSize).  0.10 = 0.40 sp. */
+export const SLUR_HEIGHT_MIN = 0.10
 
-/** Maximum slur height (fraction of fontSize). */
-export const SLUR_HEIGHT_MAX = 0.60
+/** Maximum slur height (fraction of fontSize).  0.50 = 2.00 sp. */
+export const SLUR_HEIGHT_MAX = 0.50
 
 /**
  * Vertical offset from the notehead centre for slur anchors.
- * Larger than ties because slurs sit further from the note —
- * at least half a staff space from the notehead edge.
+ * Larger than ties because slurs sit further from the note.
+ * 0.18 = 0.72 sp.
  */
-export const SLUR_Y_OFFSET = 0.30
+export const SLUR_Y_OFFSET = 0.18
 
 /**
  * Slur thickness at the midpoint (fraction of fontSize).
- * Slightly thinner than ties but still clearly visible.
+ * 0.045 = 0.18 sp.  Slightly thinner than ties.
  */
-export const SLUR_THICKNESS = 0.08
+export const SLUR_THICKNESS = 0.045
+
+// ── System header spacing ──────────────────────────────────────────
+// Gaps between elements at the start of each system (clef, key sig,
+// time sig).  All fractions of fontSize (= 4 staff-spaces).
+
+/**
+ * Left margin before the clef glyph (from system edge / barline).
+ * 0.19 = 0.75 sp (MuseScore: 0.75, OSMD: 0.50).
+ */
+export const CLEF_LEFT_MARGIN = 0.19
+
+/**
+ * Gap after the clef, before the key signature (or time signature
+ * when no key signature is present).
+ * 0.20 = 0.80 sp (LilyPond: 0.82, MuseScore: 0.75).
+ */
+export const AFTER_CLEF_GAP = 0.20
+
+/**
+ * Gap after the key signature, before the time signature (or first
+ * note when no time signature follows).
+ * 0.25 = 1.00 sp (MuseScore: 1.00, LilyPond: 1.15).
+ */
+export const AFTER_KEYSIG_GAP = 0.25
+
+/**
+ * Gap after the time signature, before the first note/rest.
+ * 0.56 = 2.25 sp (LilyPond: 2.00, MuseScore: 2.50).
+ */
+export const AFTER_TIMESIG_GAP = 0.56
 
 // ── Collision avoidance ────────────────────────────────────────────
 
@@ -91,8 +125,9 @@ export const STAFF_LINE_NUDGE = 0.25
 /**
  * Extra arc height added when the tie path would collide with an
  * accidental glyph on the destination note (fraction of fontSize).
+ * 0.12 = 0.48 sp.
  */
-export const ACCIDENTAL_CLEARANCE = 0.15
+export const ACCIDENTAL_CLEARANCE = 0.12
 
 // ── Helpers ────────────────────────────────────────────────────────
 

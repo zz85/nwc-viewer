@@ -274,21 +274,132 @@ default mf.
 
 ## Grace Notes
 
-- Rendered at 60% scale via `_graceScale` on Glyph objects.
-- Stems always up, shortened to ~5 half-spaces, 60% thickness.
-- Flag glyphs scaled. Acciaccatura gets a slash through the stem.
-- Beamed grace groups get scaled beams (thinner, shorter stems).
-- Horizontal spacing: 40% of normal spring, 50% of normal padding.
-- Width scaled on the glyph object itself so beams/ties use correct
-  dimensions.
+Standard engraving practice per Gould, Ross, and modern software
+(Dorico, MuseScore).
 
-### Not Yet Implemented
+### Types
 
-- **Time-stealing playback**: NWC grace notes steal time from the
-  following principal note. Currently they advance musical time like
-  normal notes (NWC-compatible but not standard engraving practice).
+- **Acciaccatura** (short grace note): small eighth note with a slash
+  through the stem and flag. Played very quickly, typically just before
+  the beat.
+- **Appoggiatura** (long grace note): small note without a slash.
+  Historically takes half the value of the principal note (or
+  two-thirds of a dotted note) and is played on the beat.
+- **Multiple grace notes**: usually written as 16th notes (or 32nd
+  notes) and beamed together. Slashes are not used on groups of
+  multiple grace notes -- only on single acciaccaturas.
 
-**Status**: Rendering implemented. Playback time-stealing not done.
+### Stemming and Sizing
+
+- **Size**: 60-75% of standard noteheads. We use 60% (`_graceScale`).
+- **Stem direction**: stems almost always point up, regardless of
+  staff position. Exception: in a multi-voice (layered) context, the
+  lower voice's grace notes stem down to avoid the top voice.
+- **Stem length**: shortened proportionally but long enough to clearly
+  show flags or beams. We use ~5 half-spaces with 60% thickness.
+- **Flags**: scaled flag glyphs. Acciaccatura slash drawn through stem.
+- **Beamed groups**: scaled beams (thinner lines, shorter stems).
+
+### Slurring and Placement
+
+- **Slurs**: nearly all grace notes should be connected to their
+  principal note by a slur. The slur generally goes underneath the
+  noteheads (from notehead to notehead) unless it would obscure ledger
+  lines or accidentals.
+- **Horizontal spacing**: grace notes are placed before the principal
+  note with enough clearance for accidentals on both the grace note
+  and the main note. We use 40% of normal spring width, 50% of normal
+  padding. Accidental space reservation scaled by `graceScale`.
+- **Barline placement**: grace notes go after the barline, immediately
+  before the main note they ornament.
+
+### Playback
+
+- **Time-stealing**: standard practice is for grace notes to steal time
+  from the following principal note. Single acciaccatura steals a small
+  fraction; appoggiatura steals half (or two-thirds of dotted note).
+  Multiple grace notes split the stolen time equally.
+- **NWC behavior**: NWC's own grace notes advance musical time
+  sequentially (they DO occupy measure time), which is non-standard
+  but NWC-compatible.
+
+### Implementation Status
+
+- Rendering: implemented (60% scale, stems up, flags, slash, beams).
+- Spacing: implemented (40% spring, 50% padding, scaled accidentals).
+- Width on glyph object: implemented (beams/ties use correct dims).
+- Grace-to-principal slur: NOT implemented (slurs exist but are not
+  auto-generated for grace notes).
+- Time-stealing playback: NOT implemented.
+- Multi-voice stem-down exception: NOT implemented.
+- Known bug: grace notes calculate incorrect visual space-time in some
+  cases (see `features-todo.md`).
+
+---
+
+## System Header Spacing
+
+At the beginning of each system, elements follow a strict order:
+**Clef -> Key Signature -> Time Signature -> First Note**. If an
+element is absent (e.g., C major has no key signature accidentals),
+the next element follows naturally without inflated space.
+
+### Gould's Rules
+
+- Minimum gap of ~1 staff-space between each component.
+- Clef at the far left, key signature next, time signature last.
+- Mid-score clef changes occur before the barline; key changes
+  after the barline; time signature changes follow the barline.
+
+### Reference Values (staff-spaces)
+
+| Gap                        | LilyPond | MuseScore | OSMD  | Ours |
+|----------------------------|----------|-----------|-------|------|
+| Clef left margin           | --       | 0.75      | 0.50  | ~1.1 |
+| Clef -> Key Signature      | 0.82     | 0.75      | 0.75  | 1.0  |
+| Key Sig -> Time Sig        | 1.15     | 1.00      | 0.75  | 1.0  |
+| Clef -> Time Sig (no key)  | 1.52     | 1.00      | --    | 1.0  |
+| Time Sig -> First Note     | 2.00     | 2.50      | 1.25  | 1.0  |
+| Mid-score clef -> key      | --       | 1.00      | --    | --   |
+| Key -> barline             | --       | 1.00      | --    | --   |
+
+Sources:
+- LilyPond: `space-alist` entries in Clef/KeySignature/TimeSignature
+  grob definitions (`define-grobs.scm`). Uses pair-wise lookups:
+  left element's space-alist keyed by right element's break-align-symbol.
+- MuseScore: `styledef.cpp` style definitions (`clefKeyDistance`,
+  `keyTimesigDistance`, `systemHeaderDistance`, etc.).
+- OSMD: `EngravingRules.ts` properties (`ClefRightMargin`,
+  `KeyRightMargin`, `RhythmRightMargin`, etc.).
+
+### Analysis
+
+Dedicated constants now defined in `engraving-rules.js` and used in
+`typeset.js` (Cursor constructor, `createCourtesyItems`, and
+`handleToken` for Clef/KeySignature/TimeSignature).
+
+| Gap                        | LilyPond | MuseScore | OSMD  | Ours |
+|----------------------------|----------|-----------|-------|------|
+| Clef left margin           | --       | 0.75      | 0.50  | 0.75 |
+| Clef -> Key Signature      | 0.82     | 0.75      | 0.75  | 0.80 |
+| Key Sig -> Time Sig        | 1.15     | 1.00      | 0.75  | 1.00 |
+| Clef -> Time Sig (no key)  | 1.52     | 1.00      | --    | 0.80 |
+| Time Sig -> First Note     | 2.00     | 2.50      | 1.25  | 2.25 |
+
+### Layout Considerations
+
+- **Absent key signature**: when key is C major (no accidentals),
+  `KeySignature.width = 0` and no extra space is consumed. The time
+  signature (or first note) follows the clef directly.
+- **Courtesy items at system starts (system > 0)**: courtesy clef
+  and key signature are drawn at the start of continuation systems.
+  These use the same spacing constants as the initial system.
+- **Vertical alignment**: spacing should prevent collisions with
+  lyrics, articulations, or dynamics below.
+
+**Status**: Implemented. Named constants `CLEF_LEFT_MARGIN`,
+`AFTER_CLEF_GAP`, `AFTER_KEYSIG_GAP`, `AFTER_TIMESIG_GAP` in
+`engraving-rules.js`, used in `typeset.js`.
 
 ---
 
@@ -316,31 +427,36 @@ default mf.
 
 ## Constants Reference
 
-All values are fractions of fontSize unless noted. See
-`src/engraving-rules.js` for the code.
+All values are fractions of fontSize unless noted (fontSize = 4 staff-spaces).
+See `src/engraving-rules.js` for the code.
+
+Values calibrated against MuseScore 4 (tieMidWidth=0.21 sp,
+tieMinShoulder=0.30 sp, tieMaxShoulder=2.0 sp) and LilyPond
+(tie ratio=0.333, height-limit=1.0 sp; slur ratio=0.25,
+height-limit=2.0 sp).
 
 ### Ties
 
-| Constant            | Value | Description                          |
-|---------------------|-------|--------------------------------------|
-| TIE_HEIGHT_K        | 0.04  | Interpolation slope                  |
-| TIE_HEIGHT_D        | 0.16  | Interpolation Y-intercept            |
-| TIE_HEIGHT_MIN      | 0.15  | Minimum arc height factor            |
-| TIE_HEIGHT_MAX      | 0.55  | Maximum arc height factor            |
-| TIE_X_GAP           | 0.10  | Horizontal gap from notehead edge    |
-| TIE_Y_OFFSET        | 0.15  | Vertical offset toward curve         |
-| TIE_THICKNESS       | 0.10  | Midpoint thickness                   |
+| Constant            | Value  | Staff-sp | Description                       |
+|---------------------|--------|----------|-----------------------------------|
+| TIE_HEIGHT_K        | 0.06   | --       | Interpolation slope               |
+| TIE_HEIGHT_D        | 0.06   | --       | Interpolation Y-intercept         |
+| TIE_HEIGHT_MIN      | 0.08   | 0.32     | Minimum arc height factor         |
+| TIE_HEIGHT_MAX      | 0.45   | 1.80     | Maximum arc height factor         |
+| TIE_X_GAP           | 0.06   | 0.24     | Horizontal gap from notehead edge |
+| TIE_Y_OFFSET        | 0.10   | 0.40     | Vertical offset toward curve      |
+| TIE_THICKNESS       | 0.055  | 0.22     | Midpoint thickness                |
 
 ### Slurs
 
-| Constant            | Value | Description                          |
-|---------------------|-------|--------------------------------------|
-| SLUR_HEIGHT_K       | 0.03  | Interpolation slope (flatter)        |
-| SLUR_HEIGHT_D       | 0.18  | Interpolation Y-intercept            |
-| SLUR_HEIGHT_MIN     | 0.18  | Minimum arc height factor            |
-| SLUR_HEIGHT_MAX     | 0.60  | Maximum arc height factor            |
-| SLUR_Y_OFFSET       | 0.30  | Vertical offset (larger than ties)   |
-| SLUR_THICKNESS      | 0.08  | Midpoint thickness (thinner)         |
+| Constant            | Value  | Staff-sp | Description                       |
+|---------------------|--------|----------|-----------------------------------|
+| SLUR_HEIGHT_K       | 0.05   | --       | Interpolation slope               |
+| SLUR_HEIGHT_D       | 0.08   | --       | Interpolation Y-intercept         |
+| SLUR_HEIGHT_MIN     | 0.10   | 0.40     | Minimum arc height factor         |
+| SLUR_HEIGHT_MAX     | 0.50   | 2.00     | Maximum arc height factor         |
+| SLUR_Y_OFFSET       | 0.18   | 0.72     | Vertical offset (larger than ties)|
+| SLUR_THICKNESS      | 0.045  | 0.18     | Midpoint thickness (thinner)      |
 
 ### Collision Avoidance
 
@@ -348,10 +464,19 @@ All values are fractions of fontSize unless noted. See
 |------------------------|-------|-----------------------------------|
 | STAFF_LINE_THRESHOLD   | 0.15  | Proximity to trigger nudge        |
 | STAFF_LINE_NUDGE       | 0.25  | Nudge distance (line-spacing)     |
-| ACCIDENTAL_CLEARANCE   | 0.15  | Extra height for accidentals      |
+| ACCIDENTAL_CLEARANCE   | 0.12  | Extra height for accidentals      |
 
 ### Beams
 
 | Constant            | Value | Description                          |
 |---------------------|-------|--------------------------------------|
 | MAX_BEAM_SLOPE      | 2     | Max slope in half-spaces             |
+
+### System Header Spacing
+
+| Constant            | Value  | Staff-sp | Description                       |
+|---------------------|--------|----------|-----------------------------------|
+| CLEF_LEFT_MARGIN    | 0.19   | 0.75     | Left margin before clef           |
+| AFTER_CLEF_GAP      | 0.20   | 0.80     | Gap after clef                    |
+| AFTER_KEYSIG_GAP    | 0.25   | 1.00     | Gap after key signature           |
+| AFTER_TIMESIG_GAP   | 0.56   | 2.25     | Gap after time signature          |

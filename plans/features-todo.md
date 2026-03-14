@@ -76,6 +76,10 @@ Planned features and improvements, roughly prioritized.
 - [x] **Bar numbers** — measure numbers displayed above the first staff at each system start (wrap/page modes) and above every barline (scroll mode). Font scales with fontSize. System-start numbers computed from system break boundary indices. `_measureGeometry` entries now include `measureIndex`.
 - [ ] **Page numbers** — display page numbers in page layout mode (footer or header position, configurable).
 - [ ] **Triplet numeral misaligned with bracket** — the "3" numeral on triplet brackets is not horizontally centered or vertically aligned with the square bracket. The numeral should sit centered in the gap of the bracket.
+- [ ] **Grace note spacing incorrect** — grace notes calculate incorrect visual space-time, taking up too much or too little horizontal space relative to their visual weight in the measure.
+- [ ] **Ties/voltas break across systems** — ties and volta brackets have rendering issues at line breaks. Partial ties at system edges may be mispositioned or missing; volta brackets may not continue correctly across system boundaries.
+- [ ] **Glow highlight renders on top of stems** — glow mode highlight halo paints over stem lines instead of behind them. Should render in a lower z-layer so stems remain crisp. Also the glow shape could be more rectangular (less circular) to better match the notehead footprint.
+- [ ] **MIDI tempo not restored after rit./a tempo** — when a TempoVariance (e.g. rit., rallentando) slows playback, a subsequent "a tempo" or "Tempo Primo" should restore the previous base tempo. Currently the tempo stays reduced.
 
 ## UI / UX
 

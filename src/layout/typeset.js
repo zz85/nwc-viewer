@@ -2,6 +2,7 @@ import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMar
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie, getCode, glyphPathGet } from '../drawing.js'
+import { CLEF_LEFT_MARGIN, AFTER_CLEF_GAP, AFTER_KEYSIG_GAP, AFTER_TIMESIG_GAP } from '../engraving-rules.js'
 
 // based on nwc music json representation,
 // attempt to convert them to symbols to be drawn.
@@ -27,9 +28,8 @@ class StaveCursor {
 		// wrap and page modes use 0 (reflow adds its own margins).
 		var leftEdge = getLayoutMode() === 'scroll' ? getFontSize() : 0
 		this.lastBarline = leftEdge
-		// Stave-to-clef gap: ~1.1 staff spaces so the clef doesn't sit flush
-		// against the opening barline (standard engraving: 1.0–1.5 staff spaces).
-		this.staveX = leftEdge + getFontSize() * 0.275
+		// Stave-to-clef gap (standard engraving: 0.75 staff-space).
+		this.staveX = leftEdge + getFontSize() * CLEF_LEFT_MARGIN
 		this.stave = stave
 		this.tokens = stave.tokens
 	}
@@ -291,21 +291,21 @@ function collectRunningState(staves) {
  */
 function createCourtesyItems(clefStr, accidentals, clefForKey, staffY) {
 	const elements = []
-	// Stave-to-clef gap: ~1.1 staff spaces (same as initial system start)
-	let x = getFontSize() * 0.275
+	// Stave-to-clef gap (matches initial system start)
+	let x = getFontSize() * CLEF_LEFT_MARGIN
 
 	// Courtesy clef
 	const clef = clefFromString(clefStr)
 	clef.moveTo(x, staffY)
 	elements.push(clef)
-	x += clef.width + spacerWidth()
+	x += clef.width + getFontSize() * AFTER_CLEF_GAP
 
 	// Courtesy key signature (only if there are accidentals)
 	if (accidentals && accidentals.length > 0) {
 		const keySig = new KeySignature(accidentals, clefForKey)
 		keySig.moveTo(x, staffY)
 		elements.push(keySig)
-		x += (keySig.width || 0) + spacerWidth()
+		x += (keySig.width || 0) + getFontSize() * AFTER_KEYSIG_GAP
 	}
 
 	return { elements, totalWidth: x }
@@ -2657,7 +2657,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			clef = clefFromString(token.clef)
 			cursor.posGlyph(clef)
 			drawing.add(clef)
-			cursor.incStaveX(clef.width + spacerWidth())
+			cursor.incStaveX(clef.width + getFontSize() * AFTER_CLEF_GAP)
 			break
 
 		case 'TimeSignature':
@@ -2671,7 +2671,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				cursor.posGlyph(t)
 				drawing.add(t)
 
-				cursor.incStaveX(t.width * 2)
+				cursor.incStaveX(t.width + getFontSize() * AFTER_TIMESIG_GAP)
 			} else if (token.group && token.beat) {
 				// Numeric time signature: stack numerator (top) and denominator (bottom)
 				// Both glyphs share the same x position — they are vertically stacked.
@@ -2683,7 +2683,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				drawing.add(numerator)
 				drawing.add(denominator)
 
-				cursor.incStaveX(numerator.width + spacerWidth() * 2)
+				cursor.incStaveX(numerator.width + getFontSize() * AFTER_TIMESIG_GAP)
 			}
 
 			break
@@ -2692,7 +2692,11 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			cursor.posGlyph(key)
 			drawing.add(key)
 
-			cursor.incStaveX(key.width + spacerWidth())
+			// Only add gap when key signature has visible accidentals;
+			// C major (no accidentals, width=0) should not consume space.
+			if (key.width > 0) {
+				cursor.incStaveX(key.width + getFontSize() * AFTER_KEYSIG_GAP)
+			}
 			break
 
 		case 'Rest':
