@@ -2776,16 +2776,18 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 				while (nextSi < currentStaves.length - 1 && getStaffY(nextSi) === getStaffY(staveIndex)) {
 					nextSi++
 				}
-				let thisY = getStaffY(staveIndex) + getFontSize() // bottom of this staff
-				let nextY = getStaffY(nextSi)                    // top of next visible staff
-				if (nextY > thisY) {
+				// Draw a single continuous barline from the top of this staff
+				// to the bottom of the next staff (standard grand staff engraving).
+				let topY = getStaffY(staveIndex) - getFontSize()  // top line of this staff
+				let botY = getStaffY(nextSi)                       // bottom line of next staff
+				if (botY > topY) {
 					let barX = cursor.staveX
 					let lw = getFontSize() / 24
 					var connPath = new Claire.Path(function(ctx) {
 						ctx.beginPath()
 						ctx.lineWidth = lw
-						ctx.moveTo(barX, thisY)
-						ctx.lineTo(barX, nextY)
+						ctx.moveTo(barX, topY)
+						ctx.lineTo(barX, botY)
 						ctx.stroke()
 					})
 					drawing.add(connPath)

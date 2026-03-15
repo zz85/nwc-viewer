@@ -333,6 +333,27 @@ hooks at top and bottom.
 
 **Status**: Implemented.
 
+### Barlines in Grand Staves
+
+In standard engraving, barlines within a grand staff (or any group
+connected by `connectBarsWithNext`) run continuously from the top
+line of the first staff to the bottom line of the last staff,
+with no gaps between staves. This is a fundamental visual cue that
+the staves belong to a single instrument.
+
+- **Continuous barline**: a single vertical line spanning the full
+  height of the staff group, from top-of-first to bottom-of-last.
+- **No breaks**: the barline passes through the gap between staves
+  without interruption.
+- **All barline styles**: single, double, repeat, and final barlines
+  all follow this rule for connected staves.
+- **Exception**: barlines do NOT connect across groups that have
+  lyrics between them (the barline would cross the lyric text).
+
+**Status**: Implemented. The connector draws a continuous line from
+`getStaffY(si) - fontSize` (top of first staff) to `getStaffY(nextSi)`
+(bottom of last staff), covering both staves and the gap between them.
+
 ---
 
 ## Articulations
