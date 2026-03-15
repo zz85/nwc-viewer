@@ -234,7 +234,15 @@ function adaptObject(obj) {
 			token.position = -(obj.pos || 0)
 			token.placement = obj.placement || 0
 			token.duration = obj.value || obj.getSpeed?.() || 120
-			token.note = obj.base || 2
+			token.note = obj.base ?? 2
+			// Compute beat duration in whole-note units for tempo map conversion.
+			// getTempoNote() returns 'eighth'/'quarter'/'half'; isDotted() flags dotted beat.
+			{
+				const BEAT_DURATIONS = { 'eighth': 0.125, 'quarter': 0.25, 'half': 0.5 }
+				let bd = BEAT_DURATIONS[obj.getTempoNote?.()] || 0.25
+				if (obj.isDotted?.()) bd *= 1.5
+				token.beatDuration = bd
+			}
 			break
 
 		case 7: // Dynamic
@@ -393,6 +401,8 @@ function convertFromNewParser(nwcFile) {
 					staff_label: staff.label || '',
 					group_name: staff.group || '',
 					channel: staff.channel || 0,
+				patchName: staff.patchName ?? 0,
+				transposition: staff.transposition || 0,
 					// WithNextStaff grouping flags
 					bracketWithNext: !!staff.bracketWithNext,
 					braceWithNext: !!staff.braceWithNext,
@@ -402,6 +412,7 @@ function convertFromNewParser(nwcFile) {
 					boundaryBottom: staff.boundaryBottom || 0,
 					endingBar: staff.endingBar || 0,
 					lines: staff.lines || 5,
+					color: staff.color || 0,
 					lyrics: (staff.lyrics || []).map(function(lyric) {
 						// New parser produces pre-split syllable arrays where each
 						// element maps 1:1 to notes.  Pass them through directly.
@@ -648,9 +659,19 @@ function mapTokens(token) {
 				// Signature
 			}
 		case 'Tempo':
-			token.duration = token.Tempo // note
+			token.duration = token.Tempo // BPM value
 			token.note = 1
 			token.position = +token.Pos || 0
+			// Compute beatDuration from Base field (e.g. "Quarter", "Half", "Eighth",
+			// "Quarter Dotted", "Half Dotted", "Eighth Dotted")
+			{
+				const base = (token.Base || '').toLowerCase()
+				let bd = 0.25 // default quarter
+				if (base.includes('eighth')) bd = 0.125
+				else if (base.includes('half')) bd = 0.5
+				if (base.includes('dotted')) bd *= 1.5
+				token.beatDuration = bd
+			}
 			// Visibility
 			break
 		case 'PerformanceStyle':

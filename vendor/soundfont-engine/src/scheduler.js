@@ -37,6 +37,9 @@ export class MidiScheduler extends EventEmitter {
     this._duration = 0;
     this._notes = [];
     this._cc = [];
+    // Reference-count active notes per (channel, midi) to avoid premature
+    // noteOff when overlapping notes share the same pitch on the same channel.
+    this._activeNotes = new Map(); // key: "ch:midi" → count
   }
 
   // --- Properties ---
@@ -93,6 +96,7 @@ export class MidiScheduler extends EventEmitter {
     this._cc = controlChanges;
     this._currentTime = 0;
     this._playing = false;
+    this._activeNotes.clear();
 
     // Compute duration from the last note end time
     this._duration = notes.reduce(
@@ -129,6 +133,7 @@ export class MidiScheduler extends EventEmitter {
   stop() {
     this.pause();
     this.seek(0);
+    this._activeNotes.clear();
     this._target.allSoundOff?.();
   }
 
@@ -139,6 +144,7 @@ export class MidiScheduler extends EventEmitter {
   seek(time) {
     this._currentTime = time;
     this._node?.port.postMessage({ type: 'seek', data: { time } });
+    this._activeNotes.clear();
     this._target.allSoundOff?.();
   }
 
@@ -168,20 +174,33 @@ export class MidiScheduler extends EventEmitter {
     const { type, note, cc, lapse } = data;
 
     switch (type) {
-      case 'noteOn':
+      case 'noteOn': {
+        const ch = note.channel ?? 0;
+        const key = ch + ':' + note.midi;
+        // Track active note count for this (channel, midi) pair
+        this._activeNotes.set(key, (this._activeNotes.get(key) || 0) + 1);
         // Route to synth
-        this._target.noteOn?.(note.midi, note.velocity, note.channel ?? 0);
+        this._target.noteOn?.(note.midi, note.velocity, ch);
         // Emit for external consumers (e.g. visualization)
         this.emit('noteOn', note);
         // Schedule noteOff after duration
         if (note.duration > 0) {
           const offDelay = (note.duration * 1000) / this._speed;
           setTimeout(() => {
-            this._target.noteOff?.(note.midi, note.channel ?? 0);
+            const count = this._activeNotes.get(key) || 0;
+            if (count <= 1) {
+              // Last note with this pitch on this channel — send real noteOff
+              this._activeNotes.delete(key);
+              this._target.noteOff?.(note.midi, ch);
+            } else {
+              // Other notes still active — just decrement, don't send noteOff
+              this._activeNotes.set(key, count - 1);
+            }
             this.emit('noteOff', note);
           }, offDelay);
         }
         break;
+      }
 
       case 'cc':
         this._target.controlChange?.(cc.channel ?? 0, cc.controller, cc.value);

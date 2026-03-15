@@ -9,7 +9,7 @@ globalThis.document = globalThis.document || {
 globalThis.window = globalThis.window || { ctx: null, canvas: null }
 globalThis.XMLHttpRequest = globalThis.XMLHttpRequest || class { open() {} send() {} }
 
-const { computeBeamLayout, groupBeamableNotes } = await import('../src/layout/beams.js')
+const { computeBeamLayout, groupBeamableNotes, computeStemLength } = await import('../src/layout/beams.js')
 
 describe('computeBeamLayout', () => {
 	test('two 8th notes → 1 primary beam, no sub-beams', () => {
@@ -160,11 +160,11 @@ describe('groupBeamableNotes', () => {
 		}
 	}
 
-	test('beam markers 1=start, 3=middle, 2=end form one group', () => {
+	test('beam markers 1=start, 2=middle, 3=end form one group', () => {
 		const tokens = [
 			makeNote(8, 1),
-			makeNote(8, 3),
 			makeNote(8, 2),
+			makeNote(8, 3),
 		]
 		const groups = groupBeamableNotes(tokens)
 		expect(groups.length).toBe(1)
@@ -184,9 +184,9 @@ describe('groupBeamableNotes', () => {
 	test('two separate beam groups', () => {
 		const tokens = [
 			makeNote(8, 1),
-			makeNote(8, 2),
+			makeNote(8, 3),
 			makeNote(16, 1),
-			makeNote(16, 2),
+			makeNote(16, 3),
 		]
 		const groups = groupBeamableNotes(tokens)
 		expect(groups.length).toBe(2)
@@ -197,7 +197,7 @@ describe('groupBeamableNotes', () => {
 	test('quarter notes (duration < 8) are not beamable', () => {
 		const tokens = [
 			{ type: 'Note', duration: 4, beam: 1, drawingNoteHead: { x: 0, y: 0, width: 10 } },
-			{ type: 'Note', duration: 4, beam: 2, drawingNoteHead: { x: 20, y: 0, width: 10 } },
+			{ type: 'Note', duration: 4, beam: 3, drawingNoteHead: { x: 20, y: 0, width: 10 } },
 		]
 		const groups = groupBeamableNotes(tokens)
 		expect(groups.length).toBe(0)
@@ -206,7 +206,7 @@ describe('groupBeamableNotes', () => {
 	test('notes without drawingNoteHead are skipped', () => {
 		const tokens = [
 			{ type: 'Note', duration: 8, beam: 1 },
-			{ type: 'Note', duration: 8, beam: 2 },
+			{ type: 'Note', duration: 8, beam: 3 },
 		]
 		const groups = groupBeamableNotes(tokens)
 		expect(groups.length).toBe(0)
@@ -216,7 +216,7 @@ describe('groupBeamableNotes', () => {
 		const tokens = [
 			makeNote(8, 1),
 			{ type: 'Barline' },
-			makeNote(8, 2),
+			makeNote(8, 3),
 		]
 		const groups = groupBeamableNotes(tokens)
 		// Barline breaks the group; each side has 1 note
@@ -228,10 +228,85 @@ describe('groupBeamableNotes', () => {
 	test('Chord type tokens are beamable', () => {
 		const tokens = [
 			{ type: 'Chord', duration: 8, beam: 1, drawingNoteHead: { x: 0, y: 0, width: 10 }, notes: [{ position: 0 }, { position: 2 }] },
-			{ type: 'Chord', duration: 8, beam: 2, drawingNoteHead: { x: 20, y: 0, width: 10 }, notes: [{ position: 0 }, { position: 2 }] },
+			{ type: 'Chord', duration: 8, beam: 3, drawingNoteHead: { x: 20, y: 0, width: 10 }, notes: [{ position: 0 }, { position: 2 }] },
 		]
 		const groups = groupBeamableNotes(tokens)
 		expect(groups.length).toBe(1)
 		expect(groups[0].length).toBe(2)
+	})
+})
+
+// =============================================================================
+// computeStemLength — engraving guidelines
+// =============================================================================
+describe('computeStemLength', () => {
+	test('standard stem length is 7 half-spaces (3.5 staff spaces) for single beam', () => {
+		// Note on middle line (position=0), stems up, no chord span, 1 beam
+		expect(computeStemLength(0, true, 0, 1)).toBe(7)
+		expect(computeStemLength(0, false, 0, 1)).toBe(7)
+	})
+
+	test('standard stem length is 7 for notes near middle line', () => {
+		// Notes within the staff don't need extra length
+		expect(computeStemLength(2, true, 0, 1)).toBe(7)   // above middle, stems up
+		expect(computeStemLength(-2, false, 0, 1)).toBe(7)  // below middle, stems down
+		expect(computeStemLength(-4, true, 0, 1)).toBe(7)   // bottom line, stems up
+	})
+
+	test('chord span adds to stem length', () => {
+		// Chord spanning 4 half-spaces
+		expect(computeStemLength(0, true, 4, 1)).toBe(7 + 4)
+	})
+
+	test('32nd notes (3 beams) get extra stem length', () => {
+		// 3 beams: extra (3-1)*2 = 4 half-space units
+		const len = computeStemLength(0, true, 0, 3)
+		expect(len).toBe(7 + 4)  // 11 half-spaces = 5.5 staff spaces
+	})
+
+	test('16th notes (2 beams) get extra stem length', () => {
+		// 2 beams: extra (2-1)*2 = 2 half-space units
+		const len = computeStemLength(0, true, 0, 2)
+		expect(len).toBe(7 + 2)  // 9 half-spaces = 4.5 staff spaces
+	})
+
+	test('ledger line note below staff (stems up) reaches middle line', () => {
+		// Position -8 = 4 half-spaces below bottom staff line (-4), stems up
+		// Stem must reach from -8 up to middle line (0), distance = 8
+		const len = computeStemLength(-8, true, 0, 1)
+		expect(len).toBe(8)  // 8 > 7 (base), so uses 8
+	})
+
+	test('ledger line note far below staff (stems up) reaches middle line', () => {
+		// Position -12 = way below staff, stems up
+		const len = computeStemLength(-12, true, 0, 1)
+		expect(len).toBe(12)  // must reach all the way to middle
+	})
+
+	test('ledger line note above staff (stems down) reaches middle line', () => {
+		// Position +8 = 4 half-spaces above top staff line (+4), stems down
+		// Stem must reach from +8 down to middle line (0), distance = 8
+		const len = computeStemLength(8, false, 0, 1)
+		expect(len).toBe(8)
+	})
+
+	test('notes within staff do not trigger ledger line extension', () => {
+		// Position -3 is within the staff (between -4 and +4)
+		const len = computeStemLength(-3, true, 0, 1)
+		expect(len).toBe(7)  // standard length, no ledger line override
+	})
+
+	test('combined chord span + extra beams + ledger line', () => {
+		// Position -10, chord span 4, 3 beams (stems up from way below staff)
+		// Base: 7 + 4 (chord) = 11, + 4 (extra beams) = 15
+		// Ledger line: need 10 to reach middle line, but 15 > 10
+		const len = computeStemLength(-10, true, 4, 3)
+		expect(len).toBe(15)
+	})
+
+	test('standalone notes get beamCount=0 (no extra beam length)', () => {
+		// Standalone flagged notes should use beamCount=0
+		// A 32nd note standalone: 7 base, no beam extras
+		expect(computeStemLength(0, true, 0, 0)).toBe(7)
 	})
 })

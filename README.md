@@ -7,9 +7,37 @@ And if you like this project, you can also chat me up [@blurspline on twitter](h
 
 ### [Try it](http://zz85.github.io/nwc-viewer/)
 
-![screen shot](screenshots/notably-v2.2.png)
+![screen shot](screenshots/notably-v2.3.png)
 
 ## Changelog
+
+### v2.3 - March 2026
+- **Print emulation** — WebGL2 ink-bleed post-processing filter for paper-like rendering; paper color picker; page-mode background masking
+- **Page layout mode** — Letter and A4 paper sizes with proper page breaks
+- **Advanced controls panel** — collapsible panel with spacing density, rod/spring balance, duration proportionality, and ink-bleed sliders
+- **Dynamic inter-staff spacing** — content-aware vertical gaps based on actual note extents rather than fixed multipliers
+- **System barline** — single barline connecting all staves at the left edge of each system
+- **Grand staff braces** — SMuFL glyph-rendered `{` brace for piano/organ staves, tips aligned to stave edge via glyph bbox
+- **Bar numbers** — measure numbers displayed at the start of each system
+- **Articulations** — staccato, accent, tenuto, marcato, staccatissimo, fermata; correct stem-side placement with staff-line avoidance
+- **Grace notes** — acciaccatura (slashed) and appoggiatura; scaled stems/flags/beams, stems forced up; zero display timing for cross-staff alignment
+- **Triplet brackets** — bracket-less numeral for beamed groups; bracketed for unbeamed/rest-containing groups; stem-side placement
+- **Chord second displacement** — alternating noteheads for cluster chords
+- **Beam engraving** — standard 0.5 staff-space thickness and 0.25 staff-space separation per Gould/Dorico spec
+- **Playback highlights** — bar overlay, columnar, and note-column modes; click-to-seek; auto-scroll
+- **Piano keyboard** — on-screen keyboard visualization with solo/mute per staff
+- **Per-staff MIDI** — GM instrument assignment and transposition per staff; dynamic velocity; repeat/volta playback
+- **Hairpin rendering** — correct wedge geometry spanning note ranges
+- **Volta brackets** — first/second ending brackets rendered above staff
+- **Multiple music fonts** — dynamic font switching with 20+ bundled fonts (Finale Maestro, Jazz, Broadway, Leland, Petaluma, Leipzig, Sebastian, etc.) and matched companion text fonts
+- **MIDI import** — load `.mid`/`.midi` files as rendered score
+- **Spacing model** — spring-rod spacing with duration proportionality; two-pass line breaking; interactive sliders
+- **Engraving rules** — constants calibrated against MuseScore, LilyPond, and OSMD; font-size-relative dimensions replacing hardcoded pixels
+- **Professional ties/slurs** — cubic bezier curves, separate Slur class, staff-line collision avoidance, beam slope clamping
+- **Parser** — V175 staff connection flags from staffType; color field parsing; Segno/Coda non-spacing fix
+- **UI refresh** — two-row toolbar, segmented layout/orientation controls, logo links to GitHub, localStorage persistence for last loaded song
+- **CI** — GitHub Actions workflow running tests on push
+- 530 unit tests; 50+ synthetic visual test fixtures (open `test/visual/index.html`)
 
 ### v2.2 - March 2026
 - **Wrap layout** with DP-optimal line breaking and anchor-point justification
@@ -94,6 +122,7 @@ See [lib/nwc2xml/README.md](lib/nwc2xml/README.md) for more details.
 
 - **[index.html](index.html)** - Music viewer and player for NWC files
 - **[nwc2xml_converter.html](nwc2xml_converter.html)** - NWC to MusicXML converter with drag-and-drop interface
+- **[test/visual/index.html](test/visual/index.html)** - Visual test suite: isolated rendering fixtures for individual notation features
 
 ## Internals
 

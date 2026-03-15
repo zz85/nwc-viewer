@@ -281,3 +281,42 @@ describe('Staff visual properties pass-through (WhatChildIsThis)', () => {
 		})
 	})
 })
+
+describe('Staff visual properties — V175 grand staff (adohn.nwc)', () => {
+	const contents = readFileSync('nwcs/adohn.nwc')
+	const data = decodeNwcArrayBuffer(contents)
+
+	// adohn.nwc has 4 staves in file order:
+	//   0: Staff-3 (vocal, patch=20)
+	//   1: Staff-4 (patch=0)
+	//   2: Staff-1 (piano RH, Upper Grand Staff) — brace + bars connected
+	//   3: Staff-2 (piano LH, Lower Grand Staff)
+
+	test('Staff-1 (index 2) has braceWithNext and connectBarsWithNext', () => {
+		expect(data.score.staves[2].braceWithNext).toBe(true)
+		expect(data.score.staves[2].connectBarsWithNext).toBe(true)
+		expect(data.score.staves[2].bracketWithNext).toBe(false)
+		expect(data.score.staves[2].layerWithNext).toBe(false)
+	})
+
+	test('other staves have no connection flags', () => {
+		for (const i of [0, 1, 3]) {
+			expect(data.score.staves[i].braceWithNext).toBe(false)
+			expect(data.score.staves[i].connectBarsWithNext).toBe(false)
+			expect(data.score.staves[i].bracketWithNext).toBe(false)
+		}
+	})
+
+	test('boundary and lines values match expected', () => {
+		// Staff-1 (index 2): Upper=16, Lower=18, Lines=5
+		expect(data.score.staves[2].boundaryTop).toBe(-16)
+		expect(data.score.staves[2].boundaryBottom).toBe(18)
+		expect(data.score.staves[2].lines).toBe(5)
+	})
+
+	test('color defaults to 0 (Default)', () => {
+		data.score.staves.forEach(stave => {
+			expect(stave.color).toBe(0)
+		})
+	})
+})

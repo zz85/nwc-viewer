@@ -177,9 +177,15 @@ SightReader.prototype.read = function (staves) {
 			// if (token.type === 'Boundary') console.log('$$$', token);
 
 			if (token.durValue) {
-				// computes cumumutative value duration
+				// computes cumulative value duration
 				this.tickCounter.add(token.durValue).simplify()
-				this.tabCounter.add(token.durValue).simplify()
+				// Grace notes should NOT advance the display counter (tabCounter).
+				// They occupy visual space via rod/spring but have zero timing
+				// so the principal note after them aligns with the same beat
+				// on other staves.
+				if (!token.grace) {
+					this.tabCounter.add(token.durValue).simplify()
+				}
 			} else {
 				if (isTabbable(token)) {
 					this.tmpFraction.set(1, 4)
@@ -359,13 +365,32 @@ SightReader.prototype.Chord = function (token) {
 		}
 	}
 
-	// Resolve pitch for each note in the chord
+	// Resolve pitch and accidentals for each note in the chord
 	if (token.notes) {
 		token.notes.forEach((note) => {
 			if (note.position !== undefined) {
 				var pitch = note.position + this.offset
 				note.name = NOTE_NAMES[circularIndex(pitch)]
 				note.octave = octaveIndex(pitch)
+
+				// Accidental resolution — same rules as standalone Note:
+				//   1. Explicit accidental on the note itself
+				//   2. Running accidental from previous note at same pitch in this bar
+				//   3. Key signature accidental
+				var accidental = note.accidental
+				var computedAccidental
+				if (accidental) {
+					computedAccidental = accidental
+					this.pitches[pitch] = accidental
+				} else if (this.pitches[pitch] !== undefined) {
+					computedAccidental = this.pitches[pitch]
+				} else {
+					var changed = this.keySig[note.name]
+					if (changed) {
+						computedAccidental = changed
+					}
+				}
+				note.accidentalValue = computedAccidental
 			}
 		})
 	}
