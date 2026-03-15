@@ -177,9 +177,15 @@ SightReader.prototype.read = function (staves) {
 			// if (token.type === 'Boundary') console.log('$$$', token);
 
 			if (token.durValue) {
-				// computes cumumutative value duration
+				// computes cumulative value duration
 				this.tickCounter.add(token.durValue).simplify()
-				this.tabCounter.add(token.durValue).simplify()
+				// Grace notes should NOT advance the display counter (tabCounter).
+				// They occupy visual space via rod/spring but have zero timing
+				// so the principal note after them aligns with the same beat
+				// on other staves.
+				if (!token.grace) {
+					this.tabCounter.add(token.durValue).simplify()
+				}
 			} else {
 				if (isTabbable(token)) {
 					this.tmpFraction.set(1, 4)

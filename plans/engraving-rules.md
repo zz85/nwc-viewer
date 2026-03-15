@@ -531,11 +531,30 @@ Standard engraving practice per Gould, Ross, and modern software
   sequentially (they DO occupy measure time), which is non-standard
   but NWC-compatible.
 
+### Cross-Staff Alignment
+
+Grace notes must not disrupt the vertical alignment of principal
+notes across staves. In a grand staff, if one staff has a grace note
+before a beat and the other staff doesn't, the principal notes on
+both staves at that beat must still align vertically.
+
+This requires that grace notes have **zero timing value** for layout
+purposes (they don't advance the display time counter), even though
+they occupy visual space via their rod/spring.
+
+- **Display counter (`tabCounter`)**: grace notes do NOT advance it.
+  The principal note after a grace note shares the same `tabValue`
+  as the equivalent beat on other staves.
+- **Playback counter (`tickCounter`)**: grace notes DO advance it
+  (NWC treats them as having real duration for MIDI playback).
+
 ### Implementation Status
 
 - Rendering: implemented (60% scale, stems up, flags, slash, beams).
 - Spacing: implemented (40% spring, 50% padding, scaled accidentals).
 - Width on glyph object: implemented (beams/ties use correct dims).
+- Cross-staff alignment: implemented (grace notes don't advance
+  `tabCounter` in the interpreter).
 - Grace-to-principal slur: NOT implemented (slurs exist but are not
   auto-generated for grace notes).
 - Time-stealing playback: NOT implemented.

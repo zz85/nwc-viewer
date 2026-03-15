@@ -1008,6 +1008,26 @@ const SYNTHETIC_FIXTURES = [
 					]),
 				]),
 			},
+			{
+				label: 'Cross-Staff Alignment — Grace Notes',
+				desc: 'Grace notes on one staff should not shift the principal note out of alignment',
+				data: () => makeScore('Grace Note Alignment', [
+					makeStaff([
+						clef('treble'), keySig(), timeSig(),
+						note(0, 4), note(2, 8, { grace: 1 }), note(4, 4), note(6, 4), note(4, 4), bar(),
+						note(2, 8, { grace: 1 }), note(4, 8, { grace: 1 }), note(6, 2),
+						note(0, 2),
+						bar(3),
+					], { braceWithNext: true, connectBarsWithNext: true }),
+					makeStaff([
+						clef('bass'), keySig(), timeSig(),
+						note(0, 4), note(-4, 4), note(-6, 4), note(-4, 4), bar(),
+						note(-2, 2),
+						note(0, 2),
+						bar(3),
+					]),
+				]),
+			},
 		],
 	},
 ]
