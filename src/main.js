@@ -13,6 +13,7 @@ import { PlaybackController } from './audio.js'
 import { PlaybackHighlighter } from './playback-highlight.js'
 import { InkBleedRenderer } from './ink-bleed.js'
 import { PianoKeyboard } from './piano-keyboard.js'
+import { parseMuseScore, isMuseScoreFileStrict } from './musescore-parser.js'
 
 /**********************
  *
@@ -642,7 +643,10 @@ const rerender = () => {
 				console.log('rerender')
 				let data = scoreManager.getData()
 				const musicContext = new MusicContext(data, window.canvas)
-				interpret(musicContext)
+				// MuseScore-parsed data has timing/pitch already resolved — skip interpret
+				if (data._source !== 'musescore') {
+					interpret(musicContext)
+				}
 				score(musicContext)
 				window.__renderComplete = { ts: Date.now(), file: window.__currentFile }
 
@@ -678,6 +682,19 @@ function processData(payload, filename) {
 		window._lastPayload = payload
 		window.__currentFile = filename || '(unknown)'
 		window.__renderComplete = null
+		// Detect MuseScore files (.mscx / .mscz)
+		if (isMuseScoreFileStrict(payload, filename)) {
+			console.log('Detected MuseScore file:', filename)
+			parseMuseScore(payload).then(data => {
+				console.log('MuseScore parsed:', data)
+				setDataAndRender(data)
+			}).catch(error => {
+				console.error('Failed to parse MuseScore file:', error)
+				alert(`Error loading MuseScore file: ${error.message}\n\nSee DevTools console for the full stack trace.`)
+			})
+			return
+		}
+
 		var data
 		if (isMidiFile(payload)) {
 			data = decodeMidiArrayBuffer(payload, filename)

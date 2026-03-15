@@ -104,7 +104,8 @@ Planned features and improvements, roughly prioritized.
   - [ ] Tuplet detection beyond triplets — quintuplets, septuplets, etc.
 - [ ] MIDI export — export score as Standard MIDI File
 - [ ] MusicXML import — load .musicxml / .mxl files
-- [ ] MuseScore import — load .mscx / .mscz files
+- [x] MuseScore import (basic) — load .mscx / .mscz files (notes, rests, chords, clefs, key/time sigs, barlines)
+- [ ] MuseScore import (extended) — dynamics, lyrics, articulations, ties, slurs, beaming, multi-voice
 - [ ] LilyPond export — export score as .ly file
 - [ ] PDF export / print feature from page layout
 
