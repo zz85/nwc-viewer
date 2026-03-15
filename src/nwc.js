@@ -433,12 +433,16 @@ function convertFromNewParser(nwcFile) {
  **********************/
 
 function processNwcText(array, nwctext) {
-	// copy pasta from below
 	var reader = new DataReader(array)
 	if (isBrowser()) window.reader = reader
-	// Header(reader)
-	if (reader.data.header.version < 2.7) {
-		console.log('warning, should not be < 2.7 version')
+
+	// Extract version from nwctext header line, e.g. "!NoteWorthyComposer(2.5)"
+	var versionMatch = nwctext.match(/!NoteWorthyComposer\(([^)]+)\)/)
+	var version = versionMatch ? parseFloat(versionMatch[1]) : 2.75
+	reader.data.header = { version }
+
+	if (version < 2.7) {
+		console.log('warning, nwctext version', version, '< 2.7')
 	}
 
 	console.log('done', nwctext)
@@ -1204,6 +1208,7 @@ var TokenMode = {
 					reader.enter(i)
 					tokenMode = TokenMode.EnterExit
 					return
+				case 'Locale':
 				case 'SongInfo':
 				case 'PgSetup':
 				case 'PgMargins':
@@ -1216,9 +1221,14 @@ var TokenMode = {
 					var i = reader.push({ tokens: [] })
 					reader.descend(`score.staves.${i}.tokens`)
 					return
-				default:
 				case 'StaffProperties':
 				case 'StaffInstrument':
+				default:
+					if (!Array.isArray(reader.pointer)) {
+						// Unknown top-level section — treat as named section
+						reader.descend('score.' + value)
+						break
+					}
 					var i = reader.push({ type: value })
 					reader.enter(i)
 					tokenMode = TokenMode.EnterExit
