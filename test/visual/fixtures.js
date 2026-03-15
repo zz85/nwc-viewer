@@ -42,7 +42,25 @@ function clef(c = 'treble') {
 }
 
 function keySig(k = 'C') {
-	return { type: 'KeySignature', key: k }
+	// Map key names to accidental arrays for the KeySignature drawing class
+	const KEY_ACCIDENTALS = {
+		'C': [],
+		'G': ['f#'],
+		'D': ['f#', 'c#'],
+		'A': ['f#', 'c#', 'g#'],
+		'E': ['f#', 'c#', 'g#', 'd#'],
+		'B': ['f#', 'c#', 'g#', 'd#', 'a#'],
+		'F#': ['f#', 'c#', 'g#', 'd#', 'a#', 'e#'],
+		'C#': ['f#', 'c#', 'g#', 'd#', 'a#', 'e#', 'b#'],
+		'F': ['Bb'],
+		'Bb': ['Bb', 'Eb'],
+		'Eb': ['Bb', 'Eb', 'Ab'],
+		'Ab': ['Bb', 'Eb', 'Ab', 'Db'],
+		'Db': ['Bb', 'Eb', 'Ab', 'Db', 'Gb'],
+		'Gb': ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'],
+		'Cb': ['Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb', 'Fb'],
+	}
+	return { type: 'KeySignature', key: k, accidentals: KEY_ACCIDENTALS[k] || [] }
 }
 
 function timeSig(sig = '4/4') {
@@ -915,6 +933,60 @@ const SYNTHETIC_FIXTURES = [
 					makeStaff([
 						clef('bass'), keySig(), timeSig(),
 						note(0, 4), note(-4, 4), note(-2, 2), bar(3),
+					]),
+				]),
+			},
+			{
+				label: 'Cross-Staff Alignment — Key Sig Width',
+				desc: 'Staves with different key sigs: noteheads at same beat must align vertically',
+				data: () => makeScore('Cross-Staff Alignment', [
+					makeStaff([
+						clef('treble'), keySig('E'), timeSig(),
+						note(0, 4), note(2, 4), note(4, 4), note(6, 4), bar(),
+						note(4, 2), note(0, 2),
+						bar(3),
+					], { braceWithNext: true, connectBarsWithNext: true }),
+					makeStaff([
+						clef('bass'), keySig('C'), timeSig(),
+						note(0, 4), note(-2, 4), note(-4, 4), note(-6, 4), bar(),
+						note(-4, 2), note(0, 2),
+						bar(3),
+					]),
+				]),
+			},
+			{
+				label: 'Cross-Staff Alignment — Clef + Key',
+				desc: 'Different clefs and key sigs: wider header on top staff',
+				data: () => makeScore('Clef + Key Alignment', [
+					makeStaff([
+						clef('treble'), keySig('B'), timeSig('3/4'),
+						note(0, 4), note(4, 4), note(2, 4), bar(),
+						note(6, 2, { dots: 1 }),
+						bar(3),
+					], { braceWithNext: true, connectBarsWithNext: true }),
+					makeStaff([
+						clef('bass'), keySig(), timeSig('3/4'),
+						note(0, 4), note(-4, 4), note(-2, 4), bar(),
+						note(-6, 2, { dots: 1 }),
+						bar(3),
+					]),
+				]),
+			},
+			{
+				label: 'Cross-Staff Alignment — Same Key',
+				desc: 'Both staves same key sig: noteheads should align perfectly',
+				data: () => makeScore('Same Key Alignment', [
+					makeStaff([
+						clef('treble'), keySig('Ab'), timeSig(),
+						note(0, 4), note(2, 4), note(4, 4), note(6, 4), bar(),
+						note(4, 2), note(0, 2),
+						bar(3),
+					], { braceWithNext: true, connectBarsWithNext: true }),
+					makeStaff([
+						clef('bass'), keySig('Ab'), timeSig(),
+						note(0, 4), note(-2, 4), note(-4, 4), note(-6, 4), bar(),
+						note(-4, 2), note(0, 2),
+						bar(3),
 					]),
 				]),
 			},

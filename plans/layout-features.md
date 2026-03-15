@@ -137,6 +137,7 @@ Items marked `[x]` are implemented; `[ ]` are outstanding.
 - [x] Measure-level justification — anchor-point stretching distributes extra space at note/rest gaps (capped at MAX_INTRA_STRETCH), overflow goes to barline padding; piecewise-constant offsets keep note units (head, stem, dot, beam, accidental) rigid
 - [x] Last-line barline alignment — justified systems stretch the final barline to the page edge; unjustified last systems (fill < 20%) keep natural width
 - [x] Line breaking algorithm — determine optimal points to break into new system lines
+- [ ] **Cross-staff vertical notehead alignment** — when staves have different header widths (e.g., different key signatures), noteheads at the same beat must still align vertically. Currently each staff lays out independently; the widest header should set the starting X for all staves. Visual tests: "Cross-Staff Alignment" fixtures.
 - [ ] Page breaks — support for page-level layout when printing/exporting
 - [x] **Preset paper sizes** — Letter (8.5x11") and A4 (210x297mm) page sizes; page size selector visible only in page mode; Portrait/Landscape orientation toggle; all persisted to localStorage
 - [ ] Minimum measure width — very short measures (e.g. pickup bars) should still have readable spacing

@@ -590,6 +590,62 @@ Dedicated constants now defined in `engraving-rules.js` and used in
 
 ---
 
+## Cross-Staff Vertical Alignment
+
+In a multi-staff score, noteheads that occur at the same musical
+beat must align vertically across all staves, regardless of
+differences in system header width (clef size, key signature
+accidental count, time signature presence).
+
+### The Problem
+
+When staves have different key signatures (e.g., treble staff in
+E major with 4 sharps, bass staff in C major with none), the system
+header consumes different horizontal widths on each staff. If each
+staff lays out notes independently from its own header endpoint,
+the first note after the header appears at different X positions on
+each staff. This misalignment violates a fundamental engraving rule:
+simultaneous notes must share the same X coordinate.
+
+### The Rule
+
+- All staves in a system share a single horizontal timeline.
+- The note content area begins at the same X on every staff,
+  determined by the widest header across all staves.
+- Staves with narrower headers receive extra blank space after their
+  header elements to pad out to the widest header width.
+- Within the note content area, the spring-rod model (or whatever
+  spacing algorithm is used) produces a single set of X positions
+  shared across all staves. Notes at the same beat share the same X.
+
+### How Other Engines Handle This
+
+- **LilyPond**: break-align items (clef, key sig, time sig) are
+  spaced as a unified column across all staves. The `BreakAlignment`
+  grob collects all staves' header items and computes a single X for
+  each column so that time signatures on all staves end at the same X.
+- **MuseScore**: `systemHeaderDistance` defines the gap from the end
+  of the system header to the first note, applied uniformly across
+  all staves. The header is measured per-staff and the widest wins.
+- **OSMD**: `MaxInstructionsConstValue` reserves a fixed-width budget
+  for the header area. All staves share this budget.
+
+### Implementation Status
+
+NOT IMPLEMENTED. Each staff currently lays out its header
+independently, causing noteheads to misalign when header widths
+differ. Visual test fixtures: "Cross-Staff Alignment -- Key Sig
+Width", "Cross-Staff Alignment -- Clef + Key", "Cross-Staff
+Alignment -- Same Key".
+
+Fix approach: before note layout begins, compute the maximum header
+width across all staves (max of clef + key sig + time sig widths).
+Pad each staff's cursor to this maximum before processing note
+tokens. This ensures all staves begin their note content area at the
+same X.
+
+---
+
 ## Spacing
 
 ### Spring-Rod Model
