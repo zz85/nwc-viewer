@@ -81,6 +81,7 @@ Planned features and improvements, roughly prioritized.
 - [ ] **Glow highlight renders on top of stems** — glow mode highlight halo paints over stem lines instead of behind them. Should render in a lower z-layer so stems remain crisp. Also the glow shape could be more rectangular (less circular) to better match the notehead footprint.
 - [ ] **MIDI tempo not restored after rit./a tempo** — when a TempoVariance (e.g. rit., rallentando) slows playback, a subsequent "a tempo" or "Tempo Primo" should restore the previous base tempo. Currently the tempo stays reduced.
 - [ ] **Articulation placed on dot instead of notehead** — when a note has an augmentation dot, the articulation glyph (staccato, accent, etc.) is horizontally aligned with the dot rather than centered on the notehead. Visual test: "Dotted Note Articulations" in fixtures.js.
+- [x] **Segno/Coda advancing cursor incorrectly** — Flow direction glyphs (Segno, Coda) were consuming horizontal space via `cursor.incStaveX`, pushing subsequent notes rightward and causing vertical misalignment in multi-staff scores. Fixed: flow directions are non-spacing markers placed at the current X without advancing. Visual test: "Cross-Staff Alignment — Flow Directions".
 
 ## UI / UX
 

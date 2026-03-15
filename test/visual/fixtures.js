@@ -990,6 +990,24 @@ const SYNTHETIC_FIXTURES = [
 					]),
 				]),
 			},
+			{
+				label: 'Cross-Staff Alignment — Flow Directions',
+				desc: 'Segno/Coda on one staff should not shift notes out of vertical alignment',
+				data: () => makeScore('Flow Direction Alignment', [
+					makeStaff([
+						clef('treble'), keySig(), timeSig(),
+						note(0, 4), note(2, 4), flow(1), note(4, 4), note(6, 4), bar(),
+						note(4, 2), flow(0), note(0, 2),
+						bar(3),
+					], { braceWithNext: true, connectBarsWithNext: true }),
+					makeStaff([
+						clef('bass'), keySig(), timeSig(),
+						note(0, 4), note(-2, 4), note(-4, 4), note(-6, 4), bar(),
+						note(-4, 2), note(0, 2),
+						bar(3),
+					]),
+				]),
+			},
 		],
 	},
 ]

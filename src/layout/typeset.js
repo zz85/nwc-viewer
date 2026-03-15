@@ -3026,16 +3026,18 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 		case 'Flow':
 			// Flow directions: Coda, Segno, Fine, D.C., D.S., etc.
+			// These are placed above the staff at the current X position.
+			// They do NOT advance the cursor — they are non-spacing markers
+			// that sit above the note/barline at the same beat position.
 			var flowStyles = ['Coda', 'Segno', 'Fine', 'To Coda', 'D.C.', 'D.C. al Coda', 'D.C. al Fine', 'D.S.', 'D.S. al Coda', 'D.S. al Fine']
 			var flowStyleName = flowStyles[token.style] || 'Coda'
 			var flowPos = token.position !== undefined ? token.position : 11
 			if (flowStyleName === 'Coda' || flowStyleName === 'Segno') {
-				// Render as SMuFL glyph + text
+				// Render as SMuFL glyph
 				var flowGlyphName = flowStyleName === 'Coda' ? 'coda' : 'segno'
 				var flowGlyph = new Glyph(flowGlyphName, flowPos + 4)
 				cursor.posGlyph(flowGlyph)
 				drawing.add(flowGlyph)
-				cursor.incStaveX(flowGlyph.width + spacerWidth())
 			} else {
 				// Render as italic text
 				var flowText = new Text(flowStyleName, -(flowPos + 4), {
