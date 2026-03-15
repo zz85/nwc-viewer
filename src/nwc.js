@@ -412,6 +412,7 @@ function convertFromNewParser(nwcFile) {
 					boundaryBottom: staff.boundaryBottom || 0,
 					endingBar: staff.endingBar || 0,
 					lines: staff.lines || 5,
+					color: staff.color || 0,
 					lyrics: (staff.lyrics || []).map(function(lyric) {
 						// New parser produces pre-split syllable arrays where each
 						// element maps 1:1 to notes.  Pass them through directly.
