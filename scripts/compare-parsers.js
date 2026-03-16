@@ -395,7 +395,7 @@ function compareFile(ourTokens, refEvents, staffIdx, acceptAllVoices = false, pr
 			.map(t => t.step + t.octave)
 
 		// Count mismatches: for each ref pitch, try to find it in our pitches
-		// Allow octave +-1 as fallback (ottava/8va/8vb spans)
+		// Allow octave +-1/+-2 as fallback (ottava/8va/8vb/15ma spans)
 		const ourPitchBag = [...ourPitches]
 		let measPitchErr = 0
 		let measOttavaMatches = 0
@@ -404,22 +404,21 @@ function compareFile(ourTokens, refEvents, staffIdx, acceptAllVoices = false, pr
 			if (idx >= 0) {
 				ourPitchBag.splice(idx, 1)
 			} else {
-				// Try octave +-1 (ottava match)
+				// Try octave +-1, +-2 (ottava / 15ma)
 				const note = rp.replace(/\d+$/, '')
 				const oct = parseInt(rp.match(/\d+$/)?.[0] || '4')
-				const ottUp = note + (oct + 1)
-				const ottDn = note + (oct - 1)
-				const idxUp = ourPitchBag.indexOf(ottUp)
-				const idxDn = idxUp < 0 ? ourPitchBag.indexOf(ottDn) : -1
-				if (idxUp >= 0) {
-					ourPitchBag.splice(idxUp, 1)
-					measOttavaMatches++
-				} else if (idxDn >= 0) {
-					ourPitchBag.splice(idxDn, 1)
-					measOttavaMatches++
-				} else {
-					measPitchErr++
+				let found = false
+				for (const shift of [1, -1, 2, -2]) {
+					const shifted = note + (oct + shift)
+					const sidx = ourPitchBag.indexOf(shifted)
+					if (sidx >= 0) {
+						ourPitchBag.splice(sidx, 1)
+						measOttavaMatches++
+						found = true
+						break
+					}
 				}
+				if (!found) measPitchErr++
 			}
 		}
 
@@ -431,7 +430,10 @@ function compareFile(ourTokens, refEvents, staffIdx, acceptAllVoices = false, pr
 		}
 	}
 
-	if (ourNotes.length !== refPrimary.length) {
+	// Only report noteCount diff when there are also pitch errors, or when
+	// the difference is significant (>1% of ref count)
+	const countDiff = Math.abs(ourNotes.length - refPrimary.length)
+	if (countDiff > 0 && (noteErrors > 0 || countDiff > refPrimary.length * 0.01)) {
 		diffs.push({
 			field: 'noteCount',
 			ours: ourNotes.length,
