@@ -284,7 +284,7 @@ function xmlClefToName(sign, line) {
 	return sign + line
 }
 
-function compareFile(ourTokens, refEvents, staffIdx, acceptAllVoices = false) {
+function compareFile(ourTokens, refEvents, staffIdx, acceptAllVoices = false, primaryVoice = 1) {
 	const diffs = []
 
 	// Extract notes/rests from our tokens (voice 1 only)
@@ -292,11 +292,11 @@ function compareFile(ourTokens, refEvents, staffIdx, acceptAllVoices = false) {
 		t.type === 'Note' || t.type === 'Chord' || t.type === 'Rest'
 	)
 
-	// Extract notes/rests from reference (voice 1 by default, or all voices for split staves)
+	// Extract notes/rests from reference
 	const refNotes = []
 	for (const e of refEvents) {
 		if (!acceptAllVoices) {
-			if (e.voice && e.voice !== 1) continue
+			if (e.voice && e.voice !== primaryVoice) continue
 		}
 		if (e.type === 'note' || e.type === 'rest') {
 			refNotes.push(e)
@@ -600,11 +600,23 @@ for (const file of files) {
 				for (let s = 1; s <= maxStaff && ourIdx < ourStaves.length; s++) {
 					// Filter ref events for this staff number
 					const staffEvents = refEvents.filter(e => {
-						if (e.type === 'barline') return true // barlines apply to all staves
-						if (!e.staff) return s === 1 // default to staff 1
+						if (e.type === 'barline') return true
+						if (!e.staff) return s === 1
 						return e.staff === s
 					})
-					const diffs = compareFile(ourStaves[ourIdx].tokens, staffEvents, ourIdx, true)
+
+					// Find the primary voice for this staff (lowest voice number)
+					const staffVoices = new Set()
+					for (const e of staffEvents) {
+						if (e.voice && (e.type === 'note' || e.type === 'rest')) staffVoices.add(e.voice)
+					}
+					const primaryVoice = staffVoices.size > 0 ? Math.min(...staffVoices) : 1
+					// If the source file has no voice wrappers (MS2), our parser reads all notes
+					// as a single stream. Compare against all voices in that case.
+					const hasMultiVoice = staffVoices.size > 1
+					const useAllVoices = hasMultiVoice
+
+					const diffs = compareFile(ourStaves[ourIdx].tokens, staffEvents, ourIdx, useAllVoices, primaryVoice)
 					if (diffs.length > 0) {
 						fileDiffs.push({ staff: ourIdx, partName: `${refStaves[ri].partName} staff ${s}`, diffs })
 					}
