@@ -345,6 +345,7 @@ export class PlaybackController {
 		this._onStateChange = null
 		this._onNoteOn = null
 		this._onNoteOff = null
+		this._speed = 1
 
 		// Solo/mute state per staff
 		// _soloStaves: Set of staff indices with solo enabled (empty = no solo = all play)
@@ -435,6 +436,16 @@ export class PlaybackController {
 	get currentTime() { return this._scheduler?.currentTime ?? 0 }
 	get duration() { return this._scheduler?.duration ?? 0 }
 
+	/** Current playback speed multiplier (1 = normal). */
+	get speed() { return this._speed }
+	set speed(value) { this.setSpeed(value) }
+
+	/** Set playback speed multiplier. Clamped to [0.1, 4]. */
+	setSpeed(speed) {
+		this._speed = Math.max(0.1, Math.min(4, speed))
+		this._scheduler?.setSpeed(this._speed)
+	}
+
 	async _ensureInit() {
 		if (this._initialized) return
 
@@ -476,6 +487,11 @@ export class PlaybackController {
 		})
 
 		this._initialized = true
+
+		// Apply any speed set before init
+		if (this._speed !== 1) {
+			this._scheduler.setSpeed(this._speed)
+		}
 
 		// Load the soundfont in the background — don't block init
 		this._loadSoundfont()

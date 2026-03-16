@@ -553,6 +553,28 @@ progressBar.addEventListener('input', () => {
 	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(playback.duration)
 })
 
+// Speed control
+const speedSlider = document.getElementById('speed_slider')
+const speedInput = document.getElementById('speed_input')
+
+function applySpeed(val) {
+	const n = parseFloat(val)
+	if (!isFinite(n) || n <= 0) return
+	const clamped = Math.max(0.1, Math.min(4, n))
+	playback.setSpeed(clamped)
+	// Keep slider and input in sync (slider max is 3, input max is 4)
+	speedSlider.value = Math.min(clamped, parseFloat(speedSlider.max))
+	speedInput.value = clamped
+}
+
+if (speedSlider) {
+	speedSlider.addEventListener('input', () => applySpeed(speedSlider.value))
+}
+
+if (speedInput) {
+	speedInput.addEventListener('change', () => applySpeed(speedInput.value))
+}
+
 // Ink bleed / print emulation toggle
 let inkBleed = null
 const inkBleedBtn = document.getElementById('ink_bleed_toggle')

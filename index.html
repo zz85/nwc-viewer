@@ -120,6 +120,32 @@
 				cursor: pointer;
 			}
 
+			.speed-control {
+				display: flex;
+				align-items: center;
+				gap: 4px;
+				font-size: 11px;
+				color: var(--text-dim);
+			}
+
+			.speed-control input[type="number"] {
+				background: var(--surface);
+				color: var(--text);
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				padding: 2px 4px;
+				font-size: 11px;
+				font-family: inherit;
+				outline: none;
+				-moz-appearance: textfield;
+			}
+
+			.speed-control input[type="number"]::-webkit-inner-spin-button,
+			.speed-control input[type="number"]::-webkit-outer-spin-button {
+				-webkit-appearance: none;
+				margin: 0;
+			}
+
 			/* Segmented button group */
 			.btn-group {
 				display: inline-flex;
@@ -264,6 +290,14 @@
 						<input type="range" id="progress_bar"
 							min="0" max="1" step="0.001" value="0"
 							style="width: 120px;" />
+						<label class="speed-control" title="Playback speed">
+							<input type="range" id="speed_slider"
+								min="0.1" max="3" step="0.05" value="1"
+								style="width: 70px;" />
+							<input type="number" id="speed_input"
+								min="0.1" max="4" step="0.05" value="1"
+								style="width: 48px;" />x
+						</label>
 						<select id="solo_staff" title="Solo a single staff">
 							<option value="all">All Staves</option>
 						</select>
