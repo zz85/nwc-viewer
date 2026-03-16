@@ -24,6 +24,18 @@ flag on the data object signals this to `rerender()`.
 
 ## Format Support
 
+All MuseScore format versions are supported:
+
+- **v1.x** (`.mscx` v1.14) — No `<Score>` wrapper; root `<museScore>` contains everything.
+  Uses `<cleflist><clef idx="N"/>` (numeric clef indices from v2 ClefType enum),
+  `<keylist><key idx="N"/>` for initial key sig, `<subtype>` for KeySig, `<nom1>`/`<den>` for TimeSig.
+  No `<voice>` wrappers — notes are direct `<Measure>` children.
+- **v2.x** (`.mscx` v2.06) — No `<voice>` wrappers. Ties use `<Tie id="N">` + `<endSpanner id="N"/>`.
+  Clef from `<Part><Staff><defaultClef>` and `<Instrument><clef staff="N">`.
+- **v3.x** (`.mscx` v3.01–3.02) — `<voice>` wrappers around notes. `<Spanner type="Tie">` for ties.
+  `<concertClefType>` / `<transposingClefType>` for clefs.
+- **v4.x** (`.mscx` v4.00–4.30) — Same structure as v3. `<Part id="N">` with id attribute.
+
 Both MuseScore 3 (`.mscx` v3.x) and MuseScore 4 (`.mscx` v4.x) are supported.
 The core music content structure (`<Measure><voice><Chord>/<Rest>`) is largely the
 same between versions; minor differences in element nesting and attribute names are
@@ -95,31 +107,126 @@ G8va  → treble (8va)   C3    → alto
 C4    → tenor           PERC  → percussion
 ```
 
-## Current Scope (Minimal First Pass)
+## Current Scope
 
 ### Handled
 - Notes (single) and Chords (multi-note) with TPC enharmonic spelling
-- Rests (including whole-bar "measure" rests)
+- Rests (including whole-bar "measure" rests with correct time sig duration)
 - Clefs (treble, bass, alto, tenor, percussion; with octave shifts)
+  - Default clef from Part definitions (`<defaultClef>`, `<clef staff="N">`, `<cleflist><clef idx="N"/>`)
+  - v1.x numeric clef index mapping (MuseScore v2 ClefType enum)
 - Key signatures (sharps/flats → key name + accidentals array)
+  - C major (fifths=0) emitted when no KeySig element present
+  - v1.x `<subtype>` and `<keylist><key idx="N"/>` for initial key from Part definition
 - Time signatures
-- Tempo markings
+  - v1.x `<nom1>`/`<den>` fallback for `<sigN>`/`<sigD>`
+- Tempo markings (both voice-level and measure-level)
 - Barlines (single between measures, section close at end)
 - Multi-staff scores (Part → staff with name, label, channel)
+- Multi-voice (voices 2+ merged into token stream at correct tick positions, MS3/MS4)
 - Title and composer extraction from metaTags and VBox
-- Ties (from Spanner elements)
+- Ties (MS3 `<Spanner type="Tie">`, MS2 `<Tie id>` + `<endSpanner>`, v1.x `<Tie>`)
+- Tie end inference by pitch matching (for formats without explicit tie end markers)
+- Transposing instruments (`tpc2` for written pitch, `transposeChromatic` adjustment)
+- All format versions: v1.x, v2.x, v3.x, v4.x
 
-### Planned for Future Iterations
-- Dynamics and hairpins (crescendo/diminuendo)
-- Lyrics with syllabic info
-- Articulations (staccato, accent, tenuto, marcato)
-- Explicit beaming (currently auto/0 — renderer handles basic beaming)
-- Slurs
-- Multi-voice (voices 2-4, mapped via NWC layering)
-- Tuplets/triplets
-- Repeats, voltas, flow directions
-- Grace notes
-- Bracket/brace grouping from part structure
+### Remaining Tasks
+
+#### High Priority — Would improve more files
+
+**Cross-staff notes**
+- Notes that move between treble and bass staves mid-measure (e.g., piano arpeggios)
+- Affects: One Summer's Day (2+3 pitch errors in m39)
+- MuseScore encodes these with `<move>` or `<Staff>` elements within a voice
+- Would need to detect staff reassignment and adjust note position/clef accordingly
+
+**Voice 3-4 support**
+- Currently only voice 1 and voice 2 are parsed. Some complex scores use voices 3-4.
+- Affects: Tchaikovsky (314 errors), Rachmaninoff (79), Chopin (2162)
+- The Chopin concerto has measures with 3-4 simultaneous voices
+- Implementation: extend the voice 2+ loop to handle all voice elements (already partially done)
+
+**Grace notes**
+- MuseScore uses `<grace/>` or `<acciaccatura/>` markers inside `<Chord>` elements
+- Not currently detected in MuseScore parser (NWC grace notes are handled separately)
+
+#### Medium Priority — Polish and completeness
+
+**Dynamics and hairpins**
+- `<Dynamic><subtype>mf</subtype>` and `<Spanner type="HairPin">`
+- Parser currently skips these in the switch statement
+
+**Articulations**
+- `<Articulation><subtype>staccato</subtype>` etc.
+- Parser currently skips these
+
+**Slurs**
+- `<Spanner type="Slur">` with next/prev location references
+- Would need span tracking similar to ties
+
+**Tuplets/triplets**
+- `<Tuplet>` / `<endTuplet>` elements modify note durations
+- MuseScore stores the ratio (e.g., 3:2) and the affected notes
+- Would need to adjust tick counter for affected notes
+
+**Repeats and voltas**
+- `<Volta>` elements with endings info, `<startRepeat>` / `<endRepeat>` on measures
+- Partially handled (barline styles) but volta brackets and repeat flow not implemented
+
+**Lyrics**
+- `<Lyrics><text>` with syllabic info (`<syllabic>begin/middle/end/single`)
+- Would map to our lyrics array format
+
+**Beaming**
+- MuseScore has `<Beam>` elements that group notes
+- Currently all beaming is set to auto (0) — renderer handles basic beaming
+- Explicit beaming would improve complex rhythmic patterns
+
+#### Low Priority — Edge cases
+
+**Bracket/brace grouping**
+- `<bracket type="1" span="2"/>` in Part Staff definitions
+- Currently hardcoded: grand staff → brace, multi-staff → connect bars
+- Should read actual bracket/brace definitions from Part
+
+**Ottava span tracking (for playback)**
+- `<Spanner type="Ottava">` with `<subtype>8va/8vb/15ma/15mb</subtype>`
+- For rendering, our parser correctly reads written pitch (no adjustment needed)
+- For MIDI playback, would need to track active ottava spans and shift pitch
+- Not a rendering bug — webmscore exports sounding pitch, we export written pitch
+
+**Enharmonic respelling**
+- Some chromatic passages may have different enharmonic spellings between
+  concert and transposed pitch (e.g., F# vs Gb)
+- Minor visual difference, musically equivalent
+
+## Comparison Test Results (as of last run)
+
+Tested against webmscore's MusicXML export using `scripts/compare-parsers.js`:
+
+```
+19 files, 14 clean (4 OK + 10 INFO), 5 with diffs, 0 errors
+
+[ OK ]  Gravity Falls, Tango (violin+viola), Libertango (str qt), UPDATED Libertango
+[INFO]  Interstellar Easy, Astor Piazzolla, TANGO POR UNA CABEZA, Never Gonna Give You Up,
+        Disney Pixar's Up (both versions), River Flows In You, Libertango solo, duet,
+        Interstellar-Suite
+[DIFF]  One Summer's Day (2 errs), Interstellar MS4 (9), Tchaikovsky (314),
+        Rachmaninoff (79), Chopin (2162)
+```
+
+INFO = only voice 2+ unsupported content differs (parsing is correct for voice 1).
+DIFF = real pitch/note differences, mostly from cross-staff notes and heavy multi-voice.
+
+### Test tooling
+
+| File | Purpose |
+|------|---------|
+| `scripts/compare-parsers.js` | Runs both parsers on all .mscz files, measure-based pitch comparison |
+| `scripts/_webmscore-worker.js` | Subprocess helper: loads .mscz via webmscore WASM, exports MusicXML |
+| `scripts/webmscore.js` | CLI utility: `bun scripts/webmscore.js <file> [info\|xml\|midi\|svg\|parts\|all]` |
+| `scripts/patch-webmscore.js` | Postinstall: patches webmscore for Bun WASM loading |
+| `musescores/*.mscz` | 19 test files covering v1.x, v2.x, v3.x, v4.x formats |
 
 ## Files
 
@@ -131,3 +238,10 @@ C4    → tenor           PERC  → percussion
 | `src/loaders.js` | Passes filename through for format detection |
 | `test/musescore-parser.test.js` | 63 unit tests for core conversion logic |
 | `samples/SimpleScale.mscx` | Sample 2-staff MuseScore file for testing |
+| `musescores/*.mscz` | 19 test files covering v1.x–v4.x formats |
+| `scripts/compare-parsers.js` | Comparison: our parser vs webmscore MusicXML export |
+| `scripts/_webmscore-worker.js` | Subprocess: webmscore WASM → MusicXML |
+| `scripts/webmscore.js` | CLI: info, xml, midi, svg, parts, all |
+| `scripts/patch-webmscore.js` | Postinstall: Bun WASM loading fix |
+| `test/visual/webmscore.html` | Browser: webmscore reference renderer |
+| `vendor/webmscore/` | Vendored webmscore WASM (local, no CDN) |
