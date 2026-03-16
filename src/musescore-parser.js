@@ -472,6 +472,9 @@ function extractPart(partEl, index, isV4) {
 		staffClefs.push(instClef || 'G')
 	}
 
+	// Transposition for transposing instruments (Bb clarinet, F horn, etc.)
+	const transposeChromatic = instEl ? xmlInt(instEl, 'transposeChromatic', 0) : 0
+
 	return {
 		trackName,
 		longName,
@@ -480,6 +483,7 @@ function extractPart(partEl, index, isV4) {
 		program,
 		staffCount,
 		staffClefs,
+		transposeChromatic,
 		partIndex: index,
 	}
 }
@@ -512,6 +516,10 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 	// Determine default clef from Part definition
 	const defaultClefType = part.staffClefs?.[staffIndexInPart] || 'G'
 	const defaultMapped = CLEF_MAP[defaultClefType] || CLEF_MAP['G']
+
+	// Transposition: for transposing instruments (Bb clarinet, etc.), the .mscx
+	// stores concert pitch + written TPC.  We want written pitch for rendering.
+	const transposeChromatic = part.transposeChromatic || 0
 
 	// Track running state
 	let currentClef = defaultMapped.clef
@@ -703,7 +711,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 				}
 
 				case 'Chord': {
-					const chordToken = convertChord(child, currentClef, currentClefOctave, tickCounter, tabCounter, currentTimeSigN, currentTimeSigD)
+					const chordToken = convertChord(child, currentClef, currentClefOctave, tickCounter, tabCounter, currentTimeSigN, currentTimeSigD, transposeChromatic)
 					tokens.push(chordToken)
 					break
 				}
@@ -846,6 +854,23 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 }
 
 /**
+ * Read note pitch from a <Note> element, handling transposing instruments.
+ * Uses tpc2 (written TPC) when available, falls back to tpc (concert TPC).
+ * Adjusts MIDI pitch by transposeChromatic for correct octave calculation.
+ */
+function readNotePitch(noteEl, transposeChromatic = 0) {
+	const pitch = xmlInt(noteEl, 'pitch', 60)
+	const tpc2 = xmlInt(noteEl, 'tpc2', undefined)
+	const tpc = xmlInt(noteEl, 'tpc', 14)
+
+	if (tpc2 !== undefined && transposeChromatic !== 0) {
+		// Transposing instrument: use tpc2 (written) and adjust MIDI pitch
+		return midiAndTpcToNote(pitch - transposeChromatic, tpc2)
+	}
+	return midiAndTpcToNote(pitch, tpc)
+}
+
+/**
  * Detect tie start/end on a <Note> element.
  * MS2: <Tie id="N"> = start, <endSpanner id="N"/> = end
  * MS3+: <Spanner type="Tie"><next>...</next></Spanner> = start,
@@ -877,7 +902,7 @@ function detectTie(noteEl) {
 /**
  * Convert a <Chord> element to a Note or Chord token.
  */
-function convertChord(chordEl, clef, clefOctave, tickCounter, tabCounter, timeSigN, timeSigD) {
+function convertChord(chordEl, clef, clefOctave, tickCounter, tabCounter, timeSigN, timeSigD, transposeChromatic = 0) {
 	const durType = xmlText(chordEl, 'durationType') || 'quarter'
 	const dots = countDots(chordEl)
 	const noteEls = chordEl.getElementsByTagName('Note')
@@ -895,9 +920,7 @@ function convertChord(chordEl, clef, clefOctave, tickCounter, tabCounter, timeSi
 	if (noteEls.length === 1) {
 		// Single note
 		const noteEl = noteEls[0]
-		const pitch = xmlInt(noteEl, 'pitch', 60)
-		const tpc = xmlInt(noteEl, 'tpc', 14)
-		const { name, octave, accidental, accidentalValue } = midiAndTpcToNote(pitch, tpc)
+		const { name, octave, accidental, accidentalValue } = readNotePitch(noteEl, transposeChromatic)
 		const position = computePosition(name, octave, clef, clefOctave)
 
 		// Check for tie
@@ -933,9 +956,7 @@ function convertChord(chordEl, clef, clefOctave, tickCounter, tabCounter, timeSi
 	// Multi-note chord
 	const notes = []
 	for (const noteEl of toArray(noteEls)) {
-		const pitch = xmlInt(noteEl, 'pitch', 60)
-		const tpc = xmlInt(noteEl, 'tpc', 14)
-		const { name, octave, accidental, accidentalValue } = midiAndTpcToNote(pitch, tpc)
+		const { name, octave, accidental, accidentalValue } = readNotePitch(noteEl, transposeChromatic)
 		const position = computePosition(name, octave, clef, clefOctave)
 
 		const { tie, tieEnd } = detectTie(noteEl)
