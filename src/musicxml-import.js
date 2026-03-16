@@ -542,25 +542,10 @@ function handleNote(noteEl, state, tokens) {
 		}
 	}
 
-	// Voice filtering: only process primary voice for each staff
-	// In multi-staff parts, voices 1-2 are staff 1, voices 3-4 are staff 2
-	// For single-staff, just take voice 1
-	const voiceText = xmlText(noteEl, 'voice')
-	const voice = voiceText ? parseInt(voiceText, 10) : 1
-	const primaryVoice = state.staffCount > 1
-		? (state.staffNum === 1 ? 1 : (state.staffCount > 1 ? (state.staffNum * 2 - 1) : 1))
-		: 1
-
-	// Accept voice 1 for staff 1, voice 3 for staff 2, etc.
-	// But also accept any voice that's on our staff (detected by <staff> element)
-	// For now: accept lowest voice per staff
-	if (voice !== primaryVoice && state.staffCount <= 1) {
-		// Non-primary voice in single-staff: skip but advance timing
-		if (!isChord && !isGrace) {
-			// Don't advance — backup/forward handles timing
-		}
-		return
-	}
+	// Voice filtering for multi-staff parts only: the <staff> element already
+	// filters by staff number above. For single-staff parts, accept all voices
+	// since backup/forward handles tick positioning for secondary voices.
+	// For multi-staff: accept all voices that passed the staff filter above.
 
 	// --- Duration ---
 	const typeText = xmlText(noteEl, 'type')
