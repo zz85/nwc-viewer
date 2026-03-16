@@ -1,5 +1,5 @@
 import './constants.js'
-import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel, setZoomLevel, getPageDimensions, setPageViewMode, getPageViewMode } from './constants.js'
+import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel, setZoomLevel, getPageDimensions, setPageViewMode, getPageViewMode, setZoomFitMode, getZoomFitMode } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -27,14 +27,15 @@ window.addEventListener('resize', () => {
 	if (getLayoutMode() === 'wrap') {
 		// In wrap mode, the layout depends on viewport width — must re-layout
 		rerender()
-	} else if (getLayoutMode() === 'page' && getPageViewMode() === 'fit-width') {
-		// In page mode with fit-width: recalculate zoom to fill viewport width
-		applyFitWidth()
 	} else {
-		// scroll and page modes: fixed width, just repaint
-		resizeToFit()
-		var scoreElm = document.getElementById('score')
-		quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+		// If a fit mode is active, recalculate the zoom
+		if (getZoomFitMode() !== 'none') {
+			applyZoomFit()
+		} else {
+			resizeToFit()
+			var scoreElm = document.getElementById('score')
+			quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+		}
 	}
 })
 
@@ -873,6 +874,7 @@ function updateLayoutUI() {
 	if (pageSizeEl) pageSizeEl.style.display = isPage ? 'inline' : 'none'
 	if (orientGroup) orientGroup.style.display = isPage ? 'inline-flex' : 'none'
 	if (pageViewModeEl) pageViewModeEl.style.display = isPage ? 'inline' : 'none'
+	updatePageNavVisibility()
 
 	// Toggle background for page mode (gray canvas background)
 	const scoreDiv = document.getElementById('score')
@@ -925,26 +927,13 @@ if (orientGroup) {
 }
 
 // ---------------------------------------------------------------------------
-// Page View Mode (single, fit-width, two-up, horizontal)
+// Page View Mode (vertical, single-page, two-up, horizontal)
 // ---------------------------------------------------------------------------
 
 const PAGE_VIEW_STORAGE_KEY = 'nwc_page_view_mode'
 
-/** Calculate and apply zoom so the total virtual width fills the viewport. */
-function applyFitWidth() {
-	const scoreElm = document.getElementById('score')
-	if (!scoreElm || typeof maxCanvasWidth === 'undefined') return
-
-	const viewportWidth = scoreElm.clientWidth - 20  // matches resizeToFit() padding
-	const newZoom = viewportWidth / maxCanvasWidth
-
-	setZoomLevel(newZoom)
-
-	// Sync the zoom slider/label via the global applyZoom
-	if (window.applyZoom) {
-		window.applyZoom(newZoom)
-	}
-}
+// Current page index for single-page mode
+let currentPageIdx = 0
 
 // Page view mode selector
 const pageViewModeSelect = document.getElementById('page_view_mode')
@@ -952,18 +941,137 @@ if (pageViewModeSelect) {
 	pageViewModeSelect.onchange = function () {
 		setPageViewMode(pageViewModeSelect.value)
 		localStorage.setItem(PAGE_VIEW_STORAGE_KEY, pageViewModeSelect.value)
+		currentPageIdx = 0
+		updatePageNav()
+		updatePageNavVisibility()
 		if (getLayoutMode() === 'page') rerender()
 	}
 }
 
-// Apply fit-width after each render if the page view mode is 'fit-width'
-;(function hookFitWidth() {
+function updatePageNavVisibility() {
+	const nav = document.getElementById('page_nav')
+	if (nav) nav.style.display = (getLayoutMode() === 'page' && getPageViewMode() === 'single-page') ? 'inline' : 'none'
+}
+
+function updatePageNav() {
+	const indicator = document.getElementById('page_indicator')
+	const prevBtn = document.getElementById('page_prev')
+	const nextBtn = document.getElementById('page_next')
+	const totalPages = window._pageGeometry?.pageCount || 1
+	if (indicator) indicator.textContent = `${currentPageIdx + 1} / ${totalPages}`
+	if (prevBtn) prevBtn.disabled = currentPageIdx <= 0
+	if (nextBtn) nextBtn.disabled = currentPageIdx >= totalPages - 1
+}
+
+function scrollToPage(pageIdx) {
+	const pg = window._pageGeometry
+	if (!pg || !pg.pagePositions || pageIdx < 0 || pageIdx >= pg.pageCount) return
+	currentPageIdx = pageIdx
+	const pos = pg.pagePositions[pageIdx]
+	const zoom = getZoomLevel()
+	const scoreElm = document.getElementById('score')
+	if (scoreElm) {
+		// Center the page in the viewport
+		const pageVirtualHeight = pg.pageHeight + pg.interPageGap
+		scoreElm.scrollTop = (pos.y - pg.interPageGap / 2) * zoom
+		scoreElm.scrollLeft = 0
+		quickDraw(null, -scoreElm.scrollLeft, -scoreElm.scrollTop)
+	}
+	updatePageNav()
+}
+
+// Prev / Next buttons
+const pagePrevBtn = document.getElementById('page_prev')
+const pageNextBtn = document.getElementById('page_next')
+if (pagePrevBtn) pagePrevBtn.onclick = () => scrollToPage(currentPageIdx - 1)
+if (pageNextBtn) pageNextBtn.onclick = () => scrollToPage(currentPageIdx + 1)
+
+// ---------------------------------------------------------------------------
+// Zoom Fit Mode (width / height) — buttons next to zoom slider
+// ---------------------------------------------------------------------------
+
+const ZOOM_FIT_STORAGE_KEY = 'nwc_zoom_fit'
+
+/** Calculate and apply zoom to fit width or height. */
+function applyZoomFit() {
+	const scoreElm = document.getElementById('score')
+	if (!scoreElm || typeof maxCanvasWidth === 'undefined') return
+
+	const mode = getZoomFitMode()
+	if (mode === 'none') return
+
+	const viewportW = scoreElm.clientWidth - 20
+	const viewportH = scoreElm.clientHeight - 20
+	let newZoom
+
+	if (mode === 'width') {
+		newZoom = viewportW / maxCanvasWidth
+	} else if (mode === 'height') {
+		newZoom = viewportH / maxCanvasHeight
+	}
+
+	if (newZoom) {
+		setZoomLevel(newZoom)
+		if (window.applyZoom) window.applyZoom(newZoom)
+	}
+}
+
+/**
+ * Called when the user manually drags the zoom slider.
+ * Disengages any active fit mode and applies the zoom.
+ */
+function onZoomSliderInput(value) {
+	setZoomFitMode('none')
+	updateFitButtonsUI()
+	localStorage.removeItem(ZOOM_FIT_STORAGE_KEY)
+	if (window.applyZoom) window.applyZoom(value)
+}
+window.onZoomSliderInput = onZoomSliderInput
+
+function updateFitButtonsUI() {
+	const mode = getZoomFitMode()
+	const fitW = document.getElementById('fit_width_btn')
+	const fitH = document.getElementById('fit_height_btn')
+	if (fitW) fitW.classList.toggle('active', mode === 'width')
+	if (fitH) fitH.classList.toggle('active', mode === 'height')
+}
+
+// Fit Width button
+const fitWidthBtn = document.getElementById('fit_width_btn')
+if (fitWidthBtn) {
+	fitWidthBtn.onclick = () => {
+		const newMode = getZoomFitMode() === 'width' ? 'none' : 'width'
+		setZoomFitMode(newMode)
+		localStorage.setItem(ZOOM_FIT_STORAGE_KEY, newMode)
+		updateFitButtonsUI()
+		if (newMode !== 'none') applyZoomFit()
+	}
+}
+
+// Fit Height button
+const fitHeightBtn = document.getElementById('fit_height_btn')
+if (fitHeightBtn) {
+	fitHeightBtn.onclick = () => {
+		const newMode = getZoomFitMode() === 'height' ? 'none' : 'height'
+		setZoomFitMode(newMode)
+		localStorage.setItem(ZOOM_FIT_STORAGE_KEY, newMode)
+		updateFitButtonsUI()
+		if (newMode !== 'none') applyZoomFit()
+	}
+}
+
+// Apply fit mode after each render
+;(function hookZoomFit() {
 	let lastRenderTs = 0
 	const checkRender = () => {
 		if (window.__renderComplete && window.__renderComplete.ts !== lastRenderTs) {
 			lastRenderTs = window.__renderComplete.ts
-			if (getPageViewMode() === 'fit-width' && getLayoutMode() === 'page') {
-				requestAnimationFrame(() => applyFitWidth())
+			if (getZoomFitMode() !== 'none') {
+				requestAnimationFrame(() => applyZoomFit())
+			}
+			// Update page nav in single-page mode
+			if (getPageViewMode() === 'single-page' && getLayoutMode() === 'page') {
+				updatePageNav()
 			}
 		}
 		requestAnimationFrame(checkRender)
@@ -992,6 +1100,11 @@ const storedPageView = localStorage.getItem(PAGE_VIEW_STORAGE_KEY)
 if (storedPageView) {
 	setPageViewMode(storedPageView)
 	if (pageViewModeSelect) pageViewModeSelect.value = storedPageView
+}
+const storedZoomFit = localStorage.getItem(ZOOM_FIT_STORAGE_KEY)
+if (storedZoomFit === 'width' || storedZoomFit === 'height') {
+	setZoomFitMode(storedZoomFit)
+	updateFitButtonsUI()
 }
 updateLayoutUI()
 

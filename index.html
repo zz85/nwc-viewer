@@ -331,11 +331,16 @@
 							<button data-orient="landscape">Landscape</button>
 						</div>
 						<select id="page_view_mode" style="display: none;" title="Page view arrangement">
-							<option value="single">Single</option>
-							<option value="fit-width">Fit Width</option>
+							<option value="vertical">Vertical</option>
+							<option value="single-page">Single Page</option>
 							<option value="two-up">Two-Up</option>
 							<option value="horizontal">Horizontal</option>
 						</select>
+						<span id="page_nav" style="display: none;">
+							<button id="page_prev" title="Previous page" style="font-size: 11px; padding: 2px 6px;">&lt;</button>
+							<span id="page_indicator" style="font-size: 11px; min-width: 50px; text-align: center; color: var(--text-dim);">1 / 1</span>
+							<button id="page_next" title="Next page" style="font-size: 11px; padding: 2px 6px;">&gt;</button>
+						</span>
 					</div>
 
 					<!-- View -->
@@ -367,9 +372,11 @@
 						<span class="toolbar-label">Zoom</span>
 						<input type="range" id="zoom_slider"
 							min="0.25" max="4.0" step="0.01" value="1.0"
-							oninput="applyZoom(parseFloat(this.value))"
+							oninput="onZoomSliderInput(parseFloat(this.value))"
 							style="width: 80px;" />
 						<span id="zoom_label" style="font-size: 11px; min-width: 36px; text-align: center; color: var(--text-dim);">100%</span>
+						<button id="fit_width_btn" title="Fit page width to screen" style="font-size: 11px; padding: 2px 6px;">W</button>
+						<button id="fit_height_btn" title="Fit page height to screen" style="font-size: 11px; padding: 2px 6px;">H</button>
 						<button id="ink_bleed_toggle" title="Print emulation: ink bleed, paper grain, letterpress effect">Inked</button>
 						<input type="color" id="ink_paper_color" value="#f1ece3" title="Paper color" style="width: 28px; height: 24px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; vertical-align: middle;" />
 					</div>

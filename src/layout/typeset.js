@@ -2090,9 +2090,22 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		totalCanvasWidth = rowWidth
 		var rowCount = Math.ceil(pageCount / pagesPerRow)
 		totalCanvasHeight = rowCount * (PAGE_H + interPageGap) + interPageGap
+	} else if (viewMode === 'single-page') {
+		// Single-page: only one page visible at a time.
+		// Layout all pages at the same position (they'll be shown one at a
+		// time via clipping in quickDraw). Canvas sized for one page.
+		for (var pi = 0; pi < pageCount; pi++) {
+			pagePositions[pi] = {
+				x: horizontalPad,
+				y: interPageGap + pi * (PAGE_H + interPageGap),
+			}
+		}
+		totalCanvasWidth = PAGE_W + horizontalPad * 2
+		// Size for all pages so internal layout is consistent, but the
+		// viewport will be constrained to one page in quickDraw/scrolling.
+		totalCanvasHeight = pageCount * (PAGE_H + interPageGap) + interPageGap
 	} else {
-		// 'single' and 'fit-width': vertical stack (same layout, fit-width
-		// just auto-adjusts zoom)
+		// 'vertical' (default): pages stacked vertically with free scrolling
 		for (var pi = 0; pi < pageCount; pi++) {
 			pagePositions[pi] = {
 				x: horizontalPad,
@@ -2261,6 +2274,8 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		horizontalPad,
 		pagePositions,
 	}
+	// Expose for single-page navigation in main.js
+	window._pageGeometry = _pageGeometry
 
 	// Build system geometry for playback cursor spanning
 	_systemGeometry = []
