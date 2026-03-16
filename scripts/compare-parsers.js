@@ -395,21 +395,56 @@ function compareFile(ourTokens, refEvents, staffIdx, acceptAllVoices = false, pr
 			.map(t => t.step + t.octave)
 
 		// Count mismatches: for each ref pitch, try to find it in our pitches
-		// Allow octave +-1/+-2 as fallback (ottava/8va/8vb/15ma spans)
+		// Use a two-pass approach to handle ottava spans correctly:
+		// 1. Detect dominant octave shift (if most pitches are shifted by same amount)
+		// 2. Apply shift before matching
+
+		// Detect dominant shift by sampling
+		let shiftVotes = {}
+		for (const rp of refPitches) {
+			const note = rp.replace(/\d+$/, '')
+			const oct = parseInt(rp.match(/\d+$/)?.[0] || '4')
+			for (const shift of [0, -1, -2, 1, 2]) {
+				const candidate = note + (oct + shift)
+				if (ourPitches.includes(candidate)) {
+					shiftVotes[shift] = (shiftVotes[shift] || 0) + 1
+					break
+				}
+			}
+		}
+		// Find best shift (prefer 0, then by vote count)
+		let bestShift = 0
+		let bestVotes = shiftVotes[0] || 0
+		for (const [shift, votes] of Object.entries(shiftVotes)) {
+			if (votes > bestVotes || (votes === bestVotes && Math.abs(parseInt(shift)) < Math.abs(bestShift))) {
+				bestShift = parseInt(shift)
+				bestVotes = votes
+			}
+		}
+
+		// Apply shift to ref pitches before matching
+		const adjustedRefPitches = refPitches.map(rp => {
+			if (bestShift === 0) return rp
+			const note = rp.replace(/\d+$/, '')
+			const oct = parseInt(rp.match(/\d+$/)?.[0] || '4')
+			return note + (oct + bestShift)
+		})
+
 		const ourPitchBag = [...ourPitches]
 		let measPitchErr = 0
 		let measOttavaMatches = 0
-		for (const rp of refPitches) {
+		for (const rp of adjustedRefPitches) {
 			const idx = ourPitchBag.indexOf(rp)
 			if (idx >= 0) {
 				ourPitchBag.splice(idx, 1)
+				if (bestShift !== 0) measOttavaMatches++
 			} else {
-				// Try octave +-1, +-2 (ottava / 15ma)
+				// Try additional +-1 from the adjusted pitch
 				const note = rp.replace(/\d+$/, '')
 				const oct = parseInt(rp.match(/\d+$/)?.[0] || '4')
 				let found = false
-				for (const shift of [1, -1, 2, -2]) {
-					const shifted = note + (oct + shift)
+				for (const extra of [1, -1]) {
+					const shifted = note + (oct + extra)
 					const sidx = ourPitchBag.indexOf(shifted)
 					if (sidx >= 0) {
 						ourPitchBag.splice(sidx, 1)
