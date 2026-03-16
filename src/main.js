@@ -15,6 +15,7 @@ import { InkBleedRenderer } from './ink-bleed.js'
 import { PianoKeyboard } from './piano-keyboard.js'
 import { parseMuseScore, isMuseScoreFileStrict } from './musescore-parser.js'
 import { parseMusicXML, isMusicXMLFile } from './musicxml-import.js'
+import { ensureWebMscore, exportMusicXML } from './webmscore-loader.js'
 
 /**********************
  *
@@ -700,6 +701,56 @@ function setDataAndRender(_data) {
 	rerender()
 }
 
+// ---------------------------------------------------------------------------
+// MuseScore Import Mode
+// ---------------------------------------------------------------------------
+
+/** Get the current MuseScore import mode ('webmscore' or 'jsparser'). */
+function getMuseScoreImportMode() {
+	const select = document.getElementById('mscore_import_mode')
+	return select ? select.value : 'webmscore'
+}
+
+// Persist import mode in localStorage
+;(function initImportMode() {
+	const select = document.getElementById('mscore_import_mode')
+	if (!select) return
+	const saved = localStorage.getItem('mscore_import_mode')
+	if (saved && (saved === 'webmscore' || saved === 'jsparser')) {
+		select.value = saved
+	}
+	select.addEventListener('change', () => {
+		localStorage.setItem('mscore_import_mode', select.value)
+	})
+})()
+
+/**
+ * Process a MuseScore file via the WebMscore WASM pipeline.
+ * Falls back to the JS parser if WebMscore fails.
+ */
+async function processMuseScoreViaWebMscore(payload, filename) {
+	try {
+		const musicxml = await exportMusicXML(payload, filename)
+		console.log(`WebMscore exported MusicXML (${musicxml.length} chars)`)
+
+		const data = await parseMusicXML(musicxml, filename)
+		console.log('MusicXML parsed via WebMscore pipeline:', data)
+		setDataAndRender(data)
+	} catch (error) {
+		console.warn('WebMscore pipeline failed, falling back to JS parser:', error.message)
+
+		// Fallback to direct JS parser
+		try {
+			const data = await parseMuseScore(payload)
+			console.log('MuseScore parsed (JS fallback):', data)
+			setDataAndRender(data)
+		} catch (fallbackError) {
+			console.error('JS parser also failed:', fallbackError)
+			alert(`Error loading MuseScore file.\n\nWebMscore: ${error.message}\nJS parser: ${fallbackError.message}\n\nSee DevTools console for details.`)
+		}
+	}
+}
+
 function processData(payload, filename) {
 	try {
 		window._lastPayload = payload
@@ -708,13 +759,23 @@ function processData(payload, filename) {
 		// Detect MuseScore files (.mscx / .mscz)
 		if (isMuseScoreFileStrict(payload, filename)) {
 			console.log('Detected MuseScore file:', filename)
-			parseMuseScore(payload).then(data => {
-				console.log('MuseScore parsed:', data)
-				setDataAndRender(data)
-			}).catch(error => {
-				console.error('Failed to parse MuseScore file:', error)
-				alert(`Error loading MuseScore file: ${error.message}\n\nSee DevTools console for the full stack trace.`)
-			})
+
+			const useWebMscore = getMuseScoreImportMode() === 'webmscore'
+
+			if (useWebMscore) {
+				// WebMscore pipeline: .mscz → webmscore WASM → MusicXML → our parser
+				console.log('Using WebMscore pipeline...')
+				processMuseScoreViaWebMscore(payload, filename)
+			} else {
+				// Direct JS parser
+				parseMuseScore(payload).then(data => {
+					console.log('MuseScore parsed (JS):', data)
+					setDataAndRender(data)
+				}).catch(error => {
+					console.error('Failed to parse MuseScore file:', error)
+					alert(`Error loading MuseScore file: ${error.message}\n\nSee DevTools console for the full stack trace.`)
+				})
+			}
 			return
 		}
 

@@ -422,6 +422,15 @@
 						</div>
 					</div>
 
+					<!-- MuseScore import mode -->
+					<div class="toolbar-group">
+						<span class="toolbar-label">MuseScore</span>
+						<select id="mscore_import_mode" title="MuseScore import engine">
+							<option value="webmscore">WebMscore</option>
+							<option value="jsparser">JS Parser</option>
+						</select>
+					</div>
+
 					<!-- Debug (localhost only) -->
 					<div id="debug_tools" class="toolbar-group" style="display: none;">
 						<button onclick="window._debug_glyph = !window._debug_glyph; rerender()">Debug glyph</button>
