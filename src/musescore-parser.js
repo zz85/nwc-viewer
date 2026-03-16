@@ -266,6 +266,33 @@ function toArray(nodeList) {
 	return arr
 }
 
+/**
+ * Parse key signature accidental count from a <KeySig> element.
+ * v2+: <accidental>N</accidental> or <key>N</key>
+ * v1.x: <subtype>N</subtype>
+ */
+function parseKeySigAccidentals(keySigEl) {
+	// Try each tag in order — use xmlText to distinguish "element missing" from "value is 0"
+	const accText = xmlText(keySigEl, 'accidental')
+	if (accText !== '') return parseInt(accText, 10)
+	const keyText = xmlText(keySigEl, 'key')
+	if (keyText !== '') return parseInt(keyText, 10)
+	const subText = xmlText(keySigEl, 'subtype')
+	if (subText !== '') return parseInt(subText, 10)
+	return 0
+}
+
+/**
+ * Parse time signature numerator/denominator from a <TimeSig> element.
+ * v2+: <sigN>/<sigD>
+ * v1.x: <nom1>/<den>
+ */
+function parseTimeSigValues(timeSigEl) {
+	const sigN = xmlInt(timeSigEl, 'sigN', 0) || xmlInt(timeSigEl, 'nom1', 4)
+	const sigD = xmlInt(timeSigEl, 'sigD', 0) || xmlInt(timeSigEl, 'den', 4)
+	return { sigN, sigD }
+}
+
 // ---------------------------------------------------------------------------
 // Main Parser
 // ---------------------------------------------------------------------------
@@ -463,6 +490,7 @@ function extractPart(partEl, index, isV4) {
 	//      <Part><Instrument><clef staff="2">F</clef> (MS2 multi-staff: piano)
 	//   4. Default to 'G' (treble)
 	const staffClefs = []
+	const staffKeySigs = []  // v1.x: initial key sig per staff from <keylist>
 	for (let i = 0; i < staffSubElements.length; i++) {
 		const staffEl = staffSubElements[i]
 
@@ -474,6 +502,19 @@ function extractPart(partEl, index, isV4) {
 				const idx = parseInt(clefEl.getAttribute('idx') || '0', 10)
 				const clefName = CLEF_INDEX_MAP[idx] || 'G'
 				staffClefs.push(clefName)
+
+				// v1.x: <keylist><key tick="0" idx="N"/> (N = fifths, negative for flats)
+				const keyListEl = staffEl.getElementsByTagName('keylist')[0]
+				if (keyListEl) {
+					const keyEl = keyListEl.getElementsByTagName('key')[0]
+					if (keyEl) {
+						staffKeySigs.push(parseInt(keyEl.getAttribute('idx') || '0', 10))
+					} else {
+						staffKeySigs.push(undefined)
+					}
+				} else {
+					staffKeySigs.push(undefined)
+				}
 				continue
 			}
 		}
@@ -482,6 +523,7 @@ function extractPart(partEl, index, isV4) {
 		const defaultClef = xmlText(staffEl, 'defaultClef')
 		if (defaultClef) {
 			staffClefs.push(defaultClef)
+			staffKeySigs.push(undefined)
 		} else if (instEl) {
 			// Check Instrument <clef> elements — match by staff number
 			const clefEls = instEl.getElementsByTagName('clef')
@@ -498,8 +540,10 @@ function extractPart(partEl, index, isV4) {
 				}
 			}
 			staffClefs.push(found || 'G')
+			staffKeySigs.push(undefined)
 		} else {
 			staffClefs.push('G')
+			staffKeySigs.push(undefined)
 		}
 	}
 
@@ -516,10 +560,11 @@ function extractPart(partEl, index, isV4) {
 		trackName,
 		longName,
 		shortName,
-		channel: index, // Each part gets its own channel
+		channel: index,
 		program,
 		staffCount,
 		staffClefs,
+		staffKeySigs,
 		transposeChromatic,
 		partIndex: index,
 	}
@@ -557,6 +602,9 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 	// Transposition: for transposing instruments (Bb clarinet, etc.), the .mscx
 	// stores concert pitch + written TPC.  We want written pitch for rendering.
 	const transposeChromatic = part.transposeChromatic || 0
+
+	// v1.x: initial key signature from Part definition <keylist>
+	const defaultKeySig = part.staffKeySigs?.[staffIndexInPart]
 
 	// Track running state
 	let currentClef = defaultMapped.clef
@@ -606,8 +654,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 				}
 
 				case 'KeySig': {
-					let accCount = xmlInt(child, 'accidental', undefined)
-					if (accCount === undefined) accCount = xmlInt(child, 'key', 0)
+					let accCount = parseKeySigAccidentals(child)
 
 					const keySigToken = buildKeySigToken(accCount, currentClef, currentClefOctave)
 					keySigToken.tickValue = tickCounter.value()
@@ -620,8 +667,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 				}
 
 				case 'TimeSig': {
-					const sigN = xmlInt(child, 'sigN', 4)
-					const sigD = xmlInt(child, 'sigD', 4)
+					const { sigN, sigD } = parseTimeSigValues(child)
 					currentTimeSigN = sigN
 					currentTimeSigD = sigD
 
@@ -695,8 +741,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 				}
 
 				case 'KeySig': {
-					let accCount = xmlInt(child, 'accidental', undefined)
-					if (accCount === undefined) accCount = xmlInt(child, 'key', 0)
+					let accCount = parseKeySigAccidentals(child)
 
 					const keySigToken = buildKeySigToken(accCount, currentClef, currentClefOctave)
 					keySigToken.tickValue = tickCounter.value()
@@ -709,8 +754,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 				}
 
 				case 'TimeSig': {
-					const sigN = xmlInt(child, 'sigN', 4)
-					const sigD = xmlInt(child, 'sigD', 4)
+					const { sigN, sigD } = parseTimeSigValues(child)
 					currentTimeSigN = sigN
 					currentTimeSigD = sigD
 
@@ -820,8 +864,9 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 	}
 
 	if (!hadInitialKeySig) {
-		// C major implied — emit it explicitly so the renderer knows
-		const keySigToken = buildKeySigToken(0, currentClef, currentClefOctave)
+		// Use key from Part definition (v1.x keylist) or default to C major (0)
+		const accCount = defaultKeySig !== undefined ? defaultKeySig : 0
+		const keySigToken = buildKeySigToken(accCount, currentClef, currentClefOctave)
 		keySigToken.tickValue = 0
 		keySigToken.tabValue = 0
 		keySigToken.tabUntilValue = 0.25
