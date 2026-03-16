@@ -616,8 +616,14 @@ for (const file of files) {
 		}
 
 		// 5. Report
-		const hasIssues = fileDiffs.length > 0
-		const icon = hasIssues ? 'DIFF' : ' OK '
+		// Separate real issues from informational-only diffs (voice2+)
+		const realDiffs = fileDiffs.filter(d => {
+			if (d.staff === 'all') return true
+			return d.diffs?.some(diff => diff.field !== 'unsupported')
+		})
+		const hasIssues = realDiffs.length > 0
+		const hasInfoOnly = fileDiffs.length > 0 && !hasIssues
+		const icon = hasIssues ? 'DIFF' : hasInfoOnly ? 'INFO' : ' OK '
 		console.log(`\n[${icon}] ${name}`)
 		console.log(`       Staves: ours=${ourResult.score.staves.length} ref=${refStaves.length}  |  Title: ${meta.title}  |  Measures: ${meta.measures}`)
 
@@ -641,6 +647,9 @@ for (const file of files) {
 					}
 				}
 			}
+		} else if (hasInfoOnly) {
+			// voice2+ only — count as passed with info
+			totalPassed++
 		} else {
 			totalPassed++
 		}

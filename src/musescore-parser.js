@@ -898,6 +898,36 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 		tokens.splice(insertIdx, 0, timeSigToken)
 	}
 
+	// ── Post-process: infer tie ends ──
+	// In v1.x (and sometimes v2), only tie starts are marked (<Tie> with no id
+	// or <Tie id="N">). The receiving note has <endSpanner id="N"/> in v2+, but
+	// in v1.x there's no marker at all. Fix by tracking active ties by pitch
+	// and marking the next matching note as tieEnd.
+	const activeTies = new Set() // set of "name+octave" strings
+	for (const token of tokens) {
+		if (token.type === 'Note') {
+			const key = token.name + token.octave
+			if (activeTies.has(key)) {
+				token.tieEnd = 1
+				activeTies.delete(key)
+			}
+			if (token.tie) {
+				activeTies.add(key)
+			}
+		} else if (token.type === 'Chord' && token.notes) {
+			for (const note of token.notes) {
+				const key = note.name + note.octave
+				if (activeTies.has(key)) {
+					note.tieEnd = 1
+					activeTies.delete(key)
+				}
+				if (note.tie) {
+					activeTies.add(key)
+				}
+			}
+		}
+	}
+
 	return {
 		staff_name: part.longName || part.trackName || 'Staff ' + (staffIndex + 1),
 		staff_label: part.shortName || '',
