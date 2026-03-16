@@ -10,41 +10,17 @@
 
 import { unzip } from './zip.js'
 import Fraction from './fraction.js'
+import {
+	DURATION_MAP, DURATION_FRACTIONS,
+	CLEF_PITCH_OFFSETS, NOTE_INDEX, ACCIDENTAL_STRINGS,
+	computePosition, buildKeySigToken,
+	makeDurationFraction, setTiming, makeBarline, makeWholeBarRest,
+	xmlText, xmlInt, xmlFloat, directChildren, forEachChildElement, toArray,
+} from './music-import-utils.js'
 
 // ---------------------------------------------------------------------------
-// Constants
+// MuseScore-Specific Constants
 // ---------------------------------------------------------------------------
-
-/** Map MuseScore durationType strings to NWC-style numeric durations */
-const DURATION_MAP = {
-	'maxima': 0.125,   // 8 whole notes (rare)
-	'long': 0.25,      // 4 whole notes (rare)
-	'breve': 0.5,      // double whole
-	'whole': 1,
-	'half': 2,
-	'quarter': 4,
-	'eighth': 8,
-	'16th': 16,
-	'32nd': 32,
-	'64th': 64,
-	'128th': 128,
-	'256th': 256,
-	'512th': 512,
-	'1024th': 1024,
-}
-
-/** Map MuseScore durationType to Fraction (numerator, denominator) */
-const DURATION_FRACTIONS = {
-	'breve': [2, 1],
-	'whole': [1, 1],
-	'half': [1, 2],
-	'quarter': [1, 4],
-	'eighth': [1, 8],
-	'16th': [1, 16],
-	'32nd': [1, 32],
-	'64th': [1, 64],
-	'128th': [1, 128],
-}
 
 /**
  * MuseScore clef type → internal clef name + octave shift.
@@ -93,23 +69,6 @@ const CLEF_INDEX_MAP = {
 }
 
 /**
- * NWC clef pitch offsets — same values as interpreter.js.
- * Used to compute staff position from absolute diatonic pitch.
- */
-const OCTAVE_START = 3
-const OCTAVE_NOTES = 7
-const CLEF_PITCH_OFFSETS = {
-	treble: (OCTAVE_START + 1) * OCTAVE_NOTES + 6,     // 34 → B4 at position 0
-	bass: (OCTAVE_START + 0) * OCTAVE_NOTES + 1,       // 22 → D3 at position 0
-	alto: (OCTAVE_START + 1) * OCTAVE_NOTES,            // 28 → C4 at position 0
-	tenor: (OCTAVE_START + 0) * OCTAVE_NOTES + 5,      // 26 → A3 at position 0
-	percussion: (OCTAVE_START + 0) * OCTAVE_NOTES + 1,
-}
-
-const NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
-const NOTE_INDEX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 }
-
-/**
  * TPC (Tonal Pitch Class) decoding.
  * TPC values follow the circle of fifths starting from Fbb = -1.
  * Formula: noteNames[(tpc + 1) % 7], accidentalLevel = floor((tpc + 1) / 7) - 2
@@ -121,7 +80,6 @@ const NOTE_INDEX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 }
  * TPC 27 = Fx,  28 = Cx, ..., 34 = Bx
  */
 const TPC_NOTE_NAMES = ['F', 'C', 'G', 'D', 'A', 'E', 'B']
-const ACCIDENTAL_STRINGS = { '-2': 'v', '-1': 'b', '0': '', '1': '#', '2': 'x' }
 
 /**
  * Decode a TPC value into note name and accidental.
@@ -134,19 +92,6 @@ function decodeTPC(tpc) {
 	const level = Math.floor((tpc + 1) / 7) - 2
 	const accidental = ACCIDENTAL_STRINGS[String(level)] || ''
 	return { name, accidental, accidentalValue: accidental || undefined }
-}
-
-/**
- * Compute NWC staff position from note name, octave, and clef.
- * position = diatonicPitch - clefOffset
- * diatonicPitch = octave * 7 + NOTE_INDEX[name]
- */
-function computePosition(name, octave, clef, octaveShift) {
-	const diatonicPitch = octave * 7 + NOTE_INDEX[name]
-	let offset = CLEF_PITCH_OFFSETS[clef] || CLEF_PITCH_OFFSETS.treble
-	if (octaveShift === 1) offset += 7      // 8va
-	else if (octaveShift === 2) offset -= 7 // 8vb
-	return diatonicPitch - offset
 }
 
 /**
@@ -171,99 +116,6 @@ function midiAndTpcToNote(midiPitch, tpc) {
 	const octave = Math.round((midiPitch - baseSemitone) / 12) - 1
 
 	return { name, octave, accidental, accidentalValue }
-}
-
-// ---------------------------------------------------------------------------
-// Key Signature Helpers
-// ---------------------------------------------------------------------------
-
-const SHARP_ORDER = ['F', 'C', 'G', 'D', 'A', 'E', 'B']
-const FLAT_ORDER  = ['B', 'E', 'A', 'D', 'G', 'C', 'F']
-
-/** Map number of sharps/flats to key name */
-const KEY_NAMES_SHARP = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#']
-const KEY_NAMES_FLAT  = ['C', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb']
-
-function buildKeySigToken(accidentalCount, clef, clefOctave) {
-	let key, sharps = [], flats = [], accidentals = []
-
-	if (accidentalCount > 0) {
-		// Sharps
-		key = KEY_NAMES_SHARP[accidentalCount] || 'C'
-		for (let i = 0; i < accidentalCount && i < 7; i++) {
-			sharps.push(SHARP_ORDER[i])
-			accidentals.push(SHARP_ORDER[i].toLowerCase() + '#')
-		}
-	} else if (accidentalCount < 0) {
-		// Flats
-		const count = Math.abs(accidentalCount)
-		key = KEY_NAMES_FLAT[count] || 'C'
-		for (let i = 0; i < count && i < 7; i++) {
-			flats.push(FLAT_ORDER[i])
-			accidentals.push(FLAT_ORDER[i] + 'b')
-		}
-	} else {
-		key = 'C'
-	}
-
-	return {
-		type: 'KeySignature',
-		key,
-		sharps,
-		flats,
-		accidentals,
-		clef,
-		clefOffset: CLEF_PITCH_OFFSETS[clef] || CLEF_PITCH_OFFSETS.treble,
-	}
-}
-
-// ---------------------------------------------------------------------------
-// XML Helpers
-// ---------------------------------------------------------------------------
-
-/** Get text content of first child element with given tag name */
-function xmlText(parent, tagName) {
-	const el = parent.getElementsByTagName(tagName)[0]
-	return el ? el.textContent.trim() : ''
-}
-
-/** Get integer from child element */
-function xmlInt(parent, tagName, defaultVal) {
-	const text = xmlText(parent, tagName)
-	if (text === '') return defaultVal !== undefined ? defaultVal : 0
-	return parseInt(text, 10)
-}
-
-/** Get float from child element */
-function xmlFloat(parent, tagName, defaultVal) {
-	const text = xmlText(parent, tagName)
-	if (text === '') return defaultVal !== undefined ? defaultVal : 0
-	return parseFloat(text)
-}
-
-/** Get direct child elements (not nested descendants) with given tag name */
-function directChildren(parent, tagName) {
-	const result = []
-	const nodes = parent.childNodes
-	for (let i = 0; i < nodes.length; i++) {
-		if (nodes[i].nodeType === 1 && nodes[i].tagName === tagName) result.push(nodes[i])
-	}
-	return result
-}
-
-/** Iterate direct child elements of a parent node */
-function forEachChildElement(parent, callback) {
-	const nodes = parent.childNodes
-	for (let i = 0; i < nodes.length; i++) {
-		if (nodes[i].nodeType === 1) callback(nodes[i])
-	}
-}
-
-/** Convert a NodeList to a real array (for..of compatible) */
-function toArray(nodeList) {
-	const arr = []
-	for (let i = 0; i < nodeList.length; i++) arr.push(nodeList[i])
-	return arr
 }
 
 /**
@@ -1171,47 +1023,6 @@ function convertRest(restEl, tickCounter, tabCounter, timeSigN, timeSigD) {
 }
 
 /**
- * Make a whole-bar rest using the current time signature.
- */
-function makeWholeBarRest(timeSigN, timeSigD, tickCounter, tabCounter) {
-	const durFraction = new Fraction(timeSigN, timeSigD)
-
-	// NWC represents whole-bar rests as duration=1 (whole note)
-	const token = {
-		type: 'Rest',
-		position: 0,
-		duration: 1,
-		dots: 0,
-		triplet: 0,
-		durValue: durFraction.clone(),
-	}
-
-	token.tickValue = tickCounter.value()
-	token.tabValue = tabCounter.value()
-
-	tickCounter.add(durFraction)
-	tabCounter.add(durFraction)
-
-	token.tabUntilValue = tabCounter.value()
-	return token
-}
-
-/**
- * Make a barline token.
- */
-function makeBarline(style, tickCounter, tabCounter) {
-	return {
-		type: 'Barline',
-		barline: style,
-		repeat: 2,
-		systemBreak: false,
-		tickValue: tickCounter.value(),
-		tabValue: tabCounter.value(),
-		tabUntilValue: tabCounter.value(),
-	}
-}
-
-/**
  * Count <dots/> or <dot/> child elements in a Chord/Rest/Note element.
  */
 function countDots(el) {
@@ -1221,37 +1032,6 @@ function countDots(el) {
 
 	// Or count individual <dot/> elements
 	return directChildren(el, 'dot').length
-}
-
-/**
- * Create a Fraction for a given duration type and dot count.
- */
-function makeDurationFraction(durType, dots) {
-	const entry = DURATION_FRACTIONS[durType]
-	if (!entry) {
-		console.warn('Unknown durationType:', durType, '— defaulting to quarter')
-		return new Fraction(1, 4)
-	}
-
-	const frac = new Fraction(entry[0], entry[1])
-	if (dots === 1) frac.multiply(3, 2)
-	else if (dots === 2) frac.multiply(7, 4)
-	return frac
-}
-
-/**
- * Set timing properties on a token and advance counters.
- */
-function setTiming(token, durFraction, tickCounter, tabCounter) {
-	token.durValue = durFraction.clone()
-
-	token.tickValue = tickCounter.value()
-	token.tabValue = tabCounter.value()
-
-	tickCounter.add(durFraction)
-	tabCounter.add(durFraction)
-
-	token.tabUntilValue = tabCounter.value()
 }
 
 // ---------------------------------------------------------------------------

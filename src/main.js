@@ -14,6 +14,7 @@ import { PlaybackHighlighter } from './playback-highlight.js'
 import { InkBleedRenderer } from './ink-bleed.js'
 import { PianoKeyboard } from './piano-keyboard.js'
 import { parseMuseScore, isMuseScoreFileStrict } from './musescore-parser.js'
+import { parseMusicXML, isMusicXMLFile } from './musicxml-import.js'
 
 /**********************
  *
@@ -665,8 +666,8 @@ const rerender = () => {
 				console.log('rerender')
 				let data = scoreManager.getData()
 				const musicContext = new MusicContext(data, window.canvas)
-				// MuseScore-parsed data has timing/pitch already resolved — skip interpret
-				if (data._source !== 'musescore') {
+				// MuseScore/MusicXML-parsed data has timing/pitch already resolved — skip interpret
+				if (data._source !== 'musescore' && data._source !== 'musicxml') {
 					interpret(musicContext)
 				}
 				score(musicContext)
@@ -713,6 +714,19 @@ function processData(payload, filename) {
 			}).catch(error => {
 				console.error('Failed to parse MuseScore file:', error)
 				alert(`Error loading MuseScore file: ${error.message}\n\nSee DevTools console for the full stack trace.`)
+			})
+			return
+		}
+
+		// Detect MusicXML files (.musicxml / .mxl / .xml)
+		if (isMusicXMLFile(payload, filename)) {
+			console.log('Detected MusicXML file:', filename)
+			parseMusicXML(payload, filename).then(data => {
+				console.log('MusicXML parsed:', data)
+				setDataAndRender(data)
+			}).catch(error => {
+				console.error('Failed to parse MusicXML file:', error)
+				alert(`Error loading MusicXML file: ${error.message}\n\nSee DevTools console for the full stack trace.`)
 			})
 			return
 		}

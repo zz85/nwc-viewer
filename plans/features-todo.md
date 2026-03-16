@@ -103,7 +103,7 @@ Planned features and improvements, roughly prioritized.
   - [ ] Voice splitting — Detect multiple voices within one MIDI track
   - [ ] Tuplet detection beyond triplets — quintuplets, septuplets, etc.
 - [ ] MIDI export — export score as Standard MIDI File
-- [ ] MusicXML import — load .musicxml / .mxl files
+- [x] MusicXML import — load .musicxml / .mxl files (Phase 1+2: notes, rests, chords, clefs, key/time sigs, ties, articulations, dynamics, tempo, barlines, repeats, pedal, flow directions)
 - [x] MuseScore import (basic) — load .mscx / .mscz files (notes, rests, chords, clefs, key/time sigs, barlines)
 - [ ] MuseScore import (extended) — dynamics, lyrics, articulations, ties, slurs, beaming, multi-voice
 - [ ] LilyPond export — export score as .ly file
