@@ -553,7 +553,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 					const mapped = CLEF_MAP[clefType] || CLEF_MAP['G']
 					currentClef = mapped.clef
 					currentClefOctave = mapped.octave
-					hadInitialClef = true
+					if (mi === 0) hadInitialClef = true
 
 					const token = {
 						type: 'Clef',
@@ -577,7 +577,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 					keySigToken.tabValue = tabCounter.value()
 					tabCounter.add(1, 4)
 					keySigToken.tabUntilValue = tabCounter.value()
-					hadInitialKeySig = true
+					if (mi === 0) hadInitialKeySig = true
 					tokens.push(keySigToken)
 					break
 				}
@@ -599,24 +599,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 					}
 					tabCounter.add(1, 4)
 					token.tabUntilValue = tabCounter.value()
-					hadInitialTimeSig = true
-					tokens.push(token)
-					break
-				}
-
-				case 'Tempo': {
-					const bps = xmlFloat(child, 'tempo', 2.0)
-					const bpm = Math.round(bps * 60)
-					const token = {
-						type: 'Tempo',
-						position: -7,
-						placement: 0,
-						duration: bpm,
-						note: 4,
-						tickValue: tickCounter.value(),
-						tabValue: tabCounter.value(),
-						tabUntilValue: tabCounter.value(),
-					}
+					if (mi === 0) hadInitialTimeSig = true
 					tokens.push(token)
 					break
 				}
@@ -659,7 +642,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 					const mapped = CLEF_MAP[clefType] || CLEF_MAP['G']
 					currentClef = mapped.clef
 					currentClefOctave = mapped.octave
-					hadInitialClef = true
+					if (mi === 0) hadInitialClef = true
 
 					const token = {
 						type: 'Clef',
@@ -683,7 +666,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 					keySigToken.tabValue = tabCounter.value()
 					tabCounter.add(1, 4)
 					keySigToken.tabUntilValue = tabCounter.value()
-					hadInitialKeySig = true
+					if (mi === 0) hadInitialKeySig = true
 					tokens.push(keySigToken)
 					break
 				}
@@ -705,7 +688,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 					}
 					tabCounter.add(1, 4)
 					token.tabUntilValue = tabCounter.value()
-					hadInitialTimeSig = true
+					if (mi === 0) hadInitialTimeSig = true
 					tokens.push(token)
 					break
 				}
