@@ -342,7 +342,7 @@ function convertPart(partEl, meta, partIndex, totalParts, staffNum, staffCount) 
 
 	return {
 		staff_name: staffCount > 1
-			? `${meta.partName} (${staffNum === 1 ? 'treble' : 'bass'})`
+			? `${meta.partName} (staff ${staffNum})`
 			: meta.partName,
 		staff_label: meta.partAbbrev,
 		group_name: '',
@@ -532,10 +532,9 @@ function handleNote(noteEl, state, tokens) {
 		const staffText = xmlText(noteEl, 'staff')
 		const noteStaff = staffText ? parseInt(staffText, 10) : 1
 		if (noteStaff !== state.staffNum) {
-			// Still advance timing for non-chord, non-grace notes
-			if (!isChord && !isGrace && !isRest) {
-				advanceTiming(noteEl, state)
-			} else if (isRest && !isChord && !isGrace) {
+			// Advance timing for non-chord, non-grace notes/rests
+			// (chord members share timing; grace notes don't advance)
+			if (!isChord && !isGrace) {
 				advanceTiming(noteEl, state)
 			}
 			return

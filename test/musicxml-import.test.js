@@ -1220,6 +1220,85 @@ export async function unzip(buffer) {
 		expect(notes[2].dots).toBe(0)
 		expect(notes[2].duration).toBe(2)  // half
 	})
+
+	it('handles multi-staff (grand staff) parts', async () => {
+		await setup()
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <staves>2</staves>
+        <clef number="1"><sign>G</sign><line>2</line></clef>
+        <clef number="2"><sign>F</sign><line>4</line></clef>
+      </attributes>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>4</duration><type>whole</type><staff>1</staff><voice>1</voice></note>
+      <backup><duration>4</duration></backup>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>whole</type><staff>2</staff><voice>5</voice></note>
+    </measure>
+  </part>
+</score-partwise>`
+
+		const result = await parseMusicXML(xml, 'test.musicxml')
+		expect(result.score.staves.length).toBe(2)
+
+		// Staff 1 (treble)
+		const staff1 = result.score.staves[0]
+		const clef1 = staff1.tokens.find(t => t.type === 'Clef')
+		expect(clef1.clef).toBe('treble')
+		const notes1 = staff1.tokens.filter(t => t.type === 'Note')
+		expect(notes1.length).toBe(1)
+		expect(notes1[0].name).toBe('E')
+		expect(notes1[0].octave).toBe(5)
+
+		// Staff 2 (bass)
+		const staff2 = result.score.staves[1]
+		const clef2 = staff2.tokens.find(t => t.type === 'Clef')
+		expect(clef2.clef).toBe('bass')
+		const notes2 = staff2.tokens.filter(t => t.type === 'Note')
+		expect(notes2.length).toBe(1)
+		expect(notes2[0].name).toBe('C')
+		expect(notes2[0].octave).toBe(3)
+	})
+
+	it('handles multi-voice with backup/forward', async () => {
+		await setup()
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>4</duration><type>whole</type><voice>1</voice></note>
+      <backup><duration>4</duration></backup>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type><voice>2</voice></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration><type>half</type><voice>2</voice></note>
+    </measure>
+  </part>
+</score-partwise>`
+
+		const result = await parseMusicXML(xml, 'test.musicxml')
+		expect(result.score.staves.length).toBe(1)
+		const notes = result.score.staves[0].tokens.filter(t => t.type === 'Note')
+		// Should have all 3 notes (voice 1 + voice 2)
+		expect(notes.length).toBe(3)
+		expect(notes[0].name).toBe('E')  // voice 1: whole
+		expect(notes[1].name).toBe('C')  // voice 2: half
+		expect(notes[2].name).toBe('D')  // voice 2: half
+
+		// Voice 2 notes should start at tick 0 (after backup)
+		expect(notes[1].tickValue).toBe(0)
+		expect(notes[2].tickValue).toBe(0.5)
+	})
 })
 
 // ===================================================================
