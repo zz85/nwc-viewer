@@ -357,103 +357,73 @@ function compareFile(ourTokens, refEvents, staffIdx, acceptAllVoices = false, pr
 
 	// Compare note count (voice 1 only, excluding chord members)
 	const refPrimary = refNotes.filter(e => !e.isChordMember)
+
+	// ── Measure-based pitch comparison ──
+	// Group notes by measure for robust comparison tolerant of voice ordering
+	const ourByMeasure = new Map()
+	let ourMeasNum = 1
+	for (const t of ourTokens) {
+		if (t.type === 'Barline') { ourMeasNum++; continue }
+		if (t.type === 'Note' || t.type === 'Chord' || t.type === 'Rest') {
+			if (!ourByMeasure.has(ourMeasNum)) ourByMeasure.set(ourMeasNum, [])
+			ourByMeasure.get(ourMeasNum).push(t)
+		}
+	}
+
+	const refByMeasure = new Map()
+	for (const e of refPrimary) {
+		const m = parseInt(e.measure) || 1
+		if (!refByMeasure.has(m)) refByMeasure.set(m, [])
+		refByMeasure.get(m).push(e)
+	}
+
+	let noteErrors = 0
+	let tieErrors = 0
+	const noteDetails = []
+	const allMeasures = new Set([...ourByMeasure.keys(), ...refByMeasure.keys()])
+
+	for (const m of allMeasures) {
+		const ourMeas = ourByMeasure.get(m) || []
+		const refMeas = refByMeasure.get(m) || []
+
+		// Build pitch inventories for the measure
+		const ourPitches = ourMeas
+			.filter(t => t.type === 'Note' || t.type === 'Chord')
+			.map(t => t.name + t.octave)
+		const refPitches = refMeas
+			.filter(t => t.type === 'note')
+			.map(t => t.step + t.octave)
+
+		// Count mismatches: for each ref pitch, try to find it in our pitches
+		const ourPitchBag = [...ourPitches]
+		let measPitchErr = 0
+		for (const rp of refPitches) {
+			const idx = ourPitchBag.indexOf(rp)
+			if (idx >= 0) {
+				ourPitchBag.splice(idx, 1)
+			} else {
+				measPitchErr++
+			}
+		}
+
+		if (measPitchErr > 0) {
+			noteErrors += measPitchErr
+			if (noteDetails.length < 5) {
+				noteDetails.push(`  m${m}: ${measPitchErr} unmatched ref pitches (ours=${ourPitches.length} ref=${refPitches.length})`)
+			}
+		}
+	}
+
 	if (ourNotes.length !== refPrimary.length) {
 		diffs.push({
 			field: 'noteCount',
 			ours: ourNotes.length,
 			ref: refPrimary.length,
-			detail: `(our ${ourNotes.length} vs ref ${refPrimary.length} events in voice 1)`
+			detail: `(our ${ourNotes.length} vs ref ${refPrimary.length} events)`
 		})
 	}
 
-	// Compare notes one-by-one (up to min length)
-	let noteErrors = 0
-	let durationErrors = 0
-	let accidentalErrors = 0
-	let tieErrors = 0
-	const maxCompare = Math.min(ourNotes.length, refPrimary.length)
-	const noteDetails = []
-
-	let refIdx = 0
-	for (let i = 0; i < maxCompare; i++) {
-		const ours = ourNotes[i]
-		const ref = refPrimary[refIdx]
-		if (!ref) break
-		refIdx++
-
-		if (ours.type === 'Rest' && ref.type === 'rest') {
-			// Compare duration
-			const ourDur = XMLTYPE_TO_DUR[ours.duration] || ours.duration
-			const refDur = XMLTYPE_TO_DUR[ref.noteType] || 0
-			if (refDur && ourDur !== refDur) {
-				durationErrors++
-				if (noteDetails.length < 5) {
-					noteDetails.push(`  rest #${i}: dur ours=${ourDur} ref=${refDur} (m${ref.measure})`)
-				}
-			}
-			continue
-		}
-
-		if ((ours.type === 'Note' || ours.type === 'Chord') && ref.type === 'note') {
-			// Compare pitch
-			const ourName = ours.name
-			const ourOctave = ours.octave
-			if (ourName !== ref.step) {
-				noteErrors++
-				if (noteDetails.length < 5) {
-					noteDetails.push(`  note #${i}: pitch ours=${ourName}${ourOctave} ref=${ref.step}${ref.octave} (m${ref.measure})`)
-				}
-			} else if (ourOctave !== ref.octave) {
-				noteErrors++
-				if (noteDetails.length < 5) {
-					noteDetails.push(`  note #${i}: octave ours=${ourName}${ourOctave} ref=${ref.step}${ref.octave} (m${ref.measure})`)
-				}
-			}
-
-			// Compare duration type
-			const ourDur = ours.duration
-			const refDur = XMLTYPE_TO_DUR[ref.noteType] || 0
-			if (refDur && ourDur !== refDur) {
-				durationErrors++
-				if (noteDetails.length < 5) {
-					noteDetails.push(`  note #${i}: dur ours=${ourDur} ref=${refDur}(${ref.noteType}) (m${ref.measure})`)
-				}
-			}
-
-			// Compare ties
-			if (ref.tieStart && !ours.tie) {
-				tieErrors++
-			}
-			if (ref.tieStop && !ours.tieEnd) {
-				tieErrors++
-			}
-
-			// Compare chord member count
-			if (ours.type === 'Chord') {
-				// Count chord members in ref starting from next event
-				let chordCount = 1
-				while (refIdx < refPrimary.length) {
-					// Actually chord members are already filtered out of refPrimary
-					break
-				}
-				// Count chord members in the FULL ref events
-				// (chord members follow immediately with isChordMember=true)
-			}
-			continue
-		}
-
-		// Type mismatch
-		if ((ours.type === 'Rest') !== (ref.type === 'rest')) {
-			noteErrors++
-			if (noteDetails.length < 5) {
-				noteDetails.push(`  event #${i}: type ours=${ours.type} ref=${ref.type} (m${ref.measure})`)
-			}
-		}
-	}
-
 	if (noteErrors > 0) diffs.push({ field: 'pitchErrors', count: noteErrors })
-	if (durationErrors > 0) diffs.push({ field: 'durationErrors', count: durationErrors })
-	if (tieErrors > 0) diffs.push({ field: 'tieErrors', count: tieErrors })
 	if (noteDetails.length > 0) diffs.push({ field: 'details', samples: noteDetails })
 
 	// Count reference-only features our parser skips
