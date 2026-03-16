@@ -188,6 +188,22 @@ function getZoomLevel() {
 	return zoomLevel
 }
 
+// Page view mode — controls how pages are arranged in page layout mode.
+// 'single': vertical stack (default, classic PDF viewer)
+// 'fit-width': single column, auto-zoom to fit page width to viewport
+// 'two-up': side-by-side pairs (2 pages per row, like a book spread)
+// 'horizontal': left-to-right horizontal scroll (single row)
+let pageViewMode = 'single'
+const PAGE_VIEW_MODES = ['single', 'fit-width', 'two-up', 'horizontal']
+
+function setPageViewMode(mode) {
+	if (PAGE_VIEW_MODES.includes(mode)) pageViewMode = mode
+}
+
+function getPageViewMode() {
+	return pageViewMode
+}
+
 function isNode() {
 	return typeof module !== 'undefined'
 }
@@ -214,6 +230,9 @@ Object.assign(!isBrowser() ? global : window, {
 	getZoomLevel,
 	ZOOM_MIN,
 	ZOOM_MAX,
+	setPageViewMode,
+	getPageViewMode,
+	PAGE_VIEW_MODES,
 	setLayoutMode,
 	getLayoutMode,
 	PAGE_SIZES,
@@ -238,6 +257,7 @@ export {
 	setRodSpringBalance, getRodSpringBalance,
 	setDurationProportionality, getDurationProportionality,
 	setZoomLevel, getZoomLevel, ZOOM_MIN, ZOOM_MAX,
+	setPageViewMode, getPageViewMode, PAGE_VIEW_MODES,
 	setLayoutMode, getLayoutMode,
 	PAGE_SIZES, setPageSize, getPageSize,
 	setPageOrientation, getPageOrientation,

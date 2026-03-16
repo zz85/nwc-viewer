@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie, getCode, glyphPathGet } from '../drawing.js'
@@ -1868,16 +1868,15 @@ function _drawPageBackgrounds(ctx, pg) {
 	var shadowColor = 'rgba(0,0,0,0.25)'
 
 	for (var p = 0; p < pg.pageCount; p++) {
-		var pageY = pg.interPageGap + p * (pg.pageHeight + pg.interPageGap)
-		var pageX = pg.horizontalPad
+		var pos = pg.pagePositions[p]
 
 		// Drop shadow
 		ctx.fillStyle = shadowColor
-		ctx.fillRect(pageX + shadowOffset, pageY + shadowOffset, pg.pageWidth, pg.pageHeight)
+		ctx.fillRect(pos.x + shadowOffset, pos.y + shadowOffset, pg.pageWidth, pg.pageHeight)
 
 		// White page
 		ctx.fillStyle = '#ffffff'
-		ctx.fillRect(pageX, pageY, pg.pageWidth, pg.pageHeight)
+		ctx.fillRect(pos.x, pos.y, pg.pageWidth, pg.pageHeight)
 	}
 }
 
@@ -2057,18 +2056,68 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	pages.push({ systemStart: pageStart, systemEnd: systemCount - 1 })
 	var pageCount = pages.length
 
-	// --- Compute per-system absolute Y position ---
+	// --- Compute page positions based on page view mode ---
 	var interPageGap = 24
 	var horizontalPad = 40
+	var viewMode = getPageViewMode()
 
+	// Compute {x, y} for each page's top-left corner
+	var pagePositions = new Array(pageCount)
+	var totalCanvasWidth, totalCanvasHeight
+
+	if (viewMode === 'horizontal') {
+		// Left-to-right: all pages in a single horizontal row
+		for (var pi = 0; pi < pageCount; pi++) {
+			pagePositions[pi] = {
+				x: interPageGap + pi * (PAGE_W + interPageGap),
+				y: interPageGap,
+			}
+		}
+		totalCanvasWidth = pageCount * (PAGE_W + interPageGap) + interPageGap
+		totalCanvasHeight = PAGE_H + interPageGap * 2
+	} else if (viewMode === 'two-up') {
+		// Side-by-side pairs: 2 pages per row
+		var pagesPerRow = 2
+		var rowWidth = pagesPerRow * PAGE_W + (pagesPerRow + 1) * interPageGap
+		for (var pi = 0; pi < pageCount; pi++) {
+			var col = pi % pagesPerRow
+			var row = Math.floor(pi / pagesPerRow)
+			pagePositions[pi] = {
+				x: interPageGap + col * (PAGE_W + interPageGap),
+				y: interPageGap + row * (PAGE_H + interPageGap),
+			}
+		}
+		totalCanvasWidth = rowWidth
+		var rowCount = Math.ceil(pageCount / pagesPerRow)
+		totalCanvasHeight = rowCount * (PAGE_H + interPageGap) + interPageGap
+	} else {
+		// 'single' and 'fit-width': vertical stack (same layout, fit-width
+		// just auto-adjusts zoom)
+		for (var pi = 0; pi < pageCount; pi++) {
+			pagePositions[pi] = {
+				x: horizontalPad,
+				y: interPageGap + pi * (PAGE_H + interPageGap),
+			}
+		}
+		totalCanvasWidth = PAGE_W + horizontalPad * 2
+		totalCanvasHeight = pageCount * (PAGE_H + interPageGap) + interPageGap
+	}
+
+	// --- Compute per-system absolute position ---
+	// systemXOffsets[i] = the X offset to add to all elements in system i
+	// (relative to the default horizontalPad assumption)
 	var systemYOffsets = new Array(systemCount)
+	var systemXOffsets = new Array(systemCount)
 	for (var pi = 0; pi < pageCount; pi++) {
 		var page = pages[pi]
-		var pageTopY = interPageGap + pi * (PAGE_H + interPageGap) + margins.top
+		var pos = pagePositions[pi]
+		var pageContentY = pos.y + margins.top
 		var localY = (pi === 0) ? titleHeight : 0
 
 		for (var si = page.systemStart; si <= page.systemEnd; si++) {
-			systemYOffsets[si] = pageTopY + localY
+			systemYOffsets[si] = pageContentY + localY
+			// X offset: difference between this page's x and the default horizontalPad
+			systemXOffsets[si] = pos.x - horizontalPad
 			localY += systemHeight + interSystemGap
 		}
 	}
@@ -2087,6 +2136,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var relX = el.x - systemStartX
 		var courtesyW = courtesyWidths[sysIdx]
 		var barlineMap = systemBarlineMaps[sysIdx]
+		var xPageShift = systemXOffsets[sysIdx]
 
 		// Choose justification function: spring-rod or legacy anchor-gap
 		var springMapP = useSpringPage ? systemSpringMapsPage[sysIdx] : null
@@ -2102,9 +2152,9 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var relEnd = origEndAbsX - systemStartX
 			var relOrigin = el.x - systemStartX
 
-			var justOrigin = justifyP(relOrigin) + leftMargin + courtesyW + horizontalPad
-			var justStart = justifyP(relStart) + leftMargin + courtesyW + horizontalPad
-			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad
+			var justOrigin = justifyP(relOrigin) + leftMargin + courtesyW + horizontalPad + xPageShift
+			var justStart = justifyP(relStart) + leftMargin + courtesyW + horizontalPad + xPageShift
+			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad + xPageShift
 
 			el.x = justOrigin
 			el.startX = justStart - justOrigin
@@ -2113,14 +2163,14 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var origEndAbsX = el.x + el.width
 			var relEnd = origEndAbsX - systemStartX
 
-			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad
-			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad
+			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
+			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad + xPageShift
 			el.width = justEnd - el.x
 			el.endx = justEnd
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
 		} else {
-			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad
+			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
 		}
 
 		// Y: offset from single-line staff Y to absolute page position
@@ -2142,10 +2192,11 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var justifiedWidth = (!isLastSystem || fillRatio > 0.2)
 			? contentW : naturalWidth + courtesyW
 		var yOffset = systemYOffsets[sysIdx] - firstStaffY
+		var xBase = leftMargin + horizontalPad + systemXOffsets[sysIdx]
 
 		for (var si = 0; si < staves.length; si++) {
 			var staveEl = new Stave(justifiedWidth)
-			staveEl.moveTo(leftMargin + horizontalPad, getStaffY(si) + yOffset)
+			staveEl.moveTo(xBase, getStaffY(si) + yOffset)
 			drawing.add(staveEl)
 		}
 
@@ -2160,23 +2211,24 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 					getStaffY(si) + yOffset
 				)
 				for (var cei = 0; cei < elements.length; cei++) {
-					elements[cei].x += leftMargin + horizontalPad
+					elements[cei].x += xBase
 					drawing.add(elements[cei])
 				}
 			}
 		}
 
-		drawBracketsAndBraces(drawing, staves, yOffset, leftMargin + horizontalPad)
-		drawStaffLabels(drawing, staves, yOffset, leftMargin + horizontalPad)
+		drawBracketsAndBraces(drawing, staves, yOffset, xBase)
+		drawStaffLabels(drawing, staves, yOffset, xBase)
 
 		// Draw bar number at system start
 		var firstMeasureP = sysIdx === 0 ? 1 : systemBreaks[sysIdx - 1].boundaryIndex + 2
-		drawBarNumbers(drawing, staves, yOffset, leftMargin + horizontalPad, firstMeasureP)
+		drawBarNumbers(drawing, staves, yOffset, xBase, firstMeasureP)
 	}
 
 	// --- Title and author on page 1 ---
-	var page1TopY = interPageGap + margins.top
-	var titleCenterX = horizontalPad + PAGE_W / 2
+	var page1Pos = pagePositions[0]
+	var page1TopY = page1Pos.y + margins.top
+	var titleCenterX = page1Pos.x + PAGE_W / 2
 	var titleFs = getFontSize()
 	if (data.info?.title) {
 		const titleDraw = new Claire.Text(data.info.title, 0, {
@@ -2207,6 +2259,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		pageHeight: PAGE_H,
 		interPageGap,
 		horizontalPad,
+		pagePositions,
 	}
 
 	// Build system geometry for playback cursor spanning
@@ -2218,12 +2271,13 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var isLastSysP = gi === systemCount - 1
 		var sysFillP = sysNatWidthP / sysContentWP
 		var sysJustWP = (!isLastSysP || sysFillP > 0.2) ? contentW : sysNatWidthP + sysCourtWP
+		var sysXBase = leftMargin + horizontalPad + systemXOffsets[gi]
 		// After reflow, first staff bottom line is at systemYOffsets[gi]
 		_systemGeometry.push({
 			topY: systemYOffsets[gi] - fs,
 			bottomY: systemYOffsets[gi] + (lastStaffY - firstStaffY),
-			startX: leftMargin + horizontalPad,
-			endX: leftMargin + horizontalPad + sysJustWP,
+			startX: sysXBase,
+			endX: sysXBase + sysJustWP,
 		})
 	}
 
@@ -2231,8 +2285,8 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	_measureGeometry = buildMeasureGeometry(staves)
 
 	// --- Canvas sizing ---
-	maxCanvasWidth = PAGE_W + horizontalPad * 2
-	maxCanvasHeight = pageCount * (PAGE_H + interPageGap) + interPageGap
+	maxCanvasWidth = totalCanvasWidth
+	maxCanvasHeight = totalCanvasHeight
 
 	// Split ties/slurs that cross system breaks into partial arcs
 	splitCrossSystemTies(drawing, systemHeight, interSystemGap)

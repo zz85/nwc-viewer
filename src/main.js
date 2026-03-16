@@ -1,5 +1,5 @@
 import './constants.js'
-import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel } from './constants.js'
+import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel, setZoomLevel, getPageDimensions, setPageViewMode, getPageViewMode } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -27,6 +27,9 @@ window.addEventListener('resize', () => {
 	if (getLayoutMode() === 'wrap') {
 		// In wrap mode, the layout depends on viewport width — must re-layout
 		rerender()
+	} else if (getLayoutMode() === 'page' && getPageViewMode() === 'fit-width') {
+		// In page mode with fit-width: recalculate zoom to fill viewport width
+		applyFitWidth()
 	} else {
 		// scroll and page modes: fixed width, just repaint
 		resizeToFit()
@@ -865,9 +868,11 @@ function updateLayoutUI() {
 	// Show/hide page-only controls
 	const pageSizeEl = document.getElementById('page_size')
 	const orientGroup = document.getElementById('orientation_group')
+	const pageViewModeEl = document.getElementById('page_view_mode')
 	const isPage = mode === 'page'
 	if (pageSizeEl) pageSizeEl.style.display = isPage ? 'inline' : 'none'
 	if (orientGroup) orientGroup.style.display = isPage ? 'inline-flex' : 'none'
+	if (pageViewModeEl) pageViewModeEl.style.display = isPage ? 'inline' : 'none'
 
 	// Toggle background for page mode (gray canvas background)
 	const scoreDiv = document.getElementById('score')
@@ -919,6 +924,53 @@ if (orientGroup) {
 	})
 }
 
+// ---------------------------------------------------------------------------
+// Page View Mode (single, fit-width, two-up, horizontal)
+// ---------------------------------------------------------------------------
+
+const PAGE_VIEW_STORAGE_KEY = 'nwc_page_view_mode'
+
+/** Calculate and apply zoom so the total virtual width fills the viewport. */
+function applyFitWidth() {
+	const scoreElm = document.getElementById('score')
+	if (!scoreElm || typeof maxCanvasWidth === 'undefined') return
+
+	const viewportWidth = scoreElm.clientWidth - 20  // matches resizeToFit() padding
+	const newZoom = viewportWidth / maxCanvasWidth
+
+	setZoomLevel(newZoom)
+
+	// Sync the zoom slider/label via the global applyZoom
+	if (window.applyZoom) {
+		window.applyZoom(newZoom)
+	}
+}
+
+// Page view mode selector
+const pageViewModeSelect = document.getElementById('page_view_mode')
+if (pageViewModeSelect) {
+	pageViewModeSelect.onchange = function () {
+		setPageViewMode(pageViewModeSelect.value)
+		localStorage.setItem(PAGE_VIEW_STORAGE_KEY, pageViewModeSelect.value)
+		if (getLayoutMode() === 'page') rerender()
+	}
+}
+
+// Apply fit-width after each render if the page view mode is 'fit-width'
+;(function hookFitWidth() {
+	let lastRenderTs = 0
+	const checkRender = () => {
+		if (window.__renderComplete && window.__renderComplete.ts !== lastRenderTs) {
+			lastRenderTs = window.__renderComplete.ts
+			if (getPageViewMode() === 'fit-width' && getLayoutMode() === 'page') {
+				requestAnimationFrame(() => applyFitWidth())
+			}
+		}
+		requestAnimationFrame(checkRender)
+	}
+	requestAnimationFrame(checkRender)
+})()
+
 // Restore persisted preferences
 const storedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY)
 if (storedLayout === 'wrap' || storedLayout === 'scroll' || storedLayout === 'page') {
@@ -935,6 +987,11 @@ if (orientGroup) {
 	for (const btn of orientGroup.querySelectorAll('button')) {
 		btn.classList.toggle('active', btn.dataset.orient === getPageOrientation())
 	}
+}
+const storedPageView = localStorage.getItem(PAGE_VIEW_STORAGE_KEY)
+if (storedPageView) {
+	setPageViewMode(storedPageView)
+	if (pageViewModeSelect) pageViewModeSelect.value = storedPageView
 }
 updateLayoutUI()
 
