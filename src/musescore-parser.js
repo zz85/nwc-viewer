@@ -620,6 +620,9 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 
 	for (let mi = 0; mi < measureEls.length; mi++) {
 		const measureEl = measureEls[mi]
+		// Save measure start position for voice 2+ processing
+		const measureStartTick = { n: tickCounter.numerator, d: tickCounter.denominator }
+		const measureStartTab = { n: tabCounter.numerator, d: tabCounter.denominator }
 		const voiceEls = directChildren(measureEl, 'voice')
 		const hasVoiceWrappers = voiceEls.length > 0
 
@@ -698,12 +701,12 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 		const voiceEl = voiceEls[0] || null
 		const contentParent = voiceEl || measureEl
 
-		// Check if this measure actually has any Chord/Rest children
+		// Check if this measure actually has any Chord/Rest children (in voice 1 / main)
 		const hasContent = directChildren(contentParent, 'Chord').length > 0
 			|| directChildren(contentParent, 'Rest').length > 0
 
 		if (!hasContent) {
-			// No notes or rests in this measure — add a whole-bar rest
+			// No notes or rests in voice 1 — add a whole-bar rest
 			const restToken = makeWholeBarRest(currentTimeSigN, currentTimeSigD, tickCounter, tabCounter)
 			tokens.push(restToken)
 			// Add barline at end of measure
@@ -830,6 +833,50 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 					break
 			}
 		})
+
+		// ── Process voice 2+ (MS3+ only) ──
+		// Voice 2+ notes are simultaneous with voice 1. We process them using
+		// a separate tick counter that resets to the measure start, then insert
+		// the notes at the correct tick positions in the token stream.
+		if (hasVoiceWrappers && voiceEls.length > 1) {
+			const v2Tokens = []
+			for (let vi = 1; vi < voiceEls.length; vi++) {
+				const v2TickCounter = new Fraction(measureStartTick.n, measureStartTick.d)
+				const v2TabCounter = new Fraction(measureStartTab.n, measureStartTab.d)
+
+				forEachChildElement(voiceEls[vi], (child) => {
+					const tag = child.tagName
+					if (tag === 'Chord') {
+						const chordToken = convertChord(child, currentClef, currentClefOctave, v2TickCounter, v2TabCounter, currentTimeSigN, currentTimeSigD, transposeChromatic)
+						chordToken._voice = vi + 1
+						v2Tokens.push(chordToken)
+					} else if (tag === 'Rest') {
+						// Voice 2 rests advance the tick counter but aren't rendered
+						const durType = xmlText(child, 'durationType') || 'quarter'
+						const dots = countDots(child)
+						const durFraction = makeDurationFraction(durType, dots)
+						v2TickCounter.add(durFraction.numerator, durFraction.denominator)
+						v2TabCounter.add(durFraction.numerator, durFraction.denominator)
+					}
+					// Skip Clef/KeySig/TimeSig in voice 2+ (already handled from voice 1)
+				})
+			}
+
+			// Merge voice 2+ tokens into the main token stream by tick position
+			// Insert each v2 token after the last v1 token at the same or earlier tick
+			for (const v2Token of v2Tokens) {
+				const v2Tick = v2Token.tickValue
+				let insertIdx = tokens.length
+				// Walk backwards to find the right position
+				for (let i = tokens.length - 1; i >= 0; i--) {
+					if (tokens[i].tickValue !== undefined && tokens[i].tickValue <= v2Tick) {
+						insertIdx = i + 1
+						break
+					}
+				}
+				tokens.splice(insertIdx, 0, v2Token)
+			}
+		}
 
 		// Check for explicit barline style in the Measure element
 		const barlineEls = measureEl.getElementsByTagName('BarLine')
