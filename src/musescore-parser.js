@@ -650,6 +650,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 						placement: 0,
 						duration: bpm,
 						note: 4,
+						beatDuration: 0.25,  // quarter note in whole-note fractions
 						tickValue: tickCounter.value(),
 						tabValue: tabCounter.value(),
 						tabUntilValue: tabCounter.value(),

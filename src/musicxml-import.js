@@ -886,14 +886,20 @@ function handleDirection(dirEl, state, tokens) {
 					const beatUnit = xmlText(child, 'beat-unit') || 'quarter'
 					const perMinute = xmlText(child, 'per-minute')
 					const bpm = perMinute ? parseFloat(perMinute) : soundTempo
+					const hasDot = child.getElementsByTagName('beat-unit-dot').length > 0
 					if (bpm) {
+						const durCode = DURATION_MAP[beatUnit] || 4
+						// beatDuration must be in whole-note fractions (0.25 = quarter)
+						// for the audio tempo map. DURATION_MAP gives NWC codes (4 = quarter).
+						let beatDur = 1 / durCode
+						if (hasDot) beatDur *= 1.5
 						tokens.push({
 							type: 'Tempo',
 							position: -7,
 							placement: 0,
 							duration: Math.round(bpm),
-							note: DURATION_MAP[beatUnit] || 4,
-							beatDuration: DURATION_MAP[beatUnit] || 4,
+							note: durCode,
+							beatDuration: beatDur,
 							tickValue: state.tickCounter.value(),
 							tabValue: state.tabCounter.value(),
 							tabUntilValue: state.tabCounter.value(),
@@ -1012,7 +1018,7 @@ function handleDirection(dirEl, state, tokens) {
 			placement: 0,
 			duration: Math.round(soundTempo),
 			note: 4,
-			beatDuration: 4,
+			beatDuration: 0.25,  // quarter note in whole-note fractions
 			tickValue: state.tickCounter.value(),
 			tabValue: state.tabCounter.value(),
 			tabUntilValue: state.tabCounter.value(),

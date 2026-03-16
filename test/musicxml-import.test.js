@@ -1008,6 +1008,9 @@ export async function unzip(buffer) {
 		expect(tempo).toBeDefined()
 		expect(tempo.duration).toBe(120)
 		expect(tempo.note).toBe(4)  // quarter
+		// beatDuration must be in whole-note fractions (0.25 = quarter)
+		// NOT NWC duration codes (4), or audio playback will be 16x too fast
+		expect(tempo.beatDuration).toBe(0.25)
 
 		const dynamic = tokens.find(t => t.type === 'Dynamic')
 		expect(dynamic).toBeDefined()
