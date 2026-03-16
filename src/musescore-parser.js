@@ -221,10 +221,26 @@ function xmlFloat(parent, tagName, defaultVal) {
 /** Get direct child elements (not nested descendants) with given tag name */
 function directChildren(parent, tagName) {
 	const result = []
-	for (let child = parent.firstElementChild; child; child = child.nextElementSibling) {
-		if (child.tagName === tagName) result.push(child)
+	const nodes = parent.childNodes
+	for (let i = 0; i < nodes.length; i++) {
+		if (nodes[i].nodeType === 1 && nodes[i].tagName === tagName) result.push(nodes[i])
 	}
 	return result
+}
+
+/** Iterate direct child elements of a parent node */
+function forEachChildElement(parent, callback) {
+	const nodes = parent.childNodes
+	for (let i = 0; i < nodes.length; i++) {
+		if (nodes[i].nodeType === 1) callback(nodes[i])
+	}
+}
+
+/** Convert a NodeList to a real array (for..of compatible) */
+function toArray(nodeList) {
+	const arr = []
+	for (let i = 0; i < nodeList.length; i++) arr.push(nodeList[i])
+	return arr
 }
 
 // ---------------------------------------------------------------------------
@@ -317,9 +333,9 @@ function convertMuseScoreDOM(doc) {
 
 		// Find matching part — parts contain Staff sub-elements
 		// staffId maps to part index (parts can have multiple staves)
-		const part = findPartForStaff(parts, staffId)
+		const { part, staffIndexInPart } = findPartForStaff(parts, staffId)
 
-		const staff = convertStaff(staffEl, part, si, staffElements.length, isV4)
+		const staff = convertStaff(staffEl, part, staffIndexInPart, si, staffElements.length, isV4)
 		staves.push(staff)
 	}
 
@@ -353,7 +369,7 @@ function extractInfo(scoreEl) {
 
 	// MetaTags
 	const metaTags = scoreEl.getElementsByTagName('metaTag')
-	for (const tag of metaTags) {
+	for (const tag of toArray(metaTags)) {
 		const name = tag.getAttribute('name')
 		const value = tag.textContent.trim()
 		switch (name) {
@@ -380,7 +396,7 @@ function extractInfo(scoreEl) {
 		const vbox = directChildren(staffEls[0], 'VBox')[0]
 		if (vbox) {
 			const textEls = directChildren(vbox, 'Text')
-			for (const textEl of textEls) {
+			for (const textEl of toArray(textEls)) {
 				const style = xmlText(textEl, 'style')
 				const text = xmlText(textEl, 'text')
 				if (style === 'title' && !info.title) info.title = text
@@ -413,9 +429,35 @@ function extractPart(partEl, index, isV4) {
 		}
 	}
 
-	// Count staves in this part
+	// Count staves in this part and extract per-staff default clefs
 	const staffSubElements = directChildren(partEl, 'Staff')
 	const staffCount = staffSubElements.length || 1
+
+	// Build per-staff clef defaults.
+	// Sources (in priority order):
+	//   1. <Part><Staff><defaultClef>F</defaultClef>  (MS2 grand staff)
+	//   2. <Part><Instrument><clef>C3</clef>          (MS2 viola/cello)
+	//   3. Default to 'G' (treble)
+	const staffClefs = []
+	for (let i = 0; i < staffSubElements.length; i++) {
+		const staffEl = staffSubElements[i]
+		const defaultClef = xmlText(staffEl, 'defaultClef')
+		if (defaultClef) {
+			staffClefs.push(defaultClef)
+		} else if (i === 0 && instEl) {
+			// Check Instrument <clef> for single-staff instruments (viola, cello)
+			const instClef = xmlText(instEl, 'clef')
+			staffClefs.push(instClef || 'G')
+		} else {
+			staffClefs.push('G')
+		}
+	}
+
+	// If no Staff sub-elements, check Instrument clef
+	if (staffClefs.length === 0) {
+		const instClef = instEl ? xmlText(instEl, 'clef') : ''
+		staffClefs.push(instClef || 'G')
+	}
 
 	return {
 		trackName,
@@ -424,34 +466,43 @@ function extractPart(partEl, index, isV4) {
 		channel: index, // Each part gets its own channel
 		program,
 		staffCount,
+		staffClefs,
 		partIndex: index,
 	}
 }
 
 /**
- * Find the part that owns a given staff id.
+ * Find the part that owns a given staff id, and the staff's index within that part.
  * In MuseScore, Part elements contain Staff sub-elements.
  * Staff ids are sequential: Part 1 with 2 staves → staffIds 1, 2.
  */
 function findPartForStaff(parts, staffId) {
 	let cumulative = 0
 	for (const part of parts) {
+		const prevCumulative = cumulative
 		cumulative += part.staffCount
-		if (staffId <= cumulative) return part
+		if (staffId <= cumulative) {
+			const staffIndexInPart = staffId - prevCumulative - 1
+			return { part, staffIndexInPart }
+		}
 	}
-	return parts[parts.length - 1] || { trackName: '', longName: '', shortName: '', channel: 0, program: 0 }
+	return { part: parts[parts.length - 1] || { trackName: '', longName: '', shortName: '', channel: 0, program: 0, staffClefs: ['G'] }, staffIndexInPart: 0 }
 }
 
 /**
  * Convert a <Staff> element (containing measures) into a Notably staff object.
  */
-function convertStaff(staffEl, part, staffIndex, totalStaves, isV4) {
+function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, isV4) {
 	const tokens = []
 	const measureEls = directChildren(staffEl, 'Measure')
 
+	// Determine default clef from Part definition
+	const defaultClefType = part.staffClefs?.[staffIndexInPart] || 'G'
+	const defaultMapped = CLEF_MAP[defaultClefType] || CLEF_MAP['G']
+
 	// Track running state
-	let currentClef = 'treble'
-	let currentClefOctave = 0
+	let currentClef = defaultMapped.clef
+	let currentClefOctave = defaultMapped.octave
 	let currentTimeSigN = 4
 	let currentTimeSigD = 4
 	let hadInitialClef = false
@@ -464,11 +515,108 @@ function convertStaff(staffEl, part, staffIndex, totalStaves, isV4) {
 	for (let mi = 0; mi < measureEls.length; mi++) {
 		const measureEl = measureEls[mi]
 		const voiceEls = directChildren(measureEl, 'voice')
+		const hasVoiceWrappers = voiceEls.length > 0
 
-		// Process only voice 1 for now
-		const voiceEl = voiceEls[0]
-		if (!voiceEl) {
-			// Empty measure — add a whole-bar rest
+		// ── Walk direct children of <Measure> for non-voice elements (MS3+ only) ──
+		// In MS3+, KeySig/TimeSig/Tempo can appear as direct Measure children
+		// outside <voice>.  In MS2, everything is a direct Measure child and will
+		// be handled by the main content walker below.
+		if (hasVoiceWrappers) {
+		forEachChildElement(measureEl, (child) => {
+			const tag = child.tagName
+			if (tag === 'voice') return
+
+			switch (tag) {
+				case 'Clef': {
+					const clefType = xmlText(child, 'concertClefType') || xmlText(child, 'clefType') || 'G'
+					const mapped = CLEF_MAP[clefType] || CLEF_MAP['G']
+					currentClef = mapped.clef
+					currentClefOctave = mapped.octave
+					hadInitialClef = true
+
+					const token = {
+						type: 'Clef',
+						clef: mapped.clef,
+						octave: mapped.octave,
+						tickValue: tickCounter.value(),
+						tabValue: tabCounter.value(),
+					}
+					tabCounter.add(1, 4)
+					token.tabUntilValue = tabCounter.value()
+					tokens.push(token)
+					break
+				}
+
+				case 'KeySig': {
+					let accCount = xmlInt(child, 'accidental', undefined)
+					if (accCount === undefined) accCount = xmlInt(child, 'key', 0)
+
+					const keySigToken = buildKeySigToken(accCount, currentClef, currentClefOctave)
+					keySigToken.tickValue = tickCounter.value()
+					keySigToken.tabValue = tabCounter.value()
+					tabCounter.add(1, 4)
+					keySigToken.tabUntilValue = tabCounter.value()
+					hadInitialKeySig = true
+					tokens.push(keySigToken)
+					break
+				}
+
+				case 'TimeSig': {
+					const sigN = xmlInt(child, 'sigN', 4)
+					const sigD = xmlInt(child, 'sigD', 4)
+					currentTimeSigN = sigN
+					currentTimeSigD = sigD
+
+					const signature = sigN + '/' + sigD
+					const token = {
+						type: 'TimeSignature',
+						signature,
+						group: sigN,
+						beat: sigD,
+						tickValue: tickCounter.value(),
+						tabValue: tabCounter.value(),
+					}
+					tabCounter.add(1, 4)
+					token.tabUntilValue = tabCounter.value()
+					hadInitialTimeSig = true
+					tokens.push(token)
+					break
+				}
+
+				case 'Tempo': {
+					const bps = xmlFloat(child, 'tempo', 2.0)
+					const bpm = Math.round(bps * 60)
+					const token = {
+						type: 'Tempo',
+						position: -7,
+						placement: 0,
+						duration: bpm,
+						note: 4,
+						tickValue: tickCounter.value(),
+						tabValue: tabCounter.value(),
+						tabUntilValue: tabCounter.value(),
+					}
+					tokens.push(token)
+					break
+				}
+			}
+		})
+		} // end if (hasVoiceWrappers) measure-level scan
+
+		// ── Walk voice/measure children for music content ──
+
+		// MS2 format has no <voice> wrappers — notes/rests are direct Measure children.
+		// MS3+ wraps them in <voice> elements. Handle both by using the measure itself
+		// as the container when no voice elements exist.
+		const voiceEl = voiceEls[0] || null
+		const contentParent = voiceEl || measureEl
+
+		// Check if this measure actually has any Chord/Rest children
+		const hasContent = directChildren(contentParent, 'Chord').length > 0
+			|| directChildren(contentParent, 'Rest').length > 0
+
+		if (!hasContent) {
+			// No notes or rests in this measure — add a whole-bar rest
 			const restToken = makeWholeBarRest(currentTimeSigN, currentTimeSigD, tickCounter, tabCounter)
 			tokens.push(restToken)
 			// Add barline at end of measure
@@ -478,8 +626,10 @@ function convertStaff(staffEl, part, staffIndex, totalStaves, isV4) {
 			continue
 		}
 
-		// Walk voice children in document order
-		for (let child = voiceEl.firstElementChild; child; child = child.nextElementSibling) {
+		// Walk content children in document order
+		// In MS3+, Clef/KeySig/TimeSig/Tempo also appear inside <voice>.
+		// In MS2, they appear at measure level (already handled above).
+		forEachChildElement(contentParent, (child) => {
 			const tag = child.tagName
 
 			switch (tag) {
@@ -497,17 +647,15 @@ function convertStaff(staffEl, part, staffIndex, totalStaves, isV4) {
 						tickValue: tickCounter.value(),
 						tabValue: tabCounter.value(),
 					}
-					tabCounter.add(1, 4) // clef occupies a small tab space
+					tabCounter.add(1, 4)
 					token.tabUntilValue = tabCounter.value()
 					tokens.push(token)
 					break
 				}
 
 				case 'KeySig': {
-					// MS3: <accidental>N</accidental> where N = number of sharps (positive) or flats (negative)
-					// MS4: <accidental>N</accidental> or <key>N</key>
-					let accCount = xmlInt(child, 'accidental', 0)
-					if (accCount === 0) accCount = xmlInt(child, 'key', 0)
+					let accCount = xmlInt(child, 'accidental', undefined)
+					if (accCount === undefined) accCount = xmlInt(child, 'key', 0)
 
 					const keySigToken = buildKeySigToken(accCount, currentClef, currentClefOctave)
 					keySigToken.tickValue = tickCounter.value()
@@ -554,15 +702,14 @@ function convertStaff(staffEl, part, staffIndex, totalStaves, isV4) {
 				}
 
 				case 'Tempo': {
-					// <tempo> is in beats per second (quarter note = 1 beat)
 					const bps = xmlFloat(child, 'tempo', 2.0)
 					const bpm = Math.round(bps * 60)
 					const token = {
 						type: 'Tempo',
-						position: -7, // above staff
+						position: -7,
 						placement: 0,
 						duration: bpm,
-						note: 4, // quarter note base
+						note: 4,
 						tickValue: tickCounter.value(),
 						tabValue: tabCounter.value(),
 						tabUntilValue: tabCounter.value(),
@@ -597,7 +744,7 @@ function convertStaff(staffEl, part, staffIndex, totalStaves, isV4) {
 					// Unknown element — skip silently
 					break
 			}
-		}
+		})
 
 		// Check for explicit barline style in the Measure element
 		const barlineEls = measureEl.getElementsByTagName('BarLine')
@@ -699,7 +846,7 @@ function convertChord(chordEl, clef, clefOctave, tickCounter, tabCounter, timeSi
 		// Check for tie
 		const spannerEls = noteEl.getElementsByTagName('Spanner')
 		let tie = 0, tieEnd = 0
-		for (const sp of spannerEls) {
+		for (const sp of toArray(spannerEls)) {
 			if (sp.getAttribute('type') === 'Tie') {
 				if (sp.getElementsByTagName('next').length > 0) tie = 1
 				if (sp.getElementsByTagName('prev').length > 0) tieEnd = 1
@@ -735,7 +882,7 @@ function convertChord(chordEl, clef, clefOctave, tickCounter, tabCounter, timeSi
 
 	// Multi-note chord
 	const notes = []
-	for (const noteEl of noteEls) {
+	for (const noteEl of toArray(noteEls)) {
 		const pitch = xmlInt(noteEl, 'pitch', 60)
 		const tpc = xmlInt(noteEl, 'tpc', 14)
 		const { name, octave, accidental, accidentalValue } = midiAndTpcToNote(pitch, tpc)
@@ -743,7 +890,7 @@ function convertChord(chordEl, clef, clefOctave, tickCounter, tabCounter, timeSi
 
 		let tie = 0, tieEnd = 0
 		const spannerEls = noteEl.getElementsByTagName('Spanner')
-		for (const sp of spannerEls) {
+		for (const sp of toArray(spannerEls)) {
 			if (sp.getAttribute('type') === 'Tie') {
 				if (sp.getElementsByTagName('next').length > 0) tie = 1
 				if (sp.getElementsByTagName('prev').length > 0) tieEnd = 1
@@ -867,11 +1014,7 @@ function countDots(el) {
 	if (dotsText) return parseInt(dotsText, 10)
 
 	// Or count individual <dot/> elements
-	let count = 0
-	for (let child = el.firstElementChild; child; child = child.nextElementSibling) {
-		if (child.tagName === 'dot') count++
-	}
-	return count
+	return directChildren(el, 'dot').length
 }
 
 /**

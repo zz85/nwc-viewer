@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WebMscore — Reference Renderer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	background: #f0f0f0;
+	color: #333;
+	padding: 20px;
+}
+h1 { margin-bottom: 4px; font-size: 24px; }
+.subtitle { color: #666; margin-bottom: 20px; font-size: 13px; }
+
+/* ── Drop zone / file picker ── */
+.drop-zone {
+	border: 2px dashed #aaa; border-radius: 8px;
+	padding: 30px; text-align: center; color: #888;
+	margin-bottom: 20px; background: #fafafa;
+	transition: border-color 0.2s, background 0.2s;
+	cursor: pointer;
+}
+.drop-zone.drag-over { border-color: #4a90d9; background: #e8f0fe; }
+.drop-zone input[type="file"] { display: none; }
+.drop-zone .hint { font-size: 13px; margin-top: 6px; }
+
+/* ── Status bar ── */
+.status-bar {
+	display: flex; align-items: center; gap: 10px;
+	padding: 8px 12px; margin-bottom: 16px;
+	background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+	font-size: 13px;
+}
+.status-bar .status { color: #888; margin-left: auto; }
+.status-bar .filename { font-weight: 600; }
+
+/* ── Toolbar ── */
+.toolbar {
+	display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+	padding: 10px 12px; margin-bottom: 16px;
+	background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.toolbar label { font-size: 12px; font-weight: 600; color: #555; }
+.toolbar select, .toolbar button {
+	font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid #ccc;
+}
+.toolbar button {
+	cursor: pointer; background: #4a90d9; color: #fff; border: none; padding: 6px 14px;
+}
+.toolbar button:hover { background: #357abd; }
+.toolbar button:disabled { background: #bbb; cursor: not-allowed; }
+.toolbar .sep { width: 1px; height: 24px; background: #ddd; }
+
+/* ── Two-column layout ── */
+.content { display: flex; gap: 16px; }
+.main-panel { flex: 1; min-width: 0; }
+.side-panel { width: 340px; flex-shrink: 0; }
+
+/* ── SVG viewer ── */
+.svg-viewer {
+	background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+	padding: 12px; min-height: 200px;
+}
+.svg-viewer .page-nav {
+	display: flex; align-items: center; gap: 8px;
+	margin-bottom: 8px; font-size: 12px; color: #666;
+}
+.svg-viewer .page-nav button {
+	font-size: 12px; padding: 2px 10px; border: 1px solid #ccc;
+	border-radius: 3px; cursor: pointer; background: #f8f8f8;
+}
+.svg-viewer .page-nav button:hover { background: #eee; }
+.svg-viewer .page-nav button:disabled { color: #ccc; cursor: not-allowed; }
+.svg-viewer .svg-container {
+	overflow: auto; max-height: 80vh; border: 1px solid #eee; border-radius: 4px;
+}
+.svg-viewer .svg-container svg { display: block; max-width: 100%; height: auto; }
+.svg-viewer .empty { color: #bbb; text-align: center; padding: 60px 20px; font-size: 14px; }
+
+/* ── Info panels ── */
+.info-panel {
+	background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+	padding: 12px; margin-bottom: 12px;
+}
+.info-panel h3 { font-size: 13px; color: #555; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+.info-panel table { width: 100%; font-size: 12px; border-collapse: collapse; }
+.info-panel td { padding: 2px 4px; vertical-align: top; }
+.info-panel td:first-child { font-weight: 600; color: #666; white-space: nowrap; width: 100px; }
+.info-panel .parts-list { font-size: 12px; max-height: 150px; overflow-y: auto; }
+.info-panel .parts-list div { padding: 2px 0; }
+
+/* ── API console ── */
+.api-console {
+	background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+	padding: 12px; margin-bottom: 12px;
+}
+.api-console h3 { font-size: 13px; color: #555; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+.api-console textarea {
+	width: 100%; height: 80px; font-family: "SF Mono", "Fira Code", monospace;
+	font-size: 11px; border: 1px solid #ddd; border-radius: 4px; padding: 6px;
+	resize: vertical;
+}
+.api-console .run-btn {
+	margin-top: 6px; font-size: 11px; padding: 4px 12px;
+	background: #2ecc71; color: #fff; border: none; border-radius: 3px; cursor: pointer;
+}
+.api-console .run-btn:hover { background: #27ae60; }
+.api-console pre {
+	margin-top: 8px; font-size: 11px; background: #1e1e1e; color: #d4d4d4;
+	padding: 8px; border-radius: 4px; max-height: 200px; overflow: auto;
+	white-space: pre-wrap; word-break: break-all;
+}
+
+/* ── Log ── */
+.log-panel {
+	background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+	padding: 12px; margin-top: 16px;
+}
+.log-panel h3 { font-size: 13px; color: #555; margin-bottom: 8px; }
+.log-panel .log {
+	font-family: "SF Mono", "Fira Code", monospace;
+	font-size: 11px; max-height: 200px; overflow-y: auto;
+	background: #1e1e1e; color: #d4d4d4; border-radius: 4px; padding: 8px;
+}
+.log-panel .log .entry { padding: 1px 0; }
+.log-panel .log .entry.error { color: #e74c3c; }
+.log-panel .log .entry.info { color: #3498db; }
+.log-panel .log .entry.success { color: #2ecc71; }
+</style>
+</head>
+<body>
+
+<h1>WebMscore — Reference Renderer</h1>
+<p class="subtitle">
+	Load MuseScore files (.mscz, .mscx), MusicXML (.musicxml, .mxl), or MIDI (.mid) and render via MuseScore's libmscore in WebAssembly.
+	Use as a reference for comparison with the NWC renderer.
+</p>
+
+<!-- File picker / drop zone -->
+<div class="drop-zone" id="drop-zone">
+	<div>Drop a score file here, or click to browse</div>
+	<div class="hint">Supported: .mscz, .mscx, .mxl, .musicxml, .xml, .mid, .midi, .kar, .gtp, .gp3, .gp4, .gp5, .gpx, .gp, .ptb</div>
+	<input type="file" id="file-input" accept=".mscz,.mscx,.mxl,.musicxml,.xml,.mid,.midi,.kar,.gtp,.gp3,.gp4,.gp5,.gpx,.gp,.ptb">
+</div>
+
+<!-- Status -->
+<div class="status-bar">
+	<span class="filename" id="filename">No file loaded</span>
+	<span class="status" id="status">Ready — load a file to begin</span>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar" id="toolbar">
+	<label>Part:</label>
+	<select id="part-select" disabled><option value="-1">Full score</option></select>
+	<div class="sep"></div>
+	<label>Export:</label>
+	<button id="btn-svg" disabled>SVG (page)</button>
+	<button id="btn-png" disabled>PNG (page)</button>
+	<button id="btn-pdf" disabled>PDF</button>
+	<button id="btn-midi" disabled>MIDI</button>
+	<button id="btn-xml" disabled>MusicXML</button>
+	<button id="btn-mxl" disabled>MXL</button>
+	<div class="sep"></div>
+	<button id="btn-metadata" disabled>Metadata</button>
+	<button id="btn-positions" disabled>Positions</button>
+</div>
+
+<!-- Main content -->
+<div class="content">
+	<div class="main-panel">
+		<!-- SVG sheet viewer -->
+		<div class="svg-viewer">
+			<div class="page-nav">
+				<button id="btn-prev" disabled>&laquo; Prev</button>
+				<span id="page-indicator">Page 0 / 0</span>
+				<button id="btn-next" disabled>Next &raquo;</button>
+				<label style="margin-left:auto; font-size:11px;">
+					<input type="checkbox" id="trim-margins" checked> Trim margins
+				</label>
+			</div>
+			<div class="svg-container" id="svg-container">
+				<div class="empty">No score loaded</div>
+			</div>
+		</div>
+
+		<!-- Log -->
+		<div class="log-panel">
+			<h3>Log</h3>
+			<div class="log" id="log"></div>
+		</div>
+	</div>
+
+	<div class="side-panel">
+		<!-- Score info -->
+		<div class="info-panel" id="info-panel">
+			<h3>Score Info</h3>
+			<div id="score-info" style="font-size:12px;color:#999;">Load a file to see score info</div>
+		</div>
+
+		<!-- Parts -->
+		<div class="info-panel">
+			<h3>Parts / Instruments</h3>
+			<div class="parts-list" id="parts-list" style="font-size:12px;color:#999;">—</div>
+		</div>
+
+		<!-- API Console -->
+		<div class="api-console">
+			<h3>API Console</h3>
+			<textarea id="api-input" placeholder="// score is the loaded WebMscore instance&#10;// e.g.: await score.metadata()&#10;// e.g.: await score.npages()&#10;// e.g.: await score.saveSvg(0, true)">await score.metadata()</textarea>
+			<button class="run-btn" id="btn-run-api" disabled>Run</button>
+			<pre id="api-output" style="display:none;"></pre>
+		</div>
+	</div>
+</div>
+
+<!-- Load webmscore from vendor (resolves WASM files relative to script location) -->
+<script src="../../vendor/webmscore/webmscore.js"></script>
+
+<script>
+(function () {
+	// ── Format detection ────────────────────────────────────────────
+	const FORMAT_MAP = {
+		mscz: 'mscz', mscx: 'mscx',
+		mxl: 'mxl', musicxml: 'musicxml', xml: 'xml',
+		mid: 'midi', midi: 'midi', kar: 'kar',
+		gtp: 'gtp', gp3: 'gp3', gp4: 'gp4', gp5: 'gp5', gpx: 'gpx', gp: 'gp', ptb: 'ptb',
+	}
+
+	function detectFormat(filename) {
+		const ext = filename.split('.').pop().toLowerCase()
+		return FORMAT_MAP[ext] || null
+	}
+
+	// ── DOM refs ────────────────────────────────────────────────────
+	const dropZone     = document.getElementById('drop-zone')
+	const fileInput    = document.getElementById('file-input')
+	const filenameEl   = document.getElementById('filename')
+	const statusEl     = document.getElementById('status')
+	const svgContainer = document.getElementById('svg-container')
+	const pageIndicator = document.getElementById('page-indicator')
+	const scoreInfoEl  = document.getElementById('score-info')
+	const partsListEl  = document.getElementById('parts-list')
+	const logEl        = document.getElementById('log')
+	const apiInput     = document.getElementById('api-input')
+	const apiOutput    = document.getElementById('api-output')
+	const partSelect   = document.getElementById('part-select')
+
+	const btnPrev = document.getElementById('btn-prev')
+	const btnNext = document.getElementById('btn-next')
+	const trimCheckbox = document.getElementById('trim-margins')
+
+	const exportBtns = ['btn-svg','btn-png','btn-pdf','btn-midi','btn-xml','btn-mxl','btn-metadata','btn-positions','btn-run-api']
+		.map(id => document.getElementById(id))
+
+	// ── State (exposed on window for DevTools console access) ───────
+	let score = null
+	let currentPage = 0
+	let totalPages = 0
+	let currentFilename = ''
+	let metadata = null
+
+	// Expose for browser console: window.score, window.metadata, window.WebMscore
+	Object.defineProperty(window, 'score', { get() { return score }, configurable: true })
+	Object.defineProperty(window, 'metadata', { get() { return metadata }, configurable: true })
+
+	// ── Logging ─────────────────────────────────────────────────────
+	function log(msg, type = '') {
+		const entry = document.createElement('div')
+		entry.className = 'entry' + (type ? ' ' + type : '')
+		const ts = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+		entry.textContent = `[${ts}] ${msg}`
+		logEl.appendChild(entry)
+		logEl.scrollTop = logEl.scrollHeight
+	}
+
+	// ── UI helpers ──────────────────────────────────────────────────
+	function setButtonsEnabled(enabled) {
+		exportBtns.forEach(b => b.disabled = !enabled)
+		partSelect.disabled = !enabled
+	}
+
+	function setStatus(msg) { statusEl.textContent = msg }
+
+	function updatePageNav() {
+		pageIndicator.textContent = totalPages > 0 ? `Page ${currentPage + 1} / ${totalPages}` : 'Page 0 / 0'
+		btnPrev.disabled = currentPage <= 0
+		btnNext.disabled = currentPage >= totalPages - 1
+	}
+
+	// ── File save helper ────────────────────────────────────────────
+	function saveBlob(data, filename) {
+		const blob = data instanceof Blob ? data : new Blob([data])
+		const url = URL.createObjectURL(blob)
+		const a = document.createElement('a')
+		a.href = url
+		a.download = filename
+		a.click()
+		URL.revokeObjectURL(url)
+		log(`Saved: ${filename}`, 'success')
+	}
+
+	function baseName() {
+		return currentFilename.replace(/\.[^.]+$/, '') || 'score'
+	}
+
+	// ── Render SVG page ─────────────────────────────────────────────
+	async function renderPage(pageIdx) {
+		if (!score) return
+		const trim = trimCheckbox.checked
+		try {
+			setStatus(`Rendering page ${pageIdx + 1}...`)
+			const svgStr = await score.saveSvg(pageIdx, trim)
+			svgContainer.innerHTML = svgStr
+			log(`Rendered page ${pageIdx + 1}/${totalPages}`)
+			setStatus(`Page ${pageIdx + 1} of ${totalPages}`)
+		} catch (err) {
+			svgContainer.innerHTML = `<div class="empty" style="color:#e74c3c;">Render error: ${err.message}</div>`
+			log(`Render error (page ${pageIdx + 1}): ${err.message}`, 'error')
+			setStatus('Render error')
+		}
+	}
+
+	// ── Display metadata ────────────────────────────────────────────
+	function displayScoreInfo(meta) {
+		const rows = [
+			['Title', meta.title || '—'],
+			['Subtitle', meta.subtitle || '—'],
+			['Composer', meta.composer || '—'],
+			['Poet', meta.poet || '—'],
+			['Pages', meta.pages],
+			['Measures', meta.measures],
+			['Duration', meta.duration ? `${Math.floor(meta.duration / 60)}m ${Math.round(meta.duration % 60)}s` : '—'],
+			['Tempo', meta.tempoText || (meta.tempo ? `${Math.round(meta.tempo * 60)} BPM` : '—')],
+			['Time Sig', meta.timesig || '—'],
+			['Key Sig', meta.keysig != null ? `${meta.keysig} (${meta.keysig > 0 ? meta.keysig + ' sharps' : meta.keysig < 0 ? Math.abs(meta.keysig) + ' flats' : 'C major/A minor'})` : '—'],
+			['Has Lyrics', meta.hasLyrics],
+			['Has Harmonies', meta.hasHarmonies],
+			['File Version', meta.fileVersion],
+			['MScore Ver', meta.mscoreVersion],
+		]
+		scoreInfoEl.innerHTML = '<table>' + rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('') + '</table>'
+	}
+
+	function displayParts(meta) {
+		if (!meta.parts || meta.parts.length === 0) {
+			partsListEl.innerHTML = '<span style="color:#999;">No parts found</span>'
+			return
+		}
+
+		// Populate select
+		partSelect.innerHTML = '<option value="-1">Full score</option>'
+		if (meta.excerpts && meta.excerpts.length > 0) {
+			meta.excerpts.forEach(ex => {
+				const opt = document.createElement('option')
+				opt.value = ex.id
+				opt.textContent = ex.title
+				partSelect.appendChild(opt)
+			})
+		}
+
+		// Parts list
+		partsListEl.innerHTML = meta.parts.map((p, i) =>
+			`<div><strong>${i + 1}.</strong> ${p.name} <span style="color:#999;">(${p.instrumentName || p.trackName || '?'}, MIDI ${p.program})</span></div>`
+		).join('')
+	}
+
+	// ── Load score ──────────────────────────────────────────────────
+	async function loadScore(filename, arrayBuffer) {
+		const format = detectFormat(filename)
+		if (!format) {
+			log(`Unsupported file format: ${filename}`, 'error')
+			setStatus('Unsupported format')
+			return
+		}
+
+		// Destroy previous
+		if (score) {
+			try { score.destroy() } catch (_) {}
+			score = null
+		}
+
+		currentFilename = filename
+		filenameEl.textContent = filename
+		svgContainer.innerHTML = '<div class="empty">Loading...</div>'
+		setButtonsEnabled(false)
+		setStatus(`Loading ${filename}...`)
+		log(`Loading: ${filename} (${(arrayBuffer.byteLength / 1024).toFixed(1)} KB, format=${format})`, 'info')
+
+		try {
+			const data = new Uint8Array(arrayBuffer)
+			score = await WebMscore.load(format, data)
+			log('Score loaded successfully', 'success')
+
+			// Get metadata
+			totalPages = await score.npages()
+			metadata = await score.metadata()
+			log(`Pages: ${totalPages}, Measures: ${metadata.measures}, Duration: ${Math.round(metadata.duration)}s`)
+
+			// Display info
+			displayScoreInfo(metadata)
+			displayParts(metadata)
+
+			// Render first page
+			currentPage = 0
+			updatePageNav()
+			await renderPage(0)
+
+			setButtonsEnabled(true)
+			setStatus(`Loaded — ${totalPages} page${totalPages !== 1 ? 's' : ''}`)
+		} catch (err) {
+			log(`Failed to load score: ${err.message}`, 'error')
+			setStatus('Load failed')
+			svgContainer.innerHTML = `<div class="empty" style="color:#e74c3c;">Load error: ${err.message}</div>`
+			console.error(err)
+		}
+	}
+
+	// ── File input / drag-and-drop ──────────────────────────────────
+	dropZone.addEventListener('click', () => fileInput.click())
+
+	fileInput.addEventListener('change', (e) => {
+		const file = e.target.files[0]
+		if (!file) return
+		file.arrayBuffer().then(buf => loadScore(file.name, buf))
+	})
+
+	dropZone.addEventListener('dragover', (e) => {
+		e.preventDefault()
+		dropZone.classList.add('drag-over')
+	})
+	dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'))
+	dropZone.addEventListener('drop', (e) => {
+		e.preventDefault()
+		dropZone.classList.remove('drag-over')
+		const file = e.dataTransfer.files[0]
+		if (!file) return
+		file.arrayBuffer().then(buf => loadScore(file.name, buf))
+	})
+
+	// ── Page navigation ─────────────────────────────────────────────
+	btnPrev.addEventListener('click', () => {
+		if (currentPage > 0) { currentPage--; updatePageNav(); renderPage(currentPage) }
+	})
+	btnNext.addEventListener('click', () => {
+		if (currentPage < totalPages - 1) { currentPage++; updatePageNav(); renderPage(currentPage) }
+	})
+	trimCheckbox.addEventListener('change', () => {
+		if (score) renderPage(currentPage)
+	})
+
+	// ── Part selection ──────────────────────────────────────────────
+	partSelect.addEventListener('change', async () => {
+		if (!score) return
+		const excerptId = parseInt(partSelect.value)
+		try {
+			if (excerptId >= 0) {
+				log(`Switching to excerpt: ${partSelect.options[partSelect.selectedIndex].text}`, 'info')
+				await score.setExcerptId(excerptId)
+			} else {
+				log('Switching to full score', 'info')
+				await score.setExcerptId(0)
+			}
+			totalPages = await score.npages()
+			currentPage = 0
+			updatePageNav()
+			await renderPage(0)
+		} catch (err) {
+			log(`Part switch error: ${err.message}`, 'error')
+		}
+	})
+
+	// ── Export buttons ───────────────────────────────────────────────
+	document.getElementById('btn-svg').addEventListener('click', async () => {
+		if (!score) return
+		try {
+			const svg = await score.saveSvg(currentPage, trimCheckbox.checked)
+			saveBlob(svg, `${baseName()}-page${currentPage + 1}.svg`)
+		} catch (err) { log(`SVG export error: ${err.message}`, 'error') }
+	})
+
+	document.getElementById('btn-png').addEventListener('click', async () => {
+		if (!score) return
+		try {
+			log('Generating PNG...', 'info')
+			const png = await score.savePng(currentPage, trimCheckbox.checked)
+			saveBlob(png, `${baseName()}-page${currentPage + 1}.png`)
+		} catch (err) { log(`PNG export error: ${err.message}`, 'error') }
+	})
+
+	document.getElementById('btn-pdf').addEventListener('click', async () => {
+		if (!score) return
+		try {
+			log('Generating PDF...', 'info')
+			const pdf = await score.savePdf()
+			saveBlob(pdf, `${baseName()}.pdf`)
+		} catch (err) { log(`PDF export error: ${err.message}`, 'error') }
+	})
+
+	document.getElementById('btn-midi').addEventListener('click', async () => {
+		if (!score) return
+		try {
+			log('Generating MIDI...', 'info')
+			const midi = await score.saveMidi()
+			saveBlob(midi, `${baseName()}.mid`)
+		} catch (err) { log(`MIDI export error: ${err.message}`, 'error') }
+	})
+
+	document.getElementById('btn-xml').addEventListener('click', async () => {
+		if (!score) return
+		try {
+			log('Generating MusicXML...', 'info')
+			const xml = await score.saveXml()
+			saveBlob(xml, `${baseName()}.musicxml`)
+		} catch (err) { log(`MusicXML export error: ${err.message}`, 'error') }
+	})
+
+	document.getElementById('btn-mxl').addEventListener('click', async () => {
+		if (!score) return
+		try {
+			log('Generating compressed MusicXML...', 'info')
+			const mxl = await score.saveMxl()
+			saveBlob(mxl, `${baseName()}.mxl`)
+		} catch (err) { log(`MXL export error: ${err.message}`, 'error') }
+	})
+
+	document.getElementById('btn-metadata').addEventListener('click', async () => {
+		if (!score) return
+		try {
+			const meta = await score.metadata()
+			const json = JSON.stringify(meta, null, 2)
+			apiOutput.style.display = 'block'
+			apiOutput.textContent = json
+			log('Metadata retrieved (shown in API Console output)', 'info')
+		} catch (err) { log(`Metadata error: ${err.message}`, 'error') }
+	})
+
+	document.getElementById('btn-positions').addEventListener('click', async () => {
+		if (!score) return
+		try {
+			log('Getting measure positions...', 'info')
+			const mpos = await score.savePositions(false)
+			const text = typeof mpos === 'string' ? mpos : new TextDecoder().decode(mpos)
+			apiOutput.style.display = 'block'
+			apiOutput.textContent = text
+			log('Measure positions retrieved (shown in API Console output)', 'info')
+		} catch (err) { log(`Positions error: ${err.message}`, 'error') }
+	})
+
+	// ── API Console ─────────────────────────────────────────────────
+	document.getElementById('btn-run-api').addEventListener('click', async () => {
+		if (!score) {
+			log('No score loaded', 'error')
+			return
+		}
+		const code = apiInput.value.trim()
+		if (!code) return
+
+		log(`API> ${code}`, 'info')
+		try {
+			// Make score available; wrap in async IIFE for await support
+			const fn = new Function('score', 'WebMscore', `return (async () => { return ${code} })()`)
+			const result = await fn(score, WebMscore)
+
+			let display
+			if (result instanceof Uint8Array || result instanceof ArrayBuffer) {
+				const bytes = result instanceof ArrayBuffer ? result.byteLength : result.length
+				display = `[Binary data: ${(bytes / 1024).toFixed(1)} KB]`
+			} else if (typeof result === 'string' && result.length > 5000) {
+				display = result.substring(0, 5000) + `\n... (${result.length} chars total)`
+			} else {
+				display = typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result)
+			}
+
+			apiOutput.style.display = 'block'
+			apiOutput.textContent = display
+			log('API call succeeded', 'success')
+		} catch (err) {
+			apiOutput.style.display = 'block'
+			apiOutput.textContent = `Error: ${err.message}`
+			log(`API error: ${err.message}`, 'error')
+		}
+	})
+
+	// Allow Ctrl+Enter in the textarea
+	apiInput.addEventListener('keydown', (e) => {
+		if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+			e.preventDefault()
+			document.getElementById('btn-run-api').click()
+		}
+	})
+
+	// ── Init: wait for WebMscore WASM to be ready ───────────────────
+	log('Initializing WebMscore (loading WASM)...', 'info')
+	setStatus('Loading WASM...')
+
+	WebMscore.ready.then(async () => {
+		const version = await WebMscore.version()
+		log(`WebMscore ready — supported format version: ${version}`, 'success')
+		setStatus('Ready — load a file to begin')
+	}).catch((err) => {
+		log(`WebMscore init failed: ${err.message}`, 'error')
+		setStatus('WASM init failed')
+		console.error(err)
+	})
+})()
+</script>
+</body>
+</html>
