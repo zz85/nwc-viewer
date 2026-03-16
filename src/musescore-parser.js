@@ -436,7 +436,8 @@ function extractPart(partEl, index, isV4) {
 	// Build per-staff clef defaults.
 	// Sources (in priority order):
 	//   1. <Part><Staff><defaultClef>F</defaultClef>  (MS2 grand staff)
-	//   2. <Part><Instrument><clef>C3</clef>          (MS2 viola/cello)
+	//   2. <Part><Instrument><clef>C3</clef>          (MS2 single-staff: viola/cello)
+	//      <Part><Instrument><clef staff="2">F</clef> (MS2 multi-staff: piano)
 	//   3. Default to 'G' (treble)
 	const staffClefs = []
 	for (let i = 0; i < staffSubElements.length; i++) {
@@ -444,10 +445,22 @@ function extractPart(partEl, index, isV4) {
 		const defaultClef = xmlText(staffEl, 'defaultClef')
 		if (defaultClef) {
 			staffClefs.push(defaultClef)
-		} else if (i === 0 && instEl) {
-			// Check Instrument <clef> for single-staff instruments (viola, cello)
-			const instClef = xmlText(instEl, 'clef')
-			staffClefs.push(instClef || 'G')
+		} else if (instEl) {
+			// Check Instrument <clef> elements — match by staff number
+			const clefEls = instEl.getElementsByTagName('clef')
+			let found = ''
+			for (let ci = 0; ci < clefEls.length; ci++) {
+				const clefStaff = clefEls[ci].getAttribute('staff')
+				if (clefStaff && parseInt(clefStaff) === i + 1) {
+					found = clefEls[ci].textContent.trim()
+					break
+				} else if (!clefStaff && staffSubElements.length === 1) {
+					// Single-staff instrument with no staff attr
+					found = clefEls[ci].textContent.trim()
+					break
+				}
+			}
+			staffClefs.push(found || 'G')
 		} else {
 			staffClefs.push('G')
 		}
@@ -765,7 +778,7 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 		}
 	}
 
-	// Ensure we have initial clef/timesig if the file didn't provide them
+	// Ensure we have initial clef/keysig/timesig if the file didn't provide them
 	if (!hadInitialClef) {
 		const clefToken = {
 			type: 'Clef',
@@ -776,6 +789,21 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 			tabUntilValue: 0.25,
 		}
 		tokens.unshift(clefToken)
+	}
+
+	if (!hadInitialKeySig) {
+		// C major implied — emit it explicitly so the renderer knows
+		const keySigToken = buildKeySigToken(0, currentClef, currentClefOctave)
+		keySigToken.tickValue = 0
+		keySigToken.tabValue = 0
+		keySigToken.tabUntilValue = 0.25
+		// Insert after clef
+		let insertIdx = 0
+		for (let i = 0; i < tokens.length; i++) {
+			if (tokens[i].type === 'Clef') insertIdx = i + 1
+			else break
+		}
+		tokens.splice(insertIdx, 0, keySigToken)
 	}
 
 	if (!hadInitialTimeSig) {
@@ -818,6 +846,35 @@ function convertStaff(staffEl, part, staffIndexInPart, staffIndex, totalStaves, 
 }
 
 /**
+ * Detect tie start/end on a <Note> element.
+ * MS2: <Tie id="N"> = start, <endSpanner id="N"/> = end
+ * MS3+: <Spanner type="Tie"><next>...</next></Spanner> = start,
+ *       <Spanner type="Tie"><prev>...</prev></Spanner> = end
+ */
+function detectTie(noteEl) {
+	let tie = 0, tieEnd = 0
+
+	// MS3+ format: Spanner type="Tie"
+	const spannerEls = noteEl.getElementsByTagName('Spanner')
+	for (const sp of toArray(spannerEls)) {
+		if (sp.getAttribute('type') === 'Tie') {
+			if (sp.getElementsByTagName('next').length > 0) tie = 1
+			if (sp.getElementsByTagName('prev').length > 0) tieEnd = 1
+		}
+	}
+
+	// MS2 format: <Tie id="N"> = tie start, <endSpanner id="N"/> = tie end
+	if (!tie && noteEl.getElementsByTagName('Tie').length > 0) {
+		tie = 1
+	}
+	if (!tieEnd && noteEl.getElementsByTagName('endSpanner').length > 0) {
+		tieEnd = 1
+	}
+
+	return { tie, tieEnd }
+}
+
+/**
  * Convert a <Chord> element to a Note or Chord token.
  */
 function convertChord(chordEl, clef, clefOctave, tickCounter, tabCounter, timeSigN, timeSigD) {
@@ -844,14 +901,7 @@ function convertChord(chordEl, clef, clefOctave, tickCounter, tabCounter, timeSi
 		const position = computePosition(name, octave, clef, clefOctave)
 
 		// Check for tie
-		const spannerEls = noteEl.getElementsByTagName('Spanner')
-		let tie = 0, tieEnd = 0
-		for (const sp of toArray(spannerEls)) {
-			if (sp.getAttribute('type') === 'Tie') {
-				if (sp.getElementsByTagName('next').length > 0) tie = 1
-				if (sp.getElementsByTagName('prev').length > 0) tieEnd = 1
-			}
-		}
+		const { tie, tieEnd } = detectTie(noteEl)
 
 		const token = {
 			type: 'Note',
@@ -888,14 +938,7 @@ function convertChord(chordEl, clef, clefOctave, tickCounter, tabCounter, timeSi
 		const { name, octave, accidental, accidentalValue } = midiAndTpcToNote(pitch, tpc)
 		const position = computePosition(name, octave, clef, clefOctave)
 
-		let tie = 0, tieEnd = 0
-		const spannerEls = noteEl.getElementsByTagName('Spanner')
-		for (const sp of toArray(spannerEls)) {
-			if (sp.getAttribute('type') === 'Tie') {
-				if (sp.getElementsByTagName('next').length > 0) tie = 1
-				if (sp.getElementsByTagName('prev').length > 0) tieEnd = 1
-			}
-		}
+		const { tie, tieEnd } = detectTie(noteEl)
 
 		notes.push({
 			position,

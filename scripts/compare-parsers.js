@@ -172,8 +172,10 @@ function parseMusicXML(xmlString) {
 					const dotEls = child.getElementsByTagName('dot')
 					const tieEls = child.getElementsByTagName('tie')
 					const voiceEl = child.getElementsByTagName('voice')[0]
+					const staffEl = child.getElementsByTagName('staff')[0]
 
 					const voice = voiceEl ? parseInt(voiceEl.textContent) : 1
+					const staff = staffEl ? parseInt(staffEl.textContent) : 1
 					const duration = durationEl ? parseInt(durationEl.textContent) : 0
 					const durationQuarters = duration / currentDivisions
 					const noteType = typeEl ? typeEl.textContent.trim() : ''
@@ -189,6 +191,7 @@ function parseMusicXML(xmlString) {
 						events.push({
 							type: 'rest',
 							voice,
+							staff,
 							noteType,
 							dots,
 							durationQuarters,
@@ -211,6 +214,7 @@ function parseMusicXML(xmlString) {
 							alter,
 							accidental,
 							voice,
+							staff,
 							noteType,
 							dots,
 							durationQuarters,
@@ -568,20 +572,46 @@ for (const file of files) {
 		const refStaves = parseMusicXML(xmlStr)
 
 		// 4. Compare per-staff
-		const staffCount = Math.min(ourResult.score.staves.length, refStaves.length)
+		// Handle grand-staff merging: our parser may produce N staves for a piano
+		// while MusicXML merges them into 1 part with staff="1"/staff="2" attributes.
 		const fileDiffs = []
+		const ourStaves = ourResult.score.staves
 
-		if (ourResult.score.staves.length !== refStaves.length) {
-			fileDiffs.push({ staff: 'all', field: 'staffCount', ours: ourResult.score.staves.length, ref: refStaves.length })
-		}
-
-		for (let si = 0; si < staffCount; si++) {
-			const ourTokens = ourResult.score.staves[si].tokens
-			const refEvents = refStaves[si].events
-			const diffs = compareFile(ourTokens, refEvents, si)
-			if (diffs.length > 0) {
-				fileDiffs.push({ staff: si, partName: refStaves[si].partName, diffs })
+		if (ourStaves.length === refStaves.length) {
+			// Direct 1:1 mapping
+			for (let si = 0; si < ourStaves.length; si++) {
+				const diffs = compareFile(ourStaves[si].tokens, refStaves[si].events, si)
+				if (diffs.length > 0) {
+					fileDiffs.push({ staff: si, partName: refStaves[si].partName, diffs })
+				}
 			}
+		} else if (ourStaves.length > refStaves.length) {
+			// Grand staff case: split ref events by staff number
+			// MusicXML notes have a <staff> child indicating which staff (1-indexed)
+			let ourIdx = 0
+			for (let ri = 0; ri < refStaves.length; ri++) {
+				const refEvents = refStaves[ri].events
+				// Count how many of our staves map to this ref part
+				// by checking if events have staff numbers
+				const maxStaff = Math.max(1, ...refEvents
+					.filter(e => e.staff).map(e => e.staff))
+
+				for (let s = 1; s <= maxStaff && ourIdx < ourStaves.length; s++) {
+					// Filter ref events for this staff number
+					const staffEvents = refEvents.filter(e => {
+						if (e.type === 'barline') return true // barlines apply to all staves
+						if (!e.staff) return s === 1 // default to staff 1
+						return e.staff === s
+					})
+					const diffs = compareFile(ourStaves[ourIdx].tokens, staffEvents, ourIdx)
+					if (diffs.length > 0) {
+						fileDiffs.push({ staff: ourIdx, partName: `${refStaves[ri].partName} staff ${s}`, diffs })
+					}
+					ourIdx++
+				}
+			}
+		} else {
+			fileDiffs.push({ staff: 'all', field: 'staffCount', ours: ourStaves.length, ref: refStaves.length })
 		}
 
 		// 5. Report
@@ -614,7 +644,7 @@ for (const file of files) {
 			totalPassed++
 		}
 
-		allResults.push({ name, fileDiffs, staves: staffCount, measures: meta.measures })
+		allResults.push({ name, fileDiffs, staves: ourStaves.length, measures: meta.measures })
 	} catch (err) {
 		console.log(`\n[FAIL] ${name}`)
 		console.log(`       Error: ${err.message}`)
