@@ -70,6 +70,29 @@ const CLEF_MAP = {
 }
 
 /**
+ * Numeric clef index → clef name (MuseScore v1.x/v2.x format).
+ * The <cleflist><clef idx="N"/> format uses numeric indices from the v2 ClefType enum.
+ */
+const CLEF_INDEX_MAP = {
+	0: 'G',     // G (treble)
+	1: 'G8va',  // G1 (G 8va alta in v2)
+	2: 'G8vb',  // G2 (G 8vb bassa in v2)
+	3: 'G15ma', // G3
+	4: 'F',     // F (bass)
+	5: 'F8vb',  // F8 (F 8vb bassa)
+	6: 'F15mb', // F15
+	7: 'F',     // F_B (bass, alternate)
+	8: 'F',     // F_C (bass, alternate)
+	9: 'C1',    // C1 (soprano)
+	10: 'C2',   // C2 (mezzo-soprano)
+	11: 'C3',   // C3 (alto)
+	12: 'C4',   // C4 (tenor)
+	13: 'TAB',  // TAB
+	14: 'PERC', // PERC
+	15: 'C5',   // C5 (baritone)
+}
+
+/**
  * NWC clef pitch offsets — same values as interpreter.js.
  * Used to compute staff position from absolute diatonic pitch.
  */
@@ -310,11 +333,10 @@ function convertMuseScoreDOM(doc) {
 	const isV4 = version.startsWith('4')
 
 	// Find the main Score element (first one — subsequent ones are part excerpts)
+	// In v1.x, there is no <Score> wrapper — the root <museScore> contains everything directly.
 	const scoreElements = directChildren(root, 'Score')
-	const scoreEl = scoreElements[0]
-	if (!scoreEl) {
-		throw new Error('No <Score> element found in MuseScore file')
-	}
+	const scoreEl = scoreElements[0] || root // v1.x: use root as score element
+	const isV1 = !scoreElements[0] // true for v1.x format
 
 	// Extract metadata
 	const info = extractInfo(scoreEl)
@@ -413,7 +435,7 @@ function extractInfo(scoreEl) {
  * Extract part metadata (instrument, staff info, channel).
  */
 function extractPart(partEl, index, isV4) {
-	const trackName = xmlText(partEl, 'trackName')
+	const trackName = xmlText(partEl, 'trackName') || xmlText(partEl, 'name') // v1.x uses <name>
 	const instEl = partEl.getElementsByTagName('Instrument')[0]
 
 	let longName = '', shortName = '', channel = 0, program = 0
@@ -435,13 +457,28 @@ function extractPart(partEl, index, isV4) {
 
 	// Build per-staff clef defaults.
 	// Sources (in priority order):
-	//   1. <Part><Staff><defaultClef>F</defaultClef>  (MS2 grand staff)
-	//   2. <Part><Instrument><clef>C3</clef>          (MS2 single-staff: viola/cello)
+	//   1. <Part><Staff><cleflist><clef idx="N"/>  (MS v1.x — numeric clef index)
+	//   2. <Part><Staff><defaultClef>F</defaultClef>  (MS2 grand staff)
+	//   3. <Part><Instrument><clef>C3</clef>          (MS2 single-staff: viola/cello)
 	//      <Part><Instrument><clef staff="2">F</clef> (MS2 multi-staff: piano)
-	//   3. Default to 'G' (treble)
+	//   4. Default to 'G' (treble)
 	const staffClefs = []
 	for (let i = 0; i < staffSubElements.length; i++) {
 		const staffEl = staffSubElements[i]
+
+		// v1.x: <cleflist><clef tick="0" idx="N"/>
+		const clefListEl = staffEl.getElementsByTagName('cleflist')[0]
+		if (clefListEl) {
+			const clefEl = clefListEl.getElementsByTagName('clef')[0]
+			if (clefEl) {
+				const idx = parseInt(clefEl.getAttribute('idx') || '0', 10)
+				const clefName = CLEF_INDEX_MAP[idx] || 'G'
+				staffClefs.push(clefName)
+				continue
+			}
+		}
+
+		// v2+: <defaultClef>F</defaultClef>
 		const defaultClef = xmlText(staffEl, 'defaultClef')
 		if (defaultClef) {
 			staffClefs.push(defaultClef)
