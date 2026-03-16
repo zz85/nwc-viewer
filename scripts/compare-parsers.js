@@ -284,7 +284,7 @@ function xmlClefToName(sign, line) {
 	return sign + line
 }
 
-function compareFile(ourTokens, refEvents, staffIdx) {
+function compareFile(ourTokens, refEvents, staffIdx, acceptAllVoices = false) {
 	const diffs = []
 
 	// Extract notes/rests from our tokens (voice 1 only)
@@ -292,11 +292,12 @@ function compareFile(ourTokens, refEvents, staffIdx) {
 		t.type === 'Note' || t.type === 'Chord' || t.type === 'Rest'
 	)
 
-	// Extract notes/rests from reference (voice 1 only, flatten chords)
+	// Extract notes/rests from reference (voice 1 by default, or all voices for split staves)
 	const refNotes = []
 	for (const e of refEvents) {
-		if (e.voice !== 1 && e.type !== 'rest' && e.type !== 'note') continue
-		if (e.voice && e.voice !== 1) continue
+		if (!acceptAllVoices) {
+			if (e.voice && e.voice !== 1) continue
+		}
 		if (e.type === 'note' || e.type === 'rest') {
 			refNotes.push(e)
 		}
@@ -603,7 +604,7 @@ for (const file of files) {
 						if (!e.staff) return s === 1 // default to staff 1
 						return e.staff === s
 					})
-					const diffs = compareFile(ourStaves[ourIdx].tokens, staffEvents, ourIdx)
+					const diffs = compareFile(ourStaves[ourIdx].tokens, staffEvents, ourIdx, true)
 					if (diffs.length > 0) {
 						fileDiffs.push({ staff: ourIdx, partName: `${refStaves[ri].partName} staff ${s}`, diffs })
 					}
