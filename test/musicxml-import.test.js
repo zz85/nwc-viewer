@@ -1306,9 +1306,18 @@ export async function unzip(buffer) {
 
 // ===================================================================
 // Round-Trip Integration: Parse real .musicxml files from nwc2xml output
+// (skipped in CI — nwc2xml/ is gitignored)
 // ===================================================================
 
-describe('Round-Trip Integration — NWC to MusicXML files', () => {
+import { existsSync } from 'fs'
+import { join as joinPath } from 'path'
+
+const ROUND_TRIP_DIR = joinPath(import.meta.dir, '../nwc2xml/js/test-output')
+const hasRoundTripData = existsSync(ROUND_TRIP_DIR)
+
+const describeRoundTrip = hasRoundTripData ? describe : describe.skip
+
+describeRoundTrip('Round-Trip Integration — NWC to MusicXML files', () => {
 	let parseMusicXML
 
 	const setup = async () => {
