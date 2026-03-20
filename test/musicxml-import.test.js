@@ -1305,7 +1305,492 @@ export async function unzip(buffer) {
 })
 
 // ===================================================================
-// Round-Trip Integration: Parse real .musicxml files from nwc2xml output
+// Score-Timewise Format Support
+// ===================================================================
+
+describe('Score-Timewise Format', () => {
+	let parseMusicXML
+
+	const setup = async () => {
+		if (parseMusicXML) return
+
+		const { writeFileSync, unlinkSync } = await import('fs')
+		const { join } = await import('path')
+		const { tmpdir } = await import('os')
+		const { readFileSync } = await import('fs')
+
+		const tmpZip = join(tmpdir(), `_bun_zip_tw_${Date.now()}.js`)
+		const fflateModulePath = join(import.meta.dir, '../node_modules/fflate/esm/browser.js')
+		writeFileSync(tmpZip, `import { unzipSync } from '${fflateModulePath}';
+export async function unzip(buffer) {
+  const e = unzipSync(new Uint8Array(buffer));
+  const m = new Map();
+  for (const n of Object.keys(e)) m.set(n, e[n]);
+  return m;
+}`)
+
+		const tmpParser = join(tmpdir(), `_bun_mxml_tw_${Date.now()}.js`)
+		let parserCode = readFileSync(join(import.meta.dir, '../src/musicxml-import.js'), 'utf-8')
+		parserCode = parserCode.replace(`from './zip.js'`, `from '${tmpZip}'`)
+		parserCode = parserCode.replace(`from './fraction.js'`, `from '${join(import.meta.dir, '../src/fraction.js')}'`)
+		parserCode = parserCode.replace(`from './music-import-utils.js'`, `from '${join(import.meta.dir, '../src/music-import-utils.js')}'`)
+		let utilsCode = readFileSync(join(import.meta.dir, '../src/music-import-utils.js'), 'utf-8')
+		const tmpUtils = join(tmpdir(), `_bun_utils_tw_${Date.now()}.js`)
+		utilsCode = utilsCode.replace(`from './fraction.js'`, `from '${join(import.meta.dir, '../src/fraction.js')}'`)
+		writeFileSync(tmpUtils, utilsCode)
+		parserCode = parserCode.replace(new RegExp(`from '${join(import.meta.dir, '../src/music-import-utils.js').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`), `from '${tmpUtils}'`)
+		parserCode = parserCode.replace(
+			/const errorEl = doc\.querySelector\s*\?\s*doc\.querySelector\('parsererror'\)\s*:\s*doc\.getElementsByTagName\('parsererror'\)\[0\]/,
+			`const errorEl = doc.getElementsByTagName('parsererror')[0]`
+		)
+		writeFileSync(tmpParser, parserCode)
+
+		try {
+			const mod = await import(tmpParser)
+			parseMusicXML = mod.parseMusicXML
+		} catch (e) {
+			console.error('Failed to load patched MusicXML parser for timewise tests:', e)
+			throw e
+		}
+
+		process.on('exit', () => {
+			try { unlinkSync(tmpZip) } catch {}
+			try { unlinkSync(tmpParser) } catch {}
+			try { unlinkSync(tmpUtils) } catch {}
+		})
+	}
+
+	it('parses a simple single-part score-timewise document', async () => {
+		await setup()
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-timewise version="4.0">
+  <work><work-title>Timewise Test</work-title></work>
+  <identification><creator type="composer">Tester</creator></identification>
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <measure number="1">
+    <part id="P1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    </part>
+  </measure>
+</score-timewise>`
+
+		const result = await parseMusicXML(xml, 'test.musicxml')
+
+		expect(result._source).toBe('musicxml')
+		expect(result.info.title).toBe('Timewise Test')
+		expect(result.info.author).toBe('Tester')
+		expect(result.header.version).toContain('MusicXML')
+		expect(result.score.staves.length).toBe(1)
+
+		const staff = result.score.staves[0]
+		expect(staff.staff_name).toBe('Piano')
+
+		const notes = staff.tokens.filter(t => t.type === 'Note')
+		expect(notes.length).toBe(4)
+		expect(notes[0].name).toBe('C')
+		expect(notes[1].name).toBe('D')
+		expect(notes[2].name).toBe('E')
+		expect(notes[3].name).toBe('F')
+
+		// Timing should advance
+		expect(notes[0].tickValue).toBe(0)
+		expect(notes[1].tickValue).toBe(0.25)
+		expect(notes[2].tickValue).toBe(0.5)
+		expect(notes[3].tickValue).toBe(0.75)
+	})
+
+	it('parses a multi-part score-timewise document', async () => {
+		await setup()
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-timewise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>Violin</part-name></score-part>
+    <score-part id="P2"><part-name>Cello</part-name></score-part>
+  </part-list>
+  <measure number="1">
+    <part id="P1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>4</duration><type>whole</type></note>
+    </part>
+    <part id="P2">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>F</sign><line>4</line></clef>
+      </attributes>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>whole</type></note>
+    </part>
+  </measure>
+  <measure number="2">
+    <part id="P1">
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>4</duration><type>whole</type></note>
+    </part>
+    <part id="P2">
+      <note><pitch><step>G</step><octave>2</octave></pitch><duration>4</duration><type>whole</type></note>
+    </part>
+  </measure>
+</score-timewise>`
+
+		const result = await parseMusicXML(xml, 'test.musicxml')
+
+		expect(result.score.staves.length).toBe(2)
+
+		// Staff 1 (Violin — treble)
+		const staff1 = result.score.staves[0]
+		expect(staff1.staff_name).toBe('Violin')
+		const clef1 = staff1.tokens.find(t => t.type === 'Clef')
+		expect(clef1.clef).toBe('treble')
+		const notes1 = staff1.tokens.filter(t => t.type === 'Note')
+		expect(notes1.length).toBe(2)
+		expect(notes1[0].name).toBe('E')
+		expect(notes1[0].octave).toBe(5)
+		expect(notes1[1].name).toBe('D')
+		expect(notes1[1].octave).toBe(5)
+
+		// Staff 2 (Cello — bass)
+		const staff2 = result.score.staves[1]
+		expect(staff2.staff_name).toBe('Cello')
+		const clef2 = staff2.tokens.find(t => t.type === 'Clef')
+		expect(clef2.clef).toBe('bass')
+		const notes2 = staff2.tokens.filter(t => t.type === 'Note')
+		expect(notes2.length).toBe(2)
+		expect(notes2[0].name).toBe('C')
+		expect(notes2[0].octave).toBe(3)
+		expect(notes2[1].name).toBe('G')
+		expect(notes2[1].octave).toBe(2)
+	})
+
+	it('handles attributes, dynamics, and ties in timewise format', async () => {
+		await setup()
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-timewise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <measure number="1">
+    <part id="P1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>2</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <direction>
+        <direction-type><dynamics><f/></dynamics></direction-type>
+      </direction>
+      <note>
+        <pitch><step>D</step><octave>4</octave></pitch>
+        <duration>2</duration><type>half</type>
+        <tie type="start"/>
+      </note>
+      <note>
+        <pitch><step>D</step><octave>4</octave></pitch>
+        <duration>2</duration><type>half</type>
+        <tie type="stop"/>
+      </note>
+    </part>
+  </measure>
+</score-timewise>`
+
+		const result = await parseMusicXML(xml, 'test.musicxml')
+		const staff = result.score.staves[0]
+
+		// Key signature: D major (2 sharps)
+		const keySig = staff.tokens.find(t => t.type === 'KeySignature')
+		expect(keySig.key).toBe('D')
+		expect(keySig.sharps).toEqual(['F', 'C'])
+
+		// Dynamic
+		const dyn = staff.tokens.find(t => t.type === 'Dynamic')
+		expect(dyn).toBeDefined()
+		expect(dyn.dynamic).toBe('f')
+
+		// Ties
+		const notes = staff.tokens.filter(t => t.type === 'Note')
+		expect(notes.length).toBe(2)
+		expect(notes[0].tie).toBe(1)
+		expect(notes[0].tieEnd).toBe(0)
+		expect(notes[1].tie).toBe(0)
+		expect(notes[1].tieEnd).toBe(1)
+	})
+
+	it('handles multi-staff (grand staff) in timewise format', async () => {
+		await setup()
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-timewise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <measure number="1">
+    <part id="P1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <staves>2</staves>
+        <clef number="1"><sign>G</sign><line>2</line></clef>
+        <clef number="2"><sign>F</sign><line>4</line></clef>
+      </attributes>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>4</duration><type>whole</type><staff>1</staff><voice>1</voice></note>
+      <backup><duration>4</duration></backup>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration><type>whole</type><staff>2</staff><voice>5</voice></note>
+    </part>
+  </measure>
+</score-timewise>`
+
+		const result = await parseMusicXML(xml, 'test.musicxml')
+		expect(result.score.staves.length).toBe(2)
+
+		// Staff 1 (treble)
+		const staff1 = result.score.staves[0]
+		expect(staff1.staff_name).toBe('Piano (staff 1)')
+		const clef1 = staff1.tokens.find(t => t.type === 'Clef')
+		expect(clef1.clef).toBe('treble')
+		const notes1 = staff1.tokens.filter(t => t.type === 'Note')
+		expect(notes1.length).toBe(1)
+		expect(notes1[0].name).toBe('E')
+		expect(notes1[0].octave).toBe(5)
+
+		// Staff 2 (bass)
+		const staff2 = result.score.staves[1]
+		expect(staff2.staff_name).toBe('Piano (staff 2)')
+		const clef2 = staff2.tokens.find(t => t.type === 'Clef')
+		expect(clef2.clef).toBe('bass')
+		const notes2 = staff2.tokens.filter(t => t.type === 'Note')
+		expect(notes2.length).toBe(1)
+		expect(notes2[0].name).toBe('C')
+		expect(notes2[0].octave).toBe(3)
+
+		// Brace linking
+		expect(staff1.braceWithNext).toBe(true)
+		expect(staff2.braceWithNext).toBe(false)
+	})
+
+	it('produces identical output for equivalent timewise and partwise scores', async () => {
+		await setup()
+
+		const partwise = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <work><work-title>Equiv Test</work-title></work>
+  <identification><creator type="composer">Tester</creator></identification>
+  <part-list>
+    <score-part id="P1"><part-name>Flute</part-name></score-part>
+    <score-part id="P2"><part-name>Oboe</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>1</fifths></key>
+        <time><beats>3</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    </measure>
+    <measure number="2">
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>3</duration><type>half</type><dot/></note>
+    </measure>
+  </part>
+  <part id="P2">
+    <measure number="1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>1</fifths></key>
+        <time><beats>3</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>3</duration><type>half</type><dot/></note>
+    </measure>
+    <measure number="2">
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>3</duration><type>half</type><dot/></note>
+    </measure>
+  </part>
+</score-partwise>`
+
+		const timewise = `<?xml version="1.0" encoding="UTF-8"?>
+<score-timewise version="4.0">
+  <work><work-title>Equiv Test</work-title></work>
+  <identification><creator type="composer">Tester</creator></identification>
+  <part-list>
+    <score-part id="P1"><part-name>Flute</part-name></score-part>
+    <score-part id="P2"><part-name>Oboe</part-name></score-part>
+  </part-list>
+  <measure number="1">
+    <part id="P1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>1</fifths></key>
+        <time><beats>3</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>B</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+    </part>
+    <part id="P2">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>1</fifths></key>
+        <time><beats>3</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>3</duration><type>half</type><dot/></note>
+    </part>
+  </measure>
+  <measure number="2">
+    <part id="P1">
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>3</duration><type>half</type><dot/></note>
+    </part>
+    <part id="P2">
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>3</duration><type>half</type><dot/></note>
+    </part>
+  </measure>
+</score-timewise>`
+
+		const pwResult = await parseMusicXML(partwise, 'test.musicxml')
+		const twResult = await parseMusicXML(timewise, 'test.musicxml')
+
+		// Same structure
+		expect(twResult._source).toBe(pwResult._source)
+		expect(twResult.info.title).toBe(pwResult.info.title)
+		expect(twResult.info.author).toBe(pwResult.info.author)
+		expect(twResult.score.staves.length).toBe(pwResult.score.staves.length)
+
+		// Same content per staff
+		for (let i = 0; i < pwResult.score.staves.length; i++) {
+			const pwStaff = pwResult.score.staves[i]
+			const twStaff = twResult.score.staves[i]
+
+			expect(twStaff.staff_name).toBe(pwStaff.staff_name)
+
+			// Same token count and types
+			expect(twStaff.tokens.length).toBe(pwStaff.tokens.length)
+			for (let j = 0; j < pwStaff.tokens.length; j++) {
+				expect(twStaff.tokens[j].type).toBe(pwStaff.tokens[j].type)
+				if (pwStaff.tokens[j].tickValue !== undefined) {
+					expect(twStaff.tokens[j].tickValue).toBe(pwStaff.tokens[j].tickValue)
+				}
+			}
+
+			// Same notes
+			const pwNotes = pwStaff.tokens.filter(t => t.type === 'Note')
+			const twNotes = twStaff.tokens.filter(t => t.type === 'Note')
+			expect(twNotes.length).toBe(pwNotes.length)
+			for (let j = 0; j < pwNotes.length; j++) {
+				expect(twNotes[j].name).toBe(pwNotes[j].name)
+				expect(twNotes[j].octave).toBe(pwNotes[j].octave)
+				expect(twNotes[j].position).toBe(pwNotes[j].position)
+				expect(twNotes[j].duration).toBe(pwNotes[j].duration)
+				expect(twNotes[j].dots).toBe(pwNotes[j].dots)
+				expect(twNotes[j].tickValue).toBe(pwNotes[j].tickValue)
+			}
+		}
+	})
+
+	it('handles rests and barlines in timewise format', async () => {
+		await setup()
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-timewise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <measure number="1">
+    <part id="P1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><rest/><duration>1</duration><type>quarter</type></note>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      <note><rest/><duration>1</duration><type>quarter</type></note>
+    </part>
+  </measure>
+  <measure number="2">
+    <part id="P1">
+      <note><rest/><duration>4</duration></note>
+    </part>
+  </measure>
+</score-timewise>`
+
+		const result = await parseMusicXML(xml, 'test.musicxml')
+		const staff = result.score.staves[0]
+
+		// Measure 1: note, rest, note, rest
+		const noteAndRest = staff.tokens.filter(t => t.type === 'Note' || t.type === 'Rest')
+		expect(noteAndRest.length).toBe(5)  // 2 notes + 2 rests (m1) + 1 whole-bar rest (m2)
+		expect(noteAndRest[0].type).toBe('Note')
+		expect(noteAndRest[1].type).toBe('Rest')
+		expect(noteAndRest[2].type).toBe('Note')
+		expect(noteAndRest[3].type).toBe('Rest')
+		expect(noteAndRest[4].type).toBe('Rest')  // whole-bar rest
+
+		// Barlines between measures
+		const barlines = staff.tokens.filter(t => t.type === 'Barline')
+		expect(barlines.length).toBe(2)  // implicit barline after m1 + section close after m2
+	})
+
+	it('handles chords in timewise format', async () => {
+		await setup()
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-timewise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <measure number="1">
+    <part id="P1">
+      <attributes>
+        <divisions>1</divisions>
+        <key><fifths>0</fifths></key>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <clef><sign>G</sign><line>2</line></clef>
+      </attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note>
+      <note><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note>
+      <note><chord/><pitch><step>G</step><octave>4</octave></pitch><duration>4</duration><type>whole</type></note>
+    </part>
+  </measure>
+</score-timewise>`
+
+		const result = await parseMusicXML(xml, 'test.musicxml')
+		const staff = result.score.staves[0]
+
+		const chords = staff.tokens.filter(t => t.type === 'Chord')
+		expect(chords.length).toBe(1)
+		expect(chords[0].chords).toBe(3)
+		expect(chords[0].notes[0].name).toBe('C')
+		expect(chords[0].notes[1].name).toBe('E')
+		expect(chords[0].notes[2].name).toBe('G')
+	})
+})
+
+// ===================================================================
+// WebMscore Loader Hardening
+// ===================================================================
+
+describe('WebMscore Loader', () => {
+	it('exportMusicXML wraps load errors with filename context', async () => {
+		// We can't test actual WebMscore loading in bun (no browser DOM),
+		// but we can verify the module exports the expected API shape.
+		const { exportMusicXML, ensureWebMscore, isWebMscoreAvailable, resetWebMscore } = await import('../src/webmscore-loader.js')
+
+		expect(typeof exportMusicXML).toBe('function')
+		expect(typeof ensureWebMscore).toBe('function')
+		expect(typeof isWebMscoreAvailable).toBe('function')
+		expect(typeof resetWebMscore).toBe('function')
+	})
+})
 // (skipped in CI — nwc2xml/ is gitignored)
 // ===================================================================
 

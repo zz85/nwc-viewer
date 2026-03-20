@@ -902,8 +902,8 @@ functions locally in the test file to avoid browser API dependencies
 
 ### Remaining Phase 3 Items
 
-- `<score-timewise>` → transpose to partwise (rare format, low priority)
-- WebMscore pipeline: route `.mscz` through webmscore → MusicXML → our parser
+- ~~`<score-timewise>` → transpose to partwise (rare format, low priority)~~ **DONE** — `convertScoreTimewise()` treats timewise `<part>` elements as measure-like elements, reusing the same `convertPart` pipeline
+- ~~WebMscore pipeline: route `.mscz` through webmscore → MusicXML → our parser~~ **DONE** — hardened with load timeout (30s), script cleanup on failure, empty output detection, safe `score.destroy()`, and `resetWebMscore()` for recovery
 
 ---
 

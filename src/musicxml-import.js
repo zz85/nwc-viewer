@@ -5,7 +5,7 @@
  * with all timing and pitch information already resolved so that the
  * interpreter step can be skipped.
  *
- * Supports MusicXML 3.x and 4.0 (score-partwise format).
+ * Supports MusicXML 3.x and 4.0 (score-partwise and score-timewise formats).
  */
 
 import { unzip } from './zip.js'
@@ -129,7 +129,7 @@ export async function parseMusicXML(input, filename) {
 	if (root.tagName === 'score-partwise') {
 		return convertScorePartwise(doc)
 	} else if (root.tagName === 'score-timewise') {
-		throw new Error('score-timewise format not yet supported. Most MusicXML files use score-partwise.')
+		return convertScoreTimewise(doc)
 	} else {
 		throw new Error('Unrecognized MusicXML root element: ' + root.tagName)
 	}
@@ -173,16 +173,11 @@ async function extractMXL(buffer) {
 }
 
 // ---------------------------------------------------------------------------
-// Score Conversion
+// Shared Score Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Convert a <score-partwise> document into internal format.
- */
-function convertScorePartwise(doc) {
-	const root = doc.documentElement
-
-	// --- Header / Info ---
+/** Extract header info (title, composer, etc.) from the score root element. */
+function extractInfo(root) {
 	const info = {
 		title: '',
 		author: '',
@@ -192,12 +187,10 @@ function convertScorePartwise(doc) {
 		comments: '',
 	}
 
-	// Work title
 	const workTitle = xmlText(root, 'work-title')
 	const movementTitle = xmlText(root, 'movement-title')
 	info.title = workTitle || movementTitle || ''
 
-	// Identification
 	const idEl = root.getElementsByTagName('identification')[0]
 	if (idEl) {
 		const creators = idEl.getElementsByTagName('creator')
@@ -212,7 +205,11 @@ function convertScorePartwise(doc) {
 		if (rights.length > 1) info.copyright2 = rights[1].textContent.trim()
 	}
 
-	// --- Part List (metadata) ---
+	return info
+}
+
+/** Extract part-list metadata (names, MIDI info) from the score root element. */
+function extractPartMetas(root) {
 	const partMetas = []
 	const scorePartEls = root.getElementsByTagName('score-part')
 	for (let i = 0; i < scorePartEls.length; i++) {
@@ -230,39 +227,12 @@ function convertScorePartwise(doc) {
 
 		partMetas.push({ id, partName, partAbbrev, channel, patchName })
 	}
+	return partMetas
+}
 
-	// --- Convert Parts ---
-	const partEls = root.getElementsByTagName('part')
-	const staves = []
-
-	for (let pi = 0; pi < partEls.length; pi++) {
-		const partEl = partEls[pi]
-		const partId = partEl.getAttribute('id')
-
-		// Find matching metadata
-		const meta = partMetas.find(m => m.id === partId) || partMetas[pi] || {
-			partName: `Part ${pi + 1}`, partAbbrev: '', channel: 0, patchName: 0,
-		}
-
-		// Detect multi-staff parts (grand staff)
-		const staffCount = detectStaffCount(partEl)
-
-		if (staffCount > 1) {
-			// Multi-staff: create one internal staff per MusicXML staff
-			for (let s = 1; s <= staffCount; s++) {
-				const staff = convertPart(partEl, meta, pi, partEls.length, s, staffCount)
-				// Brace with next staff in same part
-				staff.braceWithNext = s < staffCount
-				staves.push(staff)
-			}
-		} else {
-			staves.push(convertPart(partEl, meta, pi, partEls.length, 1, 1))
-		}
-	}
-
-	// Version from root attribute
+/** Build the final score result object. */
+function buildScoreResult(root, info, staves) {
 	const version = root.getAttribute('version') || '3.0'
-
 	return {
 		header: {
 			version: `MusicXML ${version}`,
@@ -279,17 +249,116 @@ function convertScorePartwise(doc) {
 }
 
 /**
- * Detect how many staves a part uses by scanning for <staff> elements
- * on notes and <staves> in attributes.
+ * Convert measure element arrays to staves, handling multi-staff parts.
+ * @param {Array<Object>} partMetas - Part metadata from extractPartMetas
+ * @param {Function} getMeasureEls - Function(meta, index) returning array of measure-like elements
  */
-function detectStaffCount(partEl) {
-	// Check <attributes><staves>
-	const attrEls = partEl.getElementsByTagName('attributes')
-	for (let i = 0; i < attrEls.length; i++) {
-		const stavesText = xmlText(attrEls[i], 'staves')
-		if (stavesText) {
-			const n = parseInt(stavesText, 10)
-			if (n > 1) return n
+function convertPartsToStaves(partMetas, getMeasureEls) {
+	const staves = []
+	for (let pi = 0; pi < partMetas.length; pi++) {
+		const meta = partMetas[pi]
+		const measureEls = getMeasureEls(meta, pi)
+		const staffCount = detectStaffCount(measureEls)
+
+		if (staffCount > 1) {
+			for (let s = 1; s <= staffCount; s++) {
+				const staff = convertPart(measureEls, meta, pi, partMetas.length, s, staffCount)
+				staff.braceWithNext = s < staffCount
+				staves.push(staff)
+			}
+		} else {
+			staves.push(convertPart(measureEls, meta, pi, partMetas.length, 1, 1))
+		}
+	}
+	return staves
+}
+
+// ---------------------------------------------------------------------------
+// Score Conversion — Partwise
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a <score-partwise> document into internal format.
+ */
+function convertScorePartwise(doc) {
+	const root = doc.documentElement
+	const info = extractInfo(root)
+	const partMetas = extractPartMetas(root)
+
+	// In partwise: root → <part> → <measure> children
+	const partEls = root.getElementsByTagName('part')
+	const partElMap = new Map()
+	for (let i = 0; i < partEls.length; i++) {
+		partElMap.set(partEls[i].getAttribute('id'), partEls[i])
+	}
+
+	const staves = convertPartsToStaves(partMetas, (meta, pi) => {
+		const partEl = partElMap.get(meta.id) || partEls[pi]
+		return partEl ? toArray(partEl.getElementsByTagName('measure')) : []
+	})
+
+	return buildScoreResult(root, info, staves)
+}
+
+// ---------------------------------------------------------------------------
+// Score Conversion — Timewise
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a <score-timewise> document into internal format.
+ * Timewise structure: root → <measure> → <part> (children contain notes, etc.)
+ * Each <part> element within a timewise <measure> is treated as one measure's
+ * content for the corresponding part.
+ */
+function convertScoreTimewise(doc) {
+	const root = doc.documentElement
+	const info = extractInfo(root)
+	const partMetas = extractPartMetas(root)
+
+	// In timewise: root → <measure> → <part> children
+	const topMeasures = directChildren(root, 'measure')
+
+	// Build map: partId → [partElement, ...] across all measures
+	const partMeasureMap = new Map()
+	for (const meta of partMetas) {
+		partMeasureMap.set(meta.id, [])
+	}
+
+	for (const twMeasure of topMeasures) {
+		const partEls = directChildren(twMeasure, 'part')
+		for (const partEl of partEls) {
+			const partId = partEl.getAttribute('id')
+			if (partMeasureMap.has(partId)) {
+				partMeasureMap.get(partId).push(partEl)
+			}
+		}
+	}
+
+	const staves = convertPartsToStaves(partMetas, (meta) => {
+		return partMeasureMap.get(meta.id) || []
+	})
+
+	return buildScoreResult(root, info, staves)
+}
+
+// ---------------------------------------------------------------------------
+// Staff Count Detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect how many staves a part uses by scanning for <staves> in attributes
+ * across an array of measure-like elements.
+ * @param {Array<Element>} measureEls - Array of elements to scan
+ */
+function detectStaffCount(measureEls) {
+	for (const el of measureEls) {
+		const attrEls = el.getElementsByTagName('attributes')
+		for (let i = 0; i < attrEls.length; i++) {
+			const stavesText = xmlText(attrEls[i], 'staves')
+			if (stavesText) {
+				const n = parseInt(stavesText, 10)
+				if (n > 1) return n
+			}
 		}
 	}
 	return 1
@@ -300,15 +369,17 @@ function detectStaffCount(partEl) {
 // ---------------------------------------------------------------------------
 
 /**
- * Convert a <part> element to a staff object.
- * @param {Element} partEl - The <part> element
+ * Convert an array of measure-like elements to a staff object.
+ * In partwise format, these are <measure> elements from a <part>.
+ * In timewise format, these are <part> elements from each <measure>.
+ * @param {Array<Element>} measureEls - Array of elements to process as measures
  * @param {Object} meta - Part metadata from <score-part>
  * @param {number} partIndex - Index in part list
  * @param {number} totalParts - Total number of parts
  * @param {number} staffNum - Which staff (1-indexed) for multi-staff parts
  * @param {number} staffCount - Total staves in this part
  */
-function convertPart(partEl, meta, partIndex, totalParts, staffNum, staffCount) {
+function convertPart(measureEls, meta, partIndex, totalParts, staffNum, staffCount) {
 	const tokens = []
 
 	// Running state across measures
@@ -329,12 +400,10 @@ function convertPart(partEl, meta, partIndex, totalParts, staffNum, staffCount) 
 		lyrics: [],
 	}
 
-	const measures = partEl.getElementsByTagName('measure')
-	const totalMeasures = measures.length
+	const totalMeasures = measureEls.length
 
 	for (let mi = 0; mi < totalMeasures; mi++) {
-		const measure = measures[mi]
-		convertMeasure(measure, state, tokens, mi, totalMeasures)
+		convertMeasure(measureEls[mi], state, tokens, mi, totalMeasures)
 	}
 
 	// --- Ensure initial tokens exist ---
