@@ -1867,8 +1867,22 @@ function _drawPageBackgrounds(ctx, pg) {
 	var shadowOffset = 4
 	var shadowColor = 'rgba(0,0,0,0.25)'
 
+	// Viewport culling — skip pages entirely outside the visible area.
+	var zoom = getZoomLevel()
+	var scoreElm = document.getElementById('score')
+	var viewTop = (scoreElm?.scrollTop || 0) / zoom
+	var viewBottom = viewTop + (scoreElm?.clientHeight || 800) / zoom
+	var viewLeft = (scoreElm?.scrollLeft || 0) / zoom
+	var viewRight = viewLeft + (scoreElm?.clientWidth || 800) / zoom
+	var pad = 50  // extra padding to avoid pop-in
+
 	for (var p = 0; p < pg.pageCount; p++) {
 		var pos = pg.pagePositions[p]
+
+		if (pos.y + pg.pageHeight < viewTop - pad) continue
+		if (pos.y > viewBottom + pad) continue
+		if (pos.x + pg.pageWidth < viewLeft - pad) continue
+		if (pos.x > viewRight + pad) continue
 
 		// Drop shadow
 		ctx.fillStyle = shadowColor
@@ -2262,8 +2276,36 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// --- Footer ---
 	var { copyright1, copyright2 } = data.info || {}
+
+	// In page mode, render copyright on the canvas at the bottom of page 1
+	// instead of in the DOM footer (which is used for scroll/wrap modes).
+	var copyrightText = [copyright1, copyright2].filter(Boolean).join(' \u2014 ')
+	if (copyrightText) {
+		var copyrightDraw = new Claire.Text(copyrightText, 0, {
+			font: Math.round(titleFs * 0.32) + 'px ' + getMusicTextFamily(),
+			textAlign: 'center',
+		})
+		// Position in the bottom margin of page 1, above the page number
+		copyrightDraw.moveTo(titleCenterX, page1Pos.y + PAGE_H - margins.bottom * 0.55)
+		drawing.add(copyrightDraw)
+	}
+
+	// --- Page numbers ---
+	var pageNumFont = Math.round(titleFs * 0.36) + 'px ' + getMusicTextFamily()
+	for (var pi = 0; pi < pageCount; pi++) {
+		var pos = pagePositions[pi]
+		var pageNumDraw = new Claire.Text(String(pi + 1), 0, {
+			font: pageNumFont,
+			textAlign: 'center',
+		})
+		// Position at bottom center of each page, in the margin area
+		pageNumDraw.moveTo(pos.x + PAGE_W / 2, pos.y + PAGE_H - margins.bottom * 0.3)
+		drawing.add(pageNumDraw)
+	}
+
+	// Clear DOM footer in page mode (content is on the canvas)
 	var footerEl = document.getElementById('footer')
-	if (footerEl) footerEl.innerText = (copyright1 || '') + '\n' + (copyright2 || '')
+	if (footerEl) footerEl.innerText = ''
 
 	// --- Store page geometry for quickDraw background rendering ---
 	_pageGeometry = {

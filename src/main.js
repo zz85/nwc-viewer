@@ -950,15 +950,20 @@ if (pageViewModeSelect) {
 
 function updatePageNavVisibility() {
 	const nav = document.getElementById('page_nav')
-	if (nav) nav.style.display = (getLayoutMode() === 'page' && getPageViewMode() === 'single-page') ? 'inline' : 'none'
+	if (nav) nav.style.display = getLayoutMode() === 'page' ? 'inline' : 'none'
 }
 
 function updatePageNav() {
+	const input = document.getElementById('page_input')
 	const indicator = document.getElementById('page_indicator')
 	const prevBtn = document.getElementById('page_prev')
 	const nextBtn = document.getElementById('page_next')
 	const totalPages = window._pageGeometry?.pageCount || 1
-	if (indicator) indicator.textContent = `${currentPageIdx + 1} / ${totalPages}`
+	if (input) {
+		input.value = currentPageIdx + 1
+		input.max = totalPages
+	}
+	if (indicator) indicator.textContent = ` / ${totalPages}`
 	if (prevBtn) prevBtn.disabled = currentPageIdx <= 0
 	if (nextBtn) nextBtn.disabled = currentPageIdx >= totalPages - 1
 }
@@ -985,6 +990,84 @@ const pagePrevBtn = document.getElementById('page_prev')
 const pageNextBtn = document.getElementById('page_next')
 if (pagePrevBtn) pagePrevBtn.onclick = () => scrollToPage(currentPageIdx - 1)
 if (pageNextBtn) pageNextBtn.onclick = () => scrollToPage(currentPageIdx + 1)
+
+// Jump-to-page input
+const pageInput = document.getElementById('page_input')
+if (pageInput) {
+	pageInput.addEventListener('change', () => {
+		const totalPages = window._pageGeometry?.pageCount || 1
+		const page = Math.max(1, Math.min(totalPages, parseInt(pageInput.value, 10) || 1))
+		scrollToPage(page - 1)
+	})
+	pageInput.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter') {
+			e.target.blur()  // triggers change event
+		}
+	})
+	// Prevent scroll-wheel from changing the number input (confusing UX)
+	pageInput.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
+}
+
+// Track current page from scroll position in all page view modes
+;(function initPageScrollTracking() {
+	const scoreElm = document.getElementById('score')
+	if (!scoreElm) return
+
+	let trackPending = false
+	scoreElm.addEventListener('scroll', () => {
+		if (getLayoutMode() !== 'page') return
+		if (trackPending) return
+		trackPending = true
+		requestAnimationFrame(() => {
+			trackPending = false
+			updateCurrentPageFromScroll()
+		})
+	})
+})()
+
+/**
+ * Determine which page is currently most visible and update the nav UI.
+ */
+function updateCurrentPageFromScroll() {
+	const pg = window._pageGeometry
+	if (!pg || !pg.pagePositions) return
+	const scoreElm = document.getElementById('score')
+	if (!scoreElm) return
+
+	const zoom = getZoomLevel()
+	const viewMode = getPageViewMode()
+
+	// Compute viewport center in score-space
+	let viewCenterX, viewCenterY
+	if (viewMode === 'horizontal') {
+		viewCenterX = (scoreElm.scrollLeft + scoreElm.clientWidth / 2) / zoom
+		viewCenterY = pg.pagePositions[0]?.y + pg.pageHeight / 2 || 0
+	} else {
+		viewCenterX = pg.pagePositions[0]?.x + pg.pageWidth / 2 || 0
+		viewCenterY = (scoreElm.scrollTop + scoreElm.clientHeight / 2) / zoom
+	}
+
+	// Find the page whose center is closest to viewport center
+	let closestPage = 0
+	let closestDist = Infinity
+	for (let i = 0; i < pg.pageCount; i++) {
+		const pos = pg.pagePositions[i]
+		const pageCenterX = pos.x + pg.pageWidth / 2
+		const pageCenterY = pos.y + pg.pageHeight / 2
+		const dx = pageCenterX - viewCenterX
+		const dy = pageCenterY - viewCenterY
+		const dist = dx * dx + dy * dy
+		if (dist < closestDist) {
+			closestDist = dist
+			closestPage = i
+		}
+	}
+
+	if (closestPage !== currentPageIdx) {
+		currentPageIdx = closestPage
+		updatePageNav()
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Zoom Fit Mode (width / height) — buttons next to zoom slider
