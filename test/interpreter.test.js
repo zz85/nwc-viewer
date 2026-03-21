@@ -266,4 +266,70 @@ describe('Chord accidental resolution', () => {
 		const c = notes.find(n => n.midi === 72)
 		expect(c).toBeTruthy()
 	})
+
+	test('barlines do not advance tabCounter — cross-staff alignment', () => {
+		// Two staves: staff 0 has an extra mid-measure barline.
+		// Notes at the same musical time must have identical tabValues
+		// regardless of barline count differences between staves.
+		const data = {
+			score: {
+				staves: [
+					{
+						tokens: [
+							{ type: 'Clef', clef: 'treble' },
+							{ type: 'Note', position: 0, duration: 4, dots: 0 },
+							{ type: 'Note', position: 2, duration: 4, dots: 0 },
+							{ type: 'Barline', barline: 0 },  // extra mid-measure barline
+							{ type: 'Note', position: 4, duration: 4, dots: 0 },
+							{ type: 'Note', position: 6, duration: 4, dots: 0 },
+							{ type: 'Barline', barline: 3 },
+						],
+						lyrics: [],
+					},
+					{
+						tokens: [
+							{ type: 'Clef', clef: 'bass' },
+							{ type: 'Note', position: 0, duration: 4, dots: 0 },
+							{ type: 'Note', position: -2, duration: 4, dots: 0 },
+							{ type: 'Note', position: -4, duration: 4, dots: 0 },
+							{ type: 'Note', position: -6, duration: 4, dots: 0 },
+							{ type: 'Barline', barline: 3 },
+						],
+						lyrics: [],
+					},
+				],
+			},
+		}
+
+		interpret(data)
+
+		const staff0Notes = data.score.staves[0].tokens.filter(t => t.type === 'Note')
+		const staff1Notes = data.score.staves[1].tokens.filter(t => t.type === 'Note')
+
+		// Each corresponding note pair should share the same tabValue
+		for (let i = 0; i < Math.min(staff0Notes.length, staff1Notes.length); i++) {
+			expect(staff0Notes[i].tabValue).toBe(staff1Notes[i].tabValue)
+		}
+	})
+
+	test('barlines have tabValue equal to tabUntilValue (zero duration)', () => {
+		const data = {
+			score: {
+				staves: [{
+					tokens: [
+						{ type: 'Clef', clef: 'treble' },
+						{ type: 'Note', position: 0, duration: 4, dots: 0 },
+						{ type: 'Barline', barline: 0 },
+						{ type: 'Note', position: 2, duration: 4, dots: 0 },
+					],
+					lyrics: [],
+				}],
+			},
+		}
+
+		interpret(data)
+
+		const barline = data.score.staves[0].tokens.find(t => t.type === 'Barline')
+		expect(barline.tabValue).toBe(barline.tabUntilValue)
+	})
 })

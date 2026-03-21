@@ -1028,6 +1028,60 @@ const SYNTHETIC_FIXTURES = [
 					]),
 				]),
 			},
+			{
+				label: 'Barline Align — Matching Barlines Stack',
+				desc: 'Both staves same barline structure: barlines and notes align vertically (| a a a | / | b b b |)',
+				data: () => makeScore('Matching Barlines', [
+					makeStaff([
+						clef('treble'), keySig(), timeSig(),
+						note(0, 4), note(2, 4), note(4, 4), bar(),
+						note(6, 4), note(4, 4), note(2, 4),
+						bar(3),
+					], { braceWithNext: true, connectBarsWithNext: true }),
+					makeStaff([
+						clef('bass'), keySig(), timeSig(),
+						note(0, 4), note(-2, 4), note(-4, 4), bar(),
+						note(-6, 4), note(-4, 4), note(-2, 4),
+						bar(3),
+					]),
+				]),
+			},
+			{
+				label: 'Barline Align — Extra Barline, Notes Stack',
+				desc: 'Staff 0 has a mid-measure barline; notes at same beat still align (| a a | a | / | b b   b |)',
+				data: () => makeScore('Extra Barline Notes Align', [
+					makeStaff([
+						clef('treble'), keySig(), timeSig(),
+						note(0, 4), note(2, 4), bar(), note(4, 4), bar(),
+						note(6, 2), note(4, 2),
+						bar(3),
+					], { braceWithNext: true, connectBarsWithNext: true }),
+					makeStaff([
+						clef('bass'), keySig(), timeSig(),
+						note(0, 4), note(-2, 4), note(-4, 4), bar(),
+						note(-6, 2), note(-4, 2),
+						bar(3),
+					]),
+				]),
+			},
+			{
+				label: 'Barline Align — Multiple Extra Barlines Create Space',
+				desc: 'Staff 0 has 3 extra barlines; matching barline aligns, extras create space (| a a | | | a | / | b b |     b |)',
+				data: () => makeScore('Extra Barlines Space', [
+					makeStaff([
+						clef('treble'), keySig(), timeSig(),
+						note(0, 4), note(2, 4), bar(), bar(), bar(), note(4, 4), bar(),
+						note(6, 2), note(4, 2),
+						bar(3),
+					], { braceWithNext: true, connectBarsWithNext: true }),
+					makeStaff([
+						clef('bass'), keySig(), timeSig(),
+						note(0, 4), note(-2, 4), bar(), note(-4, 4), bar(),
+						note(-6, 2), note(-4, 2),
+						bar(3),
+					]),
+				]),
+			},
 		],
 	},
 ]

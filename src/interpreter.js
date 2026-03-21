@@ -14,11 +14,16 @@ var tabbableTypes = new Set([
 	'Clef',
 	'KeySignature',
 	'TimeSignature',
-	'Barline',
+	// Barline intentionally excluded: barlines are zero-duration visual
+	// separators and must NOT advance tabCounter.  When one staff has more
+	// barlines than another (e.g. mid-measure double barline), advancing
+	// tabCounter here shifts all subsequent tabValues on that staff,
+	// breaking cross-staff vertical alignment via TickTracker.
 	'Chord',
 ])
 
 var untabbableTypes = new Set([
+	'Barline',
 	'StaffProperties',
 	'StaffInstrument',
 	'PerformanceStyle',

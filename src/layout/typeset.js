@@ -75,58 +75,9 @@ class StaveCursor {
 	}
 }
 
-/**
- * Aligns tokens by their time values.
- * The tokens that uses the most space
- * determines where other tokens should
- * align
- */
-class TickTracker {
-	constructor() {
-		this.reset()
-	}
+import { TickTracker } from './tick-tracker.js'
 
-	reset() {
-		this.maxTicks = {}
-	}
-
-	add(token, cursor) {
-		if (token.Visibility === 'hidden') return
-
-		const refValue = token.tabUntilValue
-		const which = this.maxTicks[refValue]
-
-		const x = cursor.staveX + cursor.lastPadRight * X_STRETCH || 0
-		if (!which || x > which.staveX) {
-			this.maxTicks[refValue] = {
-				cursor,
-				staveX: x,
-				token: token,
-			}
-		}
-	}
-
-	alignWithMax(token, cursor) {
-		let moveX = cursor.staveX
-
-		if (cursor.lastPadRight) {
-			moveX += cursor.lastPadRight * X_STRETCH
-		}
-
-		// increments staveX or align with item which already contains staveX for tabValue
-		const key = token.tabValue
-		if (key && key in this.maxTicks) {
-			const which = this.maxTicks[key]
-
-			moveX = which.staveX
-		}
-
-		cursor.staveX = moveX
-		return false
-	}
-}
-
-const tickTracker = new TickTracker()
+const tickTracker = new TickTracker(X_STRETCH)
 let absCounter = 0
 let drawing // placeholder for drawing system
 let info // running debug info
@@ -2757,7 +2708,12 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 	let t, s
 
 	// console.log('handleToken', token)
-	tickTracker.alignWithMax(token, cursor)
+	const isBarline = type === 'Barline'
+	if (isBarline) {
+		tickTracker.alignBarline(token, cursor)
+	} else {
+		tickTracker.alignWithMax(token, cursor)
+	}
 
 	let clef
 
@@ -2820,11 +2776,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 
 		case 'Rest':
-			// First rest after a barline gets extra indent (same as notes)
-			if (cursor._afterBarline) {
-				cursor.incStaveX(getFontSize() * BARLINE_NOTE_EXTRA)
-				cursor._afterBarline = false
-			}
+			// BARLINE_NOTE_EXTRA is now absorbed into the barline's own gap,
+			// so no separate _afterBarline indent is needed here.
+			cursor._afterBarline = false
+
 			var duration = token.duration
 			var sym = {
 				1: 'restWhole',
@@ -2858,6 +2813,9 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s._text = info
 			drawing.add(s)
 			token.drawingBarline = s
+
+			// Save the X where the barline LINE was drawn (pre-gap).
+			var barlineDrawnX = cursor.staveX
 
 			// Connect barlines to next staff if flagged
 			// bracketWithNext or layerWithNext cause connection when allowLayering is on;
@@ -2907,20 +2865,23 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 			addStave(cursor, staveIndex)
 			cursor.updateBarline()
-			// Gap after barline: 1.25 sp covers accidental clearance on the
-			// first note (accidentals hang left ~0.36 fontSize) plus breathing
-			// room.  MuseScore uses barNoteDistance=1.25 sp.
-			cursor.incStaveX(getFontSize() * AFTER_BARLINE_GAP)
-			// cursor.tokenPadRight(spacerWidth())
-			// 10
+			// Total gap after barline: AFTER_BARLINE_GAP + BARLINE_NOTE_EXTRA.
+			// We absorb BARLINE_NOTE_EXTRA into the barline's own cursor
+			// advancement so the TickTracker registers the position where the
+			// first note will actually land.  Without this, a staff with an
+			// extra barline would register a position that is BARLINE_NOTE_EXTRA
+			// short of where its notes sit, causing notes on other staves
+			// (which align via TickTracker) to be offset to the left.
+			cursor.incStaveX(getFontSize() * (AFTER_BARLINE_GAP + BARLINE_NOTE_EXTRA))
+
+			// Dual registration: barline line position (for barline-to-barline
+			// alignment) and post-gap position (for note alignment).
+			tickTracker.addBarline(token, barlineDrawnX, cursor.staveX)
 			break
 
 		case 'Chord':
-			// First chord after a barline gets extra indent (same as notes)
-			if (cursor._afterBarline) {
-				cursor.incStaveX(getFontSize() * BARLINE_NOTE_EXTRA)
-				cursor._afterBarline = false
-			}
+			// BARLINE_NOTE_EXTRA is now absorbed into the barline's own gap.
+			cursor._afterBarline = false
 
 			// --- Detect seconds and compute notehead offsets ---
 			// When two chord notes are a second apart (adjacent positions),
@@ -3201,7 +3162,11 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 	}
 
-	tickTracker.add(token, cursor)
+	// Barlines handle their own TickTracker registration via addBarline()
+	// inside the switch case above (dual pre-gap / post-gap registration).
+	if (!isBarline) {
+		tickTracker.add(token, cursor)
+	}
 }
 
 function drawForNote(token, cursor, durToken, skipLedger) {
@@ -3223,12 +3188,9 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 
 	const relativePos = token.position + 4
 
-	// First note/rest/chord after a barline gets extra indent so notes
-	// don't crowd the barline while key/time sigs stay tight.
-	if (cursor._afterBarline) {
-		cursor.incStaveX(getFontSize() * BARLINE_NOTE_EXTRA)
-		cursor._afterBarline = false
-	}
+	// BARLINE_NOTE_EXTRA is now absorbed into the barline's own gap,
+	// so no separate _afterBarline indent is needed here.
+	cursor._afterBarline = false
 
 	if (token.accidental) {
 		var acc = new Accidental(token.accidental, relativePos)
