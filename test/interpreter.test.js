@@ -332,4 +332,50 @@ describe('Chord accidental resolution', () => {
 		const barline = data.score.staves[0].tokens.find(t => t.type === 'Barline')
 		expect(barline.tabValue).toBe(barline.tabUntilValue)
 	})
+
+	test('header offset normalization — staves with different headers start notes at same tabValue', () => {
+		// Staff 0 has Clef + KeySig + TimeSig (3 headers × 0.25 = 0.75 offset)
+		// Staff 1 has only KeySig + TimeSig (2 headers × 0.25 = 0.50 offset)
+		// After normalization, both first notes should have the same tabValue.
+		const data = {
+			score: {
+				staves: [
+					{
+						tokens: [
+							{ type: 'Clef', clef: 'treble' },
+							{ type: 'KeySignature', key: 'C', accidentals: [] },
+							{ type: 'TimeSignature', signature: '3/4', group: 3, beat: 4 },
+							{ type: 'Note', position: 0, duration: 4, dots: 0 },
+							{ type: 'Note', position: 2, duration: 4, dots: 0 },
+							{ type: 'Note', position: 4, duration: 4, dots: 0 },
+							{ type: 'Barline', barline: 3 },
+						],
+						lyrics: [],
+					},
+					{
+						tokens: [
+							{ type: 'KeySignature', key: 'C', accidentals: [] },
+							{ type: 'TimeSignature', signature: '3/4', group: 3, beat: 4 },
+							{ type: 'Rest', position: 0, duration: 1, dots: 0 },
+							{ type: 'Barline', barline: 3 },
+						],
+						lyrics: [],
+					},
+				],
+			},
+		}
+
+		interpret(data)
+
+		const staff0FirstNote = data.score.staves[0].tokens.find(t => t.type === 'Note')
+		const staff1FirstRest = data.score.staves[1].tokens.find(t => t.type === 'Rest')
+
+		// Both should start at the same tabValue (normalized to the wider header)
+		expect(staff0FirstNote.tabValue).toBe(staff1FirstRest.tabValue)
+
+		// Barlines should also align
+		const staff0Bar = data.score.staves[0].tokens.find(t => t.type === 'Barline')
+		const staff1Bar = data.score.staves[1].tokens.find(t => t.type === 'Barline')
+		expect(staff0Bar.tabValue).toBe(staff1Bar.tabValue)
+	})
 })

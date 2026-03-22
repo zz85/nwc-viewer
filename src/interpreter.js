@@ -202,6 +202,45 @@ SightReader.prototype.read = function (staves) {
 			token.tabUntilValue = this.tabCounter.value()
 		})
 	})
+
+	// ── Normalize header offsets across staves ──────────────────────
+	// Header tokens (Clef, KeySignature, TimeSignature) each advance
+	// tabCounter by 0.25.  When staves have different numbers of header
+	// tokens (e.g. one staff omits a Clef), notes start at different
+	// tab offsets, causing barlines and notes that should align across
+	// staves to have different tabValues.
+	//
+	// Fix: find the maximum header offset (tabValue of the first
+	// note/rest/chord on any staff) and shift all tokens on staves
+	// with smaller header offsets so musical content starts at the
+	// same tab time.
+	var headerTypes = new Set(['Clef', 'KeySignature', 'TimeSignature'])
+	var bodyTypes = new Set(['Note', 'Rest', 'Chord'])
+	var maxHeaderOffset = 0
+	var staffOffsets = []
+
+	staves.forEach(function(staff) {
+		var offset = 0
+		for (var i = 0; i < staff.tokens.length; i++) {
+			var t = staff.tokens[i]
+			if (bodyTypes.has(t.type) || t.type === 'Barline') {
+				offset = t.tabValue
+				break
+			}
+		}
+		staffOffsets.push(offset)
+		if (offset > maxHeaderOffset) maxHeaderOffset = offset
+	})
+
+	staves.forEach(function(staff, si) {
+		var delta = maxHeaderOffset - staffOffsets[si]
+		if (delta > 0) {
+			staff.tokens.forEach(function(token) {
+				if (token.tabValue !== undefined) token.tabValue += delta
+				if (token.tabUntilValue !== undefined) token.tabUntilValue += delta
+			})
+		}
+	})
 }
 
 SightReader.prototype.reset = function () {
