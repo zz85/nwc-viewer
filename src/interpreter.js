@@ -75,6 +75,7 @@ function interpret(dataOrContext) {
 	*/
 }
 
+if (typeof window !== 'undefined') {
 window.utils = window.utils || {}
 window.utils.getScoreBar = function (n) {
 	var tokens = data.score.staves[0].tokens
@@ -114,6 +115,7 @@ window.utils.whichBar = function (find) {
 	})
 
 	return bar
+}
 }
 
 function SightReader() {
@@ -550,6 +552,8 @@ SightReader.prototype._handle_duration = function (token) {
 	}
 }
 
-window.interpret = interpret
+if (typeof window !== 'undefined') {
+	window.interpret = interpret
+}
 
 export { interpret }
