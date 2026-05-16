@@ -188,6 +188,34 @@ function getZoomLevel() {
 	return zoomLevel
 }
 
+// Page view mode — controls how pages are arranged in page layout mode.
+// 'vertical': pages stacked vertically, free scrolling (default)
+// 'single-page': one page at a time, prev/next navigation
+// 'two-up': side-by-side pairs (2 pages per row, like a book spread)
+// 'horizontal': left-to-right horizontal scroll (single row)
+let pageViewMode = 'vertical'
+const PAGE_VIEW_MODES = ['vertical', 'single-page', 'two-up', 'horizontal']
+
+function setPageViewMode(mode) {
+	if (PAGE_VIEW_MODES.includes(mode)) pageViewMode = mode
+}
+
+function getPageViewMode() {
+	return pageViewMode
+}
+
+// Zoom fit mode — 'none', 'width', or 'height'.
+// Disengaged when the user manually drags the zoom slider.
+let zoomFitMode = 'none'
+
+function setZoomFitMode(mode) {
+	if (mode === 'none' || mode === 'width' || mode === 'height') zoomFitMode = mode
+}
+
+function getZoomFitMode() {
+	return zoomFitMode
+}
+
 function isNode() {
 	return typeof module !== 'undefined'
 }
@@ -214,6 +242,11 @@ Object.assign(!isBrowser() ? global : window, {
 	getZoomLevel,
 	ZOOM_MIN,
 	ZOOM_MAX,
+	setPageViewMode,
+	getPageViewMode,
+	PAGE_VIEW_MODES,
+	setZoomFitMode,
+	getZoomFitMode,
 	setLayoutMode,
 	getLayoutMode,
 	PAGE_SIZES,
@@ -238,6 +271,8 @@ export {
 	setRodSpringBalance, getRodSpringBalance,
 	setDurationProportionality, getDurationProportionality,
 	setZoomLevel, getZoomLevel, ZOOM_MIN, ZOOM_MAX,
+	setPageViewMode, getPageViewMode, PAGE_VIEW_MODES,
+	setZoomFitMode, getZoomFitMode,
 	setLayoutMode, getLayoutMode,
 	PAGE_SIZES, setPageSize, getPageSize,
 	setPageOrientation, getPageOrientation,

@@ -13,15 +13,21 @@
     "test:integration": "playwright test",
     "test:integration:update": "UPDATE_SNAPSHOTS=1 playwright test --update-snapshots",
     "test:score": "bun test/integration/scorer.js",
-    "test:all": "playwright test && bun test/integration/scorer.js"
+    "test:all": "playwright test && bun test/integration/scorer.js",
+    "postinstall": "bun scripts/patch-webmscore.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2"
+    "@playwright/test": "^1.58.2",
+    "@xmldom/xmldom": "^0.8.11",
+    "fflate": "^0.8.2"
   },
   "author": "Joshua Koo",
   "bugs": {
     "url": "https://github.com/zz85/nwc-viewer/issues"
   },
   "homepage": "https://github.com/zz85/nwc-viewer",
-  "license": "GNU"
+  "license": "GNU",
+  "dependencies": {
+    "webmscore": "^1.2.1"
+  }
 }

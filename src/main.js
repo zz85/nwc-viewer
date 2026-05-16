@@ -1,5 +1,5 @@
 import './constants.js'
-import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel } from './constants.js'
+import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel, setZoomLevel, getPageDimensions, setPageViewMode, getPageViewMode, setZoomFitMode, getZoomFitMode } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -13,6 +13,9 @@ import { PlaybackController } from './audio.js'
 import { PlaybackHighlighter } from './playback-highlight.js'
 import { InkBleedRenderer } from './ink-bleed.js'
 import { PianoKeyboard } from './piano-keyboard.js'
+import { parseMuseScore, isMuseScoreFileStrict } from './musescore-parser.js'
+import { parseMusicXML, isMusicXMLFile } from './musicxml-import.js'
+import { ensureWebMscore, exportMusicXML } from './webmscore-loader.js'
 
 /**********************
  *
@@ -25,10 +28,14 @@ window.addEventListener('resize', () => {
 		// In wrap mode, the layout depends on viewport width — must re-layout
 		rerender()
 	} else {
-		// scroll and page modes: fixed width, just repaint
-		resizeToFit()
-		var scoreElm = document.getElementById('score')
-		quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+		// If a fit mode is active, recalculate the zoom
+		if (getZoomFitMode() !== 'none') {
+			applyZoomFit()
+		} else {
+			resizeToFit()
+			var scoreElm = document.getElementById('score')
+			quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+		}
 	}
 })
 
@@ -552,6 +559,28 @@ progressBar.addEventListener('input', () => {
 	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(playback.duration)
 })
 
+// Speed control
+const speedSlider = document.getElementById('speed_slider')
+const speedInput = document.getElementById('speed_input')
+
+function applySpeed(val) {
+	const n = parseFloat(val)
+	if (!isFinite(n) || n <= 0) return
+	const clamped = Math.max(0.1, Math.min(4, n))
+	playback.setSpeed(clamped)
+	// Keep slider and input in sync (slider max is 3, input max is 4)
+	speedSlider.value = Math.min(clamped, parseFloat(speedSlider.max))
+	speedInput.value = clamped
+}
+
+if (speedSlider) {
+	speedSlider.addEventListener('input', () => applySpeed(speedSlider.value))
+}
+
+if (speedInput) {
+	speedInput.addEventListener('change', () => applySpeed(speedInput.value))
+}
+
 // Ink bleed / print emulation toggle
 let inkBleed = null
 const inkBleedBtn = document.getElementById('ink_bleed_toggle')
@@ -642,7 +671,10 @@ const rerender = () => {
 				console.log('rerender')
 				let data = scoreManager.getData()
 				const musicContext = new MusicContext(data, window.canvas)
-				interpret(musicContext)
+				// MuseScore/MusicXML-parsed data has timing/pitch already resolved — skip interpret
+				if (data._source !== 'musescore' && data._source !== 'musicxml') {
+					interpret(musicContext)
+				}
 				score(musicContext)
 				window.__renderComplete = { ts: Date.now(), file: window.__currentFile }
 
@@ -673,11 +705,97 @@ function setDataAndRender(_data) {
 	rerender()
 }
 
+// ---------------------------------------------------------------------------
+// MuseScore Import Mode
+// ---------------------------------------------------------------------------
+
+/** Get the current MuseScore import mode ('webmscore' or 'jsparser'). */
+function getMuseScoreImportMode() {
+	const select = document.getElementById('mscore_import_mode')
+	return select ? select.value : 'webmscore'
+}
+
+// Persist import mode in localStorage
+;(function initImportMode() {
+	const select = document.getElementById('mscore_import_mode')
+	if (!select) return
+	const saved = localStorage.getItem('mscore_import_mode')
+	if (saved && (saved === 'webmscore' || saved === 'jsparser')) {
+		select.value = saved
+	}
+	select.addEventListener('change', () => {
+		localStorage.setItem('mscore_import_mode', select.value)
+	})
+})()
+
+/**
+ * Process a MuseScore file via the WebMscore WASM pipeline.
+ * Falls back to the JS parser if WebMscore fails.
+ */
+async function processMuseScoreViaWebMscore(payload, filename) {
+	try {
+		const musicxml = await exportMusicXML(payload, filename)
+		console.log(`WebMscore exported MusicXML (${musicxml.length} chars)`)
+
+		const data = await parseMusicXML(musicxml, filename)
+		console.log('MusicXML parsed via WebMscore pipeline:', data)
+		setDataAndRender(data)
+	} catch (error) {
+		console.warn('WebMscore pipeline failed, falling back to JS parser:', error.message)
+
+		// Fallback to direct JS parser
+		try {
+			const data = await parseMuseScore(payload)
+			console.log('MuseScore parsed (JS fallback):', data)
+			setDataAndRender(data)
+		} catch (fallbackError) {
+			console.error('JS parser also failed:', fallbackError)
+			alert(`Error loading MuseScore file.\n\nWebMscore: ${error.message}\nJS parser: ${fallbackError.message}\n\nSee DevTools console for details.`)
+		}
+	}
+}
+
 function processData(payload, filename) {
 	try {
 		window._lastPayload = payload
 		window.__currentFile = filename || '(unknown)'
 		window.__renderComplete = null
+		// Detect MuseScore files (.mscx / .mscz)
+		if (isMuseScoreFileStrict(payload, filename)) {
+			console.log('Detected MuseScore file:', filename)
+
+			const useWebMscore = getMuseScoreImportMode() === 'webmscore'
+
+			if (useWebMscore) {
+				// WebMscore pipeline: .mscz → webmscore WASM → MusicXML → our parser
+				console.log('Using WebMscore pipeline...')
+				processMuseScoreViaWebMscore(payload, filename)
+			} else {
+				// Direct JS parser
+				parseMuseScore(payload).then(data => {
+					console.log('MuseScore parsed (JS):', data)
+					setDataAndRender(data)
+				}).catch(error => {
+					console.error('Failed to parse MuseScore file:', error)
+					alert(`Error loading MuseScore file: ${error.message}\n\nSee DevTools console for the full stack trace.`)
+				})
+			}
+			return
+		}
+
+		// Detect MusicXML files (.musicxml / .mxl / .xml)
+		if (isMusicXMLFile(payload, filename)) {
+			console.log('Detected MusicXML file:', filename)
+			parseMusicXML(payload, filename).then(data => {
+				console.log('MusicXML parsed:', data)
+				setDataAndRender(data)
+			}).catch(error => {
+				console.error('Failed to parse MusicXML file:', error)
+				alert(`Error loading MusicXML file: ${error.message}\n\nSee DevTools console for the full stack trace.`)
+			})
+			return
+		}
+
 		var data
 		if (isMidiFile(payload)) {
 			data = decodeMidiArrayBuffer(payload, filename)
@@ -751,9 +869,12 @@ function updateLayoutUI() {
 	// Show/hide page-only controls
 	const pageSizeEl = document.getElementById('page_size')
 	const orientGroup = document.getElementById('orientation_group')
+	const pageViewModeEl = document.getElementById('page_view_mode')
 	const isPage = mode === 'page'
 	if (pageSizeEl) pageSizeEl.style.display = isPage ? 'inline' : 'none'
 	if (orientGroup) orientGroup.style.display = isPage ? 'inline-flex' : 'none'
+	if (pageViewModeEl) pageViewModeEl.style.display = isPage ? 'inline' : 'none'
+	updatePageNavVisibility()
 
 	// Toggle background for page mode (gray canvas background)
 	const scoreDiv = document.getElementById('score')
@@ -805,6 +926,242 @@ if (orientGroup) {
 	})
 }
 
+// ---------------------------------------------------------------------------
+// Page View Mode (vertical, single-page, two-up, horizontal)
+// ---------------------------------------------------------------------------
+
+const PAGE_VIEW_STORAGE_KEY = 'nwc_page_view_mode'
+
+// Current page index for single-page mode
+let currentPageIdx = 0
+
+// Page view mode selector
+const pageViewModeSelect = document.getElementById('page_view_mode')
+if (pageViewModeSelect) {
+	pageViewModeSelect.onchange = function () {
+		setPageViewMode(pageViewModeSelect.value)
+		localStorage.setItem(PAGE_VIEW_STORAGE_KEY, pageViewModeSelect.value)
+		currentPageIdx = 0
+		updatePageNav()
+		updatePageNavVisibility()
+		if (getLayoutMode() === 'page') rerender()
+	}
+}
+
+function updatePageNavVisibility() {
+	const nav = document.getElementById('page_nav')
+	if (nav) nav.style.display = getLayoutMode() === 'page' ? 'inline' : 'none'
+}
+
+function updatePageNav() {
+	const input = document.getElementById('page_input')
+	const indicator = document.getElementById('page_indicator')
+	const prevBtn = document.getElementById('page_prev')
+	const nextBtn = document.getElementById('page_next')
+	const totalPages = window._pageGeometry?.pageCount || 1
+	if (input) {
+		input.value = currentPageIdx + 1
+		input.max = totalPages
+	}
+	if (indicator) indicator.textContent = ` / ${totalPages}`
+	if (prevBtn) prevBtn.disabled = currentPageIdx <= 0
+	if (nextBtn) nextBtn.disabled = currentPageIdx >= totalPages - 1
+}
+
+function scrollToPage(pageIdx) {
+	const pg = window._pageGeometry
+	if (!pg || !pg.pagePositions || pageIdx < 0 || pageIdx >= pg.pageCount) return
+	currentPageIdx = pageIdx
+	const pos = pg.pagePositions[pageIdx]
+	const zoom = getZoomLevel()
+	const scoreElm = document.getElementById('score')
+	if (scoreElm) {
+		// Center the page in the viewport
+		const pageVirtualHeight = pg.pageHeight + pg.interPageGap
+		scoreElm.scrollTop = (pos.y - pg.interPageGap / 2) * zoom
+		scoreElm.scrollLeft = 0
+		quickDraw(null, -scoreElm.scrollLeft, -scoreElm.scrollTop)
+	}
+	updatePageNav()
+}
+
+// Prev / Next buttons
+const pagePrevBtn = document.getElementById('page_prev')
+const pageNextBtn = document.getElementById('page_next')
+if (pagePrevBtn) pagePrevBtn.onclick = () => scrollToPage(currentPageIdx - 1)
+if (pageNextBtn) pageNextBtn.onclick = () => scrollToPage(currentPageIdx + 1)
+
+// Jump-to-page input
+const pageInput = document.getElementById('page_input')
+if (pageInput) {
+	pageInput.addEventListener('change', () => {
+		const totalPages = window._pageGeometry?.pageCount || 1
+		const page = Math.max(1, Math.min(totalPages, parseInt(pageInput.value, 10) || 1))
+		scrollToPage(page - 1)
+	})
+	pageInput.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter') {
+			e.target.blur()  // triggers change event
+		}
+	})
+	// Prevent scroll-wheel from changing the number input (confusing UX)
+	pageInput.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
+}
+
+// Track current page from scroll position in all page view modes
+;(function initPageScrollTracking() {
+	const scoreElm = document.getElementById('score')
+	if (!scoreElm) return
+
+	let trackPending = false
+	scoreElm.addEventListener('scroll', () => {
+		if (getLayoutMode() !== 'page') return
+		if (trackPending) return
+		trackPending = true
+		requestAnimationFrame(() => {
+			trackPending = false
+			updateCurrentPageFromScroll()
+		})
+	})
+})()
+
+/**
+ * Determine which page is currently most visible and update the nav UI.
+ */
+function updateCurrentPageFromScroll() {
+	const pg = window._pageGeometry
+	if (!pg || !pg.pagePositions) return
+	const scoreElm = document.getElementById('score')
+	if (!scoreElm) return
+
+	const zoom = getZoomLevel()
+	const viewMode = getPageViewMode()
+
+	// Compute viewport center in score-space
+	let viewCenterX, viewCenterY
+	if (viewMode === 'horizontal') {
+		viewCenterX = (scoreElm.scrollLeft + scoreElm.clientWidth / 2) / zoom
+		viewCenterY = pg.pagePositions[0]?.y + pg.pageHeight / 2 || 0
+	} else {
+		viewCenterX = pg.pagePositions[0]?.x + pg.pageWidth / 2 || 0
+		viewCenterY = (scoreElm.scrollTop + scoreElm.clientHeight / 2) / zoom
+	}
+
+	// Find the page whose center is closest to viewport center
+	let closestPage = 0
+	let closestDist = Infinity
+	for (let i = 0; i < pg.pageCount; i++) {
+		const pos = pg.pagePositions[i]
+		const pageCenterX = pos.x + pg.pageWidth / 2
+		const pageCenterY = pos.y + pg.pageHeight / 2
+		const dx = pageCenterX - viewCenterX
+		const dy = pageCenterY - viewCenterY
+		const dist = dx * dx + dy * dy
+		if (dist < closestDist) {
+			closestDist = dist
+			closestPage = i
+		}
+	}
+
+	if (closestPage !== currentPageIdx) {
+		currentPageIdx = closestPage
+		updatePageNav()
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Zoom Fit Mode (width / height) — buttons next to zoom slider
+// ---------------------------------------------------------------------------
+
+const ZOOM_FIT_STORAGE_KEY = 'nwc_zoom_fit'
+
+/** Calculate and apply zoom to fit width or height. */
+function applyZoomFit() {
+	const scoreElm = document.getElementById('score')
+	if (!scoreElm || typeof maxCanvasWidth === 'undefined') return
+
+	const mode = getZoomFitMode()
+	if (mode === 'none') return
+
+	const viewportW = scoreElm.clientWidth - 20
+	const viewportH = scoreElm.clientHeight - 20
+	let newZoom
+
+	if (mode === 'width') {
+		newZoom = viewportW / maxCanvasWidth
+	} else if (mode === 'height') {
+		newZoom = viewportH / maxCanvasHeight
+	}
+
+	if (newZoom) {
+		setZoomLevel(newZoom)
+		if (window.applyZoom) window.applyZoom(newZoom)
+	}
+}
+
+/**
+ * Called when the user manually drags the zoom slider.
+ * Disengages any active fit mode and applies the zoom.
+ */
+function onZoomSliderInput(value) {
+	setZoomFitMode('none')
+	updateFitButtonsUI()
+	localStorage.removeItem(ZOOM_FIT_STORAGE_KEY)
+	if (window.applyZoom) window.applyZoom(value)
+}
+window.onZoomSliderInput = onZoomSliderInput
+
+function updateFitButtonsUI() {
+	const mode = getZoomFitMode()
+	const fitW = document.getElementById('fit_width_btn')
+	const fitH = document.getElementById('fit_height_btn')
+	if (fitW) fitW.classList.toggle('active', mode === 'width')
+	if (fitH) fitH.classList.toggle('active', mode === 'height')
+}
+
+// Fit Width button
+const fitWidthBtn = document.getElementById('fit_width_btn')
+if (fitWidthBtn) {
+	fitWidthBtn.onclick = () => {
+		const newMode = getZoomFitMode() === 'width' ? 'none' : 'width'
+		setZoomFitMode(newMode)
+		localStorage.setItem(ZOOM_FIT_STORAGE_KEY, newMode)
+		updateFitButtonsUI()
+		if (newMode !== 'none') applyZoomFit()
+	}
+}
+
+// Fit Height button
+const fitHeightBtn = document.getElementById('fit_height_btn')
+if (fitHeightBtn) {
+	fitHeightBtn.onclick = () => {
+		const newMode = getZoomFitMode() === 'height' ? 'none' : 'height'
+		setZoomFitMode(newMode)
+		localStorage.setItem(ZOOM_FIT_STORAGE_KEY, newMode)
+		updateFitButtonsUI()
+		if (newMode !== 'none') applyZoomFit()
+	}
+}
+
+// Apply fit mode after each render
+;(function hookZoomFit() {
+	let lastRenderTs = 0
+	const checkRender = () => {
+		if (window.__renderComplete && window.__renderComplete.ts !== lastRenderTs) {
+			lastRenderTs = window.__renderComplete.ts
+			if (getZoomFitMode() !== 'none') {
+				requestAnimationFrame(() => applyZoomFit())
+			}
+			// Update page nav in single-page mode
+			if (getPageViewMode() === 'single-page' && getLayoutMode() === 'page') {
+				updatePageNav()
+			}
+		}
+		requestAnimationFrame(checkRender)
+	}
+	requestAnimationFrame(checkRender)
+})()
+
 // Restore persisted preferences
 const storedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY)
 if (storedLayout === 'wrap' || storedLayout === 'scroll' || storedLayout === 'page') {
@@ -821,6 +1178,16 @@ if (orientGroup) {
 	for (const btn of orientGroup.querySelectorAll('button')) {
 		btn.classList.toggle('active', btn.dataset.orient === getPageOrientation())
 	}
+}
+const storedPageView = localStorage.getItem(PAGE_VIEW_STORAGE_KEY)
+if (storedPageView) {
+	setPageViewMode(storedPageView)
+	if (pageViewModeSelect) pageViewModeSelect.value = storedPageView
+}
+const storedZoomFit = localStorage.getItem(ZOOM_FIT_STORAGE_KEY)
+if (storedZoomFit === 'width' || storedZoomFit === 'height') {
+	setZoomFitMode(storedZoomFit)
+	updateFitButtonsUI()
 }
 updateLayoutUI()
 

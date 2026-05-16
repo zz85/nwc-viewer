@@ -125,14 +125,25 @@ export const AFTER_TIMESIG_GAP = 0.56
  * Base 0.31 = 1.25 sp (MuseScore: keyBarlineDistance=1.0,
  * timesigBarlineDistance=0.5).
  * Covers accidental clearance (~0.36 fontSize overhang).
+ *
+ * In the layout engine, BARLINE_NOTE_EXTRA is added on top of this gap
+ * inside the barline's own cursor advancement (not as a separate indent
+ * on the next note).  The TickTracker performs dual registration:
+ *   - barlineTicks[T] = barline line position (pre-gap) — for matching
+ *     barlines on other staves to stack vertically.
+ *   - maxTicks[T] = post-gap cursor position — so notes on every staff
+ *     land past all barline gaps at a given time.
  */
 export const AFTER_BARLINE_GAP = 0.31
 
 /**
  * Extra indent for the first note/rest/chord after a barline.
- * Added on top of AFTER_BARLINE_GAP so notes get more breathing room
- * than key/time signatures do.  Must accommodate accidental overhang
- * (~0.36 fontSize).  Total note gap = 0.31 + 0.19 = 0.50 = 2.0 sp.
+ * Absorbed into the barline's own cursor gap (added to AFTER_BARLINE_GAP)
+ * so the TickTracker post-gap position already includes this offset.
+ * Total note gap = 0.31 + 0.19 = 0.50 = 2.0 sp.
+ *
+ * Key/time signatures after a barline do NOT get this extra indent —
+ * they clear the _afterBarline flag without adding the gap.
  */
 export const BARLINE_NOTE_EXTRA = 0.19
 

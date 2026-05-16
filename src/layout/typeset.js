@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getMusicTextFamily, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie, getCode, glyphPathGet } from '../drawing.js'
@@ -75,58 +75,9 @@ class StaveCursor {
 	}
 }
 
-/**
- * Aligns tokens by their time values.
- * The tokens that uses the most space
- * determines where other tokens should
- * align
- */
-class TickTracker {
-	constructor() {
-		this.reset()
-	}
+import { TickTracker } from './tick-tracker.js'
 
-	reset() {
-		this.maxTicks = {}
-	}
-
-	add(token, cursor) {
-		if (token.Visibility === 'hidden') return
-
-		const refValue = token.tabUntilValue
-		const which = this.maxTicks[refValue]
-
-		const x = cursor.staveX + cursor.lastPadRight * X_STRETCH || 0
-		if (!which || x > which.staveX) {
-			this.maxTicks[refValue] = {
-				cursor,
-				staveX: x,
-				token: token,
-			}
-		}
-	}
-
-	alignWithMax(token, cursor) {
-		let moveX = cursor.staveX
-
-		if (cursor.lastPadRight) {
-			moveX += cursor.lastPadRight * X_STRETCH
-		}
-
-		// increments staveX or align with item which already contains staveX for tabValue
-		const key = token.tabValue
-		if (key && key in this.maxTicks) {
-			const which = this.maxTicks[key]
-
-			moveX = which.staveX
-		}
-
-		cursor.staveX = moveX
-		return false
-	}
-}
-
-const tickTracker = new TickTracker()
+const tickTracker = new TickTracker(X_STRETCH)
 let absCounter = 0
 let drawing // placeholder for drawing system
 let info // running debug info
@@ -1443,6 +1394,22 @@ function score(dataOrContext) {
 }
 
 /**
+ * Check whether a token stream ends with a barline (i.e. the last barline
+ * comes after all notes/rests).  Importers such as MusicXML and MuseScore
+ * emit a closing barline token at the end of the last measure; when that is
+ * present the layout code should not draw an additional ending barline from
+ * the staff-level `endingBar` property.
+ */
+function hasTrailingBarline(tokens) {
+	for (var i = tokens.length - 1; i >= 0; i--) {
+		var t = tokens[i].type
+		if (t === 'Barline') return true
+		if (t === 'Note' || t === 'Rest' || t === 'Chord' || t === 'RestChord') return false
+	}
+	return false
+}
+
+/**
  * Original single-line (scroll) layout — draws staves, brackets, braces, labels,
  * title/author, and sizes the spacer for horizontal scrolling.
  */
@@ -1453,16 +1420,24 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// endingBar staff property → BarStyle mapping
 	var endingBarStyles = [3, 7, 0, 1, 8] // SectionClose, MasterClose, Single, Double, Hidden
 	stavePointers.forEach((cursor, staveIndex) => {
-		addStave(cursor, staveIndex)
-
-		// Draw the staff-level ending barline after the last measure
 		var stave = staves[staveIndex]
 		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
-		if (ebStyle !== 8) { // not hidden
+		var trailing = hasTrailingBarline(stave.tokens)
+
+		if (trailing) {
+			// Token stream already ends with a barline (MusicXML/MuseScore).
+			// Snap cursor back to the barline, then nudge past the thick
+			// line's right edge so the stave fully covers the barline.
+			cursor.staveX = cursor.lastBarline + getFontSize() / 16
+		} else if (ebStyle !== 8) { // not hidden
+			// NWC-style: advance cursor and place ending barline, so the
+			// subsequent addStave() extends the stave lines to meet it.
 			cursor.incStaveX(spacerWidth() * 2)
 			var eb = new Barline(0, 8, ebStyle)
 			cursor.posGlyph(eb)
 			drawing.add(eb)
+			// Nudge past the barline's right edge
+			cursor.incStaveX(getFontSize() / 16)
 
 			// Connect ending barline between staves if appropriate
 			// Skip if lyrics exist between staves (same logic as regular barlines)
@@ -1501,6 +1476,10 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 				}
 			}
 		}
+
+		// Draw the final stave segment — extends to the ending barline
+		// position (or to the trailing barline for imported formats).
+		addStave(cursor, staveIndex)
 
 		maxCanvasWidth = Math.max(cursor.staveX + 100, maxCanvasWidth)
 	})
@@ -1560,17 +1539,22 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// (so it gets reflowed with everything else).
 	var endingBarStyles = [3, 7, 0, 1, 8]
 	stavePointers.forEach((cursor, staveIndex) => {
-		// Add the final stave segment
-		addStave(cursor, staveIndex)
-
 		var stave = staves[staveIndex]
 		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
-		if (ebStyle !== 8) {
+		var trailing = hasTrailingBarline(stave.tokens)
+
+		if (trailing) {
+			cursor.staveX = cursor.lastBarline + getFontSize() / 16
+		} else if (ebStyle !== 8) {
 			cursor.incStaveX(spacerWidth() * 2)
 			var eb = new Barline(0, 8, ebStyle)
 			cursor.posGlyph(eb)
 			drawing.add(eb)
+			cursor.incStaveX(getFontSize() / 16)
 		}
+
+		// Final stave segment extends to the ending/trailing barline
+		addStave(cursor, staveIndex)
 	})
 
 	// Track the single-line total width before reflow
@@ -1669,7 +1653,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var courtesyW = courtesyWidths[sysIdx]
 		var contentWidth = pageWidth - courtesyW
 		var isLastSystem = sysIdx === systemCount - 1
-		var shouldJustify = !isLastSystem || (naturalWidth / contentWidth > 0.2)
+		var shouldJustify = !isLastSystem
 		var extraSpace = shouldJustify ? contentWidth - naturalWidth : 0
 
 		// Collect barline X positions within this system (relative to sysStartX)
@@ -1700,8 +1684,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var contentWidth = pageWidth - courtesyW
 			var isLastSystem = sysIdx === systemCount - 1
 			var naturalWidth = systemNaturalWidths[sysIdx]
-			// Only justify if it's not the last system or it fills enough of the line
-			var shouldJustify = !isLastSystem || (naturalWidth / contentWidth > 0.2)
+			var shouldJustify = !isLastSystem
 			systemSpringMaps.push(shouldJustify
 				? buildSpringMap(staves, sysStartX, sysEndX, contentWidth)
 				: null)
@@ -1785,9 +1768,8 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var isLastSystem = sysIdx === systemCount - 1
 		var courtesyW = courtesyWidths[sysIdx]
 		var contentWidth = pageWidth - courtesyW
-		var fillRatio = naturalWidth / contentWidth
-		var justifiedWidth = (!isLastSystem || fillRatio > 0.2)
-			? pageWidth : naturalWidth + courtesyW
+		var justifiedWidth = isLastSystem
+			? naturalWidth + courtesyW : pageWidth
 		var yOffset = sysIdx * (systemHeight + interSystemGap)
 
 		for (var si = 0; si < staves.length; si++) {
@@ -1840,10 +1822,8 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var gYOffset = gi * (systemHeight + interSystemGap)
 		var sysNatWidth = systemNaturalWidths[gi]
 		var sysCourtW = courtesyWidths[gi]
-		var sysContentW = pageWidth - sysCourtW
 		var isLastSys = gi === systemCount - 1
-		var sysFillRatio = sysNatWidth / sysContentW
-		var sysJustW = (!isLastSys || sysFillRatio > 0.2) ? pageWidth : sysNatWidth + sysCourtW
+		var sysJustW = isLastSys ? sysNatWidth + sysCourtW : pageWidth
 		_systemGeometry.push({
 			topY: firstStaffY + gYOffset - fs,
 			bottomY: lastStaffY + gYOffset,
@@ -1867,17 +1847,30 @@ function _drawPageBackgrounds(ctx, pg) {
 	var shadowOffset = 4
 	var shadowColor = 'rgba(0,0,0,0.25)'
 
+	// Viewport culling — skip pages entirely outside the visible area.
+	var zoom = getZoomLevel()
+	var scoreElm = document.getElementById('score')
+	var viewTop = (scoreElm?.scrollTop || 0) / zoom
+	var viewBottom = viewTop + (scoreElm?.clientHeight || 800) / zoom
+	var viewLeft = (scoreElm?.scrollLeft || 0) / zoom
+	var viewRight = viewLeft + (scoreElm?.clientWidth || 800) / zoom
+	var pad = 50  // extra padding to avoid pop-in
+
 	for (var p = 0; p < pg.pageCount; p++) {
-		var pageY = pg.interPageGap + p * (pg.pageHeight + pg.interPageGap)
-		var pageX = pg.horizontalPad
+		var pos = pg.pagePositions[p]
+
+		if (pos.y + pg.pageHeight < viewTop - pad) continue
+		if (pos.y > viewBottom + pad) continue
+		if (pos.x + pg.pageWidth < viewLeft - pad) continue
+		if (pos.x > viewRight + pad) continue
 
 		// Drop shadow
 		ctx.fillStyle = shadowColor
-		ctx.fillRect(pageX + shadowOffset, pageY + shadowOffset, pg.pageWidth, pg.pageHeight)
+		ctx.fillRect(pos.x + shadowOffset, pos.y + shadowOffset, pg.pageWidth, pg.pageHeight)
 
 		// White page
 		ctx.fillStyle = '#ffffff'
-		ctx.fillRect(pageX, pageY, pg.pageWidth, pg.pageHeight)
+		ctx.fillRect(pos.x, pos.y, pg.pageWidth, pg.pageHeight)
 	}
 }
 
@@ -1908,15 +1901,21 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// --- Draw ending barlines (same as wrap mode) ---
 	var endingBarStyles = [3, 7, 0, 1, 8]
 	stavePointers.forEach((cursor, staveIndex) => {
-		addStave(cursor, staveIndex)
 		var stave = staves[staveIndex]
 		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
-		if (ebStyle !== 8) {
+		var trailing = hasTrailingBarline(stave.tokens)
+
+		if (trailing) {
+			cursor.staveX = cursor.lastBarline + getFontSize() / 16
+		} else if (ebStyle !== 8) {
 			cursor.incStaveX(spacerWidth() * 2)
 			var eb = new Barline(0, 8, ebStyle)
 			cursor.posGlyph(eb)
 			drawing.add(eb)
+			cursor.incStaveX(getFontSize() / 16)
 		}
+
+		addStave(cursor, staveIndex)
 	})
 
 	var singleLineWidth = 0
@@ -1992,7 +1991,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var courtesyW = courtesyWidths[sysIdx]
 		var sysContentW = contentW - courtesyW
 		var isLastSystem = sysIdx === systemCount - 1
-		var shouldJustify = !isLastSystem || (naturalWidth / sysContentW > 0.2)
+		var shouldJustify = !isLastSystem
 		var extraSpace = shouldJustify ? sysContentW - naturalWidth : 0
 
 		var relBarXs = []
@@ -2021,7 +2020,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var sysContentW = contentW - courtesyW
 			var isLastSystem = sysIdx === systemCount - 1
 			var naturalWidth = systemNaturalWidths[sysIdx]
-			var shouldJustify = !isLastSystem || (naturalWidth / sysContentW > 0.2)
+			var shouldJustify = !isLastSystem
 			systemSpringMapsPage.push(shouldJustify
 				? buildSpringMap(staves, sysStartX, sysEndX, sysContentW)
 				: null)
@@ -2057,18 +2056,81 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	pages.push({ systemStart: pageStart, systemEnd: systemCount - 1 })
 	var pageCount = pages.length
 
-	// --- Compute per-system absolute Y position ---
+	// --- Compute page positions based on page view mode ---
 	var interPageGap = 24
 	var horizontalPad = 40
+	var viewMode = getPageViewMode()
 
+	// Compute {x, y} for each page's top-left corner
+	var pagePositions = new Array(pageCount)
+	var totalCanvasWidth, totalCanvasHeight
+
+	if (viewMode === 'horizontal') {
+		// Left-to-right: all pages in a single horizontal row
+		for (var pi = 0; pi < pageCount; pi++) {
+			pagePositions[pi] = {
+				x: interPageGap + pi * (PAGE_W + interPageGap),
+				y: interPageGap,
+			}
+		}
+		totalCanvasWidth = pageCount * (PAGE_W + interPageGap) + interPageGap
+		totalCanvasHeight = PAGE_H + interPageGap * 2
+	} else if (viewMode === 'two-up') {
+		// Side-by-side pairs: 2 pages per row
+		var pagesPerRow = 2
+		var rowWidth = pagesPerRow * PAGE_W + (pagesPerRow + 1) * interPageGap
+		for (var pi = 0; pi < pageCount; pi++) {
+			var col = pi % pagesPerRow
+			var row = Math.floor(pi / pagesPerRow)
+			pagePositions[pi] = {
+				x: interPageGap + col * (PAGE_W + interPageGap),
+				y: interPageGap + row * (PAGE_H + interPageGap),
+			}
+		}
+		totalCanvasWidth = rowWidth
+		var rowCount = Math.ceil(pageCount / pagesPerRow)
+		totalCanvasHeight = rowCount * (PAGE_H + interPageGap) + interPageGap
+	} else if (viewMode === 'single-page') {
+		// Single-page: only one page visible at a time.
+		// Layout all pages at the same position (they'll be shown one at a
+		// time via clipping in quickDraw). Canvas sized for one page.
+		for (var pi = 0; pi < pageCount; pi++) {
+			pagePositions[pi] = {
+				x: horizontalPad,
+				y: interPageGap + pi * (PAGE_H + interPageGap),
+			}
+		}
+		totalCanvasWidth = PAGE_W + horizontalPad * 2
+		// Size for all pages so internal layout is consistent, but the
+		// viewport will be constrained to one page in quickDraw/scrolling.
+		totalCanvasHeight = pageCount * (PAGE_H + interPageGap) + interPageGap
+	} else {
+		// 'vertical' (default): pages stacked vertically with free scrolling
+		for (var pi = 0; pi < pageCount; pi++) {
+			pagePositions[pi] = {
+				x: horizontalPad,
+				y: interPageGap + pi * (PAGE_H + interPageGap),
+			}
+		}
+		totalCanvasWidth = PAGE_W + horizontalPad * 2
+		totalCanvasHeight = pageCount * (PAGE_H + interPageGap) + interPageGap
+	}
+
+	// --- Compute per-system absolute position ---
+	// systemXOffsets[i] = the X offset to add to all elements in system i
+	// (relative to the default horizontalPad assumption)
 	var systemYOffsets = new Array(systemCount)
+	var systemXOffsets = new Array(systemCount)
 	for (var pi = 0; pi < pageCount; pi++) {
 		var page = pages[pi]
-		var pageTopY = interPageGap + pi * (PAGE_H + interPageGap) + margins.top
+		var pos = pagePositions[pi]
+		var pageContentY = pos.y + margins.top
 		var localY = (pi === 0) ? titleHeight : 0
 
 		for (var si = page.systemStart; si <= page.systemEnd; si++) {
-			systemYOffsets[si] = pageTopY + localY
+			systemYOffsets[si] = pageContentY + localY
+			// X offset: difference between this page's x and the default horizontalPad
+			systemXOffsets[si] = pos.x - horizontalPad
 			localY += systemHeight + interSystemGap
 		}
 	}
@@ -2087,6 +2149,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var relX = el.x - systemStartX
 		var courtesyW = courtesyWidths[sysIdx]
 		var barlineMap = systemBarlineMaps[sysIdx]
+		var xPageShift = systemXOffsets[sysIdx]
 
 		// Choose justification function: spring-rod or legacy anchor-gap
 		var springMapP = useSpringPage ? systemSpringMapsPage[sysIdx] : null
@@ -2102,9 +2165,9 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var relEnd = origEndAbsX - systemStartX
 			var relOrigin = el.x - systemStartX
 
-			var justOrigin = justifyP(relOrigin) + leftMargin + courtesyW + horizontalPad
-			var justStart = justifyP(relStart) + leftMargin + courtesyW + horizontalPad
-			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad
+			var justOrigin = justifyP(relOrigin) + leftMargin + courtesyW + horizontalPad + xPageShift
+			var justStart = justifyP(relStart) + leftMargin + courtesyW + horizontalPad + xPageShift
+			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad + xPageShift
 
 			el.x = justOrigin
 			el.startX = justStart - justOrigin
@@ -2113,14 +2176,14 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var origEndAbsX = el.x + el.width
 			var relEnd = origEndAbsX - systemStartX
 
-			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad
-			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad
+			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
+			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad + xPageShift
 			el.width = justEnd - el.x
 			el.endx = justEnd
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
 		} else {
-			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad
+			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
 		}
 
 		// Y: offset from single-line staff Y to absolute page position
@@ -2137,15 +2200,14 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var naturalWidth = systemNaturalWidths[sysIdx]
 		var isLastSystem = sysIdx === systemCount - 1
 		var courtesyW = courtesyWidths[sysIdx]
-		var sysContentW = contentW - courtesyW
-		var fillRatio = naturalWidth / sysContentW
-		var justifiedWidth = (!isLastSystem || fillRatio > 0.2)
-			? contentW : naturalWidth + courtesyW
+		var justifiedWidth = isLastSystem
+			? naturalWidth + courtesyW : contentW
 		var yOffset = systemYOffsets[sysIdx] - firstStaffY
+		var xBase = leftMargin + horizontalPad + systemXOffsets[sysIdx]
 
 		for (var si = 0; si < staves.length; si++) {
 			var staveEl = new Stave(justifiedWidth)
-			staveEl.moveTo(leftMargin + horizontalPad, getStaffY(si) + yOffset)
+			staveEl.moveTo(xBase, getStaffY(si) + yOffset)
 			drawing.add(staveEl)
 		}
 
@@ -2160,23 +2222,24 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 					getStaffY(si) + yOffset
 				)
 				for (var cei = 0; cei < elements.length; cei++) {
-					elements[cei].x += leftMargin + horizontalPad
+					elements[cei].x += xBase
 					drawing.add(elements[cei])
 				}
 			}
 		}
 
-		drawBracketsAndBraces(drawing, staves, yOffset, leftMargin + horizontalPad)
-		drawStaffLabels(drawing, staves, yOffset, leftMargin + horizontalPad)
+		drawBracketsAndBraces(drawing, staves, yOffset, xBase)
+		drawStaffLabels(drawing, staves, yOffset, xBase)
 
 		// Draw bar number at system start
 		var firstMeasureP = sysIdx === 0 ? 1 : systemBreaks[sysIdx - 1].boundaryIndex + 2
-		drawBarNumbers(drawing, staves, yOffset, leftMargin + horizontalPad, firstMeasureP)
+		drawBarNumbers(drawing, staves, yOffset, xBase, firstMeasureP)
 	}
 
 	// --- Title and author on page 1 ---
-	var page1TopY = interPageGap + margins.top
-	var titleCenterX = horizontalPad + PAGE_W / 2
+	var page1Pos = pagePositions[0]
+	var page1TopY = page1Pos.y + margins.top
+	var titleCenterX = page1Pos.x + PAGE_W / 2
 	var titleFs = getFontSize()
 	if (data.info?.title) {
 		const titleDraw = new Claire.Text(data.info.title, 0, {
@@ -2197,8 +2260,36 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// --- Footer ---
 	var { copyright1, copyright2 } = data.info || {}
+
+	// In page mode, render copyright on the canvas at the bottom of page 1
+	// instead of in the DOM footer (which is used for scroll/wrap modes).
+	var copyrightText = [copyright1, copyright2].filter(Boolean).join(' \u2014 ')
+	if (copyrightText) {
+		var copyrightDraw = new Claire.Text(copyrightText, 0, {
+			font: Math.round(titleFs * 0.32) + 'px ' + getMusicTextFamily(),
+			textAlign: 'center',
+		})
+		// Position in the bottom margin of page 1, above the page number
+		copyrightDraw.moveTo(titleCenterX, page1Pos.y + PAGE_H - margins.bottom * 0.55)
+		drawing.add(copyrightDraw)
+	}
+
+	// --- Page numbers ---
+	var pageNumFont = Math.round(titleFs * 0.36) + 'px ' + getMusicTextFamily()
+	for (var pi = 0; pi < pageCount; pi++) {
+		var pos = pagePositions[pi]
+		var pageNumDraw = new Claire.Text(String(pi + 1), 0, {
+			font: pageNumFont,
+			textAlign: 'center',
+		})
+		// Position at bottom center of each page, in the margin area
+		pageNumDraw.moveTo(pos.x + PAGE_W / 2, pos.y + PAGE_H - margins.bottom * 0.3)
+		drawing.add(pageNumDraw)
+	}
+
+	// Clear DOM footer in page mode (content is on the canvas)
 	var footerEl = document.getElementById('footer')
-	if (footerEl) footerEl.innerText = (copyright1 || '') + '\n' + (copyright2 || '')
+	if (footerEl) footerEl.innerText = ''
 
 	// --- Store page geometry for quickDraw background rendering ---
 	_pageGeometry = {
@@ -2207,23 +2298,25 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		pageHeight: PAGE_H,
 		interPageGap,
 		horizontalPad,
+		pagePositions,
 	}
+	// Expose for single-page navigation in main.js
+	window._pageGeometry = _pageGeometry
 
 	// Build system geometry for playback cursor spanning
 	_systemGeometry = []
 	for (var gi = 0; gi < systemCount; gi++) {
 		var sysNatWidthP = systemNaturalWidths[gi]
 		var sysCourtWP = courtesyWidths[gi]
-		var sysContentWP = contentW - sysCourtWP
 		var isLastSysP = gi === systemCount - 1
-		var sysFillP = sysNatWidthP / sysContentWP
-		var sysJustWP = (!isLastSysP || sysFillP > 0.2) ? contentW : sysNatWidthP + sysCourtWP
+		var sysJustWP = isLastSysP ? sysNatWidthP + sysCourtWP : contentW
+		var sysXBase = leftMargin + horizontalPad + systemXOffsets[gi]
 		// After reflow, first staff bottom line is at systemYOffsets[gi]
 		_systemGeometry.push({
 			topY: systemYOffsets[gi] - fs,
 			bottomY: systemYOffsets[gi] + (lastStaffY - firstStaffY),
-			startX: leftMargin + horizontalPad,
-			endX: leftMargin + horizontalPad + sysJustWP,
+			startX: sysXBase,
+			endX: sysXBase + sysJustWP,
 		})
 	}
 
@@ -2231,8 +2324,8 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	_measureGeometry = buildMeasureGeometry(staves)
 
 	// --- Canvas sizing ---
-	maxCanvasWidth = PAGE_W + horizontalPad * 2
-	maxCanvasHeight = pageCount * (PAGE_H + interPageGap) + interPageGap
+	maxCanvasWidth = totalCanvasWidth
+	maxCanvasHeight = totalCanvasHeight
 
 	// Split ties/slurs that cross system breaks into partial arcs
 	splitCrossSystemTies(drawing, systemHeight, interSystemGap)
@@ -2403,10 +2496,21 @@ function drawBarNumbers(drawing, staves, yOffset, leftMarginX, firstMeasureNum, 
 	// In scroll mode, also draw numbers above every barline
 	if (mode === 'scroll') {
 		var tokens = staves[0]?.tokens || []
+		// Find the last note/rest/chord — barlines after it are closing
+		// barlines (e.g. SectionClose) that don't start a new measure.
+		var lastNoteIdx = -1
+		for (var li = tokens.length - 1; li >= 0; li--) {
+			var lt = tokens[li].type
+			if (lt === 'Note' || lt === 'Rest' || lt === 'Chord' || lt === 'RestChord') {
+				lastNoteIdx = li
+				break
+			}
+		}
 		var barNum = 1
 		for (var i = 0; i < tokens.length; i++) {
 			var tok = tokens[i]
 			if (tok.type !== 'Barline' || !tok.drawingBarline) continue
+			if (i > lastNoteIdx) break  // trailing barline — no new measure
 			barNum++
 			var bx = tok.drawingBarline.x
 			var barNumDraw = new Claire.Text(String(barNum), 0, {
@@ -2646,7 +2750,12 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 	let t, s
 
 	// console.log('handleToken', token)
-	tickTracker.alignWithMax(token, cursor)
+	const isBarline = type === 'Barline'
+	if (isBarline) {
+		tickTracker.alignBarline(token, cursor)
+	} else {
+		tickTracker.alignWithMax(token, cursor)
+	}
 
 	let clef
 
@@ -2709,11 +2818,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 
 		case 'Rest':
-			// First rest after a barline gets extra indent (same as notes)
-			if (cursor._afterBarline) {
-				cursor.incStaveX(getFontSize() * BARLINE_NOTE_EXTRA)
-				cursor._afterBarline = false
-			}
+			// BARLINE_NOTE_EXTRA is now absorbed into the barline's own gap,
+			// so no separate _afterBarline indent is needed here.
+			cursor._afterBarline = false
+
 			var duration = token.duration
 			var sym = {
 				1: 'restWhole',
@@ -2747,6 +2855,9 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s._text = info
 			drawing.add(s)
 			token.drawingBarline = s
+
+			// Save the X where the barline LINE was drawn (pre-gap).
+			var barlineDrawnX = cursor.staveX
 
 			// Connect barlines to next staff if flagged
 			// bracketWithNext or layerWithNext cause connection when allowLayering is on;
@@ -2796,20 +2907,23 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 
 			addStave(cursor, staveIndex)
 			cursor.updateBarline()
-			// Gap after barline: 1.25 sp covers accidental clearance on the
-			// first note (accidentals hang left ~0.36 fontSize) plus breathing
-			// room.  MuseScore uses barNoteDistance=1.25 sp.
-			cursor.incStaveX(getFontSize() * AFTER_BARLINE_GAP)
-			// cursor.tokenPadRight(spacerWidth())
-			// 10
+			// Total gap after barline: AFTER_BARLINE_GAP + BARLINE_NOTE_EXTRA.
+			// We absorb BARLINE_NOTE_EXTRA into the barline's own cursor
+			// advancement so the TickTracker registers the position where the
+			// first note will actually land.  Without this, a staff with an
+			// extra barline would register a position that is BARLINE_NOTE_EXTRA
+			// short of where its notes sit, causing notes on other staves
+			// (which align via TickTracker) to be offset to the left.
+			cursor.incStaveX(getFontSize() * (AFTER_BARLINE_GAP + BARLINE_NOTE_EXTRA))
+
+			// Dual registration: barline line position (for barline-to-barline
+			// alignment) and post-gap position (for note alignment).
+			tickTracker.addBarline(token, barlineDrawnX, cursor.staveX)
 			break
 
 		case 'Chord':
-			// First chord after a barline gets extra indent (same as notes)
-			if (cursor._afterBarline) {
-				cursor.incStaveX(getFontSize() * BARLINE_NOTE_EXTRA)
-				cursor._afterBarline = false
-			}
+			// BARLINE_NOTE_EXTRA is now absorbed into the barline's own gap.
+			cursor._afterBarline = false
 
 			// --- Detect seconds and compute notehead offsets ---
 			// When two chord notes are a second apart (adjacent positions),
@@ -3090,7 +3204,11 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 	}
 
-	tickTracker.add(token, cursor)
+	// Barlines handle their own TickTracker registration via addBarline()
+	// inside the switch case above (dual pre-gap / post-gap registration).
+	if (!isBarline) {
+		tickTracker.add(token, cursor)
+	}
 }
 
 function drawForNote(token, cursor, durToken, skipLedger) {
@@ -3112,12 +3230,9 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 
 	const relativePos = token.position + 4
 
-	// First note/rest/chord after a barline gets extra indent so notes
-	// don't crowd the barline while key/time sigs stay tight.
-	if (cursor._afterBarline) {
-		cursor.incStaveX(getFontSize() * BARLINE_NOTE_EXTRA)
-		cursor._afterBarline = false
-	}
+	// BARLINE_NOTE_EXTRA is now absorbed into the barline's own gap,
+	// so no separate _afterBarline indent is needed here.
+	cursor._afterBarline = false
 
 	if (token.accidental) {
 		var acc = new Accidental(token.accidental, relativePos)

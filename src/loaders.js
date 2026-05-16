@@ -64,6 +64,8 @@ function setupDragAndDrop(element) {
 	}
 }
 
-setupDragAndDrop(document.body)
+if (typeof document !== 'undefined' && document.body) {
+	setupDragAndDrop(document.body)
+}
 
 export { ajax }

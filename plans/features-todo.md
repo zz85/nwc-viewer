@@ -45,9 +45,9 @@ Planned features and improvements, roughly prioritized.
 - [x] Companion text fonts — BravuraText, LelandText, PetalumaText, SebastianText loaded via @font-face; all text elements (lyrics, titles, tempo, staff labels) use the matching text font; GoldenAge/Leipzig fall back to serif
 - [x] Dynamic markings rendered as SMuFL glyphs — pre-composed glyphs (pp, mp, mf, ff, etc.) from the music font instead of italic text; falls back to individual letter glyph composition for unknown combinations
 - [x] Landscape / portrait page orientation toggle — `[Portrait | Landscape]` segmented button group in page mode, swaps page width/height via `getPageDimensions()`, persisted to localStorage
-- [ ] Multi-page rendering — display all pages vertically like a PDF viewer (currently only lays out pages but rendering may clip)
-- [ ] Page navigation — jump to page N (page indicator + input or prev/next buttons)
-- [ ] Page numbers, headers/footers in page mode
+- [x] Multi-page rendering — display all pages vertically like a PDF viewer; virtual-scroll architecture (viewport-sized canvas, scroll-based repainting, viewport culling) handles arbitrarily many pages; page backgrounds with drop shadows on gray canvas
+- [x] Page navigation — jump to page N via numeric input in toolbar; prev/next buttons; scroll-based page tracking updates indicator in all page view modes (vertical, single-page, two-up, horizontal)
+- [x] Page numbers, headers/footers in page mode — page numbers rendered at bottom center of each page; copyright text rendered in bottom margin of page 1
 - [ ] Bar compression — fix bug where bars with many notes overflow or don't shrink to fit available width
 - [ ] First-system indent for instrument names
 - [ ] Melisma/extender lines for slurred notes under one syllable
@@ -103,8 +103,9 @@ Planned features and improvements, roughly prioritized.
   - [ ] Voice splitting — Detect multiple voices within one MIDI track
   - [ ] Tuplet detection beyond triplets — quintuplets, septuplets, etc.
 - [ ] MIDI export — export score as Standard MIDI File
-- [ ] MusicXML import — load .musicxml / .mxl files
-- [ ] MuseScore import — load .mscx / .mscz files
+- [x] MusicXML import — load .musicxml / .mxl files (Phase 1+2: notes, rests, chords, clefs, key/time sigs, ties, articulations, dynamics, tempo, barlines, repeats, pedal, flow directions)
+- [x] MuseScore import (basic) — load .mscx / .mscz files (notes, rests, chords, clefs, key/time sigs, barlines)
+- [ ] MuseScore import (extended) — dynamics, lyrics, articulations, ties, slurs, beaming, multi-voice
 - [ ] LilyPond export — export score as .ly file
 - [ ] PDF export / print feature from page layout
 
