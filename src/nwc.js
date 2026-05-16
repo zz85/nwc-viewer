@@ -78,26 +78,51 @@ function decodeNwcArrayBuffer(arrayBuffer) {
 	}
 }
 
+// NWC files store text in the locale codepage of the authoring Windows
+// machine. We try UTF-8 first (covers ASCII and any modern file), then
+// detect EUC-KR / CP949 (Korean) via lead+trail byte pattern, and finally
+// fall back to Windows-1252 which losslessly maps any byte sequence.
+var _td_utf8  = new TextDecoder('utf-8', { fatal: true })
+var _td_euckr = new TextDecoder('euc-kr')
+var _td_w1252 = new TextDecoder('windows-1252')
+
+function looksLikeEUCKR(bytes) {
+	var high = 0
+	for (var i = 0; i < bytes.length; i++) {
+		var b = bytes[i]
+		if (b < 0x80) continue
+		high++
+		if (b >= 0x81 && b <= 0xFE && i + 1 < bytes.length) {
+			var n = bytes[i + 1]
+			if ((n >= 0x41 && n <= 0x5A) ||
+				(n >= 0x61 && n <= 0x7A) ||
+				(n >= 0x81 && n <= 0xFE)) {
+				i++ // consume valid trail byte
+				continue
+			}
+		}
+		// Unpaired high byte — not EUC-KR
+		return false
+	}
+	return high > 0
+}
+
+function decodeBytes(array) {
+	if (!array || array.length === 0) return ''
+	var bytes = array instanceof Uint8Array ? array : new Uint8Array(array)
+	try { return _td_utf8.decode(bytes) } catch (e) {}
+	if (looksLikeEUCKR(bytes)) return _td_euckr.decode(bytes)
+	return _td_w1252.decode(bytes)
+}
+
 function shortArrayToString(array) {
-	return String.fromCharCode.apply(null, array)
+	return decodeBytes(array)
 }
 
 function longArrayToString(array, chunkSize) {
-	/*
-	For way longer strings, better to use this
-	var enc = new TextDecoder();
-	var arr = new Uint8Array([84,104,105,...]);
-	console.log(enc.decode(arr));
-	*/
-
-	var buffer = []
-
-	var chunk = chunkSize || 1024
-	for (var i = 0; i < array.length; i += chunk) {
-		buffer.push(shortArrayToString(array.slice(i, i + chunk)))
-	}
-
-	return buffer.join('')
+	// TextDecoder handles arbitrary-length input, so no manual chunking needed.
+	void chunkSize
+	return decodeBytes(array)
 }
 
 // Convert from new parser format to old viewer format
