@@ -1344,4 +1344,4 @@ if (typeof window !== 'undefined') {
 	Object.assign(window, { decodeNwcArrayBuffer })
 }
 
-export { decodeNwcArrayBuffer }
+export { decodeNwcArrayBuffer, looksLikeEUCKR, decodeBytes }
