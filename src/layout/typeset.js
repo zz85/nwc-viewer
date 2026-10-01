@@ -3320,8 +3320,14 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			// Convert to rendering coords: pass -(pos + 4) so Text's internal
 			// negation yields positionY(pos + 4)  — same mapping notes use.
 			var pos = token.position !== undefined ? token.position : 11
-			var text = token.drawingAnnotation = new Text(token.text, -(pos + 4))
+			// Verse numbers ("1.", "2.") sit in the lyric line just before the
+			// first syllable; Text takes no width, so right-align them to end
+			// a little before the note instead of overprinting its syllable.
+			var isVerseNumber = /^\s*\d+\.?\s*$/.test(token.text || '') && pos < 0
+			var text = token.drawingAnnotation = new Text(isVerseNumber ? token.text.trim() : token.text, -(pos + 4),
+				isVerseNumber ? { textAlign: 'right', font: Math.round(getFontSize() * 0.38) + 'px ' + getMusicTextFamily() } : undefined)
 			cursor.posGlyph(text)
+			if (isVerseNumber) text.offsetX = -getFontSize() * 0.15
 			drawing.add(text)
 			break
 		case 'PerformanceStyle':
