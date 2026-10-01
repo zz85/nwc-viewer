@@ -10,7 +10,7 @@
     "lyricist": "",
     "copyright1": "www.cipoo.net   -   Copyleft: this work of art is free, you can redistribute it",
     "copyright2": "and/or modify it according to terms of the Free Art license http://artlibre.org",
-    "comments": "\r\nÂ­ Â­\r\n"
+    "comments": "\r\n­ ­\r\n"
   },
   "score": {
     "allowLayering": true,
@@ -20,6 +20,7 @@
         "staff_label": "s",
         "group_name": "Standard",
         "channel": 2,
+        "muted": false,
         "patchName": 52,
         "transposition": 0,
         "bracketWithNext": true,
@@ -1853,6 +1854,7 @@
         "staff_label": "a",
         "group_name": "Standard",
         "channel": 3,
+        "muted": false,
         "patchName": 52,
         "transposition": 0,
         "bracketWithNext": true,
@@ -3249,6 +3251,7 @@
         "staff_label": "t",
         "group_name": "Standard",
         "channel": 4,
+        "muted": false,
         "patchName": 52,
         "transposition": 0,
         "bracketWithNext": true,
@@ -4735,6 +4738,7 @@
         "staff_label": "b",
         "group_name": "Standard",
         "channel": 5,
+        "muted": false,
         "patchName": 52,
         "transposition": 0,
         "bracketWithNext": false,
