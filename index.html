@@ -217,6 +217,130 @@
 				font-variant-numeric: tabular-nums;
 			}
 
+			/* Compact buttons and inline inputs on the main bar */
+			button.compact {
+				font-size: 11px;
+				padding: 2px 6px;
+			}
+
+			#progress_bar { width: 160px; }
+			#zoom_slider { width: 80px; }
+
+			#zoom_label {
+				font-size: 11px;
+				min-width: 36px;
+				text-align: center;
+				color: var(--text-dim);
+			}
+
+			#page_input {
+				width: 32px;
+				text-align: center;
+				font-size: 11px;
+				padding: 1px 2px;
+				-moz-appearance: textfield;
+				background: var(--surface);
+				color: var(--text);
+				border: 1px solid var(--border);
+				border-radius: 3px;
+			}
+
+			#page_indicator {
+				font-size: 11px;
+				color: var(--text-dim);
+			}
+
+			/* Settings menu */
+			.settings-group {
+				position: relative;
+				margin-left: auto;
+			}
+
+			.toolbar-group.settings-group {
+				border-left: none;
+			}
+
+			.settings-panel {
+				left: auto;
+				right: 0;
+				width: 320px;
+				max-height: calc(100vh - 80px);
+				overflow-y: auto;
+			}
+
+			.settings-panel section + section {
+				border-top: 1px solid var(--divider);
+				padding-top: 8px;
+			}
+
+			.settings-panel h5 {
+				margin: 0 0 6px;
+				font-size: 11px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+				color: var(--text-dim);
+			}
+
+			.settings-panel .row {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 6px;
+				margin-bottom: 6px;
+			}
+
+			.settings-panel .slider-list {
+				display: flex;
+				flex-direction: column;
+				gap: 6px;
+			}
+
+			.settings-panel .hint {
+				margin: 0;
+				font-size: 11px;
+				color: var(--text-dim);
+			}
+
+			.settings-panel .speed-control {
+				margin-bottom: 6px;
+			}
+
+			.settings-panel .speed-control span:first-child {
+				min-width: 0;
+			}
+
+			#speed_slider { width: 110px; }
+			#speed_input { width: 48px; }
+
+			#ink_paper_color {
+				width: 28px;
+				height: 24px;
+				padding: 0;
+				border: 1px solid var(--border);
+				border-radius: var(--radius);
+				cursor: pointer;
+				vertical-align: middle;
+			}
+
+			.link-button {
+				color: var(--accent);
+			}
+
+			/* Narrow screens: keep the main bar to one or two rows */
+			@media (max-width: 700px) {
+				.toolbar { padding: 4px 6px; gap: 6px; }
+				.toolbar-group + .toolbar-group { padding-left: 6px; }
+				#logo { display: none; }
+				#samples { max-width: 140px; }
+				#progress_bar { width: 90px; }
+				.time-display { min-width: 0; }
+				#zoom_slider { width: 60px; }
+				#fit_width_btn, #fit_height_btn { display: none; }
+				.settings-group { margin-left: 0; }
+				.settings-panel { position: fixed; top: 48px; left: 8px; right: 8px; width: auto; max-height: calc(100vh - 56px); }
+			}
+
 			/* Score area */
 			#score {
 				overflow: auto;
@@ -276,180 +400,207 @@
 
 		<div id="container">
 			<div id="top">
-				<div class="toolbar">
+				<div class="toolbar" id="main_toolbar">
 					<!-- File -->
 					<div class="toolbar-group">
 						<a href="https://github.com/zz85/nwc-viewer" id="logo">Notably</a>
 						<button id="open">Open</button>
 						<input type="file" id="opener" accept=".nwc,.nwz,.nwctxt,.mid,.midi,.mscx,.mscz,.musicxml,.mxl,.xml" hidden />
-						<select id="samples"></select>
-						<a href="nwc2xml_converter.html"><button title="Convert NWC to MusicXML">NWC to XML</button></a>
+						<select id="samples" title="Sample scores"></select>
 					</div>
 
-					<!-- Playback -->
+					<!-- Transport -->
 					<div class="toolbar-group">
 						<button id="play" title="Play / Pause">Play</button>
 						<button id="stop" title="Stop">Stop</button>
 						<span id="playback_time" class="time-display">0:00 / 0:00</span>
 						<input type="range" id="progress_bar"
-							min="0" max="1" step="0.001" value="0"
-							style="width: 120px;" />
-						<label class="speed-control" title="Playback speed">
-							<input type="range" id="speed_slider"
-								min="0.1" max="3" step="0.05" value="1"
-								style="width: 70px;" />
-							<input type="number" id="speed_input"
-								min="0.1" max="4" step="0.05" value="1"
-								style="width: 48px;" />x
-						</label>
-						<select id="solo_staff" title="Solo a single staff">
-							<option value="all">All Staves</option>
-						</select>
-						<select id="highlight_mode" title="Playback highlight mode">
-							<option value="notes">Notes</option>
-							<option value="glow">Glow</option>
-							<option value="bar">Bar</option>
-							<option value="column">Column</option>
-							<option value="none">Off</option>
-						</select>
-						<button id="autoscroll_toggle" class="active" title="Auto-scroll during playback">Auto-scroll</button>
-						<button id="piano_toggle" class="active" title="Piano keyboard">Piano</button>
+							min="0" max="1" step="0.001" value="0" />
 					</div>
-				</div>
 
-				<div class="toolbar">
-					<!-- Layout -->
+					<!-- Layout + page navigation -->
 					<div class="toolbar-group">
-						<span class="toolbar-label">Layout</span>
 						<div class="btn-group" id="layout_group">
-							<button data-mode="scroll">Scroll</button>
-							<button data-mode="wrap" class="active">Wrap</button>
-							<button data-mode="page">Page</button>
+							<button data-mode="scroll" title="One long horizontal line">Scroll</button>
+							<button data-mode="wrap" class="active" title="Wrap systems to the window width">Wrap</button>
+							<button data-mode="page" title="Printed pages">Page</button>
 						</div>
-						<select id="page_size" style="display: none;" title="Page size">
-							<option value="letter">Letter</option>
-							<option value="a4">A4</option>
-						</select>
-						<div class="btn-group" id="orientation_group" style="display: none;">
-							<button data-orient="portrait" class="active">Portrait</button>
-							<button data-orient="landscape">Landscape</button>
-						</div>
-						<select id="page_view_mode" style="display: none;" title="Page view arrangement">
-							<option value="vertical">Vertical</option>
-							<option value="single-page">Single Page</option>
-							<option value="two-up">Two-Up</option>
-							<option value="horizontal">Horizontal</option>
-						</select>
 						<span id="page_nav" style="display: none;">
-							<button id="page_prev" title="Previous page" style="font-size: 11px; padding: 2px 6px;">&lt;</button>
-							<input id="page_input" type="number" min="1" value="1" title="Jump to page" style="width: 32px; text-align: center; font-size: 11px; padding: 1px 2px; -moz-appearance: textfield; border: 1px solid var(--border, #ccc); border-radius: 3px;">
-							<span id="page_indicator" style="font-size: 11px; color: var(--text-dim);"> / 1</span>
-							<button id="page_next" title="Next page" style="font-size: 11px; padding: 2px 6px;">&gt;</button>
+							<button id="page_prev" title="Previous page" class="compact">&lt;</button>
+							<input id="page_input" type="number" min="1" value="1" title="Jump to page">
+							<span id="page_indicator"> / 1</span>
+							<button id="page_next" title="Next page" class="compact">&gt;</button>
 						</span>
 					</div>
 
-					<!-- View -->
+					<!-- Zoom -->
 					<div class="toolbar-group">
-						<span class="toolbar-label">Font</span>
-						<select id="music_font" title="Music engraving font">
-							<optgroup label="Modern Engraving">
-								<option value="bravura">Bravura — modern, clean</option>
-								<option value="leland">Leland — contemporary</option>
-								<option value="maestro">Finale Maestro — classic</option>
-								<option value="engraver">Finale Engraver — traditional</option>
-							</optgroup>
-							<optgroup label="Handwritten / Jazz">
-								<option value="petaluma">Petaluma — hand-drawn</option>
-								<option value="jazz">Finale Jazz — lead sheets</option>
-								<option value="ash">Finale Ash — manuscript</option>
-							</optgroup>
-							<optgroup label="Historical / Specialty">
-								<option value="sebastian">Sebastian — elegant</option>
-								<option value="goldenage">Golden Age — vintage</option>
-								<option value="leipzig">Leipzig — scholarly</option>
-								<option value="broadway">Finale Broadway — show music</option>
-								<option value="legacy">Finale Legacy — classic Finale</option>
-							</optgroup>
-						</select>
-						<span class="toolbar-label">Size</span>
-						<button id="size_down" title="Decrease staff size">-</button>
-						<button id="size_up" title="Increase staff size">+</button>
-						<span class="toolbar-label">Zoom</span>
-						<input type="range" id="zoom_slider"
+						<input type="range" id="zoom_slider" title="Zoom"
 							min="0.25" max="4.0" step="0.01" value="1.0"
-							oninput="onZoomSliderInput(parseFloat(this.value))"
-							style="width: 80px;" />
-						<span id="zoom_label" style="font-size: 11px; min-width: 36px; text-align: center; color: var(--text-dim);">100%</span>
-						<button id="fit_width_btn" title="Fit page width to screen" style="font-size: 11px; padding: 2px 6px;">W</button>
-						<button id="fit_height_btn" title="Fit page height to screen" style="font-size: 11px; padding: 2px 6px;">H</button>
-						<button id="ink_bleed_toggle" title="Print emulation: ink bleed, paper grain, letterpress effect">Inked</button>
-						<input type="color" id="ink_paper_color" value="#f1ece3" title="Paper color" style="width: 28px; height: 24px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; vertical-align: middle;" />
+							oninput="onZoomSliderInput(parseFloat(this.value))" />
+						<span id="zoom_label">100%</span>
+						<button id="fit_width_btn" title="Fit page width to screen" class="compact">W</button>
+						<button id="fit_height_btn" title="Fit page height to screen" class="compact">H</button>
 					</div>
 
-					<!-- Ink bleed controls (popover) -->
-					<div class="toolbar-group" style="position: relative;">
-						<button id="ink_controls_toggle" title="Ink bleed parameters">Ink</button>
-						<div id="ink_controls_panel" class="popover">
-							<label title="Ink spread amount">
-								<span>Bleed</span>
-								<input type="range" id="ink_bleed_slider" min="0" max="100" step="1" value="14" />
-								<span id="ink_bleed_label" class="slider-value">0.14</span>
-							</label>
-							<label title="Edge noise / organic variation">
-								<span>Roughness</span>
-								<input type="range" id="ink_roughness_slider" min="0" max="100" step="1" value="58" />
-								<span id="ink_roughness_label" class="slider-value">0.58</span>
-							</label>
-							<label title="Overall ink darkness">
-								<span>Ink Density</span>
-								<input type="range" id="ink_density_slider" min="0" max="100" step="1" value="100" />
-								<span id="ink_density_label" class="slider-value">1.00</span>
-							</label>
-							<label title="Paper fiber texture strength">
-								<span>Paper Grain</span>
-								<input type="range" id="ink_grain_slider" min="0" max="100" step="1" value="13" />
-								<span id="ink_grain_label" class="slider-value">0.13</span>
-							</label>
-							<label title="Letterpress edge darkening">
-								<span>Edge Pool</span>
-								<input type="range" id="ink_pool_slider" min="0" max="100" step="1" value="2" />
-								<span id="ink_pool_label" class="slider-value">0.02</span>
-							</label>
+					<!-- Settings -->
+					<div class="toolbar-group settings-group">
+						<button id="settings_toggle" title="Playback, engraving and display settings" aria-haspopup="true" aria-expanded="false">&#9881; Settings</button>
+						<div id="settings_panel" class="popover settings-panel" role="dialog" aria-label="Settings">
+							<section>
+								<h5>Playback</h5>
+								<label class="speed-control" title="Playback speed">
+									<span>Speed</span>
+									<input type="range" id="speed_slider"
+										min="0.1" max="3" step="0.05" value="1" />
+									<input type="number" id="speed_input"
+										min="0.1" max="4" step="0.05" value="1" />x
+								</label>
+								<div class="row">
+									<select id="solo_staff" title="Solo a single staff">
+										<option value="all">All Staves</option>
+									</select>
+									<select id="highlight_mode" title="Playback highlight mode">
+										<option value="notes">Highlight: Notes</option>
+										<option value="glow">Highlight: Glow</option>
+										<option value="bar">Highlight: Bar</option>
+										<option value="column">Highlight: Column</option>
+										<option value="none">Highlight: Off</option>
+									</select>
+								</div>
+								<div class="row">
+									<button id="autoscroll_toggle" class="active" title="Auto-scroll during playback">Auto-scroll</button>
+									<button id="piano_toggle" class="active" title="Piano keyboard">Piano keyboard</button>
+								</div>
+							</section>
+
+							<section id="page_settings">
+								<h5>Page</h5>
+								<div class="row">
+									<select id="page_size" style="display: none;" title="Page size">
+										<option value="letter">Letter</option>
+										<option value="a4">A4</option>
+									</select>
+									<div class="btn-group" id="orientation_group" style="display: none;">
+										<button data-orient="portrait" class="active">Portrait</button>
+										<button data-orient="landscape">Landscape</button>
+									</div>
+									<select id="page_view_mode" style="display: none;" title="Page view arrangement">
+										<option value="vertical">Vertical</option>
+										<option value="single-page">Single Page</option>
+										<option value="two-up">Two-Up</option>
+										<option value="horizontal">Horizontal</option>
+									</select>
+								</div>
+								<p class="hint" id="page_settings_hint">Switch to Page layout for page options.</p>
+							</section>
+
+							<section>
+								<h5>Engraving</h5>
+								<div class="row">
+									<select id="music_font" title="Music engraving font">
+										<optgroup label="Modern Engraving">
+											<option value="bravura">Bravura — modern, clean</option>
+											<option value="leland">Leland — contemporary</option>
+											<option value="maestro">Finale Maestro — classic</option>
+											<option value="engraver">Finale Engraver — traditional</option>
+										</optgroup>
+										<optgroup label="Handwritten / Jazz">
+											<option value="petaluma">Petaluma — hand-drawn</option>
+											<option value="jazz">Finale Jazz — lead sheets</option>
+											<option value="ash">Finale Ash — manuscript</option>
+										</optgroup>
+										<optgroup label="Historical / Specialty">
+											<option value="sebastian">Sebastian — elegant</option>
+											<option value="goldenage">Golden Age — vintage</option>
+											<option value="leipzig">Leipzig — scholarly</option>
+											<option value="broadway">Finale Broadway — show music</option>
+											<option value="legacy">Finale Legacy — classic Finale</option>
+										</optgroup>
+									</select>
+								</div>
+								<div class="row">
+									<span class="toolbar-label">Staff size</span>
+									<button id="size_down" title="Decrease staff size" class="compact">&minus;</button>
+									<button id="size_up" title="Increase staff size" class="compact">+</button>
+								</div>
+							</section>
+
+							<section>
+								<h5>Print look</h5>
+								<div class="row">
+									<button id="ink_bleed_toggle" title="Print emulation: ink bleed, paper grain, letterpress effect">Inked</button>
+									<input type="color" id="ink_paper_color" value="#f1ece3" title="Paper color" />
+								</div>
+								<div id="ink_controls_panel" class="slider-list">
+									<label title="Ink spread amount">
+										<span>Bleed</span>
+										<input type="range" id="ink_bleed_slider" min="0" max="100" step="1" value="14" />
+										<span id="ink_bleed_label" class="slider-value">0.14</span>
+									</label>
+									<label title="Edge noise / organic variation">
+										<span>Roughness</span>
+										<input type="range" id="ink_roughness_slider" min="0" max="100" step="1" value="58" />
+										<span id="ink_roughness_label" class="slider-value">0.58</span>
+									</label>
+									<label title="Overall ink darkness">
+										<span>Ink Density</span>
+										<input type="range" id="ink_density_slider" min="0" max="100" step="1" value="100" />
+										<span id="ink_density_label" class="slider-value">1.00</span>
+									</label>
+									<label title="Paper fiber texture strength">
+										<span>Paper Grain</span>
+										<input type="range" id="ink_grain_slider" min="0" max="100" step="1" value="13" />
+										<span id="ink_grain_label" class="slider-value">0.13</span>
+									</label>
+									<label title="Letterpress edge darkening">
+										<span>Edge Pool</span>
+										<input type="range" id="ink_pool_slider" min="0" max="100" step="1" value="2" />
+										<span id="ink_pool_label" class="slider-value">0.02</span>
+									</label>
+								</div>
+							</section>
+
+							<section>
+								<h5>Spacing</h5>
+								<div id="tuning_panel" class="slider-list">
+									<label title="Note spacing density: lower = tighter, higher = looser">
+										<span>Density</span>
+										<input type="range" id="density_slider" min="0.5" max="3.0" step="0.05" value="1.5" />
+										<span id="density_label" class="slider-value">1.50</span>
+									</label>
+									<label title="Rod-spring balance: 0 = all rigid, 1 = default, 2 = all elastic">
+										<span>Rod / Spring</span>
+										<input type="range" id="rod_spring_slider" min="0.0" max="2.0" step="0.05" value="1.0" />
+										<span id="rod_spring_label" class="slider-value">1.00</span>
+									</label>
+									<label title="Duration proportionality: 0 = uniform, 1 = standard, 2 = duration-proportional">
+										<span>Visual / Timing</span>
+										<input type="range" id="proportionality_slider" min="0.0" max="2.0" step="0.05" value="1.0" />
+										<span id="proportionality_label" class="slider-value">1.00</span>
+									</label>
+								</div>
+							</section>
+
+							<section>
+								<h5>Import &amp; tools</h5>
+								<div class="row">
+									<span class="toolbar-label">MuseScore engine</span>
+									<select id="mscore_import_mode" title="MuseScore import engine">
+										<option value="webmscore">WebMscore</option>
+										<option value="jsparser">JS Parser</option>
+									</select>
+								</div>
+								<div class="row">
+									<a href="nwc2xml_converter.html" class="link-button" title="Convert NWC to MusicXML">NWC to MusicXML converter &rarr;</a>
+								</div>
+							</section>
 						</div>
 					</div>
+				</div>
 
-					<!-- Spacing tuning (popover) -->
-					<div class="toolbar-group" style="position: relative;">
-						<button id="tuning_toggle" title="Spacing tuning parameters">Advanced</button>
-						<div id="tuning_panel" class="popover">
-							<label title="Note spacing density: lower = tighter, higher = looser">
-								<span>Density</span>
-								<input type="range" id="density_slider" min="0.5" max="3.0" step="0.05" value="1.5" />
-								<span id="density_label" class="slider-value">1.50</span>
-							</label>
-							<label title="Rod-spring balance: 0 = all rigid, 1 = default, 2 = all elastic">
-								<span>Rod / Spring</span>
-								<input type="range" id="rod_spring_slider" min="0.0" max="2.0" step="0.05" value="1.0" />
-								<span id="rod_spring_label" class="slider-value">1.00</span>
-							</label>
-							<label title="Duration proportionality: 0 = uniform, 1 = standard, 2 = duration-proportional">
-								<span>Visual / Timing</span>
-								<input type="range" id="proportionality_slider" min="0.0" max="2.0" step="0.05" value="1.0" />
-								<span id="proportionality_label" class="slider-value">1.00</span>
-							</label>
-						</div>
-					</div>
-
-					<!-- MuseScore import mode -->
-					<div class="toolbar-group">
-						<span class="toolbar-label">MuseScore</span>
-						<select id="mscore_import_mode" title="MuseScore import engine">
-							<option value="webmscore">WebMscore</option>
-							<option value="jsparser">JS Parser</option>
-						</select>
-					</div>
-
-					<!-- Debug (localhost only) -->
+				<!-- Debug (localhost only) -->
+				<div class="toolbar">
 					<div id="debug_tools" class="toolbar-group" style="display: none;">
 						<button onclick="window._debug_glyph = !window._debug_glyph; rerender()">Debug glyph</button>
 						<button id="blank_button">Blank</button>

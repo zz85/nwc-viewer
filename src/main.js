@@ -532,12 +532,22 @@ if (soloSelect) {
 	}
 }
 
-// Piano keyboard toggle
+// Piano keyboard toggle. The choice is remembered; without one, the keyboard
+// starts hidden on narrow screens where it would take a large share of the
+// height.
+const PIANO_STORAGE_KEY = 'nwc_piano_visible'
 const pianoToggleBtn = document.getElementById('piano_toggle')
+{
+	const stored = localStorage.getItem(PIANO_STORAGE_KEY)
+	const showPiano = stored !== null ? stored === '1' : window.innerWidth > 700
+	if (!showPiano) pianoKeyboard.hide()
+	if (pianoToggleBtn) pianoToggleBtn.classList.toggle('active', showPiano)
+}
 if (pianoToggleBtn) {
 	pianoToggleBtn.onclick = () => {
 		const visible = pianoKeyboard.toggle()
 		pianoToggleBtn.classList.toggle('active', visible)
+		localStorage.setItem(PIANO_STORAGE_KEY, visible ? '1' : '0')
 		// Resize canvas to reclaim/release space from the keyboard area
 		if (getLayoutMode() === 'wrap') {
 			rerender()
@@ -886,6 +896,8 @@ function updateLayoutUI() {
 	if (pageSizeEl) pageSizeEl.style.display = isPage ? 'inline' : 'none'
 	if (orientGroup) orientGroup.style.display = isPage ? 'inline-flex' : 'none'
 	if (pageViewModeEl) pageViewModeEl.style.display = isPage ? 'inline' : 'none'
+	const pageHint = document.getElementById('page_settings_hint')
+	if (pageHint) pageHint.style.display = isPage ? 'none' : ''
 	updatePageNavVisibility()
 
 	// Toggle background for page mode (gray canvas background)
@@ -1228,6 +1240,31 @@ const sizeDownBtn = document.getElementById('size_down')
 const sizeUpBtn = document.getElementById('size_up')
 if (sizeDownBtn) sizeDownBtn.onclick = () => { setFontSize(getFontSize() - 4); rerender() }
 if (sizeUpBtn) sizeUpBtn.onclick = () => { setFontSize(getFontSize() + 4); rerender() }
+
+// ---- Settings menu ----
+
+const settingsToggle = document.getElementById('settings_toggle')
+const settingsPanel = document.getElementById('settings_panel')
+if (settingsToggle && settingsPanel) {
+	const setSettingsOpen = (open) => {
+		settingsPanel.classList.toggle('open', open)
+		settingsToggle.classList.toggle('active', open)
+		settingsToggle.setAttribute('aria-expanded', String(open))
+	}
+	settingsToggle.onclick = (e) => {
+		e.stopPropagation()
+		setSettingsOpen(!settingsPanel.classList.contains('open'))
+	}
+	document.addEventListener('click', (e) => {
+		if (!settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) setSettingsOpen(false)
+	})
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape' && settingsPanel.classList.contains('open')) {
+			setSettingsOpen(false)
+			settingsToggle.focus()
+		}
+	})
+}
 
 // ---- Tuning popover ----
 
