@@ -1306,6 +1306,7 @@ function score(dataOrContext) {
 	currentStaves = staves
 	currentAllowLayering = data.score.allowLayering !== false
 	var extents = computeStaffExtents(staves)
+	currentExtents = extents
 	buildStaffYMap(staves, data.score.allowLayering, extents)
 	const stavePointers = staves.map(
 		(stave, staveIndex) => new StaveCursor(stave, staveIndex)
@@ -1535,7 +1536,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var lastStaffY = getStaffY(staves.length - 1)
 	var systemHeight = (lastStaffY - firstStaffY) + fs  // top-of-first to bottom-of-last
 
-	var interSystemGap = fs * 1.5  // vertical gap between systems
+	var interSystemGap = computeInterSystemGap(staves)
 
 	// First, draw the ending barline on each stave in the single-line layout
 	// (so it gets reflowed with everything else).
@@ -1897,7 +1898,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var firstStaffY = getStaffY(0)
 	var lastStaffY = getStaffY(staves.length - 1)
 	var systemHeight = (lastStaffY - firstStaffY) + fs
-	var interSystemGap = fs * 1.5
+	var interSystemGap = computeInterSystemGap(staves)
 	var leftMargin = margins.left
 
 	// --- Draw ending barlines (same as wrap mode) ---
@@ -2577,6 +2578,7 @@ function sizeSpacerAndRender(canvas, canvasWidth, canvasHeight) {
 // Computed Y positions for each stave, respecting WithNextStaff flags.
 // Built once per score() call; consumed by getStaffY().
 var staffYMap = []
+var currentExtents = [] // per-staff content extents from computeStaffExtents()
 var currentStaves = [] // reference to current staves array for handleToken
 var currentAllowLayering = true // file-level allowLayering flag
 
@@ -2644,10 +2646,12 @@ function computeStaffExtents(staves) {
 			}
 		}
 
-		// Account for lyrics below the staff (if present)
+		// Account for lyrics below the staff (if present). Under the bottom
+		// staff they sit at a fixed 1.5 * fontSize (12 half-spaces) below the
+		// bottom line; allow one more half-space for descenders.
 		var stLyrics = staves[si].lyrics
 		if (stLyrics && stLyrics.length && stLyrics.some(function(l) { return l && l.length > 0 })) {
-			minPos = Math.min(minPos, -10)
+			minPos = Math.min(minPos, -13)
 		}
 
 		extents.push({ minPos: minPos, maxPos: maxPos })
@@ -2709,13 +2713,45 @@ function buildStaffYMap(staves, allowLayering, extents) {
 		// maxPos (highest position on staff i+1, positive = above staff)
 		// are in half-space units.  The needed gap is the distance between
 		// the lowest point of staff i and the highest point of staff i+1.
+		// Layered staves share a Y, so use the union of each layer group.
 		if (extents && extents[i] && extents[i + 1]) {
-			var contentGap = (extents[i + 1].maxPos - extents[i].minPos) * halfSpace + padding
+			var groupMin = extents[i].minPos
+			for (var gj = i - 1; gj >= 0 && staffYMap[gj] === staffYMap[i]; gj--) {
+				groupMin = Math.min(groupMin, extents[gj].minPos)
+			}
+			var groupMax = extents[i + 1].maxPos
+			for (var gk = i + 1; gk < staves.length - 1 && staves[gk].layerWithNext && allowLayering !== false; gk++) {
+				groupMax = Math.max(groupMax, extents[gk + 1].maxPos)
+			}
+			var contentGap = (groupMax - groupMin) * halfSpace + padding
 			gapPixels = Math.max(gapPixels, contentGap)
 		}
 
 		y += gapPixels
 	}
+}
+
+/**
+ * Vertical gap between systems: from the bottom line of a system's last
+ * staff (group) to the top line of the next system's first staff, large
+ * enough that content hanging below (lyrics, low stems, dynamics) clears
+ * content standing above (high notes, tempo marks, voltas).
+ */
+function computeInterSystemGap(staves) {
+	var fs = getFontSize()
+	var minGap = fs * 1.5
+	if (!currentExtents.length || !staves.length) return minGap
+	var halfSpace = fs / 8
+	var firstY = getStaffY(0)
+	var lastY = getStaffY(staves.length - 1)
+	var below = 0  // lowest position under the last staff group (bottom line = 0)
+	var above = 8  // highest position over the first staff group (top line = 8)
+	for (var si = 0; si < staves.length && si < currentExtents.length; si++) {
+		if (getStaffY(si) === lastY) below = Math.min(below, currentExtents[si].minPos)
+		if (getStaffY(si) === firstY) above = Math.max(above, currentExtents[si].maxPos)
+	}
+	var contentGap = (-below + (above - 8)) * halfSpace + fs * 0.6
+	return Math.max(minGap, contentGap)
 }
 
 function getStaffY(staffIndex) {
