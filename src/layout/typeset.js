@@ -1287,6 +1287,123 @@ function layoutHairpinSpans(drawing, staves) {
 }
 
 /**
+ * Vertical extent (relative to baseline, px; negative = up) of a dynamic
+ * marking's glyphs, from the font outlines.
+ */
+function dynamicExtent(el) {
+	if (el._extent) return el._extent
+	var top = 0, bottom = 0
+	for (var g of el._glyphs || []) {
+		var bb = g.path && g.path.getBoundingBox && g.path.getBoundingBox()
+		if (!bb) continue
+		top = Math.min(top, bb.y1)
+		bottom = Math.max(bottom, bb.y2)
+	}
+	if (top === 0 && bottom === 0) top = -getFontSize() * 0.4
+	return (el._extent = { top: top, bottom: bottom })
+}
+
+/**
+ * Keep dynamics and hairpins clear of the notes they sit under (or over),
+ * then put chained expression marks — a dynamic leading into a hairpin that
+ * ends at the next dynamic — on one shared line. NWC positions these marks
+ * at a fixed staff position, so low notes or downward stems run into them.
+ * Runs on the single-line layout; reflow preserves offsetY.
+ */
+function resolveExpressionCollisions(staves) {
+	var fs = getFontSize()
+	var hs = fs / 8
+	var clearance = fs * 0.15
+
+	for (var si = 0; si < staves.length; si++) {
+		var tokens = staves[si].tokens || []
+		var staffY = null
+
+		// Notes of this staff and its layer partners (same Y) as boxes
+		var boxes = []
+		for (var gi = 0; gi < staves.length; gi++) {
+			if (getStaffY(gi) !== getStaffY(si)) continue
+			for (var tok of staves[gi].tokens || []) {
+				var head = tok.drawingNoteHead
+				if (!head || head.hidden || (tok.type !== 'Note' && tok.type !== 'Chord')) continue
+				if (staffY === null) staffY = head.y
+				var positions = tok.notes ? tok.notes.map(function(n) { return n.position }) : [tok.position]
+				var ys = positions.map(function(p) { return head.y - ((p || 0) + 4) * hs })
+				var top = Math.min.apply(null, ys) - hs
+				var bottom = Math.max.apply(null, ys) + hs
+				if (tok.duration > 1) {
+					// Stem: NWC stem 1 = up, 2 = down; default by position
+					var avg = positions.reduce(function(a, b) { return a + (b || 0) }, 0) / positions.length
+					var down = tok.stem === 2 || (tok.stem !== 1 && avg >= 0)
+					if (down) bottom = Math.max.apply(null, ys) + 7 * hs
+					else top = Math.min.apply(null, ys) - 7 * hs
+				}
+				boxes.push({ x0: head.x - fs * 0.1, x1: head.x + (head.width || fs * 0.3) + fs * 0.1, top: top, bottom: bottom })
+			}
+		}
+
+		// Expression marks of this staff, in order
+		var marks = []
+		for (var ti = 0; ti < tokens.length; ti++) {
+			var t = tokens[ti]
+			var el = t.drawingHairpin || ((t.type === 'Dynamic' || t.type === 'DynamicVariance') && t.drawingDynamic)
+			if (!el) continue
+			marks.push({ el: el, isHairpin: !!t.drawingHairpin })
+		}
+		if (!marks.length) continue
+		if (staffY === null) staffY = marks[0].el.y
+		// Marks are "above" only when placed above the top line; anything on
+		// or inside the staff goes below, the normal place for dynamics.
+		var midY = staffY - fs
+
+		function extent(m) {
+			if (m.isHairpin) return { top: -hs, bottom: hs }
+			return dynamicExtent(m.el)
+		}
+		function baseY(m) { return m.el.y + (m.el.offsetY || 0) }
+
+		// 1. Push each mark clear of the notes and the staff
+		for (var m of marks) {
+			var e = extent(m)
+			var x0 = m.el.x, x1 = m.el.x + (m.el.width || fs)
+			var below = baseY(m) > midY
+			if (below) {
+				var need = staffY + clearance
+				for (var b of boxes) if (b.x1 > x0 && b.x0 < x1) need = Math.max(need, b.bottom + clearance)
+				var top = baseY(m) + e.top
+				if (top < need) m.el.offsetY = (m.el.offsetY || 0) + (need - top)
+			} else {
+				var limit = staffY - fs - clearance
+				for (var b2 of boxes) if (b2.x1 > x0 && b2.x0 < x1) limit = Math.min(limit, b2.top - clearance)
+				var bottom = baseY(m) + e.bottom
+				if (bottom > limit) m.el.offsetY = (m.el.offsetY || 0) - (bottom - limit)
+			}
+		}
+
+		// 2. Align chains: hairpin → dynamic at its end, dynamic → hairpin right after it
+		var chain = [marks[0]]
+		var flush = function() {
+			if (chain.length > 1) {
+				var below = baseY(chain[0]) > midY
+				// Visual centre: hairpin centre line, or the middle of the dynamic glyph
+				var center = function(m) { var e = extent(m); return baseY(m) + (m.isHairpin ? 0 : (e.top + e.bottom) / 2) }
+				var target = chain.reduce(function(acc, m) { var c = center(m); return below ? Math.max(acc, c) : Math.min(acc, c) }, center(chain[0]))
+				for (var m of chain) m.el.offsetY = (m.el.offsetY || 0) + (target - center(m))
+			}
+		}
+		for (var mi = 1; mi < marks.length; mi++) {
+			var prev = marks[mi - 1], cur = marks[mi]
+			var prevEnd = prev.el.x + (prev.el.width || 0)
+			var linked = (prev.isHairpin || cur.isHairpin) && cur.el.x - prevEnd < fs * 1.2 &&
+				(baseY(prev) > midY) === (baseY(cur) > midY)
+			if (linked) chain.push(cur)
+			else { flush(); chain = [cur] }
+		}
+		flush()
+	}
+}
+
+/**
  * Adjust volta bracket widths to span from the Ending token to the next
  * Ending token or the next barline (whichever comes first).
  */
@@ -1431,6 +1548,8 @@ function score(dataOrContext) {
 	layoutTripletBrackets(drawing, staves)
 	/* Layout hairpin spans (adjust width to reach the next DynamicVariance or note) */
 	layoutHairpinSpans(drawing, staves)
+	/* Keep dynamics/hairpins clear of notes and on a shared line */
+	resolveExpressionCollisions(staves)
 	/* Layout volta bracket spans */
 	layoutVoltaSpans(drawing, staves)
 
