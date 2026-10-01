@@ -544,6 +544,7 @@ function convertFromNewParser(nwcFile) {
 					staff_label: staff.label || '',
 					group_name: staff.group || '',
 					channel: staff.channel || 0,
+					muted: !!staff.muted,
 				patchName: staff.patchName ?? 0,
 				transposition: staff.transposition || 0,
 					// WithNextStaff grouping flags
