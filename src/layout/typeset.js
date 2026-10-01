@@ -1305,6 +1305,7 @@ function score(dataOrContext) {
 	const staves = data.score.staves
 	currentStaves = staves
 	currentAllowLayering = data.score.allowLayering !== false
+	currentStaffLabelMode = data.score.staffLabels || ''
 	var extents = computeStaffExtents(staves)
 	currentExtents = extents
 	buildStaffYMap(staves, data.score.allowLayering, extents)
@@ -1632,6 +1633,15 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		courtesyWidths.push(maxCourtesyWidth + spacerWidth())
 	}
 
+	// Staff labels: indent systems whose labels don't fit in the left margin
+	// (normally just the first system, which carries the full names). The
+	// indent shifts content like a courtesy width does.
+	var labelIndents = []
+	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		labelIndents.push(staffLabelIndent(staves, sysIdx === 0, leftMargin))
+		courtesyWidths[sysIdx] += labelIndents[sysIdx]
+	}
+
 	// --- Compute per-system natural widths ---
 	var systemNaturalWidths = []
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
@@ -1774,10 +1784,11 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var justifiedWidth = isLastSystem
 			? naturalWidth + courtesyW : pageWidth
 		var yOffset = sysIdx * (systemHeight + interSystemGap)
+		var sysLeft = leftMargin + labelIndents[sysIdx]
 
 		for (var si = 0; si < staves.length; si++) {
-			var staveEl = new Stave(justifiedWidth)
-			staveEl.moveTo(leftMargin, getStaffY(si) + yOffset)
+			var staveEl = new Stave(justifiedWidth - labelIndents[sysIdx])
+			staveEl.moveTo(sysLeft, getStaffY(si) + yOffset)
 			drawing.add(staveEl)
 		}
 
@@ -1793,19 +1804,19 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 				)
 				for (var cei = 0; cei < elements.length; cei++) {
 					// Position courtesy items after the left margin
-					elements[cei].x += leftMargin
+					elements[cei].x += sysLeft
 					drawing.add(elements[cei])
 				}
 			}
 		}
 
 		// Draw brackets, braces, and labels for each system
-		drawBracketsAndBraces(drawing, staves, yOffset, leftMargin)
-		drawStaffLabels(drawing, staves, yOffset, leftMargin)
+		drawBracketsAndBraces(drawing, staves, yOffset, sysLeft)
+		drawStaffLabels(drawing, staves, yOffset, sysLeft, sysIdx === 0)
 
 		// Draw bar number at system start
 		var firstMeasure = sysIdx === 0 ? 1 : systemBreaks[sysIdx - 1].boundaryIndex + 2
-		drawBarNumbers(drawing, staves, yOffset, leftMargin, firstMeasure)
+		drawBarNumbers(drawing, staves, yOffset, sysLeft, firstMeasure)
 	}
 
 	// Calculate canvas dimensions for wrapped layout
@@ -1830,7 +1841,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		_systemGeometry.push({
 			topY: firstStaffY + gYOffset - fs,
 			bottomY: lastStaffY + gYOffset,
-			startX: leftMargin,
+			startX: leftMargin + labelIndents[gi],
 			endX: leftMargin + sysJustW,
 		})
 	}
@@ -1974,6 +1985,13 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			maxCourtesyWidth = Math.max(maxCourtesyWidth, totalWidth)
 		}
 		courtesyWidths.push(maxCourtesyWidth + spacerWidth())
+	}
+
+	// Staff label indents (see scoreWrapLayout)
+	var labelIndents = []
+	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		labelIndents.push(staffLabelIndent(staves, sysIdx === 0, leftMargin))
+		courtesyWidths[sysIdx] += labelIndents[sysIdx]
 	}
 
 	// --- Per-system natural widths ---
@@ -2206,10 +2224,10 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var justifiedWidth = isLastSystem
 			? naturalWidth + courtesyW : contentW
 		var yOffset = systemYOffsets[sysIdx] - firstStaffY
-		var xBase = leftMargin + horizontalPad + systemXOffsets[sysIdx]
+		var xBase = leftMargin + horizontalPad + systemXOffsets[sysIdx] + labelIndents[sysIdx]
 
 		for (var si = 0; si < staves.length; si++) {
-			var staveEl = new Stave(justifiedWidth)
+			var staveEl = new Stave(justifiedWidth - labelIndents[sysIdx])
 			staveEl.moveTo(xBase, getStaffY(si) + yOffset)
 			drawing.add(staveEl)
 		}
@@ -2232,7 +2250,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		}
 
 		drawBracketsAndBraces(drawing, staves, yOffset, xBase)
-		drawStaffLabels(drawing, staves, yOffset, xBase)
+		drawStaffLabels(drawing, staves, yOffset, xBase, sysIdx === 0)
 
 		// Draw bar number at system start
 		var firstMeasureP = sysIdx === 0 ? 1 : systemBreaks[sysIdx - 1].boundaryIndex + 2
@@ -2313,13 +2331,13 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var sysCourtWP = courtesyWidths[gi]
 		var isLastSysP = gi === systemCount - 1
 		var sysJustWP = isLastSysP ? sysNatWidthP + sysCourtWP : contentW
-		var sysXBase = leftMargin + horizontalPad + systemXOffsets[gi]
+		var sysXBase = leftMargin + horizontalPad + systemXOffsets[gi] + labelIndents[gi]
 		// After reflow, first staff bottom line is at systemYOffsets[gi]
 		_systemGeometry.push({
 			topY: systemYOffsets[gi] - fs,
 			bottomY: systemYOffsets[gi] + (lastStaffY - firstStaffY),
 			startX: sysXBase,
-			endX: sysXBase + sysJustWP,
+			endX: sysXBase - labelIndents[gi] + sysJustWP,
 		})
 	}
 
@@ -2347,7 +2365,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 	var fs = getFontSize()
 	var sysBarX = leftMarginOverride !== undefined ? leftMarginOverride : fs * 0.9
-	var bracketX = leftMarginOverride !== undefined ? leftMarginOverride * 0.6 : fs * 0.55
+	var bracketX = sysBarX - fs * 0.36
 
 	function visibleStaffY(si) {
 		return getStaffY(si) + yOffset
@@ -2448,23 +2466,81 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 	}
 }
 
+var LABEL_GAP_SCALE = 1.0  // label right edge to system barline, clears brackets and braces
+
+function staffLabelFont() {
+	return Math.round(getFontSize() * 0.5) + 'px ' + getMusicTextFamily()
+}
+
 /**
- * Draw staff labels to the left of each visible stave.
+ * Label text per staff for one system ('' = none). The first system shows
+ * full labels; later systems show abbreviations (nwctxt LabelAbbr) unless
+ * the file asks for full labels on all systems. Layered staves share one.
  */
-function drawStaffLabels(drawing, staves, yOffset, leftMarginOverride) {
+function staffLabelsForSystem(staves, isFirstSystem) {
+	var mode = currentStaffLabelMode
+	var full = isFirstSystem || mode === 'All Systems'
+	return staves.map(function(st, i) {
+		if (mode === 'None') return ''
+		if (i > 0 && getStaffY(i) === getStaffY(i - 1)) return ''
+		return (full ? st.staff_label : st.staff_label_abbr) || ''
+	})
+}
+
+function measureStaffLabels(labels) {
+	var ctx = window.ctx
+	if (!ctx) return 0
+	ctx.save()
+	ctx.font = staffLabelFont()
+	var maxW = 0
+	for (var i = 0; i < labels.length; i++) {
+		if (labels[i]) maxW = Math.max(maxW, ctx.measureText(labels[i]).width)
+	}
+	ctx.restore()
+	return maxW
+}
+
+/**
+ * Extra left indent a system needs so its labels fit before the bracket,
+ * given the left margin already available.
+ */
+function staffLabelIndent(staves, isFirstSystem, availableLeft) {
+	var maxW = measureStaffLabels(staffLabelsForSystem(staves, isFirstSystem))
+	if (!maxW) return 0
 	var fs = getFontSize()
+	return Math.max(0, Math.ceil(maxW + fs * (LABEL_GAP_SCALE + 0.2) - availableLeft))
+}
+
+/**
+ * Draw staff labels right-aligned to the left of each visible stave.
+ * systemLeftX is the system barline X; layouts indent it via
+ * staffLabelIndent() so labels fit. Without an indent (scroll mode), labels
+ * that would run off the left edge are skipped.
+ */
+function drawStaffLabels(drawing, staves, yOffset, systemLeftX, isFirstSystem) {
+	var fs = getFontSize()
+	var sysLeft = systemLeftX !== undefined ? systemLeftX : fs * 0.9
+	var rightX = sysLeft - fs * LABEL_GAP_SCALE
+	var labels = staffLabelsForSystem(staves, isFirstSystem !== false)
+	var ctx = window.ctx
 	for (var li = 0; li < staves.length; li++) {
-		var label = staves[li].staff_label || ''
+		var label = labels[li]
 		if (!label) continue
-		// Skip duplicate labels for layered staves at the same Y
-		if (li > 0 && getStaffY(li) === getStaffY(li - 1)) continue
-		var labelY = getStaffY(li) + yOffset - fs * 0.5 // vertically centered on staff
-		var labelX = leftMarginOverride !== undefined ? leftMarginOverride * 0.05 : fs * 0.05
+		if (ctx && systemLeftX === undefined) {
+			ctx.save()
+			ctx.font = staffLabelFont()
+			var w = ctx.measureText(label).width
+			ctx.restore()
+			if (w > rightX) continue
+		}
+		// Staff spans getStaffY - fs (top line) to getStaffY (bottom line);
+		// put the text baseline a little below the middle line.
+		var labelY = getStaffY(li) + yOffset - fs * 0.5 + fs * 0.17
 		var labelDraw = new Claire.Text(label, 0, {
-			font: Math.round(fs * 0.6) + 'px ' + getMusicTextFamily(),
-			textAlign: 'left',
+			font: staffLabelFont(),
+			textAlign: 'right',
 		})
-		labelDraw.moveTo(labelX, labelY)
+		labelDraw.moveTo(rightX, labelY)
 		drawing.add(labelDraw)
 	}
 }
@@ -2579,6 +2655,7 @@ function sizeSpacerAndRender(canvas, canvasWidth, canvasHeight) {
 // Built once per score() call; consumed by getStaffY().
 var staffYMap = []
 var currentExtents = [] // per-staff content extents from computeStaffExtents()
+var currentStaffLabelMode = '' // nwctxt PgSetup StaffLabels: None | First System | Top Systems | All Systems
 var currentStaves = [] // reference to current staves array for handleToken
 var currentAllowLayering = true // file-level allowLayering flag
 

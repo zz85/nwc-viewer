@@ -538,10 +538,12 @@ function convertFromNewParser(nwcFile) {
 		},
 		score: {
 			allowLayering: nwcFile.allowLayering !== false,
+			staffLabels: nwcFile.staffLabels || '',
 			staves: nwcFile.staffs.map(function(staff) {
 				return {
 					staff_name: staff.name || '',
 					staff_label: staff.label || '',
+					staff_label_abbr: staff.labelAbbr || '',
 					group_name: staff.group || '',
 					channel: staff.channel || 0,
 					muted: !!staff.muted,
