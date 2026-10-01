@@ -1522,9 +1522,14 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var scoreElm = document.getElementById('score')
 
 	// Determine the available page width (in score-space, before zoom).
-	// Use the viewport width minus small margins.
+	// The canvas is sized to clientWidth - 20 (see resizeToFit), so systems
+	// must fit within that, leaving room for the left bracket margin and a
+	// small right margin so the final barline of each system stays visible.
 	var zoom = getZoomLevel()
-	var pageWidth = (scoreElm?.clientWidth || 800) / zoom - fs * 1.5
+	var leftMargin = fs * 0.9  // space for brackets/braces/labels
+	var rightMargin = fs * 0.5
+	var visibleWidth = ((scoreElm?.clientWidth || 800) - 20) / zoom
+	var pageWidth = visibleWidth - leftMargin - rightMargin
 
 	// Calculate system height: distance from top of first stave to bottom
 	// of last stave, plus some padding.
@@ -1532,7 +1537,6 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var lastStaffY = getStaffY(staves.length - 1)
 	var systemHeight = (lastStaffY - firstStaffY) + fs  // top-of-first to bottom-of-last
 
-	var leftMargin = fs * 0.9  // space for brackets/braces/labels
 	var interSystemGap = fs * 1.5  // vertical gap between systems
 
 	// First, draw the ending barline on each stave in the single-line layout
@@ -1807,7 +1811,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// Calculate canvas dimensions for wrapped layout
 	var totalHeight = systemCount * (systemHeight + interSystemGap) + firstStaffY
-	maxCanvasWidth = pageWidth + leftMargin + fs
+	maxCanvasWidth = leftMargin + pageWidth + rightMargin
 	maxCanvasHeight = totalHeight + fs * 2
 
 	// Split ties/slurs that cross system breaks into partial arcs
