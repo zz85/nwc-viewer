@@ -1971,6 +1971,14 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
 		}
+		// Spanners (hairpins, volta brackets): justify the end point too, and
+		// stop at the end of the system rather than running off the edge.
+		else if (el.spanWidth != null) {
+			var spanEnd = Math.min(el.x + el.spanWidth, sysIdx < breakXs.length ? breakXs[sysIdx] : Infinity)
+			el.x = justify(relX) + leftMargin + courtesyW
+			var spanW = Math.max(fs * 0.5, justify(spanEnd - systemStartX) + leftMargin + courtesyW - el.x)
+			el.spanWidth = el.width = spanW
+		}
 		else {
 			el.x = justify(relX) + leftMargin + courtesyW
 		}
@@ -2428,6 +2436,12 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			el._endYShift = systemYOffsets[endSysIdx] - systemYOffsets[sysIdx]
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
+		} else if (el.spanWidth != null) {
+			// Spanners: justify the end point, clipped to the system (see scoreWrapLayout)
+			var spanEndP = Math.min(el.x + el.spanWidth, sysIdx < breakXs.length ? breakXs[sysIdx] : Infinity)
+			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
+			var spanWP = Math.max(fs * 0.5, justifyP(spanEndP - systemStartX) + leftMargin + courtesyW + horizontalPad + xPageShift - el.x)
+			el.spanWidth = el.width = spanWP
 		} else {
 			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
 		}
