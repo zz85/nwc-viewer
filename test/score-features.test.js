@@ -258,21 +258,15 @@ describe('Staff visual properties pass-through (WhatChildIsThis)', () => {
 		expect(data.score.staves[2].boundaryBottom).toBe(18)
 	})
 
-	test('bracketWithNext flags match parsed data', () => {
-		// Staff 0 (s): Orchestral Bracket = checked
-		expect(data.score.staves[0].bracketWithNext).toBe(true)
-		// Staff 1 (a): Orchestral Bracket = not checked (end of bracket group)
-		expect(data.score.staves[1].bracketWithNext).toBe(false)
-		// Staff 2 (t): Orchestral Bracket = checked
-		expect(data.score.staves[2].bracketWithNext).toBe(true)
-		// Staff 3 (b): not checked
-		expect(data.score.staves[3].bracketWithNext).toBe(false)
+	test('bracketWithNext follows the Orchestral staff type', () => {
+		// Only staff 1 (a) has staff type 3 (Orchestral); its bracket joins the
+		// s+a and t+b layer pairs into one bracket, as in the NWC viewer.
+		expect(data.score.staves.map(s => s.bracketWithNext)).toEqual([false, true, false, false])
 	})
 
-	test('layerWithNext flags default to false in this file', () => {
-		data.score.staves.forEach(stave => {
-			expect(stave.layerWithNext).toBe(false)
-		})
+	test('layerWithNext layers s onto a and t onto b', () => {
+		// withNext bit 0 is "layer with next staff" (see references/what-child-is-this.png)
+		expect(data.score.staves.map(s => s.layerWithNext)).toEqual([true, false, true, false])
 	})
 
 	test('lines defaults to 5 for all staves', () => {

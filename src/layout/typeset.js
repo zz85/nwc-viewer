@@ -1450,10 +1450,8 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 					break
 				}
 			}
-			var shouldConnectEnd = stave && !hasEndLyrics && staveIndex < staves.length - 1 && (
-				stave.connectBarsWithNext ||
-				((stave.layerWithNext || stave.bracketWithNext) && currentAllowLayering)
-			)
+			var shouldConnectEnd = stave && !hasEndLyrics && staveIndex < staves.length - 1 &&
+				stave.connectBarsWithNext
 			if (shouldConnectEnd) {
 				var nextSi = staveIndex + 1
 				while (nextSi < staves.length - 1 && getStaffY(nextSi) === getStaffY(staveIndex)) {
@@ -2673,9 +2671,7 @@ function buildStaffYMap(staves, allowLayering, extents) {
 		var nextStave = staves[i + 1]
 
 		// Layered staves collapse to the same Y position.
-		// layerWithNext is the explicit flag; bracketWithNext also triggers
-		// layering when the file-level allowLayering is true (SATB choral scores).
-		if ((stave.layerWithNext || stave.bracketWithNext) && allowLayering !== false) {
+		if (stave.layerWithNext && allowLayering !== false) {
 			y += layerSpacing
 			continue
 		}
@@ -2863,9 +2859,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			// Save the X where the barline LINE was drawn (pre-gap).
 			var barlineDrawnX = cursor.staveX
 
-			// Connect barlines to next staff if flagged
-			// bracketWithNext or layerWithNext cause connection when allowLayering is on;
-			// connectBarsWithNext always causes connection.
+			// Connect barlines to the next (non-layered) staff when connectBarsWithNext is set.
 			// BUT skip connection when lyrics exist between the staves — the
 			// barline would draw across the lyrics text which looks wrong.
 			var staveData = currentStaves[staveIndex]
@@ -2881,10 +2875,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 					}
 				}
 			}
-			var shouldConnect = staveData && !hasLyricsBetween && staveIndex < currentStaves.length - 1 && (
-				staveData.connectBarsWithNext ||
-				((staveData.layerWithNext || staveData.bracketWithNext) && currentAllowLayering)
-			)
+			var shouldConnect = staveData && !hasLyricsBetween && staveIndex < currentStaves.length - 1 &&
+				staveData.connectBarsWithNext
 			if (shouldConnect) {
 				// Find the next non-layered staff (skip staves at the same Y)
 				var nextSi = staveIndex + 1
