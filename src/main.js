@@ -702,6 +702,15 @@ const rerender = () => {
 
 window.exportLilypond = exportLilypond
 
+// Text fonts load lazily (the SMuFL text faces use CSS unicode-range), and
+// canvas text drawn before a face arrives silently uses a fallback — e.g.
+// metronome glyphs in tempo marks render as boxes. Re-render once loads finish.
+if (typeof document !== 'undefined' && document.fonts) {
+	document.fonts.addEventListener('loadingdone', () => {
+		if (scoreManager.getData()) rerender()
+	})
+}
+
 function setDataAndRender(_data) {
 	scoreManager.setData(_data)
 	updateSoloStaffOptions(_data)

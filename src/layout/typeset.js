@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getMusicFont, MUSIC_FONTS, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie, getCode, glyphPathGet } from '../drawing.js'
@@ -2896,6 +2896,29 @@ function isTokenHidden(token, staveIndex) {
 	return false
 }
 
+// Text fonts whose SMuFL metronome glyphs (U+ECA3..) we can use in tempo marks;
+// others fall back to the Unicode note characters.
+var SMUFL_TEXT_FONTS = new Set(['BravuraText', 'LelandText', 'PetalumaText', 'SebastianText', 'FinaleMaestroText'])
+
+/**
+ * Tempo marking as NWC prints it: optional text followed by a metronome
+ * mark, e.g. "Adagio (♩ = 66)". The beat unit comes from beatDuration
+ * (whole-note fraction; dotted values are 1.5x).
+ */
+function tempoMarkingText(token) {
+	var bd = token.beatDuration || 0.25
+	var dotted = [0.1875, 0.375, 0.75].indexOf(bd) !== -1
+	var base = dotted ? bd / 1.5 : bd
+	var smufl = SMUFL_TEXT_FONTS.has(MUSIC_FONTS[getMusicFont()]?.textFamily)
+	var note = smufl
+		? ({ 0.125: '\uECA7', 0.25: '\uECA5', 0.5: '\uECA3' })[base] || '\uECA5'
+		: ({ 0.125: '\u266A', 0.25: '\u2669', 0.5: '\uD834\uDD5E' })[base] || '\u2669'
+	if (dotted) note += smufl ? '\uECB7' : '.'
+	var words = (token.text || '').replace(/^"|"$/g, '').trim()
+	var mark = '(' + note + ' = ' + token.duration + ')'
+	return words ? words + ' ' + mark : mark
+}
+
 function handleToken(token, tokenIndex, staveIndex, cursor) {
 	// Store staff index on the token for playback highlight lookups
 	token.staffIndex = staveIndex
@@ -3240,9 +3263,9 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 		case 'Tempo':
 			var pos = token.position !== undefined ? token.position : 11
 			var text = new Text(
-				`(${token.duration})`,
+				tempoMarkingText(token),
 				-(pos + 4),
-				{ font: Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily() }
+				{ font: 'bold ' + Math.round(getFontSize() * 0.43) + 'px ' + getMusicTextFamily() }
 			)
 			cursor.posGlyph(text)
 			drawing.add(text)

@@ -378,6 +378,7 @@ function adaptObject(obj) {
 			token.placement = obj.placement || 0
 			token.duration = obj.value || obj.getSpeed?.() || 120
 			token.note = obj.base ?? 2
+			token.text = obj.text || ''
 			// Compute beat duration in whole-note units for tempo map conversion.
 			// getTempoNote() returns 'eighth'/'quarter'/'half'; isDotted() flags dotted beat.
 			{
