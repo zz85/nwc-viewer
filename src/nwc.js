@@ -548,6 +548,8 @@ function convertFromNewParser(nwcFile) {
 					group_name: staff.group || '',
 					channel: staff.channel || 0,
 					muted: !!staff.muted,
+					// Not shown in the score (NWC Page Setup > Contents); still played
+					hidden: staff.visible === false,
 				patchName: staff.patchName ?? 0,
 				transposition: staff.transposition || 0,
 					// WithNextStaff grouping flags

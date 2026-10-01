@@ -1479,9 +1479,20 @@ window.everyStaveTokens = () => {
 	return tokens
 }
 
+/**
+ * The score as laid out: hidden staves (NWC Page Setup > Contents) are left
+ * out of the layout but stay in the data for playback.
+ */
+function visibleScore(data) {
+	var staves = data.score.staves
+	var shown = staves.filter(function(s) { return !s.hidden })
+	if (shown.length === staves.length || shown.length === 0) return data
+	return Object.assign({}, data, { score: Object.assign({}, data.score, { staves: shown }) })
+}
+
 function score(dataOrContext) {
 	// Support both legacy data object and new MusicContext
-	const data = dataOrContext.getData ? dataOrContext.getData() : dataOrContext
+	const data = visibleScore(dataOrContext.getData ? dataOrContext.getData() : dataOrContext)
 	const ctx = dataOrContext.getContext ? dataOrContext.getContext() : window.ctx
 	const canvas = dataOrContext.getCanvas ? dataOrContext.getCanvas() : window.canvas
 	
