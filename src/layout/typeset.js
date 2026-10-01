@@ -2773,6 +2773,31 @@ function spacerWidth() {
 	return getFontSize() * 0.25
 }
 
+// Annotation types that are skipped entirely (no glyph, no width) when hidden
+var HIDEABLE_ANNOTATIONS = new Set([
+	'Dynamic', 'DynamicVariance', 'Tempo', 'TempoVariance', 'PerformanceStyle',
+	'Text', 'Flow', 'SustainPedal', 'Pedal', 'Instrument',
+])
+
+/**
+ * Whether a token is hidden under NWC's Visibility rules:
+ *   Never       — always hidden
+ *   TopStaff    — shown only on the top staff of the system
+ *   SingleStaff — shown only when the score displays a single staff
+ *   MultiStaff  — shown only when the score displays several staves
+ */
+function isTokenHidden(token, staveIndex) {
+	var vis = token.Visibility
+	if (!vis || vis === 'Default' || vis === 'Always') return false
+	if (vis === 'Never') return true
+	var isTop = getStaffY(staveIndex) === getStaffY(0)
+	var multi = staffYMap.length > 1 && getStaffY(staffYMap.length - 1) !== getStaffY(0)
+	if (vis === 'TopStaff') return !isTop
+	if (vis === 'SingleStaff') return multi
+	if (vis === 'MultiStaff') return !multi
+	return false
+}
+
 function handleToken(token, tokenIndex, staveIndex, cursor) {
 	// Store staff index on the token for playback highlight lookups
 	token.staffIndex = staveIndex
@@ -2794,6 +2819,9 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 	}
 
 	let clef
+
+	var hidden = isTokenHidden(token, staveIndex)
+	if (hidden && HIDEABLE_ANNOTATIONS.has(type)) return
 
 	switch (type) {
 		default:
@@ -2874,6 +2902,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s = new Glyph(sym, token.position + 4) // + 4
 			cursor.posGlyph(s)
 			s._text = info
+			// Hidden rests (filler rests in layered voices) keep their spacing
+			s.hidden = hidden
 			drawing.add(s)
 			token.drawingNoteHead = s  // reuse same field as notes for anchor collection
 

@@ -1240,6 +1240,9 @@ class Drawing {
 
 	static _draw(ctx, el, viewportWidth, viewportOffsetX, viewportHeight, viewportOffsetY) {
 		if (el instanceof Draw) {
+			// Hidden elements (NWC Visibility: Never) keep their layout
+			// position for spacing and anchors but are not painted.
+			if (el.hidden) return
 			// Viewport culling — skip elements entirely outside the visible area.
 			// The margin scales with font size so that large zoom levels don't
 			// clip oversized glyphs / staves.  Most elements never set `height`,
