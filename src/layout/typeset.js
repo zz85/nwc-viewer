@@ -994,54 +994,37 @@ function layoutLyricDashes(drawing, staves) {
 		var tokens = staves[si].tokens
 		if (!tokens) continue
 
-		// Compute lyric Y offset for this stave (same logic as drawForNote)
-		var thisStaveY = getStaffY(si)
-		var nextStaveY = null
-		for (var nsi = si + 1; nsi < staves.length; nsi++) {
-			if (getStaffY(nsi) !== thisStaveY) {
-				nextStaveY = getStaffY(nsi)
-				break
-			}
-		}
-		var lyricOffsetY
-		if (nextStaveY !== null) {
-			var gap = nextStaveY - thisStaveY
-			lyricOffsetY = gap / 2 - fs / 2
-		} else {
-			lyricOffsetY = fs * 1.5
-		}
-
 		for (var i = 0; i < tokens.length; i++) {
 			var token = tokens[i]
-			// Only notes/chords with a hyphen-terminated lyric
-			if (!token.text || !token.text.endsWith('-')) continue
 			if (!token.drawingNoteHead) continue
+			var verses = token.texts || (token.text ? [token.text] : [])
+			for (var vi = 0; vi < verses.length; vi++) {
+				// Only syllables that continue a word into the next note
+				if (!verses[vi] || !verses[vi].endsWith('-')) continue
 
-			// Find the next note/chord with a drawingNoteHead (the next lyric target)
-			var nextHead = null
-			for (var j = i + 1; j < tokens.length; j++) {
-				var nt = tokens[j]
-				if (nt.drawingNoteHead && (nt.type === 'Note' || nt.type === 'Chord' || nt.type === 'Rest')) {
-					nextHead = nt.drawingNoteHead
-					break
+				// Find the next note/chord with a drawingNoteHead (the next lyric target)
+				var nextHead = null
+				for (var j = i + 1; j < tokens.length; j++) {
+					var nt = tokens[j]
+					if (nt.drawingNoteHead && (nt.type === 'Note' || nt.type === 'Chord' || nt.type === 'Rest')) {
+						nextHead = nt.drawingNoteHead
+						break
+					}
 				}
+				if (!nextHead) continue
+
+				var startX = token.drawingNoteHead.x + (token.drawingNoteHead.width || 0)
+				var endX = nextHead.x
+				if (endX <= startX) continue
+
+				var dash = new Text('-', 0, {
+					font: lyricFontSize + 'px ' + getMusicTextFamily(),
+					textAlign: 'center',
+				})
+				dash.moveTo((startX + endX) / 2, getStaffY(si))
+				dash.offsetY = lyricVerseOffsetY(staves, si, vi)
+				drawing.add(dash)
 			}
-			if (!nextHead) continue
-
-			var startX = token.drawingNoteHead.x + (token.drawingNoteHead.width || 0)
-			var endX = nextHead.x
-			if (endX <= startX) continue
-
-			var midX = (startX + endX) / 2
-
-			var dash = new Text('-', 0, {
-			font: lyricFontSize + 'px ' + getMusicTextFamily(),
-			textAlign: 'center',
-		})
-
-			dash.moveTo(midX, thisStaveY)
-			dash.offsetY = lyricOffsetY
-			drawing.add(dash)
 		}
 	}
 }
@@ -2804,9 +2787,10 @@ function computeStaffExtents(staves) {
 		// Account for lyrics below the staff (if present). Under the bottom
 		// staff they sit at a fixed 1.5 * fontSize (12 half-spaces) below the
 		// bottom line; allow one more half-space for descenders.
-		var stLyrics = staves[si].lyrics
-		if (stLyrics && stLyrics.length && stLyrics.some(function(l) { return l && l.length > 0 })) {
-			minPos = Math.min(minPos, -13)
+		var lyricLines = lyricLineCount(staves[si])
+		if (lyricLines > 0) {
+			var extraLines = (lyricLines - 1) * lyricLineHeight() / (getFontSize() / 8)
+			minPos = Math.min(minPos, -13 - Math.ceil(extraLines))
 		}
 
 		extents.push({ minPos: minPos, maxPos: maxPos })
@@ -2884,6 +2868,35 @@ function buildStaffYMap(staves, allowLayering, extents) {
 
 		y += gapPixels
 	}
+}
+
+/** Number of lyric lines under a staff (index of the last non-empty verse + 1). */
+function lyricLineCount(stave) {
+	var lyr = (stave && stave.lyrics) || []
+	var n = 0
+	for (var i = 0; i < lyr.length; i++) if (lyr[i] && lyr[i].length) n = i + 1
+	return n
+}
+
+function lyricFontPx() { return Math.round(getFontSize() * 0.38) }
+function lyricLineHeight() { return lyricFontPx() * 1.3 }
+
+/**
+ * Baseline offset (from the staff's bottom line) of lyric verse v under
+ * staff si. Between staves the verse block is centered in the gap; under
+ * the last staff it hangs at a fixed distance.
+ */
+function lyricVerseOffsetY(staves, si, v) {
+	var fs = getFontSize()
+	var thisY = getStaffY(si)
+	var nextY = null
+	for (var nsi = si + 1; nsi < staves.length; nsi++) {
+		if (getStaffY(nsi) !== thisY) { nextY = getStaffY(nsi); break }
+	}
+	var lines = Math.max(1, lyricLineCount(staves[si]))
+	var lh = lyricLineHeight()
+	if (nextY !== null) return (nextY - thisY) / 2 - fs / 2 - (lines - 1) * lh / 2 + v * lh
+	return fs * 1.5 + v * lh
 }
 
 /**
@@ -3542,57 +3555,36 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 
 	token.drawingNoteHead = noteHead
 
-	if (token.text) {
+	var verses = token.texts || (token.text ? [token.text] : [])
+	var lyricWidth = 0
+	for (var vi = 0; vi < verses.length; vi++) {
+		if (!verses[vi]) continue
 		// Strip trailing hyphens for display — NWC draws hyphens as dashes
 		// centered between note positions, not on the syllable text itself.
 		// '_' joins words onto one note (NWC); it prints as a space.
-		var displayText = token.text.replace(/-$/, '').replace(/_/g, '\u00a0')
-		if (displayText) {
-			var lyricFontSize = Math.round(getFontSize() * 0.38)
+		var displayText = verses[vi].replace(/-$/, '').replace(/_/g, '\u00a0')
+		if (!displayText) continue
+		var lyricFont = lyricFontPx() + 'px ' + getMusicTextFamily()
+		var text = new Text(displayText, 0, {
+			font: lyricFont,
+			textAlign: 'left',
+		})
+		cursor.posGlyph(text)
+		text.offsetY = lyricVerseOffsetY(currentStaves, cursor.staveIndex, vi)
+		drawing.add(text)
 
-			// Compute lyric Y to center in the gap between this staff and the
-			// next non-layered staff below it.
-			var staveIndex = cursor.staveIndex
-			var thisStaveY = getStaffY(staveIndex)
-			var nextStaveY = null
-			for (var nsi = staveIndex + 1; nsi < currentStaves.length; nsi++) {
-				if (getStaffY(nsi) !== thisStaveY) {
-					nextStaveY = getStaffY(nsi)
-					break
-				}
-			}
-			var lyricOffsetY
-			if (nextStaveY !== null) {
-				// Center in the gap: midpoint between bottom of this staff and
-				// top of next staff.  Bottom line = staveY, top line of next = nextStaveY - fs.
-				var gap = nextStaveY - thisStaveY
-				lyricOffsetY = gap / 2 - getFontSize() / 2
-			} else {
-				// No staff below — fall back to fixed offset
-				lyricOffsetY = getFontSize() * 1.5
-			}
-
-			var lyricFont = lyricFontSize + 'px ' + getMusicTextFamily()
-			var text = new Text(displayText, 0, {
-				font: lyricFont,
-				textAlign: 'left',
-			})
-			cursor.posGlyph(text)
-			text.offsetY = lyricOffsetY
-			drawing.add(text)
-
-			// Measure lyric text width for spring-rod spacing.
-			// The rod of a note should be at least as wide as its lyric
-			// so syllables don't overlap when springs compress.
-			var ctx = window.ctx
-			if (ctx) {
-				ctx.save()
-				ctx.font = lyricFont
-				token._lyricWidth = ctx.measureText(displayText).width
-				ctx.restore()
-			}
+		// Measure lyric text width for spring-rod spacing.
+		// The rod of a note should be at least as wide as its widest
+		// syllable so syllables don't overlap when springs compress.
+		var ctx = window.ctx
+		if (ctx) {
+			ctx.save()
+			ctx.font = lyricFont
+			lyricWidth = Math.max(lyricWidth, ctx.measureText(displayText).width)
+			ctx.restore()
 		}
 	}
+	if (lyricWidth) token._lyricWidth = lyricWidth
 
 	/*
 
