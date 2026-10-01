@@ -3539,7 +3539,8 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 	if (token.text) {
 		// Strip trailing hyphens for display — NWC draws hyphens as dashes
 		// centered between note positions, not on the syllable text itself.
-		var displayText = token.text.replace(/-$/, '')
+		// '_' joins words onto one note (NWC); it prints as a space.
+		var displayText = token.text.replace(/-$/, '').replace(/_/g, '\u00a0')
 		if (displayText) {
 			var lyricFontSize = Math.round(getFontSize() * 0.38)
 
