@@ -2056,9 +2056,13 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	if (data.info?.author) titleHeight += Math.round(fs * 0.71)
 	if (titleHeight > 0) titleHeight += Math.round(fs * 0.54)  // gap after title block
 
+	// Room above each page's first system for its top staff line and any
+	// content standing above it (high notes, tempo marks, voltas).
+	var topClearance = computeSystemTopClearance(staves)
+
 	var pages = []        // [{systemStart, systemEnd}]
 	var currentPage = 0
-	var currentPageY = titleHeight  // start after title on page 1
+	var currentPageY = titleHeight + topClearance  // start after title on page 1
 	var pageStart = 0
 
 	for (var sysIdx = 0; sysIdx < systemCount; sysIdx++) {
@@ -2068,7 +2072,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			// Finish current page
 			pages.push({ systemStart: pageStart, systemEnd: sysIdx - 1 })
 			currentPage++
-			currentPageY = 0
+			currentPageY = topClearance
 			pageStart = sysIdx
 		}
 		currentPageY += sysH + interSystemGap
@@ -2146,10 +2150,12 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var page = pages[pi]
 		var pos = pagePositions[pi]
 		var pageContentY = pos.y + margins.top
-		var localY = (pi === 0) ? titleHeight : 0
+		// localY tracks the top line of each system's first staff;
+		// systemYOffsets holds that staff's bottom line (one staff height lower).
+		var localY = ((pi === 0) ? titleHeight : 0) + topClearance
 
 		for (var si = page.systemStart; si <= page.systemEnd; si++) {
-			systemYOffsets[si] = pageContentY + localY
+			systemYOffsets[si] = pageContentY + localY + fs
 			// X offset: difference between this page's x and the default horizontalPad
 			systemXOffsets[si] = pos.x - horizontalPad
 			localY += systemHeight + interSystemGap
@@ -2829,6 +2835,21 @@ function computeInterSystemGap(staves) {
 	}
 	var contentGap = (-below + (above - 8)) * halfSpace + fs * 0.6
 	return Math.max(minGap, contentGap)
+}
+
+/**
+ * Height needed above a system's top staff line for content standing above
+ * the first staff group, in pixels.
+ */
+function computeSystemTopClearance(staves) {
+	var fs = getFontSize()
+	if (!currentExtents.length || !staves.length) return 0
+	var firstY = getStaffY(0)
+	var above = 8
+	for (var si = 0; si < staves.length && si < currentExtents.length; si++) {
+		if (getStaffY(si) === firstY) above = Math.max(above, currentExtents[si].maxPos)
+	}
+	return (above - 8) * (fs / 8)
 }
 
 function getStaffY(staffIndex) {

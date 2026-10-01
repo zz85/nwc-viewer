@@ -677,6 +677,9 @@ const rerender = () => {
 				}
 				score(musicContext)
 				window.__renderComplete = { ts: Date.now(), file: window.__currentFile }
+				// Page count changes with every layout; refresh the "n / total" nav
+				if (currentPageIdx >= (window._pageGeometry?.pageCount || 1)) currentPageIdx = 0
+				updatePageNav()
 
 				// Update highlighter with new layout positions
 				highlighter.setScore(data)
