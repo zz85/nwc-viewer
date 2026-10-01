@@ -8,9 +8,13 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<style>
 			/* Companion text fonts for each SMuFL music font */
-			@font-face { font-family: 'BravuraText'; src: url('vendor/bravura-1.211/otf/BravuraText.otf') format('opentype'); }
-			@font-face { font-family: 'LelandText'; src: url('vendor/fonts/LelandText.otf') format('opentype'); }
-			@font-face { font-family: 'PetalumaText'; src: url('vendor/fonts/PetalumaText.otf') format('opentype'); }
+			/* BravuraText, LelandText and PetalumaText carry no Latin letters, only a
+			   narrow (0.1em) space and Bravura's own -/= glyphs. Exclude ASCII so text
+			   falls back wholesale to the serif font instead of mixing in those glyphs,
+			   which collapsed word spaces in titles and broke lyric hyphens. */
+			@font-face { font-family: 'BravuraText'; src: url('vendor/bravura-1.211/otf/BravuraText.otf') format('opentype'); unicode-range: U+0080-10FFFF; }
+			@font-face { font-family: 'LelandText'; src: url('vendor/fonts/LelandText.otf') format('opentype'); unicode-range: U+0080-10FFFF; }
+			@font-face { font-family: 'PetalumaText'; src: url('vendor/fonts/PetalumaText.otf') format('opentype'); unicode-range: U+0080-10FFFF; }
 			@font-face { font-family: 'SebastianText'; src: url('vendor/fonts/SebastianText.otf') format('opentype'); }
 			@font-face { font-family: 'FinaleMaestroText'; font-weight: normal; font-style: normal; src: url('vendor/fonts/FinaleMaestroText-Regular.otf') format('opentype'); }
 			@font-face { font-family: 'FinaleMaestroText'; font-weight: bold; font-style: normal; src: url('vendor/fonts/FinaleMaestroText-Bold.otf') format('opentype'); }
