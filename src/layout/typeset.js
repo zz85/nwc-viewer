@@ -692,6 +692,25 @@ function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
 			1.0 + (targetWidth - naturalWidth) / effectiveSprings))
 		: 1.0
 
+	// When compressing, a gap may not shrink below the rod (rigid width,
+	// including lyric text) of the note before it; only the excess is
+	// elastic. Recompute the factor with those limits so the system still
+	// fills the target width.
+	var compressing = factor < 1
+	var springOf = function(i) {
+		var naturalGap = entries[i].anchorX - entries[i - 1].anchorX
+		var sp = Math.min(entries[i - 1].spring * balance, naturalGap)
+		if (compressing) sp = Math.min(sp, Math.max(0, naturalGap - entries[i - 1].rod))
+		return sp
+	}
+	if (compressing) {
+		var limitedSprings = trailingNatural > 0 ? Math.min(lastEntry.spring * balance, trailingNatural) : 0
+		for (var i = 1; i < entries.length; i++) limitedSprings += springOf(i)
+		if (limitedSprings > 0) {
+			factor = Math.max(SPRING_FACTOR_MIN, Math.min(1, 1.0 + (targetWidth - naturalWidth) / limitedSprings))
+		}
+	}
+
 	var anchors = []
 	var anchorOffsets = [0]
 	anchors.push(entries[0].anchorX)
@@ -699,9 +718,7 @@ function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
 	for (var i = 1; i < entries.length; i++) {
 		anchors.push(entries[i].anchorX)
 		var naturalGap = entries[i].anchorX - entries[i - 1].anchorX
-		var springPortion = entries[i - 1].spring * balance
-		// Clamp springPortion to not exceed the natural gap
-		if (springPortion > naturalGap) springPortion = naturalGap
+		var springPortion = springOf(i)
 		var rodPortion = naturalGap - springPortion
 		var newGap = rodPortion + springPortion * factor
 		cumOffset += (newGap - naturalGap)
@@ -3829,6 +3846,12 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 	} else {
 		var spaceMultiplier = calculatePadding(durValue || token.durValue)
 		cursor.tokenPadRight(noteHead.width * spaceMultiplier + stemBuffer)
+		// Leave room for this note's lyric before the next note
+		var lyricW = durToken._lyricWidth || token._lyricWidth || 0
+		if (lyricW) {
+			var lyricPad = noteHead.x + lyricW + spacerWidth() * 0.5 - cursor.staveX
+			if (lyricPad > cursor.lastPadRight) cursor.tokenPadRight(lyricPad)
+		}
 	}
 
 	// --- Record rod (rigid width) and spring (elastic gap) for spring-rod model ---
