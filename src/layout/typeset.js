@@ -105,6 +105,75 @@ function collectMeasureBoundaries(staves) {
 }
 
 /**
+ * Center whole-measure rests in their bar, as engraving convention requires.
+ * Runs after layout/reflow on final positions. A bar is centered when every
+ * staff of a layer group (staves sharing a Y) has nothing but rests in it and
+ * the visible content is a single lone rest; that rest moves midway between
+ * its current (left-aligned) position and the closing barline, together with
+ * markings attached to it (fermatas, dynamics, text at the same X).
+ */
+function centerMeasureRests(staves) {
+	var fs = getFontSize()
+	var DURATIONAL = { Note: 1, Chord: 1, Rest: 1, RestChord: 1 }
+
+	// Per staff: bars[k] = { durs: [...], marks: [...], bar: barlineToken }
+	var staffBars = staves.map(function(st) {
+		var bars = [], durs = [], marks = []
+		for (var tok of st.tokens || []) {
+			if (DURATIONAL[tok.type]) durs.push(tok)
+			else if (tok.type === 'Barline') { bars.push({ durs: durs, marks: marks, bar: tok }); durs = []; marks = [] }
+			else if (tok.drawingAnnotation || tok.drawingDynamic) marks.push(tok.drawingAnnotation || tok.drawingDynamic)
+		}
+		return bars
+	})
+
+	var si = 0
+	while (si < staves.length) {
+		// Layer group: staves drawn at the same Y
+		var group = [si]
+		while (si + group.length < staves.length && getStaffY(si + group.length) === getStaffY(si)) group.push(si + group.length)
+		si += group.length
+
+		var barCount = Math.min.apply(null, group.map(function(g) { return staffBars[g].length }))
+		for (var k = 0; k < barCount; k++) {
+			// Every voice in the bar must be rests only; each voice may show at
+			// most one (layered voices often repeat the same full-bar rest,
+			// drawn on top of each other).
+			var targets = [], ok = true
+			for (var g of group) {
+				var b = staffBars[g][k]
+				if (b.durs.some(function(t) { return t.type !== 'Rest' })) { ok = false; break }
+				var visible = b.durs.filter(function(t) { return t.drawingNoteHead && !t.drawingNoteHead.hidden })
+				if (visible.length === 0) continue
+				// A lone rest fills the bar whatever its written value (e.g. a half
+				// rest in 2/4), so it is a full-measure rest.
+				if (visible.length > 1 || b.durs.length > 1) { ok = false; break }
+				targets.push({ rest: visible[0], bar: b })
+			}
+			if (!ok || !targets.length) continue
+			var moved = []
+			for (var t of targets) {
+				var glyph = t.rest.drawingNoteHead
+				var barGlyph = t.bar.bar.drawingBarline
+				if (!barGlyph || Math.abs(glyph.y - barGlyph.y) > fs * 2) continue  // same system only
+				var delta = (barGlyph.x - glyph.x - (glyph.width || 0)) / 2
+				if (delta <= 0) continue
+				moved.push({ origX: glyph.x, delta: delta })
+				glyph.x += delta
+			}
+			if (!moved.length) continue
+			// Move markings attached to the rest (laid out at the rest's X)
+			for (var g2 of group) {
+				for (var mark of staffBars[g2][k].marks) {
+					var m = moved.find(function(mv) { return Math.abs(mark.x - mv.origX) < fs * 0.75 })
+					if (m) mark.x += m.delta
+				}
+			}
+		}
+	}
+}
+
+/**
  * Build measure geometry from final barline positions after layout/reflow.
  * Returns a flat array of { startX, endX, topY, bottomY } — one entry per
  * measure.  Uses _systemGeometry to determine vertical bounds and the left
@@ -1504,6 +1573,7 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}]
 
 	// Build measure geometry from barline positions
+	centerMeasureRests(staves)
 	_measureGeometry = buildMeasureGeometry(staves)
 
 	drawBracketsAndBraces(drawing, staves, 0)
@@ -1847,6 +1917,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}
 
 	// Build measure geometry from barline positions
+	centerMeasureRests(staves)
 	_measureGeometry = buildMeasureGeometry(staves)
 
 	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
@@ -2348,6 +2419,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}
 
 	// Build measure geometry from barline positions
+	centerMeasureRests(staves)
 	_measureGeometry = buildMeasureGeometry(staves)
 
 	// --- Canvas sizing ---
@@ -3248,13 +3320,13 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			// Convert to rendering coords: pass -(pos + 4) so Text's internal
 			// negation yields positionY(pos + 4)  — same mapping notes use.
 			var pos = token.position !== undefined ? token.position : 11
-			var text = new Text(token.text, -(pos + 4))
+			var text = token.drawingAnnotation = new Text(token.text, -(pos + 4))
 			cursor.posGlyph(text)
 			drawing.add(text)
 			break
 		case 'PerformanceStyle':
 			var pos = token.position !== undefined ? token.position : 9
-			var text = new Text(token.text, -(pos + 4), {
+			var text = token.drawingAnnotation = new Text(token.text, -(pos + 4), {
 				font: 'italic ' + Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily(),
 			})
 			cursor.posGlyph(text)
@@ -3351,12 +3423,12 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			var tvStyleName = tvStyles[token.style] || 'Fermata'
 			var tvPos = token.position !== undefined ? token.position : 11
 			if (tvStyleName === 'Fermata') {
-				var fermGlyph = new ArticulationMark('fermata', tvPos + 4)
+				var fermGlyph = token.drawingAnnotation = new ArticulationMark('fermata', tvPos + 4)
 				cursor.posGlyph(fermGlyph)
 				drawing.add(fermGlyph)
 			} else if (tvStyleName === 'Breath Mark') {
 				// Render as a comma-like mark above the staff
-				var breathText = new Text(',', -(tvPos + 4), {
+				var breathText = token.drawingAnnotation = new Text(',', -(tvPos + 4), {
 					font: 'bold ' + Math.round(getFontSize() * 0.6) + 'px ' + getMusicTextFamily(),
 				})
 				cursor.posGlyph(breathText)
@@ -3374,7 +3446,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 					'Caesura': '//',
 				}
 				var tvDisplayText = tvTextMap[tvStyleName] || tvStyleName
-				var tvText = new Text(tvDisplayText, -(tvPos + 4), {
+				var tvText = token.drawingAnnotation = new Text(tvDisplayText, -(tvPos + 4), {
 					font: 'italic ' + Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily(),
 				})
 				cursor.posGlyph(tvText)
