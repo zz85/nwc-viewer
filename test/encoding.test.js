@@ -1,8 +1,34 @@
 import { describe, test, expect } from 'bun:test'
 
-const { looksLikeEUCKR, looksLikeShiftJIS, looksLikeGBK, looksLikeCyrillic, decodeBytes } = await import('../src/nwc.js')
+const { looksLikeWestern, looksLikeEUCKR, looksLikeShiftJIS, looksLikeGBK, looksLikeCyrillic, decodeBytes } = await import('../src/nwc.js')
 
 describe('Encoding detection', () => {
+	describe('looksLikeWestern', () => {
+		test('returns false for pure ASCII', () => {
+			expect(looksLikeWestern(new Uint8Array([0x48, 0x69]))).toBe(false)
+		})
+
+		test('returns true for isolated accented letter (é + ASCII)', () => {
+			expect(looksLikeWestern(new Uint8Array([0x70, 0xE9, 0x64]))).toBe(true)
+		})
+
+		test('returns true for two adjacent Latin letters (çã)', () => {
+			expect(looksLikeWestern(new Uint8Array([0x69, 0xE7, 0xE3, 0x6F]))).toBe(true)
+		})
+
+		test('returns false for EUC-KR Hangul pair (아 = 0xBE 0xC6)', () => {
+			expect(looksLikeWestern(new Uint8Array([0xBE, 0xC6]))).toBe(false)
+		})
+
+		test('returns false for runs of 3+ high bytes (Cyrillic word)', () => {
+			expect(looksLikeWestern(new Uint8Array([0xEC, 0xE8, 0xF0]))).toBe(false)
+		})
+
+		test('returns false for bytes unused in Western text (Shift-JIS lead 0x82)', () => {
+			expect(looksLikeWestern(new Uint8Array([0x82, 0x40]))).toBe(false)
+		})
+	})
+
 	describe('looksLikeEUCKR', () => {
 		test('returns false for pure ASCII', () => {
 			expect(looksLikeEUCKR(new Uint8Array([0x48, 0x65, 0x6C, 0x6C, 0x6F]))).toBe(false)
@@ -254,27 +280,22 @@ describe('Encoding detection', () => {
 			expect(result).not.toBe('\x82@')
 		})
 
-		test('decodes Shift-JIS half-width katakana', () => {
-			// 0xB1 = half-width ア in Shift-JIS
-			// Note: also valid as EUC-KR lead, but as single byte only Shift-JIS treats it
-			// This byte alone (dangling) fails EUC-KR check, then succeeds Shift-JIS
-			const result = decodeBytes(new Uint8Array([0xB1]))
-			expect(result).toBe('ｱ')
+		test('decodes a run of Shift-JIS half-width katakana (ｱｲｳ)', () => {
+			// 0xB1 0xB2 0xB3: a run of 3 high bytes rules out Western; EUC-KR
+			// fails on the dangling third byte, Shift-JIS accepts single-byte kana
+			expect(decodeBytes(new Uint8Array([0xB1, 0xB2, 0xB3]))).toBe('ｱｲｳ')
+		})
+
+		test('treats a lone 0xB1 as Windows-1252 (±), not half-width katakana', () => {
+			expect(decodeBytes(new Uint8Array([0x31, 0xB1, 0x32]))).toBe('1±2')
 		})
 
 		test('decodes GBK Chinese text when EUC-KR and Shift-JIS fail', () => {
-			// 0xB0 0x7F - trail 0x7F is invalid for EUC-KR (not in 0x41-0x5A, 0x61-0x7A, 0x81-0xFE)
-			// Also invalid for Shift-JIS (0x7F is the gap between 0x40-0x7E and 0x80-0xFC)
-			// But valid for GBK (0x7F... wait, GBK trail is 0x40-0x7E | 0x80-0xFE, 0x7F is excluded!)
-			// Use 0xA1 0x40 instead: EUC-KR rejects trail 0x40, Shift-JIS treats 0xA1 as katakana then 0x40 as ASCII
-			// Use 0xA0 0x40: 0xA0 fails EUC-KR (lead valid but...), Shift-JIS (0xA0 not in any range), GBK has lead 0x81-0xFE...
-			// Actually 0xA0 is NOT in GBK lead range (0x81-0xFE includes 0xA0? 0xA0=160, 0x81=129, 0xFE=254. Yes!)
-			// 0xA0 >= 0x81 && <= 0xFE → valid GBK lead. But Shift-JIS: 0xA0 is NOT in 0xA1-0xDF, NOT in 0x81-0x9F, NOT in 0xE0-0xFC → false
-			// EUC-KR: 0xA0 >= 0x81 && <= 0xFE → valid lead. Trail 0x40: NOT in any EUC-KR trail range → false
-			// GBK: 0xA0 valid lead, 0x40 valid trail (0x40-0x7E) → true!
-			const result = decodeBytes(new Uint8Array([0xA0, 0x40]))
-			// Should use GBK decoder (not Windows-1252)
-			expect(result).not.toBe('\xA0@')
+			// 0xFD 0x80: EUC-KR rejects trail 0x80, Shift-JIS rejects lead 0xFD,
+			// Western rejects the adjacent pair (0x80 is not a Latin letter),
+			// GBK accepts lead 0x81-0xFE with trail 0x80-0xFE
+			const bytes = new Uint8Array([0xFD, 0x80])
+			expect(decodeBytes(bytes)).toBe(new TextDecoder('gbk').decode(bytes))
 		})
 
 		test('decodes Cyrillic text with odd-length pattern', () => {
@@ -291,6 +312,34 @@ describe('Encoding detection', () => {
 		test('decodes Windows-1252 euro sign (0x80)', () => {
 			// 0x80 is below all CJK lead ranges and fails Cyrillic check
 			expect(decodeBytes(new Uint8Array([0x80, 0x32, 0x30]))).toBe('\u20AC20')
+		})
+
+		test('decodes Western text Gymnopédie No.1 as Windows-1252', () => {
+			expect(decodeBytes(new Uint8Array([0x47, 0x79, 0x6D, 0x6E, 0x6F, 0x70, 0xE9, 0x64, 0x69, 0x65, 0x20, 0x4E, 0x6F, 0x2E, 0x31]))).toBe('Gymnopédie No.1')
+		})
+
+		test('decodes Western text Copyright © 1998 as Windows-1252', () => {
+			expect(decodeBytes(new Uint8Array([0x43, 0x6F, 0x70, 0x79, 0x72, 0x69, 0x67, 0x68, 0x74, 0x20, 0xA9, 0x20, 0x31, 0x39, 0x39, 0x38]))).toBe('Copyright © 1998')
+		})
+
+		test('decodes Western text Père Noël as Windows-1252', () => {
+			expect(decodeBytes(new Uint8Array([0x50, 0xE8, 0x72, 0x65, 0x20, 0x4E, 0x6F, 0xEB, 0x6C]))).toBe('Père Noël')
+		})
+
+		test('decodes Western text Müller as Windows-1252', () => {
+			expect(decodeBytes(new Uint8Array([0x4D, 0xFC, 0x6C, 0x6C, 0x65, 0x72]))).toBe('Müller')
+		})
+
+		test('decodes Western text Conceição as Windows-1252', () => {
+			expect(decodeBytes(new Uint8Array([0x43, 0x6F, 0x6E, 0x63, 0x65, 0x69, 0xE7, 0xE3, 0x6F]))).toBe('Conceição')
+		})
+
+		test('decodes Western text Arcadelt (1504–1568) as Windows-1252', () => {
+			expect(decodeBytes(new Uint8Array([0x41, 0x72, 0x63, 0x61, 0x64, 0x65, 0x6C, 0x74, 0x20, 0x28, 0x31, 0x35, 0x30, 0x34, 0x96, 0x31, 0x35, 0x36, 0x38, 0x29]))).toBe('Arcadelt (1504–1568)')
+		})
+
+		test('decodes Western text «Noël» as Windows-1252', () => {
+			expect(decodeBytes(new Uint8Array([0xAB, 0x4E, 0x6F, 0xEB, 0x6C, 0xBB]))).toBe('«Noël»')
 		})
 
 		test('accepts plain Array input', () => {

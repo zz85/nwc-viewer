@@ -102,6 +102,38 @@ function decodeWindows1251(bytes) {
 	return result
 }
 
+// Windows-1252 (Western): accented Latin letters and symbols such as © – é
+// appear as isolated high bytes between ASCII characters, or at most two
+// adjacent Latin letters (e.g. "ção"). CJK and Cyrillic text produce longer
+// runs of high bytes or bytes outside this set. Checked before the CJK
+// detectors, whose permissive trail ranges also match "é" + ASCII letter.
+function isWesternHighByte(b) {
+	if (b >= 0xA0) return true
+	return b === 0x80 || b === 0x85 || b === 0x8A || b === 0x8C || b === 0x8E ||
+		(b >= 0x91 && b <= 0x97) || b === 0x99 || b === 0x9A || b === 0x9C ||
+		b === 0x9E || b === 0x9F
+}
+
+function looksLikeWestern(bytes) {
+	var high = 0
+	for (var i = 0; i < bytes.length; i++) {
+		var b = bytes[i]
+		if (b < 0x80) continue
+		high++
+		if (!isWesternHighByte(b)) return false
+		var run = 1
+		while (i + run < bytes.length && bytes[i + run] >= 0x80) run++
+		if (run > 2) return false
+		if (run === 2) {
+			var n = bytes[i + 1]
+			if (b < 0xC0 || n < 0xC0) return false
+			high++
+			i++
+		}
+	}
+	return high > 0
+}
+
 // EUC-KR / CP949: lead 0x81-0xFE, trail 0x41-0x5A | 0x61-0x7A | 0x81-0xFE.
 // Strict trail ranges make this a good first CJK check.
 function looksLikeEUCKR(bytes) {
@@ -182,7 +214,7 @@ function looksLikeCyrillic(bytes) {
 	return cyrillic > 1 && cyrillic >= other * 2
 }
 
-// Detection order: UTF-8 (exact) → EUC-KR (strict trails) → Shift-JIS
+// Detection order: UTF-8 (exact) → Western (isolated accents/symbols) → EUC-KR (strict trails) → Shift-JIS
 // (medium strictness + half-width katakana) → GBK (wide catch-all for CJK)
 // → Windows-1251 (Cyrillic) → Windows-1252 (lossless Western fallback).
 //
@@ -193,6 +225,7 @@ function decodeBytes(array) {
 	if (!array || array.length === 0) return ''
 	var bytes = array instanceof Uint8Array ? array : new Uint8Array(array)
 	try { return _td_utf8.decode(bytes) } catch (e) {}
+	if (looksLikeWestern(bytes)) return _td_w1252.decode(bytes)
 	if (looksLikeEUCKR(bytes)) return _td_euckr.decode(bytes)
 	if (looksLikeShiftJIS(bytes)) return _td_sjis.decode(bytes)
 	if (looksLikeGBK(bytes)) return _td_gbk.decode(bytes)
@@ -1429,4 +1462,4 @@ if (typeof window !== 'undefined') {
 	Object.assign(window, { decodeNwcArrayBuffer })
 }
 
-export { decodeNwcArrayBuffer, looksLikeEUCKR, looksLikeShiftJIS, looksLikeGBK, looksLikeCyrillic, decodeBytes }
+export { decodeNwcArrayBuffer, looksLikeWestern, looksLikeEUCKR, looksLikeShiftJIS, looksLikeGBK, looksLikeCyrillic, decodeBytes }
