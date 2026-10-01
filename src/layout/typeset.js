@@ -1192,10 +1192,10 @@ function splitCrossSystemTies(drawing, systemHeight, interSystemGap) {
 		// Primary: use stored system index from reflow pass.
 		// Fallback: Y-distance heuristic for elements without _sysIdx.
 		var isCrossSystem = false
-		if (el._sysIdx != null) {
-			// If the end Y is on a different system, the Y shift during
-			// reflow only applied the *start* system's offset to endy,
-			// so the two endpoints will be far apart in Y.
+		if (el._endYShift != null) {
+			// Reflow recorded that the end point lies in a later system
+			isCrossSystem = el._endYShift !== 0
+		} else if (el._sysIdx != null) {
 			var yDiff = Math.abs(el.endy - el.y)
 			isCrossSystem = yDiff > systemHeight * 0.5
 		} else {
@@ -1924,12 +1924,22 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		// at different positions within the system, so recompute the width.
 		else if (el.endx != null && el.width != null) {
 			var origEndAbsX = el.x + el.width
-			var relEnd = origEndAbsX - systemStartX
-
 			el.x = justify(relX) + leftMargin + courtesyW
-			var justEnd = justify(relEnd) + leftMargin + courtesyW
+
+			// A tie/slur may end in a later system: place its end point in
+			// that system (its own justification and offsets) so that
+			// splitCrossSystemTies sees the two systems and draws partial arcs.
+			var endSysIdx = sysIdx
+			while (endSysIdx < breakXs.length && origEndAbsX > breakXs[endSysIdx]) endSysIdx++
+			var endStartX = endSysIdx === 0 ? 0 : breakXs[endSysIdx - 1]
+			var endSpring = useSpring ? systemSpringMaps[endSysIdx] : null
+			var endBarMap = systemBarlineMaps[endSysIdx]
+			var relEnd = origEndAbsX - endStartX
+			var justEnd = (endSpring ? springJustifyX(relEnd, endSpring) : computeJustifyX(relEnd, endBarMap)) +
+				leftMargin + courtesyWidths[endSysIdx]
 			el.width = justEnd - el.x
 			el.endx = justEnd
+			el._endYShift = (endSysIdx - sysIdx) * (systemHeight + interSystemGap)
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
 		}
@@ -1942,8 +1952,9 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		el.y = el.y + yShift
 
 		// For Tie objects, also shift the absolute end-Y coordinate
+		// (by the end system's offset when it ends in a later system)
 		if (el.endy != null) {
-			el.endy = el.endy + yShift
+			el.endy = el.endy + yShift + (el._endYShift || 0)
 		}
 	}
 
@@ -2374,12 +2385,19 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			el.endX = justEnd - justOrigin
 		} else if (el.endx != null && el.width != null) {
 			var origEndAbsX = el.x + el.width
-			var relEnd = origEndAbsX - systemStartX
-
 			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
-			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad + xPageShift
+
+			// End point in its own system (see scoreWrapLayout)
+			var endSysIdx = sysIdx
+			while (endSysIdx < breakXs.length && origEndAbsX > breakXs[endSysIdx]) endSysIdx++
+			var endStartX = endSysIdx === 0 ? 0 : breakXs[endSysIdx - 1]
+			var endSpring = useSpringPage ? systemSpringMapsPage[endSysIdx] : null
+			var relEnd = origEndAbsX - endStartX
+			var justEnd = (endSpring ? springJustifyX(relEnd, endSpring) : computeJustifyX(relEnd, systemBarlineMaps[endSysIdx])) +
+				leftMargin + courtesyWidths[endSysIdx] + horizontalPad + systemXOffsets[endSysIdx]
 			el.width = justEnd - el.x
 			el.endx = justEnd
+			el._endYShift = systemYOffsets[endSysIdx] - systemYOffsets[sysIdx]
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
 		} else {
@@ -2391,7 +2409,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		el.y = el.y + yShift
 
 		if (el.endy != null) {
-			el.endy = el.endy + yShift
+			el.endy = el.endy + yShift + (el._endYShift || 0)
 		}
 	}
 
