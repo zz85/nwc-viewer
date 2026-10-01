@@ -8,17 +8,92 @@
     "title": "We three kings of Orient are",
     "author": "Christmas traditional",
     "lyricist": "",
-    "copyright1": "www.cipoo.net   -   Copyleft",
-    "copyright2": "and/or modify it according to terms of the Free Art license http",
-    "comments": ""
+    "copyright1": "www.cipoo.net   -   Copyleft: this work of art is free, you can redistribute it",
+    "copyright2": "and/or modify it according to terms of the Free Art license http://artlibre.org",
+    "comments": "\r\nÂ­ Â­\r\n"
   },
   "score": {
+    "allowLayering": true,
     "staves": [
       {
         "staff_name": "s",
+        "staff_label": "s",
         "group_name": "Standard",
         "channel": 2,
-        "lyrics": [],
+        "patchName": 52,
+        "transposition": 0,
+        "bracketWithNext": true,
+        "braceWithNext": false,
+        "connectBarsWithNext": false,
+        "layerWithNext": true,
+        "boundaryTop": -16,
+        "boundaryBottom": 18,
+        "endingBar": 0,
+        "lines": 5,
+        "color": 0,
+        "lyrics": [
+          [
+            "We",
+            " three",
+            " kings",
+            " of",
+            " O",
+            "-rient",
+            " are;",
+            "\rBear",
+            "-ing",
+            " gifts",
+            " we",
+            " tra",
+            "-verse",
+            " a",
+            "-far",
+            "\rField",
+            " and",
+            " foun",
+            "-tain,",
+            " moor",
+            " and",
+            " moun",
+            "-tain,",
+            "\rFol",
+            "-low",
+            "-ing",
+            " yon",
+            "-der",
+            " star.",
+            "\rO",
+            " star",
+            " of",
+            " won",
+            "-der,",
+            " star",
+            " of",
+            " night,",
+            "\rStar",
+            " with",
+            " roy",
+            "-al",
+            " beau",
+            "-ty",
+            " bright,",
+            "\rWest",
+            "-ward",
+            " lead",
+            "-ing,",
+            " still",
+            " pro",
+            "-ceed",
+            "-ing,",
+            "\rGuide",
+            " us",
+            " to",
+            " Thy",
+            " per",
+            "-fect",
+            " light."
+          ]
+        ],
         "tokens": [
           {
             "type": "Clef",
@@ -40,20 +115,37 @@
             "signature": "3/8"
           },
           {
+            "type": "Spacer"
+          },
+          {
             "type": "Tempo",
-            "position": 0,
+            "Visibility": "Never",
+            "position": 16,
             "placement": 0,
             "duration": 66,
-            "note": 2
+            "note": 3,
+            "beatDuration": 0.375
+          },
+          {
+            "type": "PerformanceStyle",
+            "Visibility": "Never",
+            "position": 13,
+            "placement": 0,
+            "style": 7,
+            "text": "Legato"
           },
           {
             "type": "Dynamic",
-            "position": 0,
+            "position": 8,
             "placement": 0,
             "style": 4,
             "dynamic": "mf"
           },
           {
+            "type": "Instrument",
+            "Visibility": "Never"
+          },
+          {
             "type": "Note",
             "position": -4,
             "duration": 4,
@@ -68,7 +160,8 @@
             "staccato": 0,
             "accent": 0,
             "grace": 0,
-            "tenuto": 0
+            "tenuto": 0,
+            "lyricSyllable": 2
           },
           {
             "type": "Note",
@@ -85,12 +178,14 @@
             "staccato": 0,
             "accent": 0,
             "grace": 0,
-            "tenuto": 0
+            "tenuto": 0,
+            "lyricSyllable": 2
           },
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -107,7 +202,8 @@
             "staccato": 0,
             "accent": 0,
             "grace": 0,
-            "tenuto": 0
+            "tenuto": 0,
+            "lyricSyllable": 2
           },
           {
             "type": "Chord",
@@ -125,6 +221,7 @@
             "accent": 0,
             "grace": 0,
             "tenuto": 0,
+            "lyricSyllable": 2,
             "chords": 2,
             "notes": [
               {
@@ -141,7 +238,8 @@
                 "staccato": 0,
                 "accent": 0,
                 "grace": 0,
-                "tenuto": 0
+                "tenuto": 0,
+                "lyricSyllable": 2
               },
               {
                 "position": -3,
@@ -157,14 +255,16 @@
                 "staccato": 0,
                 "accent": 0,
                 "grace": 0,
-                "tenuto": 0
+                "tenuto": 0,
+                "lyricSyllable": 2
               }
             ]
           },
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Chord",
@@ -182,6 +282,7 @@
             "accent": 0,
             "grace": 0,
             "tenuto": 0,
+            "lyricSyllable": 2,
             "chords": 2,
             "notes": [
               {
@@ -198,7 +299,8 @@
                 "staccato": 0,
                 "accent": 0,
                 "grace": 0,
-                "tenuto": 0
+                "tenuto": 0,
+                "lyricSyllable": 2
               },
               {
                 "position": -2,
@@ -214,7 +316,8 @@
                 "staccato": 0,
                 "accent": 0,
                 "grace": 0,
-                "tenuto": 0
+                "tenuto": 0,
+                "lyricSyllable": 2
               }
             ]
           },
@@ -234,6 +337,7 @@
             "accent": 0,
             "grace": 0,
             "tenuto": 0,
+            "lyricSyllable": 2,
             "chords": 2,
             "notes": [
               {
@@ -250,7 +354,8 @@
                 "staccato": 0,
                 "accent": 0,
                 "grace": 0,
-                "tenuto": 0
+                "tenuto": 0,
+                "lyricSyllable": 2
               },
               {
                 "position": -3,
@@ -266,14 +371,16 @@
                 "staccato": 0,
                 "accent": 0,
                 "grace": 0,
-                "tenuto": 0
+                "tenuto": 0,
+                "lyricSyllable": 2
               }
             ]
           },
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Chord",
@@ -291,6 +398,7 @@
             "accent": 0,
             "grace": 0,
             "tenuto": 0,
+            "lyricSyllable": 2,
             "chords": 2,
             "notes": [
               {
@@ -307,7 +415,8 @@
                 "staccato": 0,
                 "accent": 0,
                 "grace": 0,
-                "tenuto": 0
+                "tenuto": 0,
+                "lyricSyllable": 2
               },
               {
                 "position": -2,
@@ -323,7 +432,8 @@
                 "staccato": 0,
                 "accent": 0,
                 "grace": 0,
-                "tenuto": 0
+                "tenuto": 0,
+                "lyricSyllable": 2
               }
             ]
           },
@@ -342,22 +452,31 @@
             "staccato": 0,
             "accent": 0,
             "grace": 0,
-            "tenuto": 0
+            "tenuto": 0,
+            "lyricSyllable": 2
           },
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "Spacer"
+          },
+          {
+            "type": "Instrument",
+            "Visibility": "Never"
           },
           {
             "type": "Text",
-            "position": 0,
-            "font": 0,
+            "position": -15,
+            "font": 2,
             "text": "1.   "
           },
           {
             "type": "Dynamic",
-            "position": 0,
+            "position": 8,
             "placement": 0,
             "style": 4,
             "dynamic": "mf"
@@ -399,7 +518,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -438,7 +558,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -466,13 +587,14 @@
             "tie": 0,
             "tieEnd": 0,
             "slur": 0,
-            "beam": 2,
+            "beam": 3,
             "stem": 1,
             "triplet": 0,
             "staccato": 0,
             "accent": 0,
             "grace": 0,
-            "tenuto": 0
+            "tenuto": 0,
+            "lyricSyllable": 2
           },
           {
             "type": "Note",
@@ -494,7 +616,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -523,7 +646,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -562,7 +686,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -601,7 +726,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -657,7 +783,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -686,7 +813,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -725,7 +853,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -764,7 +893,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -803,7 +933,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -831,13 +962,14 @@
             "tie": 0,
             "tieEnd": 0,
             "slur": 0,
-            "beam": 2,
+            "beam": 3,
             "stem": 1,
             "triplet": 0,
             "staccato": 0,
             "accent": 0,
             "grace": 0,
-            "tenuto": 0
+            "tenuto": 0,
+            "lyricSyllable": 2
           },
           {
             "type": "Note",
@@ -859,7 +991,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -915,7 +1048,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -954,7 +1088,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -976,20 +1111,36 @@
           {
             "type": "Barline",
             "barline": 1,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": true
           },
           {
             "type": "Text",
-            "position": 0,
-            "font": 0,
+            "position": 16,
+            "font": 1,
             "text": "CHORUS  "
           },
           {
+            "type": "DynamicVariance",
+            "position": 11,
+            "placement": 0,
+            "style": 0
+          },
+          {
+            "type": "TempoVariance",
+            "position": 5,
+            "placement": 0,
+            "style": 2,
+            "delay": 0
+          },
+          {
             "type": "Tempo",
-            "position": 0,
+            "Visibility": "Never",
+            "position": 16,
             "placement": 0,
             "duration": 44,
-            "note": 2
+            "note": 3,
+            "beatDuration": 0.375
           },
           {
             "type": "Note",
@@ -1011,21 +1162,30 @@
           {
             "type": "Text",
             "position": 0,
-            "font": 0,
+            "font": 6,
             "text": "    "
           },
           {
+            "type": "TempoVariance",
+            "position": 7,
+            "placement": 0,
+            "style": 2,
+            "delay": 0
+          },
+          {
             "type": "Text",
-            "position": 0,
-            "font": 0,
+            "position": 12,
+            "font": 6,
             "text": "ad lib."
           },
           {
             "type": "Tempo",
-            "position": 0,
+            "Visibility": "Never",
+            "position": 16,
             "placement": 0,
             "duration": 22,
-            "note": 2
+            "note": 3,
+            "beatDuration": 0.375
           },
           {
             "type": "Note",
@@ -1042,32 +1202,39 @@
             "staccato": 0,
             "accent": 0,
             "grace": 0,
-            "tenuto": 0
+            "tenuto": 0,
+            "lyricSyllable": 2
           },
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "Spacer"
           },
           {
             "type": "Dynamic",
-            "position": 0,
+            "position": 8,
             "placement": 0,
             "style": 6,
             "dynamic": "ff"
           },
           {
             "type": "Text",
-            "position": 0,
-            "font": 0,
+            "position": 8,
+            "font": 6,
             "text": "  a tempo"
           },
           {
             "type": "Tempo",
-            "position": 0,
+            "Visibility": "Never",
+            "position": 16,
             "placement": 0,
             "duration": 66,
-            "note": 2
+            "note": 3,
+            "beatDuration": 0.375
           },
           {
             "type": "Note",
@@ -1106,7 +1273,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1145,7 +1313,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1184,7 +1353,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1213,7 +1383,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1252,7 +1423,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1291,7 +1463,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1330,7 +1503,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": true
           },
           {
             "type": "Note",
@@ -1359,7 +1533,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1398,7 +1573,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1437,7 +1613,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1476,7 +1653,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1515,7 +1693,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1554,7 +1733,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1593,7 +1773,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1632,7 +1813,15 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "TempoVariance",
+            "position": 6,
+            "placement": 0,
+            "style": 2,
+            "delay": 0
           },
           {
             "type": "Note",
@@ -1654,14 +1843,27 @@
           {
             "type": "Barline",
             "barline": 3,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": true
           }
         ]
       },
       {
         "staff_name": "a",
+        "staff_label": "a",
         "group_name": "Standard",
         "channel": 3,
+        "patchName": 52,
+        "transposition": 0,
+        "bracketWithNext": true,
+        "braceWithNext": false,
+        "connectBarsWithNext": false,
+        "layerWithNext": false,
+        "boundaryTop": -16,
+        "boundaryBottom": 18,
+        "endingBar": 0,
+        "lines": 5,
+        "color": 0,
         "lyrics": [],
         "tokens": [
           {
@@ -1684,14 +1886,28 @@
             "signature": "3/8"
           },
           {
+            "type": "PerformanceStyle",
+            "Visibility": "Never",
+            "position": -12,
+            "placement": 0,
+            "style": 7,
+            "text": "Legato"
+          },
+          {
             "type": "Dynamic",
-            "position": 0,
+            "Visibility": "Never",
+            "position": -8,
             "placement": 0,
             "style": 4,
             "dynamic": "mf"
           },
           {
+            "type": "Instrument",
+            "Visibility": "Never"
+          },
+          {
             "type": "Rest",
+            "Visibility": "Never",
             "duration": 1,
             "dots": 0,
             "position": 0,
@@ -1699,11 +1915,14 @@
           },
           {
             "type": "Barline",
+            "Visibility": "Never",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Rest",
+            "Visibility": "Never",
             "duration": 1,
             "dots": 0,
             "position": 0,
@@ -1711,11 +1930,14 @@
           },
           {
             "type": "Barline",
+            "Visibility": "Never",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Rest",
+            "Visibility": "Never",
             "duration": 1,
             "dots": 0,
             "position": 0,
@@ -1723,11 +1945,14 @@
           },
           {
             "type": "Barline",
+            "Visibility": "Never",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Rest",
+            "Visibility": "Never",
             "duration": 4,
             "dots": 0,
             "position": 0,
@@ -1753,11 +1978,17 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "Instrument",
+            "Visibility": "Never"
           },
           {
             "type": "Dynamic",
-            "position": 0,
+            "Visibility": "Never",
+            "position": -8,
             "placement": 0,
             "style": 4,
             "dynamic": "mf"
@@ -1799,7 +2030,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1838,7 +2070,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1877,7 +2110,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1906,7 +2140,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1945,7 +2180,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -1984,7 +2220,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2040,7 +2277,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2069,7 +2307,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2108,7 +2347,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2147,7 +2387,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2186,7 +2427,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2214,7 +2456,7 @@
             "tie": 0,
             "tieEnd": 0,
             "slur": 0,
-            "beam": 2,
+            "beam": 3,
             "stem": 2,
             "triplet": 0,
             "staccato": 0,
@@ -2242,7 +2484,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2298,7 +2541,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2337,7 +2581,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2359,7 +2604,15 @@
           {
             "type": "Barline",
             "barline": 1,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "DynamicVariance",
+            "Visibility": "Never",
+            "position": -9,
+            "placement": 0,
+            "style": 0
           },
           {
             "type": "Note",
@@ -2381,11 +2634,13 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Dynamic",
-            "position": 0,
+            "Visibility": "Never",
+            "position": -8,
             "placement": 0,
             "style": 6,
             "dynamic": "ff"
@@ -2427,7 +2682,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2466,7 +2722,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2505,7 +2762,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2534,7 +2792,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2573,7 +2832,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2612,7 +2872,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2651,7 +2912,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2680,7 +2942,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2719,7 +2982,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2758,7 +3022,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2797,7 +3062,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2836,7 +3102,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2875,7 +3142,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2914,7 +3182,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2953,7 +3222,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -2976,8 +3246,20 @@
       },
       {
         "staff_name": "t",
+        "staff_label": "t",
         "group_name": "Standard",
         "channel": 4,
+        "patchName": 52,
+        "transposition": 0,
+        "bracketWithNext": true,
+        "braceWithNext": false,
+        "connectBarsWithNext": false,
+        "layerWithNext": true,
+        "boundaryTop": -13,
+        "boundaryBottom": 18,
+        "endingBar": 0,
+        "lines": 5,
+        "color": 0,
         "lyrics": [],
         "tokens": [
           {
@@ -3000,11 +3282,26 @@
             "signature": "3/8"
           },
           {
+            "type": "Spacer"
+          },
+          {
+            "type": "PerformanceStyle",
+            "Visibility": "Never",
+            "position": 12,
+            "placement": 0,
+            "style": 7,
+            "text": "Legato"
+          },
+          {
             "type": "Dynamic",
-            "position": 0,
+            "position": 8,
             "placement": 0,
             "style": 4,
             "dynamic": "mf"
+          },
+          {
+            "type": "Instrument",
+            "Visibility": "Never"
           },
           {
             "type": "Note",
@@ -3043,7 +3340,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3082,7 +3380,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3104,7 +3403,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3126,11 +3426,16 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "Instrument",
+            "Visibility": "Never"
           },
           {
             "type": "Dynamic",
-            "position": 0,
+            "position": 8,
             "placement": 0,
             "style": 4,
             "dynamic": "mf"
@@ -3172,7 +3477,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3211,7 +3517,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3239,7 +3546,7 @@
             "tie": 0,
             "tieEnd": 0,
             "slur": 0,
-            "beam": 2,
+            "beam": 3,
             "stem": 1,
             "triplet": 0,
             "staccato": 0,
@@ -3267,7 +3574,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3296,7 +3604,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3335,7 +3644,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3374,7 +3684,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3430,7 +3741,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3459,7 +3771,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3498,7 +3811,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3537,7 +3851,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3576,7 +3891,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3604,7 +3920,7 @@
             "tie": 0,
             "tieEnd": 0,
             "slur": 0,
-            "beam": 2,
+            "beam": 3,
             "stem": 1,
             "triplet": 0,
             "staccato": 0,
@@ -3632,7 +3948,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3688,7 +4005,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3727,7 +4045,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3749,7 +4068,15 @@
           {
             "type": "Barline",
             "barline": 1,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "DynamicVariance",
+            "Visibility": "Never",
+            "position": 8,
+            "placement": 0,
+            "style": 0
           },
           {
             "type": "Note",
@@ -3771,7 +4098,7 @@
           {
             "type": "Text",
             "position": 0,
-            "font": 0,
+            "font": 6,
             "text": "    "
           },
           {
@@ -3794,11 +4121,12 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Dynamic",
-            "position": 0,
+            "position": 8,
             "placement": 0,
             "style": 6,
             "dynamic": "ff"
@@ -3840,7 +4168,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -3879,153 +4208,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
-          },
-          {
-            "type": "Note",
-            "position": 3,
-            "duration": 4,
-            "dots": 0,
-            "accidental": "",
-            "tie": 0,
-            "tieEnd": 0,
-            "slur": 0,
-            "beam": 0,
-            "stem": 1,
-            "triplet": 0,
-            "staccato": 0,
-            "accent": 0,
-            "grace": 0,
-            "tenuto": 0
-          },
-          {
-            "type": "Note",
-            "position": 6,
-            "duration": 8,
-            "dots": 0,
-            "accidental": "",
-            "tie": 0,
-            "tieEnd": 0,
-            "slur": 0,
-            "beam": 0,
-            "stem": 1,
-            "triplet": 0,
-            "staccato": 0,
-            "accent": 0,
-            "grace": 0,
-            "tenuto": 0
-          },
-          {
-            "type": "Barline",
-            "barline": 0,
-            "repeat": 2
-          },
-          {
-            "type": "Note",
-            "position": 5,
-            "duration": 4,
-            "dots": 0,
-            "accidental": "",
-            "tie": 0,
-            "tieEnd": 0,
-            "slur": 0,
-            "beam": 0,
-            "stem": 1,
-            "triplet": 0,
-            "staccato": 0,
-            "accent": 0,
-            "grace": 0,
-            "tenuto": 0
-          },
-          {
-            "type": "Rest",
-            "duration": 8,
-            "dots": 0,
-            "position": 0,
-            "triplet": 0
-          },
-          {
-            "type": "Barline",
-            "barline": 0,
-            "repeat": 2
-          },
-          {
-            "type": "Note",
-            "position": 5,
-            "duration": 4,
-            "dots": 0,
-            "accidental": "",
-            "tie": 0,
-            "tieEnd": 0,
-            "slur": 0,
-            "beam": 0,
-            "stem": 1,
-            "triplet": 0,
-            "staccato": 0,
-            "accent": 0,
-            "grace": 0,
-            "tenuto": 0
-          },
-          {
-            "type": "Note",
-            "position": 5,
-            "duration": 8,
-            "dots": 0,
-            "accidental": "",
-            "tie": 0,
-            "tieEnd": 0,
-            "slur": 0,
-            "beam": 0,
-            "stem": 1,
-            "triplet": 0,
-            "staccato": 0,
-            "accent": 0,
-            "grace": 0,
-            "tenuto": 0
-          },
-          {
-            "type": "Barline",
-            "barline": 0,
-            "repeat": 2
-          },
-          {
-            "type": "Note",
-            "position": 5,
-            "duration": 4,
-            "dots": 0,
-            "accidental": "",
-            "tie": 0,
-            "tieEnd": 0,
-            "slur": 0,
-            "beam": 0,
-            "stem": 1,
-            "triplet": 0,
-            "staccato": 0,
-            "accent": 0,
-            "grace": 0,
-            "tenuto": 0
-          },
-          {
-            "type": "Note",
-            "position": 3,
-            "duration": 8,
-            "dots": 0,
-            "accidental": "",
-            "tie": 0,
-            "tieEnd": 0,
-            "slur": 0,
-            "beam": 0,
-            "stem": 1,
-            "triplet": 0,
-            "staccato": 0,
-            "accent": 0,
-            "grace": 0,
-            "tenuto": 0
-          },
-          {
-            "type": "Barline",
-            "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4064,7 +4248,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4093,7 +4278,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4132,7 +4318,158 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "Note",
+            "position": 5,
+            "duration": 4,
+            "dots": 0,
+            "accidental": "",
+            "tie": 0,
+            "tieEnd": 0,
+            "slur": 0,
+            "beam": 0,
+            "stem": 1,
+            "triplet": 0,
+            "staccato": 0,
+            "accent": 0,
+            "grace": 0,
+            "tenuto": 0
+          },
+          {
+            "type": "Note",
+            "position": 3,
+            "duration": 8,
+            "dots": 0,
+            "accidental": "",
+            "tie": 0,
+            "tieEnd": 0,
+            "slur": 0,
+            "beam": 0,
+            "stem": 1,
+            "triplet": 0,
+            "staccato": 0,
+            "accent": 0,
+            "grace": 0,
+            "tenuto": 0
+          },
+          {
+            "type": "Barline",
+            "barline": 0,
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "Note",
+            "position": 3,
+            "duration": 4,
+            "dots": 0,
+            "accidental": "",
+            "tie": 0,
+            "tieEnd": 0,
+            "slur": 0,
+            "beam": 0,
+            "stem": 1,
+            "triplet": 0,
+            "staccato": 0,
+            "accent": 0,
+            "grace": 0,
+            "tenuto": 0
+          },
+          {
+            "type": "Note",
+            "position": 6,
+            "duration": 8,
+            "dots": 0,
+            "accidental": "",
+            "tie": 0,
+            "tieEnd": 0,
+            "slur": 0,
+            "beam": 0,
+            "stem": 1,
+            "triplet": 0,
+            "staccato": 0,
+            "accent": 0,
+            "grace": 0,
+            "tenuto": 0
+          },
+          {
+            "type": "Barline",
+            "barline": 0,
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "Note",
+            "position": 5,
+            "duration": 4,
+            "dots": 0,
+            "accidental": "",
+            "tie": 0,
+            "tieEnd": 0,
+            "slur": 0,
+            "beam": 0,
+            "stem": 1,
+            "triplet": 0,
+            "staccato": 0,
+            "accent": 0,
+            "grace": 0,
+            "tenuto": 0
+          },
+          {
+            "type": "Rest",
+            "duration": 8,
+            "dots": 0,
+            "position": 0,
+            "triplet": 0
+          },
+          {
+            "type": "Barline",
+            "barline": 0,
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "Note",
+            "position": 5,
+            "duration": 4,
+            "dots": 0,
+            "accidental": "",
+            "tie": 0,
+            "tieEnd": 0,
+            "slur": 0,
+            "beam": 0,
+            "stem": 1,
+            "triplet": 0,
+            "staccato": 0,
+            "accent": 0,
+            "grace": 0,
+            "tenuto": 0
+          },
+          {
+            "type": "Note",
+            "position": 5,
+            "duration": 8,
+            "dots": 0,
+            "accidental": "",
+            "tie": 0,
+            "tieEnd": 0,
+            "slur": 0,
+            "beam": 0,
+            "stem": 1,
+            "triplet": 0,
+            "staccato": 0,
+            "accent": 0,
+            "grace": 0,
+            "tenuto": 0
+          },
+          {
+            "type": "Barline",
+            "barline": 0,
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4171,7 +4508,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4210,7 +4548,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4249,7 +4588,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4288,7 +4628,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4327,7 +4668,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4366,7 +4708,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4389,8 +4732,20 @@
       },
       {
         "staff_name": "b",
+        "staff_label": "b",
         "group_name": "Standard",
         "channel": 5,
+        "patchName": 52,
+        "transposition": 0,
+        "bracketWithNext": false,
+        "braceWithNext": false,
+        "connectBarsWithNext": false,
+        "layerWithNext": false,
+        "boundaryTop": -13,
+        "boundaryBottom": 18,
+        "endingBar": 0,
+        "lines": 5,
+        "color": 0,
         "lyrics": [],
         "tokens": [
           {
@@ -4413,33 +4768,24 @@
             "signature": "3/8"
           },
           {
+            "type": "PerformanceStyle",
+            "Visibility": "Never",
+            "position": -12,
+            "placement": 0,
+            "style": 7,
+            "text": "Legato"
+          },
+          {
             "type": "Dynamic",
-            "position": 0,
+            "Visibility": "Never",
+            "position": -8,
             "placement": 0,
             "style": 4,
             "dynamic": "mf"
           },
           {
-            "type": "Note",
-            "position": 1,
-            "duration": 4,
-            "dots": 1,
-            "accidental": "",
-            "tie": 0,
-            "tieEnd": 0,
-            "slur": 0,
-            "beam": 0,
-            "stem": 2,
-            "triplet": 0,
-            "staccato": 0,
-            "accent": 0,
-            "grace": 0,
-            "tenuto": 0
-          },
-          {
-            "type": "Barline",
-            "barline": 0,
-            "repeat": 2
+            "type": "Instrument",
+            "Visibility": "Never"
           },
           {
             "type": "Note",
@@ -4461,7 +4807,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4483,7 +4830,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4505,11 +4853,40 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "Note",
+            "position": 1,
+            "duration": 4,
+            "dots": 1,
+            "accidental": "",
+            "tie": 0,
+            "tieEnd": 0,
+            "slur": 0,
+            "beam": 0,
+            "stem": 2,
+            "triplet": 0,
+            "staccato": 0,
+            "accent": 0,
+            "grace": 0,
+            "tenuto": 0
+          },
+          {
+            "type": "Barline",
+            "barline": 0,
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "Instrument",
+            "Visibility": "Never"
           },
           {
             "type": "Dynamic",
-            "position": 0,
+            "Visibility": "Never",
+            "position": -8,
             "placement": 0,
             "style": 4,
             "dynamic": "mf"
@@ -4551,7 +4928,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4590,7 +4968,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4629,7 +5008,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4658,7 +5038,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4697,7 +5078,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4736,7 +5118,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4792,7 +5175,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4821,7 +5205,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4860,7 +5245,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4899,7 +5285,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4938,7 +5325,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -4966,7 +5354,7 @@
             "tie": 0,
             "tieEnd": 0,
             "slur": 0,
-            "beam": 2,
+            "beam": 3,
             "stem": 2,
             "triplet": 0,
             "staccato": 0,
@@ -4994,7 +5382,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5050,7 +5439,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5089,7 +5479,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5111,7 +5502,22 @@
           {
             "type": "Barline",
             "barline": 1,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "DynamicVariance",
+            "Visibility": "Never",
+            "position": -5,
+            "placement": 0,
+            "style": 0
+          },
+          {
+            "type": "TempoVariance",
+            "position": -8,
+            "placement": 0,
+            "style": 2,
+            "delay": 0
           },
           {
             "type": "Note",
@@ -5133,11 +5539,13 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Dynamic",
-            "position": 0,
+            "Visibility": "Never",
+            "position": -8,
             "placement": 0,
             "style": 6,
             "dynamic": "ff"
@@ -5179,7 +5587,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5218,7 +5627,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5257,7 +5667,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5286,7 +5697,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5325,7 +5737,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5364,7 +5777,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5403,7 +5817,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5432,7 +5847,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5471,7 +5887,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5510,7 +5927,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5549,7 +5967,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5588,7 +6007,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5627,7 +6047,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5666,7 +6087,8 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
           },
           {
             "type": "Note",
@@ -5705,7 +6127,15 @@
           {
             "type": "Barline",
             "barline": 0,
-            "repeat": 2
+            "repeat": 2,
+            "systemBreak": false
+          },
+          {
+            "type": "TempoVariance",
+            "position": -11,
+            "placement": 0,
+            "style": 2,
+            "delay": 0
           },
           {
             "type": "Note",
