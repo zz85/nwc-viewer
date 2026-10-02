@@ -850,23 +850,20 @@ class Hairpin extends Draw {
 		var lw = fs / 24
 		var w = this.spanWidth
 
+		// Opening at each end as a fraction of full: crescendo 0 → 1,
+		// decrescendo/diminuendo 1 → 0. A hairpin split across systems draws
+		// each part with an intermediate opening (startOpen/endOpen).
+		var cresc = this.style === 'Crescendo'
+		var a = (this.startOpen != null ? this.startOpen : (cresc ? 0 : 1)) * halfOpen
+		var b = (this.endOpen != null ? this.endOpen : (cresc ? 1 : 0)) * halfOpen
+
 		ctx.beginPath()
 		ctx.lineWidth = lw
 		ctx.strokeStyle = '#000'
-
-		if (this.style === 'Crescendo') {
-			// Point on the left, opening to the right
-			ctx.moveTo(0, 0)
-			ctx.lineTo(w, -halfOpen)
-			ctx.moveTo(0, 0)
-			ctx.lineTo(w, halfOpen)
-		} else {
-			// Opening on the left, point on the right (decresc/dimin)
-			ctx.moveTo(0, -halfOpen)
-			ctx.lineTo(w, 0)
-			ctx.moveTo(0, halfOpen)
-			ctx.lineTo(w, 0)
-		}
+		ctx.moveTo(0, -a)
+		ctx.lineTo(w, -b)
+		ctx.moveTo(0, a)
+		ctx.lineTo(w, b)
 		ctx.stroke()
 	}
 }

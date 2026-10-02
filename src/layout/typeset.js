@@ -1979,6 +1979,8 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var systemYs = [0]
 	for (var gk = 1; gk < systemCount; gk++) systemYs.push(systemYs[gk - 1] + systemHeight + systemGaps[gk - 1])
 
+	var spanContinuations = []
+
 	// --- Reflow all existing drawing elements into systems with justification ---
 	for (const el of drawing.set) {
 		// Skip elements without position (shouldn't happen, but be safe)
@@ -2049,10 +2051,16 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		// Spanners (hairpins, volta brackets): justify the end point too, and
 		// stop at the end of the system rather than running off the edge.
 		else if (el.spanWidth != null) {
-			var spanEnd = Math.min(el.x + el.spanWidth, sysIdx < breakXs.length ? breakXs[sysIdx] : Infinity)
+			var spanOrigX = el.x, spanOrigEnd = el.x + el.spanWidth
+			var spanSysEnd = sysIdx < breakXs.length ? breakXs[sysIdx] : Infinity
+			var spanEnd = Math.min(spanOrigEnd, spanSysEnd)
 			el.x = justify(relX) + leftMargin + courtesyW
 			var spanW = Math.max(fs * 0.5, justify(spanEnd - systemStartX) + leftMargin + courtesyW - el.x)
 			el.spanWidth = el.width = spanW
+			// A hairpin running past the line break continues on the next system(s)
+			if (spanOrigEnd > spanSysEnd && el instanceof Hairpin) {
+				spanContinuations.push({ el: el, sysIdx: sysIdx, origX: spanOrigX, origEnd: spanOrigEnd })
+			}
 		}
 		else {
 			el.x = justify(relX) + leftMargin + courtesyW
@@ -2068,6 +2076,11 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			el.endy = el.endy + yShift + (el._endYShift || 0)
 		}
 	}
+
+	addHairpinContinuations(drawing, spanContinuations, breakXs, function(k, relX) {
+		var sm = useSpring ? systemSpringMaps[k] : null
+		return (sm ? springJustifyX(relX, sm) : computeJustifyX(relX, systemBarlineMaps[k])) + leftMargin + courtesyWidths[k]
+	}, function(k) { return systemYs[k] })
 
 	// --- Draw per-system stave lines, brackets, braces, labels, and courtesy items ---
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
@@ -2146,6 +2159,40 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
 	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
+}
+
+/**
+ * Continue hairpins that cross a system break: the reflowed first part ends
+ * at the system edge with a partial opening, and each later system gets a
+ * segment from its content start, openings interpolated along the original
+ * single-line span so the wedge keeps widening (or narrowing) smoothly.
+ * placeX(k, relX) maps a single-line X relative to system k's start to its
+ * final X; systemY(k) is system k's vertical offset.
+ */
+function addHairpinContinuations(drawing, continuations, breakXs, placeX, systemY) {
+	var fs = getFontSize()
+	for (var c of continuations) {
+		var el = c.el
+		var total = c.origEnd - c.origX
+		var cresc = el.style === 'Crescendo'
+		var openAt = function(x) { var f = Math.min(1, Math.max(0, (x - c.origX) / total)); return cresc ? f : 1 - f }
+		el.endOpen = openAt(breakXs[c.sysIdx])
+		el.startOpen = cresc ? 0 : 1
+		for (var k = c.sysIdx + 1; k <= breakXs.length; k++) {
+			var segStart = breakXs[k - 1]
+			if (c.origEnd <= segStart) break
+			var segEnd = k < breakXs.length ? Math.min(c.origEnd, breakXs[k]) : c.origEnd
+			var x0 = placeX(k, 0)
+			var x1 = placeX(k, segEnd - segStart)
+			var part = new Hairpin(el.style, Math.max(fs * 0.5, x1 - x0))
+			part.x = x0
+			part.y = el.y - systemY(c.sysIdx) + systemY(k)
+			part.offsetY = el.offsetY
+			part.startOpen = openAt(segStart)
+			part.endOpen = openAt(segEnd)
+			drawing.add(part)
+		}
+	}
 }
 
 /**
@@ -2465,6 +2512,8 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		}
 	}
 
+	var spanContinuationsP = []
+
 	// --- Reflow drawing elements ---
 	for (const el of drawing.set) {
 		if (el.x == null || el.y == null) continue
@@ -2521,10 +2570,15 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			el._sysIdx = sysIdx
 		} else if (el.spanWidth != null) {
 			// Spanners: justify the end point, clipped to the system (see scoreWrapLayout)
-			var spanEndP = Math.min(el.x + el.spanWidth, sysIdx < breakXs.length ? breakXs[sysIdx] : Infinity)
+			var spanOrigXP = el.x, spanOrigEndP = el.x + el.spanWidth
+			var spanSysEndP = sysIdx < breakXs.length ? breakXs[sysIdx] : Infinity
+			var spanEndP = Math.min(spanOrigEndP, spanSysEndP)
 			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
 			var spanWP = Math.max(fs * 0.5, justifyP(spanEndP - systemStartX) + leftMargin + courtesyW + horizontalPad + xPageShift - el.x)
 			el.spanWidth = el.width = spanWP
+			if (spanOrigEndP > spanSysEndP && el instanceof Hairpin) {
+				spanContinuationsP.push({ el: el, sysIdx: sysIdx, origX: spanOrigXP, origEnd: spanOrigEndP })
+			}
 		} else {
 			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
 		}
@@ -2537,6 +2591,12 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			el.endy = el.endy + yShift + (el._endYShift || 0)
 		}
 	}
+
+	addHairpinContinuations(drawing, spanContinuationsP, breakXs, function(k, relX) {
+		var sm = useSpringPage ? systemSpringMapsPage[k] : null
+		return (sm ? springJustifyX(relX, sm) : computeJustifyX(relX, systemBarlineMaps[k])) +
+			leftMargin + courtesyWidths[k] + horizontalPad + systemXOffsets[k]
+	}, function(k) { return systemYOffsets[k] })
 
 	// --- Draw per-system stave lines, brackets, braces, labels, courtesy items ---
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
