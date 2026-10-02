@@ -145,7 +145,8 @@ export function buildNoteEvents(data) {
 
 				// Accumulate duration through tied notes WITHIN this segment.
 				// Ties don't cross segment boundaries (repeat boundaries break ties).
-				let totalDur = typeof durValue === 'number' ? durValue : durValue.value()
+				let totalDur = tok.graceDuration != null ? tok.graceDuration
+					: typeof durValue === 'number' ? durValue : durValue.value()
 				if (tok.tie) {
 					let next = findNextTiedInSegment(tokens, ti, seg.endTick)
 					while (next !== -1) {

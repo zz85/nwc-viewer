@@ -127,6 +127,9 @@ function SightReader() {
 	this.reset()
 }
 
+// Playback length of a grace note (whole-note fraction)
+var GRACE_LENGTH = 1 / 32
+
 // One syllable queue per lyric verse of the staff being read
 var lyricVerses = []
 
@@ -180,6 +183,7 @@ SightReader.prototype.read = function (staves) {
 		this.reset()
 
 		lyricVerses = (staff.lyrics || []).map(verseSyllables)
+		var pendingGrace = []  // grace notes awaiting their principal note
 		staff.tokens.forEach((token) => {
 			var type = token.type
 
@@ -195,13 +199,23 @@ SightReader.prototype.read = function (staves) {
 			// if (token.type === 'Boundary') console.log('$$$', token);
 
 			if (token.durValue) {
-				// computes cumulative value duration
-				this.tickCounter.add(token.durValue).simplify()
-				// Grace notes should NOT advance the display counter (tabCounter).
-				// They occupy visual space via rod/spring but have zero timing
-				// so the principal note after them aligns with the same beat
-				// on other staves.
-				if (!token.grace) {
+				// Grace notes take no metric time — neither the display counter
+				// (tabCounter) nor the playback clock (tickCounter) advances, so
+				// the principal note stays on the beat with the other staves.
+				// They sound just before it: each run is placed ahead of the
+				// principal note at GRACE_LENGTH apiece.
+				if (token.grace) {
+					pendingGrace.push(token)
+				} else {
+					if (pendingGrace.length) {
+						var graceLen = Math.min(GRACE_LENGTH, token.tickValue / pendingGrace.length || 0)
+						pendingGrace.forEach(function(g, gi) {
+							g.tickValue = token.tickValue - graceLen * (pendingGrace.length - gi)
+							g.graceDuration = graceLen
+						})
+						pendingGrace = []
+					}
+					this.tickCounter.add(token.durValue).simplify()
 					this.tabCounter.add(token.durValue).simplify()
 				}
 			} else {
