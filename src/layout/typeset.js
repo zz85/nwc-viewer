@@ -1920,6 +1920,11 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		}
 	}
 
+	// Per-system vertical placement: each gap sized from its two systems
+	var systemGaps = computeSystemGaps(staves, breakXs)
+	var systemYs = [0]
+	for (var gk = 1; gk < systemCount; gk++) systemYs.push(systemYs[gk - 1] + systemHeight + systemGaps[gk - 1])
+
 	// --- Reflow all existing drawing elements into systems with justification ---
 	for (const el of drawing.set) {
 		// Skip elements without position (shouldn't happen, but be safe)
@@ -1983,7 +1988,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 				leftMargin + courtesyWidths[endSysIdx]
 			el.width = justEnd - el.x
 			el.endx = justEnd
-			el._endYShift = (endSysIdx - sysIdx) * (systemHeight + interSystemGap)
+			el._endYShift = systemYs[endSysIdx] - systemYs[sysIdx]
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
 		}
@@ -2000,7 +2005,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		}
 
 		// Shift Y: add the system's vertical offset
-		var yShift = sysIdx * (systemHeight + interSystemGap)
+		var yShift = systemYs[sysIdx]
 		el.y = el.y + yShift
 
 		// For Tie objects, also shift the absolute end-Y coordinate
@@ -2018,7 +2023,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var contentWidth = pageWidth - courtesyW
 		var justifiedWidth = isLastSystem
 			? naturalWidth + courtesyW : pageWidth
-		var yOffset = sysIdx * (systemHeight + interSystemGap)
+		var yOffset = systemYs[sysIdx]
 		var sysLeft = leftMargin + labelIndents[sysIdx]
 
 		for (var si = 0; si < staves.length; si++) {
@@ -2055,7 +2060,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}
 
 	// Calculate canvas dimensions for wrapped layout
-	var totalHeight = systemCount * (systemHeight + interSystemGap) + firstStaffY
+	var totalHeight = systemYs[systemCount - 1] + systemHeight + systemGaps[systemCount - 1] + firstStaffY
 	maxCanvasWidth = leftMargin + pageWidth + rightMargin
 	maxCanvasHeight = totalHeight + fs * 2
 
@@ -2068,7 +2073,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// Build system geometry for playback cursor spanning
 	_systemGeometry = []
 	for (var gi = 0; gi < systemCount; gi++) {
-		var gYOffset = gi * (systemHeight + interSystemGap)
+		var gYOffset = systemYs[gi]
 		var sysNatWidth = systemNaturalWidths[gi]
 		var sysCourtW = courtesyWidths[gi]
 		var isLastSys = gi === lastIdx && lastFits
@@ -2301,6 +2306,9 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var topClearance = computeSystemTopClearance(staves)
 	var firstTopClearance = computeSystemTopClearance(staves, true)
 
+	// Gap below each system, sized from its own content (see computeSystemGaps)
+	var systemGaps = computeSystemGaps(staves, breakXs)
+
 	var pages = []        // [{systemStart, systemEnd}]
 	var currentPage = 0
 	var currentPageY = titleHeight + firstTopClearance  // start after title on page 1
@@ -2316,7 +2324,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			currentPageY = topClearance
 			pageStart = sysIdx
 		}
-		currentPageY += sysH + interSystemGap
+		currentPageY += sysH + systemGaps[sysIdx]
 	}
 	// Last page
 	pages.push({ systemStart: pageStart, systemEnd: systemCount - 1 })
@@ -2399,7 +2407,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			systemYOffsets[si] = pageContentY + localY + fs
 			// X offset: difference between this page's x and the default horizontalPad
 			systemXOffsets[si] = pos.x - horizontalPad
-			localY += systemHeight + interSystemGap
+			localY += systemHeight + systemGaps[si]
 		}
 	}
 
@@ -2915,6 +2923,79 @@ var currentAllowLayering = true // file-level allowLayering flag
  * Estimates stem length as ~7 half-spaces from the notehead (one octave).
  * Accounts for dynamics below and tempo/flow marks above.
  */
+/**
+ * Vertical extent of one token in drawing-frame staff positions (bottom line
+ * 0, top line 8), or null when it takes no vertical room. Used by the staff
+ * extents and the per-system gap computation.
+ */
+var EXTENT_MARK_DEFAULTS = { Text: 11, Tempo: 11, PerformanceStyle: 9, Dynamic: -13, DynamicVariance: -13, TempoVariance: 11, Flow: 11 }
+function tokenExtent(tok) {
+	if (tok.Visibility === 'Never') return null
+	if (tok.type === 'Note' || tok.type === 'Rest' || (tok.type === 'Chord' && tok.notes)) {
+		var positions = tok.notes ? tok.notes.map(function(n) { return (n.position || 0) + 4 }) : [(tok.position || 0) + 4]
+		var lo = Math.min.apply(null, positions) - 1, hi = Math.max.apply(null, positions) + 1
+		// Stem tip ~7 half-spaces from the notehead on the stem side
+		if (tok.type !== 'Rest' && tok.duration > 1) {
+			var stemUp = tok.stem === 1 || (tok.stem !== 2 && (4 - (lo + 1)) >= ((hi - 1) - 4))
+			if (stemUp) hi = Math.max(hi, hi - 1 + 7)
+			else lo = Math.min(lo, lo + 1 - 7)
+		}
+		return { lo: lo, hi: hi, note: true }
+	}
+	if (tok.type in EXTENT_MARK_DEFAULTS) {
+		var base = (tok.position !== undefined ? tok.position : EXTENT_MARK_DEFAULTS[tok.type]) + 4
+		return { lo: base - 1, hi: base + 3.5 }
+	}
+	if (tok.type === 'Ending') return { lo: 8, hi: 16 }
+	return null
+}
+
+/**
+ * Gap below each system: from the bottom line of its last staff group to the
+ * top line of the next system's first group, sized from the content of
+ * those two systems only (lyrics, low notes, text blocks below; tempo,
+ * voltas, high notes above). gaps[last] is the room below the final system.
+ * Uses single-line X positions, so call before reflow.
+ */
+function computeSystemGaps(staves, breakXs) {
+	var fs = getFontSize()
+	var hs = fs / 8
+	var n = breakXs.length + 1
+	var below = new Array(n).fill(0)  // lowest position under the last group
+	var above = new Array(n).fill(8)  // highest position over the first group
+	var firstY = getStaffY(0), lastY = getStaffY(staves.length - 1)
+	var sysOf = function(x) {
+		var k = 0
+		while (k < breakXs.length && x > breakXs[k]) k++
+		return k
+	}
+	for (var si = 0; si < staves.length; si++) {
+		var inFirst = getStaffY(si) === firstY, inLast = getStaffY(si) === lastY
+		if (!inFirst && !inLast) continue
+		var lyricLines = lyricLineCount(staves[si])
+		var lyricLo = lyricLines ? -13 - Math.ceil((lyricLines - 1) * lyricLineHeight() / hs) : 0
+		var lastX = 0
+		for (var tok of staves[si].tokens || []) {
+			var d = tok.drawingNoteHead || tok.drawingAnnotation || tok.drawingDynamic || tok.drawingHairpin || tok.drawingBarline
+			if (d && d.x != null) lastX = d.x
+			var e = tokenExtent(tok)
+			if (!e) continue
+			var k = sysOf(lastX)
+			if (inLast) {
+				below[k] = Math.min(below[k], e.lo)
+				if (lyricLo && (tok.texts || tok.text)) below[k] = Math.min(below[k], lyricLo)
+			}
+			if (inFirst) above[k] = Math.max(above[k], e.hi)
+		}
+	}
+	var gaps = []
+	for (var k = 0; k < n; k++) {
+		var nextAbove = k + 1 < n ? above[k + 1] - 8 : 0
+		gaps.push(Math.max(fs * 1.5, (-below[k] + nextAbove) * hs + fs * 0.6))
+	}
+	return gaps
+}
+
 function computeStaffExtents(staves) {
 	// Units are the drawing code's staff positions: bottom line 0, top line 8
 	// (a note at NWC position p is drawn at p + 4).
