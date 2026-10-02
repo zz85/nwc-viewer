@@ -1309,6 +1309,57 @@ function layoutHairpinSpans(drawing, staves) {
 }
 
 /**
+ * Hairpins from note attributes: NWC's Crescendo/Diminuendo commands flag
+ * the selected notes, and the wedge spans each run of consecutive flagged
+ * notes (across barlines), at the height of the most recent dynamic or
+ * variance on the staff. The wedge is stored on the run's first note as
+ * drawingHairpin so later passes (collisions, reflow) treat it like others.
+ */
+function layoutNoteHairpins(drawing, staves) {
+	var fs = getFontSize()
+	var flagOf = function(t) {
+		if (t.type !== 'Note' && t.type !== 'Chord') return null
+		var notes = t.notes || [t]
+		if (t.crescendo || notes.some(function(n) { return n.crescendo })) return 'Crescendo'
+		if (t.diminuendo || notes.some(function(n) { return n.diminuendo })) return 'Diminuendo'
+		return null
+	}
+	for (var si = 0; si < staves.length; si++) {
+		var tokens = staves[si].tokens || []
+		var markPos = -13  // NWC position of the most recent dynamic/variance
+		var run = null
+		var close = function(endTok) {
+			if (!run) return
+			var first = run.first.drawingNoteHead
+			var lastHead = run.last.drawingNoteHead
+			// End at the next note when there is one, else past the last note
+			var endX = endTok && endTok.drawingNoteHead ? endTok.drawingNoteHead.x - fs * 0.2
+				: lastHead.x + (lastHead.width || fs * 0.3) + fs * 0.3
+			var hp = new Hairpin(run.style, Math.max(fs, endX - first.x), run.pos + 4)
+			hp.moveTo(first.x, first.y)
+			drawing.add(hp)
+			run.first.drawingHairpin = hp
+			run = null
+		}
+		for (var t of tokens) {
+			if (t.type === 'Dynamic' || t.type === 'DynamicVariance') {
+				if (t.position !== undefined) markPos = t.position
+				continue
+			}
+			if (t.type !== 'Note' && t.type !== 'Chord' && t.type !== 'Rest') continue
+			if (!t.drawingNoteHead || t.drawingNoteHead.hidden) continue
+			var style = flagOf(t)
+			if (run && style !== run.style) close(t)
+			if (style) {
+				if (!run) run = { style: style, first: t, last: t, pos: markPos }
+				else run.last = t
+			}
+		}
+		close(null)
+	}
+}
+
+/**
  * Vertical extent (relative to baseline, px; negative = up) of a dynamic
  * marking's glyphs, from the font outlines.
  */
@@ -1368,7 +1419,8 @@ function resolveExpressionCollisions(staves) {
 		var marks = []
 		for (var ti = 0; ti < tokens.length; ti++) {
 			var t = tokens[ti]
-			var el = t.drawingHairpin || ((t.type === 'Dynamic' || t.type === 'DynamicVariance') && t.drawingDynamic)
+			var el = t.drawingHairpin || ((t.type === 'Dynamic' || t.type === 'DynamicVariance') && t.drawingDynamic) ||
+				(t.type === 'DynamicVariance' && t.drawingAnnotation)
 			if (!el) continue
 			marks.push({ el: el, isHairpin: !!t.drawingHairpin })
 		}
@@ -1586,6 +1638,8 @@ function score(dataOrContext) {
 	layoutTripletBrackets(drawing, staves)
 	/* Layout hairpin spans (adjust width to reach the next DynamicVariance or note) */
 	layoutHairpinSpans(drawing, staves)
+	/* Hairpins from note Crescendo/Diminuendo attributes */
+	layoutNoteHairpins(drawing, staves)
 	/* Keep dynamics/hairpins clear of notes and on a shared line */
 	resolveExpressionCollisions(staves)
 	/* Layout volta bracket spans */
@@ -3667,26 +3721,24 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 
 		case 'DynamicVariance':
-			// Hairpin wedges (crescendo/diminuendo) and text markings (rfz, sfz)
+			// NWC prints a dynamic variance as a word ('mp cresc. f', NWC manual);
+			// hairpin wedges are a note attribute, see layoutNoteHairpins().
 			var dvStyles = ['Crescendo', 'Decrescendo', 'Diminuendo', 'Rinforzando', 'Sforzando']
 			var dvStyleName = dvStyles[token.style] || 'Crescendo'
 			var dvPos = token.position !== undefined ? token.position : -13
-			if (dvStyleName === 'Crescendo' || dvStyleName === 'Decrescendo' || dvStyleName === 'Diminuendo') {
-				// Hairpin wedge — estimate span width based on font size
-				// Real span would need the next note's X, but for initial layout
-				// we use a fixed width that gets stretched during justification.
-				var hpWidth = getFontSize() * 3
-				var hp = new Hairpin(dvStyleName, hpWidth, dvPos + 4)
-				cursor.posGlyph(hp)
-				drawing.add(hp)
-				// Store reference for span calculation in post-layout
-				token.drawingHairpin = hp
-			} else {
-				// Rinforzando / Sforzando — render as dynamic text
-				var dynText = dvStyleName === 'Rinforzando' ? 'rfz' : 'sfz'
-				var dvGlyph = new DynamicMarking(dynText, dvPos + 4)
+			if (dvStyleName === 'Rinforzando' || dvStyleName === 'Sforzando') {
+				var dvGlyph = new DynamicMarking(dvStyleName === 'Rinforzando' ? 'rfz' : 'sfz', dvPos + 4)
 				cursor.posGlyph(dvGlyph)
 				drawing.add(dvGlyph)
+				token.drawingDynamic = dvGlyph
+			} else {
+				var dvWord = { Crescendo: 'cresc.', Decrescendo: 'decresc.', Diminuendo: 'dim.' }[dvStyleName]
+				var dvText = new Text(dvWord, -(dvPos + 4), {
+					font: 'italic ' + Math.round(getFontSize() * 0.43) + 'px ' + getMusicTextFamily(),
+				})
+				cursor.posGlyph(dvText)
+				drawing.add(dvText)
+				token.drawingAnnotation = dvText
 			}
 			break
 
