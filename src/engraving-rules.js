@@ -62,8 +62,12 @@ export const SLUR_HEIGHT_D = 0.08
 /** Minimum slur height (fraction of fontSize).  0.10 = 0.40 sp. */
 export const SLUR_HEIGHT_MIN = 0.10
 
-/** Maximum slur height (fraction of fontSize).  0.50 = 2.00 sp. */
-export const SLUR_HEIGHT_MAX = 0.50
+/**
+ * Maximum slur height parameter (fraction of fontSize).  0.70 = 2.80 sp,
+ * i.e. a ~2.1 sp rise at mid-span (the bezier peaks at 0.75 of it), so long
+ * slurs still read as arcs.
+ */
+export const SLUR_HEIGHT_MAX = 0.70
 
 /**
  * Vertical offset from the notehead centre for slur anchors.
