@@ -1508,9 +1508,14 @@ function score(dataOrContext) {
 	currentStaves = staves
 	currentAllowLayering = data.score.allowLayering !== false
 	currentStaffLabelMode = data.score.staffLabels || ''
+	currentTextFonts = data.score.textFonts || []
 	var extents = computeStaffExtents(staves)
 	currentExtents = extents
-	buildStaffYMap(staves, data.score.allowLayering, extents)
+	// Bottom of the title block (title baseline 1.43 fs, author 2.14 fs; see
+	// drawTitleAndAuthor) so the first staff's top content starts below it
+	var info = data.info || {}
+	var titleBottom = (info.author || info.lyricist) ? getFontSize() * 2.35 : info.title ? getFontSize() * 1.65 : 0
+	buildStaffYMap(staves, data.score.allowLayering, extents, titleBottom)
 	const stavePointers = staves.map(
 		(stave, staveIndex) => new StaveCursor(stave, staveIndex)
 	)
@@ -2288,16 +2293,17 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var fs = getFontSize()
 	var titleHeight = 0
 	if (data.info?.title) titleHeight += Math.round(fs * 1.07)
-	if (data.info?.author) titleHeight += Math.round(fs * 0.71)
+	if (data.info?.author || data.info?.lyricist) titleHeight += Math.round(fs * 0.71)
 	if (titleHeight > 0) titleHeight += Math.round(fs * 0.54)  // gap after title block
 
 	// Room above each page's first system for its top staff line and any
 	// content standing above it (high notes, tempo marks, voltas).
 	var topClearance = computeSystemTopClearance(staves)
+	var firstTopClearance = computeSystemTopClearance(staves, true)
 
 	var pages = []        // [{systemStart, systemEnd}]
 	var currentPage = 0
-	var currentPageY = titleHeight + topClearance  // start after title on page 1
+	var currentPageY = titleHeight + firstTopClearance  // start after title on page 1
 	var pageStart = 0
 
 	for (var sysIdx = 0; sysIdx < systemCount; sysIdx++) {
@@ -2387,7 +2393,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var pageContentY = pos.y + margins.top
 		// localY tracks the top line of each system's first staff;
 		// systemYOffsets holds that staff's bottom line (one staff height lower).
-		var localY = ((pi === 0) ? titleHeight : 0) + topClearance
+		var localY = (pi === 0) ? titleHeight + firstTopClearance : topClearance
 
 		for (var si = page.systemStart; si <= page.systemEnd; si++) {
 			systemYOffsets[si] = pageContentY + localY + fs
@@ -2516,22 +2522,8 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var page1TopY = page1Pos.y + margins.top
 	var titleCenterX = page1Pos.x + PAGE_W / 2
 	var titleFs = getFontSize()
-	if (data.info?.title) {
-		const titleDraw = new Claire.Text(data.info.title, 0, {
-			font: 'bold ' + Math.round(titleFs * 0.71) + 'px ' + getMusicTextFamily(),
-			textAlign: 'center',
-		})
-		titleDraw.moveTo(titleCenterX, page1TopY + Math.round(titleFs * 0.36))
-		drawing.add(titleDraw)
-	}
-	if (data.info?.author) {
-		const authorDraw = new Claire.Text(data.info.author, 0, {
-			font: 'italic ' + Math.round(titleFs * 0.50) + 'px ' + getMusicTextFamily(),
-			textAlign: 'center',
-		})
-		authorDraw.moveTo(titleCenterX, page1TopY + Math.round(titleFs * 1.07))
-		drawing.add(authorDraw)
-	}
+	addTitleBlock(drawing, data.info || {}, page1Pos.x + margins.left, page1Pos.x + PAGE_W - margins.right,
+		page1TopY + Math.round(titleFs * 0.36), page1TopY + Math.round(titleFs * 1.07))
 
 	// --- Footer ---
 	var { copyright1, copyright2 } = data.info || {}
@@ -2860,28 +2852,28 @@ function drawBarNumbers(drawing, staves, yOffset, leftMarginX, firstMeasureNum, 
 /**
  * Draw title and author centered above the score.
  */
+/**
+ * Title block as NWC prints it: title centered (PageTitleText style), author
+ * right-aligned and lyricist left-aligned on the line below (PageText).
+ * titleY/creditY are baselines.
+ */
+function addTitleBlock(drawing, info, left, right, titleY, creditY) {
+	var add = function(text, x, y, align, font) {
+		if (!text) return
+		var t = new Claire.Text(text, 0, { font: font, textAlign: align })
+		t.moveTo(x, y)
+		drawing.add(t)
+	}
+	add(info.title, (left + right) / 2, titleY, 'center', textFontCss(3))
+	add(info.author, right, creditY, 'right', textFontCss(4))
+	add(info.lyricist, left, creditY, 'left', textFontCss(4))
+}
+
 function drawTitleAndAuthor(drawing, data, canvasWidth) {
-	var { title, author, copyright1, copyright2 } = data.info || {}
-
-	var middle = canvasWidth / 2
+	var { copyright1, copyright2 } = data.info || {}
 	var fs = getFontSize()
-	if (title) {
-		const titleDrawing = new Claire.Text(title, 0, {
-			font: 'bold ' + Math.round(fs * 0.71) + 'px ' + getMusicTextFamily(),
-			textAlign: 'center',
-		})
-		titleDrawing.moveTo(middle, Math.round(fs * 1.43))
-		drawing.add(titleDrawing)
-	}
-
-	if (author) {
-		const authorDrawing = new Claire.Text(author, 0, {
-			font: 'italic ' + Math.round(fs * 0.50) + 'px ' + getMusicTextFamily(),
-			textAlign: 'center',
-		})
-		authorDrawing.moveTo(middle, Math.round(fs * 2.14))
-		drawing.add(authorDrawing)
-	}
+	addTitleBlock(drawing, data.info || {}, fs * 0.9, canvasWidth - fs * 0.5,
+		Math.round(fs * 1.43), Math.round(fs * 2.14))
 	var footerEl = document.getElementById('footer')
 	if (footerEl) footerEl.innerText = (copyright1 || '') + '\n' + (copyright2 || '')
 }
@@ -2910,7 +2902,8 @@ function sizeSpacerAndRender(canvas, canvasWidth, canvasHeight) {
 // Built once per score() call; consumed by getStaffY().
 var staffYMap = []
 var currentExtents = [] // per-staff content extents from computeStaffExtents()
-var currentStaffLabelMode = '' // nwctxt PgSetup StaffLabels: None | First System | Top Systems | All Systems
+var currentStaffLabelMode = ''
+var currentTextFonts = [] // file font table (NWC style order), see textFontCss() // nwctxt PgSetup StaffLabels: None | First System | Top Systems | All Systems
 var currentStaves = [] // reference to current staves array for handleToken
 var currentAllowLayering = true // file-level allowLayering flag
 
@@ -2923,55 +2916,44 @@ var currentAllowLayering = true // file-level allowLayering flag
  * Accounts for dynamics below and tempo/flow marks above.
  */
 function computeStaffExtents(staves) {
+	// Units are the drawing code's staff positions: bottom line 0, top line 8
+	// (a note at NWC position p is drawn at p + 4).
+	var TEXT_ASCENT = 3.5, TEXT_DESCENT = 1  // half-spaces around a text baseline
+	var markDefaults = { Text: 11, Tempo: 11, PerformanceStyle: 9, Dynamic: -13, DynamicVariance: -13, TempoVariance: 11, Flow: 11 }
 	var extents = []
 	for (var si = 0; si < staves.length; si++) {
 		var minPos = 0   // bottom staff line
 		var maxPos = 8   // top staff line
+		// Marks before the first note (opening tempo, title-like text) only
+		// affect the space under the title, not every system break.
+		var headMax = 8
+		var seenNote = false
 		var tokens = staves[si].tokens || []
 
 		for (var ti = 0; ti < tokens.length; ti++) {
 			var tok = tokens[ti]
+			if (tok.Visibility === 'Never') continue
 
-			if (tok.type === 'Note' || tok.type === 'Rest') {
-				var pos = tok.position || 0
-				minPos = Math.min(minPos, pos)
-				maxPos = Math.max(maxPos, pos)
-				// Estimate stem tip: ~7 half-spaces from notehead
-				if (tok.type === 'Note') {
-					var stemUp = pos < 4  // stem up if below middle line
-					var stemTip = stemUp ? pos + 7 : pos - 7
-					minPos = Math.min(minPos, stemTip)
-					maxPos = Math.max(maxPos, stemTip)
+			if (tok.type === 'Note' || tok.type === 'Rest' || (tok.type === 'Chord' && tok.notes)) {
+				var positions = tok.notes ? tok.notes.map(function(n) { return (n.position || 0) + 4 }) : [(tok.position || 0) + 4]
+				var lo = Math.min.apply(null, positions), hi = Math.max.apply(null, positions)
+				minPos = Math.min(minPos, lo - 1)
+				maxPos = Math.max(maxPos, hi + 1)
+				// Stem tip ~7 half-spaces from the notehead on the stem side
+				if (tok.type !== 'Rest' && tok.duration > 1) {
+					var stemUp = tok.stem === 1 || (tok.stem !== 2 && (4 - lo) >= (hi - 4))
+					if (stemUp) maxPos = Math.max(maxPos, hi + 7)
+					else minPos = Math.min(minPos, lo - 7)
 				}
+				seenNote = true
+				continue
 			}
 
-			if (tok.type === 'Chord' && tok.notes) {
-				var chordMin = Infinity, chordMax = -Infinity
-				for (var ni = 0; ni < tok.notes.length; ni++) {
-					var npos = tok.notes[ni].position || 0
-					chordMin = Math.min(chordMin, npos)
-					chordMax = Math.max(chordMax, npos)
-				}
-				if (chordMin < Infinity) {
-					minPos = Math.min(minPos, chordMin)
-					maxPos = Math.max(maxPos, chordMax)
-					// Chord stem direction: up if lowest note is further from
-					// middle line than highest; one octave from the stem-side note
-					var stemUp = (4 - chordMin) >= (chordMax - 4)
-					var stemTip = stemUp ? chordMax + 7 : chordMin - 7
-					minPos = Math.min(minPos, stemTip)
-					maxPos = Math.max(maxPos, stemTip)
-				}
-			}
-
-			// Dynamics and hairpins extend below the staff
-			if (tok.type === 'Dynamic' || tok.type === 'DynamicVariance') {
-				minPos = Math.min(minPos, -9)
-			}
-
-			// Tempo, flow marks, and voltas extend above
-			if (tok.type === 'Tempo' || tok.type === 'Flow' || tok.type === 'TempoVariance') {
-				maxPos = Math.max(maxPos, 15)
+			if (tok.type in markDefaults) {
+				var basePos = (tok.position !== undefined ? tok.position : markDefaults[tok.type]) + 4
+				if (seenNote) maxPos = Math.max(maxPos, basePos + TEXT_ASCENT)
+				else headMax = Math.max(headMax, basePos + TEXT_ASCENT)
+				minPos = Math.min(minPos, basePos - TEXT_DESCENT)
 			}
 			if (tok.type === 'Ending') {
 				maxPos = Math.max(maxPos, 16)
@@ -2987,15 +2969,24 @@ function computeStaffExtents(staves) {
 			minPos = Math.min(minPos, -13 - Math.ceil(extraLines))
 		}
 
-		extents.push({ minPos: minPos, maxPos: maxPos })
+		extents.push({ minPos: minPos, maxPos: maxPos, headMax: Math.max(headMax, maxPos) })
 	}
 	return extents
 }
 
-function buildStaffYMap(staves, allowLayering, extents) {
+function buildStaffYMap(staves, allowLayering, extents, titleBottom) {
 	var fs = getFontSize()
 	var halfSpace = fs / 8  // 1 NWC staff position = half a space = fontSize/8 px
-	var initialOffset = fs * 4
+	// First staff's bottom line: at least 4 fs down, and low enough that content
+	// above its top line (tempo, text, high notes) clears the title block.
+	var above = 0
+	if (extents) {
+		for (var ei = 0; ei < staves.length && ei < extents.length; ei++) {
+			above = Math.max(above, (extents[ei].headMax || extents[ei].maxPos) - 8)
+			if (!(staves[ei].layerWithNext && allowLayering !== false)) break
+		}
+	}
+	var initialOffset = Math.max(fs * 4, (titleBottom || 0) + fs * 0.3 + above * halfSpace + fs)
 	var layerSpacing = 0               // layered staves overlap completely
 	var padding = fs * 0.6             // minimum clearance between content extents
 
@@ -3120,13 +3111,13 @@ function computeInterSystemGap(staves) {
  * Height needed above a system's top staff line for content standing above
  * the first staff group, in pixels.
  */
-function computeSystemTopClearance(staves) {
+function computeSystemTopClearance(staves, includeOpening) {
 	var fs = getFontSize()
 	if (!currentExtents.length || !staves.length) return 0
 	var firstY = getStaffY(0)
 	var above = 8
 	for (var si = 0; si < staves.length && si < currentExtents.length; si++) {
-		if (getStaffY(si) === firstY) above = Math.max(above, currentExtents[si].maxPos)
+		if (getStaffY(si) === firstY) above = Math.max(above, includeOpening ? currentExtents[si].headMax : currentExtents[si].maxPos)
 	}
 	return (above - 8) * (fs / 8)
 }
@@ -3148,6 +3139,24 @@ function addStave(cursor, staveIndex) {
 
 function spacerWidth() {
 	return getFontSize() * 0.25
+}
+
+// NWC default text styles, by font index: StaffItalic, StaffBold, StaffLyric,
+// PageTitleText, PageText, PageSmallText, User1..User6
+var DEFAULT_TEXT_FONTS = [
+	{ size: 10, bold: true, italic: true }, { size: 10, bold: true }, { size: 10 },
+	{ size: 18, bold: true }, { size: 12 }, { size: 8 },
+	{ size: 10 }, { size: 10 }, { size: 10 }, { size: 10 }, { size: 10 }, { size: 10 },
+]
+
+/**
+ * CSS font for a text object using the file's font style `index`. Point
+ * sizes scale with the staff: 10 pt ≈ 0.39 fontSize, matching lyrics.
+ */
+function textFontCss(index) {
+	var f = currentTextFonts[index] || DEFAULT_TEXT_FONTS[index] || DEFAULT_TEXT_FONTS[0]
+	var px = Math.max(6, Math.round((f.size || 10) * getFontSize() * 0.039))
+	return (f.italic ? 'italic ' : '') + (f.bold ? 'bold ' : '') + px + 'px ' + getMusicTextFamily()
 }
 
 // Annotation types that are skipped entirely (no glyph, no width) when hidden
@@ -3535,9 +3544,19 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			// a little before the note instead of overprinting its syllable.
 			var isVerseNumber = /^\s*\d+\.?\s*$/.test(token.text || '') && pos < 0
 			var text = token.drawingAnnotation = new Text(isVerseNumber ? token.text.trim() : token.text, -(pos + 4),
-				isVerseNumber ? { textAlign: 'right', font: Math.round(getFontSize() * 0.38) + 'px ' + getMusicTextFamily() } : undefined)
+				isVerseNumber
+					? { textAlign: 'right', font: Math.round(getFontSize() * 0.38) + 'px ' + getMusicTextFamily() }
+					: { font: textFontCss(token.font || 0) })
 			cursor.posGlyph(text)
-			if (isVerseNumber) text.offsetX = -getFontSize() * 0.15
+			if (isVerseNumber) {
+				text.offsetX = -getFontSize() * 0.15
+				// Sit on that verse's lyric line (lyric lines are placed by the
+				// layout, not at the staff positions NWC used)
+				var verseNo = parseInt(token.text, 10)
+				if (verseNo >= 1 && verseNo <= lyricLineCount(currentStaves[cursor.staveIndex])) {
+					text.offsetY = lyricVerseOffsetY(currentStaves, cursor.staveIndex, verseNo - 1)
+				}
+			}
 			drawing.add(text)
 			break
 		case 'PerformanceStyle':

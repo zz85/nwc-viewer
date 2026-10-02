@@ -540,10 +540,12 @@ function convertFromNewParser(nwcFile) {
 		score: {
 			allowLayering: nwcFile.allowLayering !== false,
 			staffLabels: nwcFile.staffLabels || '',
+			textFonts: nwcFile.fonts || [],
 			staves: nwcFile.staffs.map(function(staff) {
 				return {
 					staff_name: staff.name || '',
-					staff_label: staff.label || '',
+					// Files before 2.0 have no separate label; NWC prints the staff name
+					staff_label: staff.label || (nwcFile.version < 0x200 ? staff.name || '' : ''),
 					staff_label_abbr: staff.labelAbbr || '',
 					group_name: staff.group || '',
 					channel: staff.channel || 0,
