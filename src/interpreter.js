@@ -184,6 +184,18 @@ SightReader.prototype.read = function (staves) {
 
 		lyricVerses = (staff.lyrics || []).map(verseSyllables)
 		var pendingGrace = []  // grace notes awaiting their principal note
+
+		// Mark whole rests that are the only durational token in their bar
+		var barDurs = []
+		var flushBar = function() {
+			if (barDurs.length === 1 && barDurs[0].type === 'Rest') barDurs[0]._aloneInBar = true
+			barDurs = []
+		}
+		staff.tokens.forEach(function(t) {
+			if (t.type === 'Barline') flushBar()
+			else if (t.type === 'Note' || t.type === 'Chord' || t.type === 'Rest') barDurs.push(t)
+		})
+		flushBar()
 		staff.tokens.forEach((token) => {
 			var type = token.type
 
@@ -390,8 +402,10 @@ function octaveIndex(pitch) {
 }
 
 SightReader.prototype.Rest = function (token) {
-	if (token.duration === 1) {
-		// whole bar rest take into account time signature
+	if (token.duration === 1 && token._aloneInBar) {
+		// A whole rest alone in its bar is a full-bar rest: it lasts the
+		// whole measure in the current time signature (e.g. 3/4 or 4/2).
+		// Alongside other notes/rests it is an ordinary semibreve.
 
 		token.durValue = this.timeSigVal.clone()
 		return
