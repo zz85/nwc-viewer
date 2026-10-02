@@ -1561,6 +1561,7 @@ function score(dataOrContext) {
 	currentAllowLayering = data.score.allowLayering !== false
 	currentStaffLabelMode = data.score.staffLabels || ''
 	currentTextFonts = data.score.textFonts || []
+	currentStaffSizePt = data.score.staffSize > 4 ? data.score.staffSize : 16
 	var extents = computeStaffExtents(staves)
 	currentExtents = extents
 	// Bottom of the title block (title baseline 1.43 fs, author 2.14 fs; see
@@ -3025,7 +3026,8 @@ function sizeSpacerAndRender(canvas, canvasWidth, canvasHeight) {
 var staffYMap = []
 var currentExtents = [] // per-staff content extents from computeStaffExtents()
 var currentStaffLabelMode = ''
-var currentTextFonts = [] // file font table (NWC style order), see textFontCss() // nwctxt PgSetup StaffLabels: None | First System | Top Systems | All Systems
+var currentTextFonts = [] // file font table (NWC style order), see textFontCss()
+var currentStaffSizePt = 16 // file staff height in points; text sizes are relative to it // nwctxt PgSetup StaffLabels: None | First System | Top Systems | All Systems
 var currentStaves = [] // reference to current staves array for handleToken
 var currentAllowLayering = true // file-level allowLayering flag
 
@@ -3345,12 +3347,13 @@ var DEFAULT_TEXT_FONTS = [
 ]
 
 /**
- * CSS font for a text object using the file's font style `index`. Point
- * sizes scale with the staff: 10 pt ≈ 0.39 fontSize, matching lyrics.
+ * CSS font for a text object using the file's font style `index`. NWC font
+ * sizes are relative to the staff size (Page Setup): on a 16 pt staff,
+ * 10 pt text ≈ 0.41 fontSize, matching lyrics.
  */
 function textFontCss(index) {
 	var f = currentTextFonts[index] || DEFAULT_TEXT_FONTS[index] || DEFAULT_TEXT_FONTS[0]
-	var px = Math.max(6, Math.round((f.size || 10) * getFontSize() * 0.039))
+	var px = Math.max(6, Math.round((f.size || 10) / currentStaffSizePt * 0.66 * getFontSize()))
 	return (f.italic ? 'italic ' : '') + (f.bold ? 'bold ' : '') + px + 'px ' + getMusicTextFamily()
 }
 
@@ -3723,6 +3726,18 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			// Widen the chord's rod when seconds cause notehead displacement
 			if (hasRightDisplacement && token._rod) {
 				token._rod += chordNhWidth
+			}
+			// Rest chord: draw the rest voice in the same column, on the side
+			// away from the notes' stems unless the file gives an offset
+			if (token.restVoice && !token.restVoice.hidden && !isTokenHidden(token, staveIndex)) {
+				var rv = token.restVoice
+				var rSym = { 1: 'restWhole', 2: 'restHalf', 4: 'restQuarter', 8: 'rest8th', 16: 'rest16th', 32: 'rest32nd', 64: 'rest64th' }[rv.duration]
+				if (rSym) {
+					var rPos = rv.position || (token.stem === 2 ? 4 : -4)
+					var restGlyph = new Glyph(rSym, rPos + 4)
+					restGlyph.moveTo(token.drawingNoteHead ? token.drawingNoteHead.x : tmp, getStaffY(staveIndex))
+					drawing.add(restGlyph)
+				}
 			}
 			break
 

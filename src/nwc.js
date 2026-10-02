@@ -508,6 +508,25 @@ function adaptObject(obj) {
 			}
 			token.chords = rcNoteChildren.length
 			token.notes = rcNotes
+			// A rest chord is a rest voice plus split-stem notes. Treat it as a
+			// chord that also carries a rest: it advances by the shorter of the
+			// two voices (like split-stem chords), and its notes are played.
+			if (rcNoteChildren.length > 0 && typeof obj.getDuration === 'function') {
+				var restDt = typeof obj.getDurationType === 'function' ? obj.getDurationType() : 0
+				var rest = {
+					duration: ADAPTER_DURATIONS[obj.getDuration()] || 4,
+					dots: (restDt & 0x02) ? 2 : (restDt & 0x01) ? 1 : 0,
+					position: obj.offset || 0,
+					hidden: !!obj.hideRest,
+				}
+				var len = function(d, dots) { return (1 / d) * (2 - Math.pow(0.5, dots)) }
+				if (len(rest.duration, rest.dots) < len(token.duration, token.dots)) {
+					token.duration = rest.duration
+					token.dots = rest.dots
+				}
+				token.type = 'Chord'
+				token.restVoice = rest
+			}
 			break
 		}
 
@@ -541,6 +560,7 @@ function convertFromNewParser(nwcFile) {
 			allowLayering: nwcFile.allowLayering !== false,
 			staffLabels: nwcFile.staffLabels || '',
 			textFonts: nwcFile.fonts || [],
+			staffSize: nwcFile.staffSize || 0,
 			staves: nwcFile.staffs.map(function(staff) {
 				return {
 					staff_name: staff.name || '',
