@@ -516,16 +516,24 @@ function adaptObject(obj) {
 				var rest = {
 					duration: ADAPTER_DURATIONS[obj.getDuration()] || 4,
 					dots: (restDt & 0x02) ? 2 : (restDt & 0x01) ? 1 : 0,
+					triplet: (restDt >> 2) & 3,
 					position: obj.offset || 0,
 					hidden: !!obj.hideRest,
 				}
-				var len = function(d, dots) { return (1 / d) * (2 - Math.pow(0.5, dots)) }
-				if (len(rest.duration, rest.dots) < len(token.duration, token.dots)) {
+				var len = function(d, dots, trip) { return (1 / d) * (2 - Math.pow(0.5, dots)) * (trip ? 2 / 3 : 1) }
+				if (len(rest.duration, rest.dots, rest.triplet) < len(token.duration, token.dots, token.triplet)) {
 					token.duration = rest.duration
 					token.dots = rest.dots
 				}
+				// The triplet marking lives on the rest voice; the group keeps it
+				if (rest.triplet && !token.triplet) token.triplet = rest.triplet
 				token.type = 'Chord'
 				token.restVoice = rest
+			} else if (rcNoteChildren.length === 0) {
+				// No note voice: it's just a rest
+				token.type = 'Rest'
+				delete token.notes
+				delete token.chords
 			}
 			break
 		}
