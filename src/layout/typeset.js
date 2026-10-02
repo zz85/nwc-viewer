@@ -1011,36 +1011,41 @@ function layoutLyricDashes(drawing, staves) {
 		var tokens = staves[si].tokens
 		if (!tokens) continue
 
+		var verseOf = function(t, v) { return (t.texts || (t.text ? [t.text] : []))[v] || '' }
 		for (var i = 0; i < tokens.length; i++) {
 			var token = tokens[i]
 			if (!token.drawingNoteHead) continue
 			var verses = token.texts || (token.text ? [token.text] : [])
 			for (var vi = 0; vi < verses.length; vi++) {
-				// Only syllables that continue a word into the next note
+				// Only syllables that continue a word into a later note
 				if (!verses[vi] || !verses[vi].endsWith('-')) continue
 
-				// Find the next note/chord with a drawingNoteHead (the next lyric target)
+				// The word continues at the next note carrying a syllable in this
+				// verse; notes in between (slurred/tied) carry no text.
 				var nextHead = null
 				for (var j = i + 1; j < tokens.length; j++) {
 					var nt = tokens[j]
-					if (nt.drawingNoteHead && (nt.type === 'Note' || nt.type === 'Chord' || nt.type === 'Rest')) {
-						nextHead = nt.drawingNoteHead
-						break
-					}
+					if (nt.type === 'Barline' || !nt.drawingNoteHead) continue
+					if (verseOf(nt, vi)) { nextHead = nt.drawingNoteHead; break }
 				}
 				if (!nextHead) continue
 
-				var startX = token.drawingNoteHead.x + (token.drawingNoteHead.width || 0)
+				var startX = token.drawingNoteHead.x + ((token._verseWidths && token._verseWidths[vi]) || token.drawingNoteHead.width || 0)
 				var endX = nextHead.x
 				if (endX <= startX) continue
 
-				var dash = new Text('-', 0, {
-					font: lyricFontSize + 'px ' + getMusicTextFamily(),
-					textAlign: 'center',
-				})
-				dash.moveTo((startX + endX) / 2, getStaffY(si))
-				dash.offsetY = lyricVerseOffsetY(staves, si, vi)
-				drawing.add(dash)
+				// One dash centered in the gap; long gaps get a dash every ~3 spaces
+				var gapW = endX - startX
+				var count = Math.max(1, Math.floor(gapW / (fs * 3)))
+				for (var di = 0; di < count; di++) {
+					var dash = new Text('-', 0, {
+						font: lyricFontSize + 'px ' + getMusicTextFamily(),
+						textAlign: 'center',
+					})
+					dash.moveTo(startX + gapW * (di + 0.5) / count, getStaffY(si))
+					dash.offsetY = lyricVerseOffsetY(staves, si, vi)
+					drawing.add(dash)
+				}
 			}
 		}
 	}
@@ -1853,6 +1858,12 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// --- Collect all note/rest anchor positions (single-line coords) ---
 	var allAnchors = collectAnchors(staves)
 
+	// The last system is left at its natural width unless it is too wide to
+	// fit; the line breaker accepts slightly overfull lines, which must be
+	// compressed like any other system.
+	var lastIdx = systemCount - 1
+	var lastFits = systemNaturalWidths[lastIdx] + courtesyWidths[lastIdx] <= pageWidth
+
 	// --- Build per-system barline maps for measure-level justification ---
 	// Extra space is distributed both between and within measures:
 	// - Within each measure, spacing between notes is stretched by up to
@@ -1865,7 +1876,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var naturalWidth = systemNaturalWidths[sysIdx]
 		var courtesyW = courtesyWidths[sysIdx]
 		var contentWidth = pageWidth - courtesyW
-		var isLastSystem = sysIdx === systemCount - 1
+		var isLastSystem = sysIdx === lastIdx && lastFits
 		var shouldJustify = !isLastSystem
 		var extraSpace = shouldJustify ? contentWidth - naturalWidth : 0
 
@@ -1895,7 +1906,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
 			var courtesyW = courtesyWidths[sysIdx]
 			var contentWidth = pageWidth - courtesyW
-			var isLastSystem = sysIdx === systemCount - 1
+			var isLastSystem = sysIdx === lastIdx && lastFits
 			var naturalWidth = systemNaturalWidths[sysIdx]
 			var shouldJustify = !isLastSystem
 			systemSpringMaps.push(shouldJustify
@@ -1997,7 +2008,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// --- Draw per-system stave lines, brackets, braces, labels, and courtesy items ---
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
 		var naturalWidth = systemNaturalWidths[sysIdx]
-		var isLastSystem = sysIdx === systemCount - 1
+		var isLastSystem = sysIdx === lastIdx && lastFits
 		var courtesyW = courtesyWidths[sysIdx]
 		var contentWidth = pageWidth - courtesyW
 		var justifiedWidth = isLastSystem
@@ -2055,7 +2066,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var gYOffset = gi * (systemHeight + interSystemGap)
 		var sysNatWidth = systemNaturalWidths[gi]
 		var sysCourtW = courtesyWidths[gi]
-		var isLastSys = gi === systemCount - 1
+		var isLastSys = gi === lastIdx && lastFits
 		var sysJustW = isLastSys ? sysNatWidth + sysCourtW : pageWidth
 		_systemGeometry.push({
 			topY: firstStaffY + gYOffset - fs,
@@ -2222,6 +2233,10 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		systemNaturalWidths.push(sysEndX - sysStartX)
 	}
 
+	// Last system: natural width only if it fits (see scoreWrapLayout)
+	var lastIdx = systemCount - 1
+	var lastFits = systemNaturalWidths[lastIdx] + courtesyWidths[lastIdx] <= contentW
+
 	// --- Collect anchors and build per-system barline maps (same as wrap) ---
 	var allAnchors = collectAnchors(staves)
 	var systemBarlineMaps = []
@@ -2231,7 +2246,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var naturalWidth = systemNaturalWidths[sysIdx]
 		var courtesyW = courtesyWidths[sysIdx]
 		var sysContentW = contentW - courtesyW
-		var isLastSystem = sysIdx === systemCount - 1
+		var isLastSystem = sysIdx === lastIdx && lastFits
 		var shouldJustify = !isLastSystem
 		var extraSpace = shouldJustify ? sysContentW - naturalWidth : 0
 
@@ -2259,7 +2274,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
 			var courtesyW = courtesyWidths[sysIdx]
 			var sysContentW = contentW - courtesyW
-			var isLastSystem = sysIdx === systemCount - 1
+			var isLastSystem = sysIdx === lastIdx && lastFits
 			var naturalWidth = systemNaturalWidths[sysIdx]
 			var shouldJustify = !isLastSystem
 			systemSpringMapsPage.push(shouldJustify
@@ -2458,7 +2473,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// --- Draw per-system stave lines, brackets, braces, labels, courtesy items ---
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
 		var naturalWidth = systemNaturalWidths[sysIdx]
-		var isLastSystem = sysIdx === systemCount - 1
+		var isLastSystem = sysIdx === lastIdx && lastFits
 		var courtesyW = courtesyWidths[sysIdx]
 		var justifiedWidth = isLastSystem
 			? naturalWidth + courtesyW : contentW
@@ -2568,7 +2583,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	for (var gi = 0; gi < systemCount; gi++) {
 		var sysNatWidthP = systemNaturalWidths[gi]
 		var sysCourtWP = courtesyWidths[gi]
-		var isLastSysP = gi === systemCount - 1
+		var isLastSysP = gi === lastIdx && lastFits
 		var sysJustWP = isLastSysP ? sysNatWidthP + sysCourtWP : contentW
 		var sysXBase = leftMargin + horizontalPad + systemXOffsets[gi] + labelIndents[gi]
 		// After reflow, first staff bottom line is at systemYOffsets[gi]
@@ -3150,6 +3165,9 @@ var HIDEABLE_ANNOTATIONS = new Set([
  */
 function isTokenHidden(token, staveIndex) {
 	var vis = token.Visibility
+	// Default visibility is 'Always' for most objects, but 'On Top Staff' for
+	// flow directions (NWC manual, Visibility property)
+	if ((!vis || vis === 'Default') && token.type === 'Flow') vis = 'TopStaff'
 	if (!vis || vis === 'Default' || vis === 'Always') return false
 	if (vis === 'Never') return true
 	var isTop = getStaffY(staveIndex) === getStaffY(0)
@@ -3734,8 +3752,13 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 
 	token.drawingNoteHead = noteHead
 
-	var verses = token.texts || (token.text ? [token.text] : [])
+	// Syllables belong to the chord, not its member notes: draw them once,
+	// with the chord's first note.
+	var lyricOwner = durToken || token
+	var drawsLyrics = lyricOwner === token || (lyricOwner.notes && lyricOwner.notes[0] === token)
+	var verses = drawsLyrics ? (lyricOwner.texts || (lyricOwner.text ? [lyricOwner.text] : [])) : []
 	var lyricWidth = 0
+	if (drawsLyrics) lyricOwner._verseWidths = []
 	for (var vi = 0; vi < verses.length; vi++) {
 		if (!verses[vi]) continue
 		// Strip trailing hyphens for display — NWC draws hyphens as dashes
@@ -3759,11 +3782,13 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 		if (ctx) {
 			ctx.save()
 			ctx.font = lyricFont
-			lyricWidth = Math.max(lyricWidth, ctx.measureText(displayText).width)
+			var verseW = ctx.measureText(displayText).width
+			lyricOwner._verseWidths[vi] = verseW
+			lyricWidth = Math.max(lyricWidth, verseW)
 			ctx.restore()
 		}
 	}
-	if (lyricWidth) token._lyricWidth = lyricWidth
+	if (lyricWidth) lyricOwner._lyricWidth = lyricWidth
 
 	/*
 
@@ -3893,7 +3918,7 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 	// If this note carries a lyric syllable, the rod must be at least as
 	// wide as the text so adjacent syllables don't overlap when springs
 	// compress.  Add a small gap (half spacerWidth) for breathing room.
-	var lyricW = token._lyricWidth || 0
+	var lyricW = (durToken || token)._lyricWidth || 0
 	if (lyricW > 0) {
 		thisRod = Math.max(thisRod, lyricW + spacerWidth() * 0.5)
 	}
