@@ -1309,6 +1309,42 @@ function layoutHairpinSpans(drawing, staves) {
 }
 
 /**
+ * Flow marks written right after a barline belong to it: closing marks
+ * (Fine, D.C., D.S., To Coda) are right-aligned to end at that barline, and
+ * Segno/Coda signs start the following bar. Laid out at the cursor after the
+ * barline they would hang past the end of a system at a line break (or be
+ * reflowed onto the wrong system). Runs on the single-line layout.
+ */
+function anchorFlowMarks(staves) {
+	var fs = getFontSize()
+	var DURATIONAL = { Note: 1, Chord: 1, Rest: 1, RestChord: 1 }
+	for (var stave of staves) {
+		var tokens = stave.tokens || []
+		for (var i = 0; i < tokens.length; i++) {
+			var t = tokens[i]
+			if (t.type !== 'Flow' || !t.drawingAnnotation) continue
+			// Nearest barline on each side with no note/rest in between
+			var before = -1, after = -1
+			for (var b = i - 1; b >= 0 && !DURATIONAL[tokens[b].type]; b--) if (tokens[b].type === 'Barline') { before = b; break }
+			for (var a = i + 1; a < tokens.length && !DURATIONAL[tokens[a].type]; a++) if (tokens[a].type === 'Barline') { after = a; break }
+			var el = t.drawingAnnotation
+			if (el instanceof Text) {
+				// Closing mark: end at the barline it precedes (or follows)
+				var bar = after >= 0 ? tokens[after].drawingBarline : before >= 0 ? tokens[before].drawingBarline : null
+				if (!bar) continue
+				el.textAlign = 'right'
+				el.x = bar.x - fs * 0.1
+			} else if (before >= 0 || after >= 0) {
+				// Sign: onto the first note/rest of the bar that starts here
+				for (var j = Math.max(i, after) + 1; j < tokens.length; j++) {
+					if (DURATIONAL[tokens[j].type] && tokens[j].drawingNoteHead) { el.x = tokens[j].drawingNoteHead.x; break }
+				}
+			}
+		}
+	}
+}
+
+/**
  * Hairpins from note attributes: NWC's Crescendo/Diminuendo commands flag
  * the selected notes, and the wedge spans each run of consecutive flagged
  * notes (across barlines), at the height of the most recent dynamic or
@@ -1426,6 +1462,22 @@ function resolveExpressionCollisions(staves) {
 		}
 		if (!marks.length) continue
 		if (staffY === null) staffY = marks[0].el.y
+		// Lyric lines of the nearest staff above (a different staff Y), as a
+		// vertical band in this staff's coordinates
+		var lyricBand = null
+		for (var pi = si - 1; pi >= 0; pi--) {
+			if (getStaffY(pi) === getStaffY(si)) continue
+			var lines = lyricLineCount(staves[pi])
+			if (lines) {
+				var shift = staffY - getStaffY(si)  // single-line staff Y of this staff
+				var py = getStaffY(pi) + shift
+				lyricBand = {
+					top: py + lyricVerseOffsetY(staves, pi, 0) - lyricFontPx() * 0.8,
+					bottom: py + lyricVerseOffsetY(staves, pi, lines - 1) + lyricFontPx() * 0.25,
+				}
+			}
+			break
+		}
 		// Marks are "above" only when placed above the top line; anything on
 		// or inside the staff goes below, the normal place for dynamics.
 		var midY = staffY - fs
@@ -1451,6 +1503,16 @@ function resolveExpressionCollisions(staves) {
 				for (var b2 of boxes) if (b2.x1 > x0 && b2.x0 < x1) limit = Math.min(limit, b2.top - clearance)
 				var bottom = baseY(m) + e.bottom
 				if (bottom > limit) m.el.offsetY = (m.el.offsetY || 0) - (bottom - limit)
+				// Keep clear of the lyrics of the staff above: sit below them
+				// when there is room before this staff's notes
+				if (lyricBand) {
+					var topNow = baseY(m) + e.top
+					var bottomNow = baseY(m) + e.bottom
+					if (topNow < lyricBand.bottom + clearance && bottomNow > lyricBand.top) {
+						var down = lyricBand.bottom + clearance - topNow
+						if (bottomNow + down <= limit + clearance) m.el.offsetY = (m.el.offsetY || 0) + down
+					}
+				}
 			}
 		}
 
@@ -1465,6 +1527,34 @@ function resolveExpressionCollisions(staves) {
 				for (var m of chain) m.el.offsetY = (m.el.offsetY || 0) + (target - center(m))
 			}
 		}
+		// 3. Text marks (a tempo, dolce, cresc.) overlapping a dynamic glyph
+		// read after it: 'ff a tempo'. Move the text past the dynamic.
+		var ctx2 = window.ctx
+		if (ctx2) {
+			for (var tt of tokens) {
+				var txt = tt.drawingAnnotation
+				if (!(txt instanceof Text) || txt.textAlign === 'right' || txt.textAlign === 'center') continue
+				ctx2.save()
+				ctx2.font = txt.font || ('italic bold ' + Math.round(fs * 0.43) + 'px ' + getMusicTextFamily())
+				var tw = ctx2.measureText(txt.text || '').width
+				ctx2.restore()
+				var ty = txt.y + (txt.offsetY || 0)
+				for (var dm of marks) {
+					if (dm.isHairpin || !(dm.el instanceof DynamicMarking)) continue
+					var de = dynamicExtent(dm.el)
+					var dy = baseY(dm)
+					var dx0 = dm.el.x, dx1 = dm.el.x + (dm.el.width || 0)
+					var overlapX = txt.x < dx1 + fs * 0.1 && txt.x + tw > dx0
+					var overlapY = ty - fs * 0.35 < dy + de.bottom && ty + fs * 0.1 > dy + de.top
+					if (!overlapX || !overlapY) continue
+					// Text starting at/after the dynamic follows it; text starting
+					// before it ends just before it ('Semplice mf')
+					if (txt.x >= dx0 - fs * 0.3) txt.x = dx1 + fs * 0.15
+					else txt.x = dx0 - fs * 0.15 - tw
+				}
+			}
+		}
+
 		for (var mi = 1; mi < marks.length; mi++) {
 			var prev = marks[mi - 1], cur = marks[mi]
 			var prevEnd = prev.el.x + (prev.el.width || 0)
@@ -1641,6 +1731,8 @@ function score(dataOrContext) {
 	layoutHairpinSpans(drawing, staves)
 	/* Hairpins from note Crescendo/Diminuendo attributes */
 	layoutNoteHairpins(drawing, staves)
+	/* Anchor flow marks that follow a barline (Fine at the barline, Segno on the next bar) */
+	anchorFlowMarks(staves)
 	/* Keep dynamics/hairpins clear of notes and on a shared line */
 	resolveExpressionCollisions(staves)
 	/* Layout volta bracket spans */
@@ -1981,6 +2073,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	for (var gk = 1; gk < systemCount; gk++) systemYs.push(systemYs[gk - 1] + systemHeight + systemGaps[gk - 1])
 
 	var spanContinuations = []
+	var openRepeats = []
 
 	// --- Reflow all existing drawing elements into systems with justification ---
 	for (const el of drawing.set) {
@@ -1993,6 +2086,8 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			if (el.x > breakXs[i]) sysIdx = i + 1
 			else break
 		}
+
+		openRepeatAtBreak(el, sysIdx, breakXs, openRepeats)
 
 		// Compute relative X within this system
 		var systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
@@ -2082,6 +2177,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var sm = useSpring ? systemSpringMaps[k] : null
 		return (sm ? springJustifyX(relX, sm) : computeJustifyX(relX, systemBarlineMaps[k])) + leftMargin + courtesyWidths[k]
 	}, function(k) { return systemYs[k] })
+	moveOpenRepeats(drawing, openRepeats, function(k) { return leftMargin + courtesyWidths[k] }, function(k) { return systemYs[k] })
 
 	// --- Draw per-system stave lines, brackets, braces, labels, and courtesy items ---
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
@@ -2193,6 +2289,32 @@ function addHairpinContinuations(drawing, continuations, breakXs, placeX, system
 			part.endOpen = openAt(segEnd)
 			drawing.add(part)
 		}
+	}
+}
+
+/**
+ * A repeat-open barline that falls on a line break: engraving closes the
+ * line with a plain barline and opens the next one with the repeat sign
+ * (after its courtesy clef/key). openRepeatAtBreak() records candidates
+ * during reflow (single-line x, before reassignment); moveOpenRepeats()
+ * applies the change once systems are placed.
+ */
+function openRepeatAtBreak(el, sysIdx, breakXs, list) {
+	if (el.constructor.name !== 'Barline' || (el.style !== 4 && el.style !== 6)) return
+	if (sysIdx >= breakXs.length || Math.abs(el.x - breakXs[sysIdx]) > getFontSize() * 0.5) return
+	list.push({ el: el, sysIdx: sysIdx })
+}
+
+function moveOpenRepeats(drawing, list, contentStartX, systemY) {
+	var fs = getFontSize()
+	for (var r of list) {
+		var el = r.el
+		var opening = new el.constructor(0, el.len, el.style)
+		opening.x = contentStartX(r.sysIdx + 1) - fs * 0.45
+		opening.y = el.y - systemY(r.sysIdx) + systemY(r.sysIdx + 1)
+		opening.offsetY = el.offsetY
+		drawing.add(opening)
+		el.style = 0
 	}
 }
 
@@ -2514,6 +2636,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}
 
 	var spanContinuationsP = []
+	var openRepeatsP = []
 
 	// --- Reflow drawing elements ---
 	for (const el of drawing.set) {
@@ -2524,6 +2647,8 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			if (el.x > breakXs[i]) sysIdx = i + 1
 			else break
 		}
+
+		openRepeatAtBreak(el, sysIdx, breakXs, openRepeatsP)
 
 		var systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
 		var relX = el.x - systemStartX
@@ -2597,6 +2722,9 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var sm = useSpringPage ? systemSpringMapsPage[k] : null
 		return (sm ? springJustifyX(relX, sm) : computeJustifyX(relX, systemBarlineMaps[k])) +
 			leftMargin + courtesyWidths[k] + horizontalPad + systemXOffsets[k]
+	}, function(k) { return systemYOffsets[k] })
+	moveOpenRepeats(drawing, openRepeatsP, function(k) {
+		return leftMargin + courtesyWidths[k] + horizontalPad + systemXOffsets[k]
 	}, function(k) { return systemYOffsets[k] })
 
 	// --- Draw per-system stave lines, brackets, braces, labels, courtesy items ---
@@ -3240,9 +3368,13 @@ function buildStaffYMap(staves, allowLayering, extents, titleBottom) {
 			for (var gj = i - 1; gj >= 0 && staffYMap[gj] === staffYMap[i]; gj--) {
 				groupMin = Math.min(groupMin, extents[gj].minPos)
 			}
-			var groupMax = extents[i + 1].maxPos
+			// Staff spacing is shared by every system, so the first system's
+			// opening marks (staff names as text, performance styles) count
+			// here even though they don't affect later system gaps.
+			var headOf = function(e) { return Math.max(e.maxPos, e.headMax || 0) }
+			var groupMax = headOf(extents[i + 1])
 			for (var gk = i + 1; gk < staves.length - 1 && staves[gk].layerWithNext && allowLayering !== false; gk++) {
-				groupMax = Math.max(groupMax, extents[gk + 1].maxPos)
+				groupMax = Math.max(groupMax, headOf(extents[gk + 1]))
 			}
 			var contentGap = (groupMax - groupMin) * halfSpace + padding
 			gapPixels = Math.max(gapPixels, contentGap)
@@ -3847,12 +3979,12 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			if (flowStyleName === 'Coda' || flowStyleName === 'Segno') {
 				// Render as SMuFL glyph
 				var flowGlyphName = flowStyleName === 'Coda' ? 'coda' : 'segno'
-				var flowGlyph = new Glyph(flowGlyphName, flowPos + 4)
+				var flowGlyph = token.drawingAnnotation = new Glyph(flowGlyphName, flowPos + 4)
 				cursor.posGlyph(flowGlyph)
 				drawing.add(flowGlyph)
 			} else {
 				// Render as italic text
-				var flowText = new Text(flowStyleName, -(flowPos + 4), {
+				var flowText = token.drawingAnnotation = new Text(flowStyleName, -(flowPos + 4), {
 					font: 'bold italic ' + Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily(),
 				})
 				cursor.posGlyph(flowText)
