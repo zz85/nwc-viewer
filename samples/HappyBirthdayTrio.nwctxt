@@ -177,10 +177,10 @@
 |Bar
 |Note|Dur:Half|Pos:3
 |Dynamic|Style:f|Pos:-8
-|Note|Dur:8th,Dotted|Pos:0|Opts:Beam=First
-|Note|Dur:16th|Pos:0|Opts:Beam=End
+|Note|Dur:8th,Dotted|Pos:-2|Opts:Beam=First
+|Note|Dur:16th|Pos:-2|Opts:Beam=End
 |Bar
-|Chord|Dur:Half|Pos:3,5
+|Chord|Dur:Half|Pos:1,6
 |Chord|Dur:4th|Pos:2,6
 |Bar
 |TempoVariance|Style:Fermata|Pause:8|Pos:9
@@ -246,9 +246,10 @@
 |Bar
 |Note|Dur:Half|Pos:2
 |Dynamic|Style:f|Pos:-8
-|Note|Dur:4th|Pos:-3
+|Note|Dur:4th|Pos:#2
 |Bar
-|Note|Dur:Half,Dotted|Pos:-1
+|Note|Dur:Half|Pos:3
+|Note|Dur:4th|Pos:-1
 |Bar
 |TempoVariance|Style:Fermata|Pause:8|Pos:-9
 |Note|Dur:Half,Dotted|Pos:-5
