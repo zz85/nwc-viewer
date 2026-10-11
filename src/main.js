@@ -6,7 +6,8 @@ import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
 import { interpret } from './interpreter.js'
 import { setup, resizeToFit, changeFont } from './drawing.js'
 import { exportLilypond } from './exporter.js'
-import { score, renderPage, setPlaybackHighlighter, setInkBleedRenderer } from './layout/typeset.js'
+import { score, renderPage, getTitleFields, setPlaybackHighlighter, setInkBleedRenderer } from './layout/typeset.js'
+import { TitleEditor } from './title-editor.js'
 import { buildPdf, canvasToPdfImage } from './pdf-writer.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
@@ -453,8 +454,24 @@ if (highlightSelect) {
 	}
 }
 
+// Click-to-edit title block: click the title, author or lyricist to edit it
+const titleEditor = new TitleEditor({
+	scoreElm: document.getElementById('score'),
+	getCanvas: () => window.canvas,
+	getZoom: getZoomLevel,
+	getFields: getTitleFields,
+	onCommit: (field, value) => {
+		const data = scoreManager.getData()
+		if (!data) return
+		data.info = data.info || {}
+		data.info[field] = value
+		rerender()
+	},
+})
+
 // Click-to-seek: clicking on the score positions the playback cursor.
 // Distinguishes clicks from drag-scrolls using a 5px movement threshold.
+// A click on the title block edits it instead.
 {
 	const scoreElm = document.getElementById('score')
 	let _clickX = 0, _clickY = 0
@@ -467,6 +484,8 @@ if (highlightSelect) {
 		const dx = e.clientX - _clickX
 		const dy = e.clientY - _clickY
 		if (dx * dx + dy * dy > 25) return
+
+		if (titleEditor.handleClick(e)) return
 
 		// Convert click position to score-space coordinates
 		const canvasEl = window.canvas
@@ -723,6 +742,7 @@ if (typeof document !== 'undefined' && document.fonts) {
 }
 
 function setDataAndRender(_data) {
+	titleEditor.finish(false)
 	scoreManager.setData(_data)
 	updateSoloStaffOptions(_data)
 	rerender()

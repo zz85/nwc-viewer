@@ -3104,15 +3104,27 @@ function drawBarNumbers(drawing, staves, yOffset, leftMarginX, firstMeasureNum, 
  * titleY/creditY are baselines.
  */
 function addTitleBlock(drawing, info, left, right, titleY, creditY) {
-	var add = function(text, x, y, align, font) {
+	_titleFields = []
+	var add = function(field, x, y, align, font) {
+		var text = info[field] || ''
+		// Record every field, empty ones too, so they can be edited in place
+		_titleFields.push({ field: field, text: text, x: x, y: y, align: align, font: font })
 		if (!text) return
 		var t = new Claire.Text(text, 0, { font: font, textAlign: align })
 		t.moveTo(x, y)
 		drawing.add(t)
 	}
-	add(info.title, (left + right) / 2, titleY, 'center', textFontCss(3))
-	add(info.author, right, creditY, 'right', textFontCss(4))
-	add(info.lyricist, left, creditY, 'left', textFontCss(4))
+	add('title', (left + right) / 2, titleY, 'center', textFontCss(3))
+	add('author', right, creditY, 'right', textFontCss(4))
+	add('lyricist', left, creditY, 'left', textFontCss(4))
+}
+
+// Title block fields of the last layout: { field, text, x, y (baseline),
+// align, font } in score space.  Read by the click-to-edit title editor.
+var _titleFields = []
+
+function getTitleFields() {
+	return _titleFields
 }
 
 function drawTitleAndAuthor(drawing, data, canvasWidth) {
@@ -4304,4 +4316,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score, renderPage, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }
+export { score, renderPage, getTitleFields, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }
