@@ -1768,6 +1768,74 @@ function hasTrailingBarline(tokens) {
 }
 
 /**
+ * How far a bar line on `staveIndex` extends below its staff to reach the
+ * next (non-layered) staff when connectBarsWithNext is set, else 0.
+ * Lyrics under the staff break the connection (the line would cross the
+ * text) unless `acrossLyrics` is set, as for the final bar line.
+ */
+function barConnectLength(staves, staveIndex, acrossLyrics) {
+	var stave = staves[staveIndex]
+	if (!stave || !stave.connectBarsWithNext || staveIndex >= staves.length - 1) return 0
+	var y = getStaffY(staveIndex)
+	if (!acrossLyrics) {
+		for (var si = staveIndex; si < staves.length - 1; si++) {
+			if (si > staveIndex && getStaffY(si) !== y) break
+			var lyrics = staves[si].lyrics
+			if (lyrics && lyrics.length && lyrics.some(function(l) { return l && l.length > 0 })) return 0
+		}
+	}
+	// Skip layered staves drawn at the same Y
+	var nextSi = staveIndex + 1
+	while (nextSi < staves.length - 1 && getStaffY(nextSi) === y) nextSi++
+	// From this staff's bottom line to the top line of the next
+	return Math.max(0, getStaffY(nextSi) - getFontSize() - y)
+}
+
+/**
+ * Draw the ending bar line of every staff at one shared X (just past the
+ * longest staff) so they line up and connect through the staff group, then
+ * the final stave segment of each staff up to it.
+ */
+function layoutEndingBarlines(drawing, staves, stavePointers) {
+	// endingBar staff property → BarStyle mapping
+	var endingBarStyles = [3, 7, 0, 1, 8] // SectionClose, MasterClose, Single, Double, Hidden
+	// Leave the last note its usual space after it (as before any barline),
+	// so a long final note isn't cramped against the ending barline
+	var endX = 0
+	stavePointers.forEach((cursor, staveIndex) => {
+		if (!hasTrailingBarline(staves[staveIndex].tokens)) {
+			var pad = Math.max(spacerWidth() * 2, (cursor.lastPadRight || 0) * X_STRETCH)
+			endX = Math.max(endX, cursor.staveX + pad)
+		}
+	})
+
+	stavePointers.forEach((cursor, staveIndex) => {
+		var stave = staves[staveIndex]
+		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
+
+		if (hasTrailingBarline(stave.tokens)) {
+			// Token stream already ends with a barline (MusicXML/MuseScore).
+			// Snap cursor back to the barline, then nudge past the thick
+			// line's right edge so the stave fully covers the barline.
+			cursor.staveX = cursor.lastBarline + getFontSize() / 16
+		} else if (ebStyle !== 8) { // not hidden
+			// NWC-style: place the ending barline, so the subsequent
+			// addStave() extends the stave lines to meet it.
+			cursor.staveX = endX
+			var eb = new Barline(0, 8, ebStyle)
+			eb.extendBelow = barConnectLength(staves, staveIndex, true)
+			cursor.posGlyph(eb)
+			drawing.add(eb)
+			// Nudge past the barline's right edge
+			cursor.incStaveX(getFontSize() / 16)
+		}
+
+		// Final stave segment extends to the ending/trailing barline
+		addStave(cursor, staveIndex)
+	})
+}
+
+/**
  * Original single-line (scroll) layout — draws staves, brackets, braces, labels,
  * title/author, and sizes the spacer for horizontal scrolling.
  */
@@ -1775,68 +1843,8 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var fs = getFontSize()
 
 	/* Layout staves */
-	// endingBar staff property → BarStyle mapping
-	var endingBarStyles = [3, 7, 0, 1, 8] // SectionClose, MasterClose, Single, Double, Hidden
-	stavePointers.forEach((cursor, staveIndex) => {
-		var stave = staves[staveIndex]
-		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
-		var trailing = hasTrailingBarline(stave.tokens)
-
-		if (trailing) {
-			// Token stream already ends with a barline (MusicXML/MuseScore).
-			// Snap cursor back to the barline, then nudge past the thick
-			// line's right edge so the stave fully covers the barline.
-			cursor.staveX = cursor.lastBarline + getFontSize() / 16
-		} else if (ebStyle !== 8) { // not hidden
-			// NWC-style: advance cursor and place ending barline, so the
-			// subsequent addStave() extends the stave lines to meet it.
-			cursor.incStaveX(spacerWidth() * 2)
-			var eb = new Barline(0, 8, ebStyle)
-			cursor.posGlyph(eb)
-			drawing.add(eb)
-			// Nudge past the barline's right edge
-			cursor.incStaveX(getFontSize() / 16)
-
-			// Connect ending barline between staves if appropriate
-			// Skip if lyrics exist between staves (same logic as regular barlines)
-			var hasEndLyrics = false
-			for (var elsi = staveIndex; elsi < staves.length - 1; elsi++) {
-				if (elsi > staveIndex && getStaffY(elsi) !== getStaffY(staveIndex)) break
-				var elLyrics = staves[elsi].lyrics
-				if (elLyrics && elLyrics.length && elLyrics.some(function(l) { return l && l.length > 0 })) {
-					hasEndLyrics = true
-					break
-				}
-			}
-			var shouldConnectEnd = stave && !hasEndLyrics && staveIndex < staves.length - 1 &&
-				stave.connectBarsWithNext
-			if (shouldConnectEnd) {
-				var nextSi = staveIndex + 1
-				while (nextSi < staves.length - 1 && getStaffY(nextSi) === getStaffY(staveIndex)) {
-					nextSi++
-				}
-				let thisY = getStaffY(staveIndex) + getFontSize()
-				let nextY = getStaffY(nextSi)
-				if (nextY > thisY) {
-					let barX = cursor.staveX
-					let lw = ebStyle === 3 || ebStyle === 5 || ebStyle === 7
-						? getFontSize() / 8 : getFontSize() / 24
-					var connPath = new Claire.Path(function(ctx) {
-						ctx.beginPath()
-						ctx.lineWidth = lw
-						ctx.moveTo(barX, thisY)
-						ctx.lineTo(barX, nextY)
-						ctx.stroke()
-					})
-					drawing.add(connPath)
-				}
-			}
-		}
-
-		// Draw the final stave segment — extends to the ending barline
-		// position (or to the trailing barline for imported formats).
-		addStave(cursor, staveIndex)
-
+	layoutEndingBarlines(drawing, staves, stavePointers)
+	stavePointers.forEach(cursor => {
 		maxCanvasWidth = Math.max(cursor.staveX + 100, maxCanvasWidth)
 	})
 
@@ -1847,7 +1855,7 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	maxCanvasHeight = bottom + 100
 
 	// Clear page geometry (not in page mode)
-	_pageGeometry = null
+	_pageGeometry = window._pageGeometry = null
 
 	// Build system geometry (single system for scroll mode)
 	var firstStaffY = getStaffY(0)
@@ -1898,25 +1906,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// First, draw the ending barline on each stave in the single-line layout
 	// (so it gets reflowed with everything else).
-	var endingBarStyles = [3, 7, 0, 1, 8]
-	stavePointers.forEach((cursor, staveIndex) => {
-		var stave = staves[staveIndex]
-		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
-		var trailing = hasTrailingBarline(stave.tokens)
-
-		if (trailing) {
-			cursor.staveX = cursor.lastBarline + getFontSize() / 16
-		} else if (ebStyle !== 8) {
-			cursor.incStaveX(spacerWidth() * 2)
-			var eb = new Barline(0, 8, ebStyle)
-			cursor.posGlyph(eb)
-			drawing.add(eb)
-			cursor.incStaveX(getFontSize() / 16)
-		}
-
-		// Final stave segment extends to the ending/trailing barline
-		addStave(cursor, staveIndex)
-	})
+	layoutEndingBarlines(drawing, staves, stavePointers)
 
 	// Track the single-line total width before reflow
 	var singleLineWidth = 0
@@ -2232,7 +2222,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	splitCrossSystemTies(drawing, systemHeight, interSystemGap)
 
 	// Clear page geometry (not in page mode)
-	_pageGeometry = null
+	_pageGeometry = window._pageGeometry = null
 
 	// Build system geometry for playback cursor spanning
 	_systemGeometry = []
@@ -2354,6 +2344,28 @@ function _drawPageBackgrounds(ctx, pg) {
 }
 
 /**
+ * Paint one page of the current page layout onto a new canvas at `scale`
+ * device pixels per score pixel (96 DPI), for PDF export.  Unlike the
+ * on-screen view nothing outside the window is culled, and playback
+ * highlights and print-look effects are left out.
+ */
+function renderPage(pageIdx, scale) {
+	var pg = _pageGeometry
+	if (!pg || pageIdx < 0 || pageIdx >= pg.pageCount) return null
+	var pos = pg.pagePositions[pageIdx]
+	var out = document.createElement('canvas')
+	out.width = Math.round(pg.pageWidth * scale)
+	out.height = Math.round(pg.pageHeight * scale)
+	var ctx = out.getContext('2d')
+	ctx.fillStyle = '#ffffff'
+	ctx.fillRect(0, 0, out.width, out.height)
+	ctx.scale(scale, scale)
+	ctx.translate(-pos.x, -pos.y)
+	drawing.draw(ctx, { x: pos.x, y: pos.y, width: pg.pageWidth, height: pg.pageHeight })
+	return out
+}
+
+/**
  * Page layout — renders the score onto fixed-size pages (Letter or A4) with
  * margins, page breaks, and a PDF-viewer appearance.
  *
@@ -2378,24 +2390,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var leftMargin = margins.left
 
 	// --- Draw ending barlines (same as wrap mode) ---
-	var endingBarStyles = [3, 7, 0, 1, 8]
-	stavePointers.forEach((cursor, staveIndex) => {
-		var stave = staves[staveIndex]
-		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
-		var trailing = hasTrailingBarline(stave.tokens)
-
-		if (trailing) {
-			cursor.staveX = cursor.lastBarline + getFontSize() / 16
-		} else if (ebStyle !== 8) {
-			cursor.incStaveX(spacerWidth() * 2)
-			var eb = new Barline(0, 8, ebStyle)
-			cursor.posGlyph(eb)
-			drawing.add(eb)
-			cursor.incStaveX(getFontSize() / 16)
-		}
-
-		addStave(cursor, staveIndex)
-	})
+	layoutEndingBarlines(drawing, staves, stavePointers)
 
 	var singleLineWidth = 0
 	stavePointers.forEach(cursor => {
@@ -3667,47 +3662,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			// Save the X where the barline LINE was drawn (pre-gap).
 			var barlineDrawnX = cursor.staveX
 
-			// Connect barlines to the next (non-layered) staff when connectBarsWithNext is set.
-			// BUT skip connection when lyrics exist between the staves — the
-			// barline would draw across the lyrics text which looks wrong.
-			var staveData = currentStaves[staveIndex]
-			var hasLyricsBetween = false
-			if (staveData) {
-				// Check if any staff at the current Y position (including layered) has lyrics
-				for (var lsi = staveIndex; lsi < currentStaves.length - 1; lsi++) {
-					if (lsi > staveIndex && getStaffY(lsi) !== getStaffY(staveIndex)) break
-					var stLyrics = currentStaves[lsi].lyrics
-					if (stLyrics && stLyrics.length && stLyrics.some(function(l) { return l && l.length > 0 })) {
-						hasLyricsBetween = true
-						break
-					}
-				}
-			}
-			var shouldConnect = staveData && !hasLyricsBetween && staveIndex < currentStaves.length - 1 &&
-				staveData.connectBarsWithNext
-			if (shouldConnect) {
-				// Find the next non-layered staff (skip staves at the same Y)
-				var nextSi = staveIndex + 1
-				while (nextSi < currentStaves.length - 1 && getStaffY(nextSi) === getStaffY(staveIndex)) {
-					nextSi++
-				}
-				// Draw a single continuous barline from the top of this staff
-				// to the bottom of the next staff (standard grand staff engraving).
-				let topY = getStaffY(staveIndex) - getFontSize()  // top line of this staff
-				let botY = getStaffY(nextSi)                       // bottom line of next staff
-				if (botY > topY) {
-					let barX = cursor.staveX
-					let lw = getFontSize() / 24
-					var connPath = new Claire.Path(function(ctx) {
-						ctx.beginPath()
-						ctx.lineWidth = lw
-						ctx.moveTo(barX, topY)
-						ctx.lineTo(barX, botY)
-						ctx.stroke()
-					})
-					drawing.add(connPath)
-				}
-			}
+			// Connect barlines to the next (non-layered) staff when connectBarsWithNext
+			// is set, as one continuous line (standard grand staff engraving).
+			// The glyph carries the extension so it survives wrap/page reflow.
+			s.extendBelow = barConnectLength(currentStaves, staveIndex, false)
 
 			addStave(cursor, staveIndex)
 			cursor.updateBarline()
@@ -4346,4 +4304,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }
+export { score, renderPage, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }

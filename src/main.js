@@ -6,7 +6,8 @@ import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
 import { interpret } from './interpreter.js'
 import { setup, resizeToFit, changeFont } from './drawing.js'
 import { exportLilypond } from './exporter.js'
-import { score, setPlaybackHighlighter, setInkBleedRenderer } from './layout/typeset.js'
+import { score, renderPage, setPlaybackHighlighter, setInkBleedRenderer } from './layout/typeset.js'
+import { buildPdf, canvasToPdfImage } from './pdf-writer.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
 import { PlaybackController } from './audio.js'
@@ -1240,6 +1241,87 @@ const sizeDownBtn = document.getElementById('size_down')
 const sizeUpBtn = document.getElementById('size_up')
 if (sizeDownBtn) sizeDownBtn.onclick = () => { setFontSize(getFontSize() - 4); rerender() }
 if (sizeUpBtn) sizeUpBtn.onclick = () => { setFontSize(getFontSize() + 4); rerender() }
+
+// ---- PDF export ----
+
+const PDF_FIT_STORAGE_KEY = 'nwc_pdf_fit_one_page'
+const PDF_DPI = 300
+const SCORE_DPI = 96            // page sizes are in px at 96 DPI
+const FIT_MIN_FONT_SIZE = 12    // smallest staff size "fit on one page" goes to
+
+const pdfFitCheckbox = document.getElementById('pdf_fit_one_page')
+if (pdfFitCheckbox) {
+	pdfFitCheckbox.checked = localStorage.getItem(PDF_FIT_STORAGE_KEY) === 'true'
+	pdfFitCheckbox.onchange = () => localStorage.setItem(PDF_FIT_STORAGE_KEY, String(pdfFitCheckbox.checked))
+}
+
+/**
+ * Lay the score out on pages (size and orientation from the page settings)
+ * and download it as a PDF.  With "fit on one page", the staff size is
+ * reduced step by step until the score fits.  The on-screen layout and staff
+ * size are restored afterwards; layout is synchronous, so the screen never
+ * shows the temporary page layout.
+ */
+async function exportPdf() {
+	const prevMode = getLayoutMode()
+	const prevFontSize = getFontSize()
+	const fitOnePage = !!pdfFitCheckbox?.checked
+	const pageCount = () => window._pageGeometry?.pageCount || 1
+	let canvases, pg, exportFontSize
+	try {
+		setLayoutMode('page')
+		rerender()
+		while (fitOnePage && pageCount() > 1 && getFontSize() - 4 >= FIT_MIN_FONT_SIZE) {
+			setFontSize(getFontSize() - 4)
+			rerender()
+		}
+		pg = window._pageGeometry
+		if (!pg) throw new Error('page layout is not available')
+		exportFontSize = getFontSize()
+		canvases = []
+		for (let i = 0; i < pg.pageCount; i++) canvases.push(renderPage(i, PDF_DPI / SCORE_DPI))
+	} finally {
+		setLayoutMode(prevMode)
+		setFontSize(prevFontSize)
+		rerender()
+	}
+
+	const ptPerPx = 72 / SCORE_DPI
+	const pages = []
+	for (const canvas of canvases) {
+		pages.push({ widthPt: pg.pageWidth * ptPerPx, heightPt: pg.pageHeight * ptPerPx, image: await canvasToPdfImage(canvas) })
+	}
+	const data = scoreManager.getData()
+	const title = data?.info?.title || ''
+	const baseName = (window.__currentFile || title || 'score').replace(/\.[^.]+$/, '')
+	const url = URL.createObjectURL(new Blob([buildPdf(pages, title)], { type: 'application/pdf' }))
+	const link = document.createElement('a')
+	link.href = url
+	link.download = baseName + '.pdf'
+	link.click()
+	setTimeout(() => URL.revokeObjectURL(url), 1000)
+
+	if (fitOnePage && pages.length > 1) {
+		alert(`The score doesn't fit on one page even at the smallest staff size, so the PDF has ${pages.length} pages.`)
+	}
+	return { pageCount: pages.length, fontSize: exportFontSize }
+}
+
+const exportPdfBtn = document.getElementById('export_pdf')
+if (exportPdfBtn) {
+	exportPdfBtn.onclick = async () => {
+		exportPdfBtn.disabled = true
+		try {
+			await exportPdf()
+		} catch (error) {
+			console.error('PDF export failed:', error)
+			alert(`PDF export failed: ${error.message}`)
+		} finally {
+			exportPdfBtn.disabled = false
+		}
+	}
+}
+window.exportPdf = exportPdf
 
 // ---- Settings menu ----
 

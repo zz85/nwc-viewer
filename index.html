@@ -407,6 +407,7 @@
 						<button id="open">Open</button>
 						<input type="file" id="opener" accept=".nwc,.nwz,.nwctxt,.mid,.midi,.mscx,.mscz,.musicxml,.mxl,.xml" hidden />
 						<select id="samples" title="Sample scores"></select>
+						<button id="export_pdf" title="Export the score as a PDF, laid out on pages (size and orientation from Settings → Page)">Export PDF</button>
 					</div>
 
 					<!-- Transport -->
@@ -493,6 +494,11 @@
 									</select>
 								</div>
 								<p class="hint" id="page_settings_hint">Switch to Page layout for page options.</p>
+								<div class="row">
+									<label title="When exporting, shrink the staff size until the score fits on one page">
+										<input type="checkbox" id="pdf_fit_one_page" /> Fit PDF on one page
+									</label>
+								</div>
 							</section>
 
 							<section>
