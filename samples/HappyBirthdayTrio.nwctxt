@@ -22,7 +22,7 @@
 |Rest|Dur:Whole
 |Bar
 |Rest|Dur:Half
-|Dynamic|Style:mf|Pos:-8
+|Dynamic|Style:mf|Pos:-12
 |Note|Dur:8th,Dotted|Pos:1|Opts:Beam=First
 |Note|Dur:16th|Pos:1|Opts:Beam=End
 |Bar
@@ -80,7 +80,7 @@
 |Note|Dur:4th|Pos:0
 |Bar
 |Note|Dur:Half|Pos:-1
-|Dynamic|Style:f|Pos:-8
+|Dynamic|Style:f|Pos:-12
 |Note|Dur:8th,Dotted|Pos:1|Opts:Beam=First
 |Note|Dur:16th|Pos:1|Opts:Beam=End
 |Bar
@@ -141,7 +141,7 @@
 |Bar
 |Rest|Dur:4th
 |Chord|Dur:4th|Pos:3,5
-|Dynamic|Style:mf|Pos:-8
+|Dynamic|Style:mf|Pos:-12
 |Note|Dur:8th,Dotted|Pos:0|Opts:Beam=First
 |Note|Dur:16th|Pos:0|Opts:Beam=End
 |Bar|Style:Double
@@ -251,6 +251,6 @@
 |Note|Dur:Half|Pos:3
 |Note|Dur:4th|Pos:-1
 |Bar
-|TempoVariance|Style:Fermata|Pause:8|Pos:-9
+|TempoVariance|Style:Fermata|Pause:8|Pos:9
 |Note|Dur:Half,Dotted|Pos:-5
 !NoteWorthyComposer-End
