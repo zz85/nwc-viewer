@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notably — UI concept (mockup)</title>
+<!--
+  Clickable mockup of the proposed Notably UI (see ../../ui-ux-philosophy.md).
+  Not wired to the real engine: the score is a picture of a real render and
+  playback is simulated. Open it from a local server or the file system.
+-->
+<style>
+	:root {
+		--surround: #1c1c20;
+		--chrome: rgba(23, 23, 27, 0.84);
+		--raise: #2a2a31;
+		--raise-2: #34343c;
+		--line: rgba(255, 255, 255, 0.09);
+		--text: #ececf1;
+		--muted: #9d9daa;
+		--accent: #f5a524;
+		--accent-ink: #1c1406;
+		--accent-soft: rgba(245, 165, 36, 0.16);
+		--paper: #fbfaf6;
+		--radius: 10px;
+		--top: 52px;
+		--bottom: 64px;
+		--s0: #ff8a2a;
+		--s1: #2f86ff;
+		--ease: cubic-bezier(.2, .7, .2, 1);
+		color-scheme: dark;
+	}
+	body.light {
+		--surround: #e9e6df;
+		--chrome: rgba(250, 249, 246, 0.86);
+		--raise: #ffffff;
+		--raise-2: #f0eee9;
+		--line: rgba(0, 0, 0, 0.09);
+		--text: #1d1d22;
+		--muted: #6b6b76;
+		color-scheme: light;
+	}
+	* { box-sizing: border-box; margin: 0; padding: 0; }
+	html, body { height: 100%; }
+	body {
+		font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+		background: var(--surround);
+		color: var(--text);
+		overflow: hidden;
+		-webkit-font-smoothing: antialiased;
+	}
+	button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+	svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
+	svg.i.fill { fill: currentColor; stroke: none; }
+	:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+	/* ── Stage: the score, full bleed ───────────────────────────── */
+	#stage {
+		position: fixed; inset: 0;
+		overflow: auto;
+		padding: calc(var(--top) + 28px) 24px calc(var(--bottom) + 120px);
+		scroll-behavior: smooth;
+	}
+	#paper {
+		position: relative;
+		width: min(980px, 100%);
+		margin: 0 auto;
+		background: var(--paper);
+		box-shadow: 0 1px 2px rgba(0,0,0,.25), 0 12px 40px rgba(0,0,0,.35);
+		border-radius: 2px;
+		cursor: text;
+	}
+	body.light #paper { box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 10px 30px rgba(0,0,0,.12); }
+	#paper img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+	#title-hit {
+		position: absolute; left: 25%; right: 25%; top: 1.2%; height: 3.4%;
+		border-radius: 6px; cursor: text;
+	}
+	#title-hit:hover { background: rgba(245,165,36,.10); box-shadow: inset 0 0 0 1px rgba(245,165,36,.5); }
+	#title-hit:hover::after {
+		content: "Click to edit title"; position: absolute; top: 100%; left: 50%; transform: translate(-50%, 4px);
+		font-size: 11px; color: #6b5a3a; white-space: nowrap;
+	}
+
+	/* playhead + current bar + loop region, over the picture */
+	.bar-hl, .loop-hl, #playhead { position: absolute; pointer-events: none; }
+	.bar-hl { background: var(--accent-soft); border-radius: 3px; transition: left .12s linear, width .12s linear; }
+	.loop-hl { background: rgba(47, 134, 255, .10); box-shadow: inset 0 0 0 1.5px rgba(47,134,255,.55); border-radius: 4px; display: none; }
+	body.looping .loop-hl { display: block; }
+	#playhead { width: 2px; background: var(--accent); box-shadow: 0 0 10px 1px rgba(245,165,36,.55); border-radius: 2px; }
+
+	/* ── Bars (chrome) ──────────────────────────────────────────── */
+	.bar {
+		position: fixed; left: 0; right: 0; z-index: 10;
+		background: var(--chrome);
+		backdrop-filter: blur(14px) saturate(1.3);
+		-webkit-backdrop-filter: blur(14px) saturate(1.3);
+		transition: opacity .35s var(--ease), transform .35s var(--ease);
+	}
+	body.idle .bar, body.idle #piano, body.idle #follow { opacity: 0; pointer-events: none; }
+	body.idle #top { transform: translateY(-8px); }
+	body.idle #bottom { transform: translateY(8px); }
+	body.idle { cursor: none; }
+
+	#top {
+		top: 0; height: var(--top);
+		display: flex; align-items: center; gap: 10px; padding: 0 10px;
+		border-bottom: 1px solid var(--line);
+	}
+	.icon-btn {
+		width: 36px; height: 36px; border-radius: 8px;
+		display: inline-flex; align-items: center; justify-content: center;
+		color: var(--text); opacity: .86;
+		transition: background .15s, opacity .15s;
+		position: relative;
+	}
+	.icon-btn:hover { background: var(--raise); opacity: 1; }
+	.icon-btn.on { color: var(--accent); opacity: 1; }
+	.icon-btn[data-tip]:hover::after {
+		content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+		background: #0d0d10; color: #ececf1; font-size: 12px; padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
+	}
+	#top .icon-btn[data-tip]:hover::after { bottom: auto; top: calc(100% + 8px); }
+	.wordmark { font-weight: 650; letter-spacing: .2px; font-size: 15px; margin-right: 6px; }
+	.doc { min-width: 0; flex: 1; display: flex; align-items: baseline; gap: 10px; }
+	.doc-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 6px; padding: 2px 6px; outline: none; }
+	.doc-title:hover { background: var(--raise); }
+	.doc-sub { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+	.pill {
+		display: none; align-items: center; gap: 8px; height: 30px; padding: 0 6px 0 12px; border-radius: 99px;
+		background: var(--raise); font-size: 13px; color: var(--muted); white-space: nowrap;
+	}
+	body.edited .pill.unsaved { display: inline-flex; }
+	.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+	.pill button { background: var(--accent); color: var(--accent-ink); font-weight: 600; border-radius: 99px; padding: 3px 12px; }
+
+	.seg { display: inline-flex; background: var(--raise); border-radius: 9px; padding: 3px; gap: 2px; }
+	.seg button { padding: 5px 12px; border-radius: 7px; color: var(--muted); font-size: 13px; font-weight: 550; }
+	.seg button:hover { color: var(--text); }
+	.seg button.on { background: var(--raise-2); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+	body.light .seg button.on { background: #fff; }
+	.btn {
+		height: 34px; padding: 0 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px;
+		background: var(--raise); font-weight: 550;
+	}
+	.btn:hover { background: var(--raise-2); }
+	.aa { font-weight: 650; font-size: 15px; letter-spacing: -.3px; }
+
+	/* ── Bottom transport (YouTube-style) ───────────────────────── */
+	#bottom { bottom: 0; height: var(--bottom); border-top: 1px solid var(--line); }
+	#scrub {
+		position: absolute; left: 14px; right: 14px; top: -9px; height: 18px; cursor: pointer;
+		display: flex; align-items: center; gap: 3px;
+	}
+	.chap { position: relative; height: 4px; background: rgba(255,255,255,.18); border-radius: 2px; transition: height .12s; overflow: hidden; }
+	body.light .chap { background: rgba(0,0,0,.14); }
+	#scrub:hover .chap { height: 7px; }
+	.chap .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); }
+	.chap .ticks { position: absolute; inset: 0; background-image: linear-gradient(to right, rgba(0,0,0,.35) 1px, transparent 1px); opacity: 0; transition: opacity .12s; }
+	#scrub:hover .chap .ticks { opacity: 1; }
+	#scrub .loop { position: absolute; top: 3px; bottom: 3px; background: rgba(47,134,255,.35); border-radius: 3px; display: none; pointer-events: none; }
+	body.looping #scrub .loop { display: block; }
+	#knob {
+		position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+		background: var(--accent); box-shadow: 0 0 0 4px rgba(245,165,36,.18); transform: scale(0); transition: transform .12s;
+		pointer-events: none;
+	}
+	#scrub:hover #knob, body.scrubbing #knob { transform: scale(1); }
+	#scrub-tip {
+		position: absolute; bottom: 22px; transform: translateX(-50%); background: #0d0d10; color: #ececf1;
+		font-size: 12px; padding: 5px 9px; border-radius: 6px; white-space: nowrap; display: none; pointer-events: none;
+	}
+	#scrub:hover #scrub-tip { display: block; }
+	#scrub-tip b { font-weight: 600; }
+
+	.row { position: absolute; inset: 10px 10px 0; display: flex; align-items: center; gap: 4px; }
+	.play {
+		width: 42px; height: 42px; border-radius: 50%; background: var(--text); color: var(--surround);
+		display: inline-flex; align-items: center; justify-content: center; margin-right: 4px; transition: transform .1s;
+	}
+	.play:hover { transform: scale(1.05); }
+	.play:active { transform: scale(.96); }
+	.time { font-variant-numeric: tabular-nums; font-size: 13px; padding: 0 8px; white-space: nowrap; }
+	.time .dur { color: var(--muted); }
+	.meta { color: var(--muted); font-size: 12.5px; white-space: nowrap; font-variant-numeric: tabular-nums; padding-left: 8px; border-left: 1px solid var(--line); }
+	.spacer { flex: 1; }
+	.vol { display: inline-flex; align-items: center; }
+	.vol input { width: 0; opacity: 0; transition: width .2s var(--ease), opacity .2s; accent-color: var(--accent); }
+	.vol:hover input, .vol:focus-within input { width: 84px; opacity: 1; margin: 0 6px 0 2px; }
+	.chip { height: 30px; min-width: 44px; padding: 0 10px; border-radius: 99px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+	.chip:hover { background: var(--raise); }
+	.chip.changed { color: var(--accent); background: var(--accent-soft); }
+
+	/* ── Popovers, panels, sheets ───────────────────────────────── */
+	.pop {
+		position: fixed; z-index: 30; min-width: 220px; background: var(--raise); border: 1px solid var(--line);
+		border-radius: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.45); padding: 8px; display: none;
+	}
+	.pop.open { display: block; animation: rise .16s var(--ease); }
+	@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+	.pop h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 600; padding: 6px 8px 4px; }
+	.opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; padding: 8px; border-radius: 8px; text-align: left; }
+	.opt:hover { background: var(--raise-2); }
+	.opt .v { color: var(--muted); font-size: 13px; }
+	.opt.sel::after { content: "✓"; color: var(--accent); }
+	.speed-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; }
+	.speed-grid button { padding: 7px 0; border-radius: 8px; background: var(--raise-2); font-variant-numeric: tabular-nums; font-weight: 550; }
+	.speed-grid button.sel { background: var(--accent); color: var(--accent-ink); }
+	.pop input[type=range] { width: 100%; accent-color: var(--accent); margin: 8px 0 4px; }
+	.toggle { width: 34px; height: 20px; border-radius: 99px; background: var(--raise-2); position: relative; flex: none; transition: background .15s; }
+	.toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s var(--ease); }
+	.opt[aria-checked="true"] .toggle { background: var(--accent); }
+	.opt[aria-checked="true"] .toggle::after { transform: translateX(14px); }
+	.sep { height: 1px; background: var(--line); margin: 6px 4px; }
+	.kbd { font: 11px ui-monospace, monospace; color: var(--muted); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; }
+
+	.panel {
+		position: fixed; z-index: 20; top: calc(var(--top) + 8px); bottom: calc(var(--bottom) + 8px); right: 8px; width: 340px;
+		background: var(--raise); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 16px 48px rgba(0,0,0,.4);
+		display: flex; flex-direction: column; transform: translateX(calc(100% + 16px)); transition: transform .25s var(--ease);
+	}
+	.panel.open { transform: none; }
+	.panel header { display: flex; align-items: center; justify-content: space-between; padding: 10px 8px 6px 16px; font-weight: 600; }
+	.panel .body { overflow: auto; padding: 4px 8px 14px; }
+	.panel.left { right: auto; left: 8px; transform: translateX(calc(-100% - 16px)); width: 300px; }
+	.panel.left.open { transform: none; }
+
+	.track { display: grid; grid-template-columns: 10px 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 8px; border-radius: 10px; }
+	.track:hover { background: var(--raise-2); }
+	.track .sw { width: 10px; height: 34px; border-radius: 4px; grid-row: span 2; }
+	.track .name { font-weight: 600; }
+	.track .inst { color: var(--muted); font-size: 12.5px; grid-column: 2; }
+	.track .ms { display: flex; gap: 4px; grid-row: span 2; grid-column: 3; grid-row-start: 1; }
+	.track .ms button { width: 28px; height: 26px; border-radius: 6px; background: var(--raise-2); font-size: 12px; font-weight: 700; color: var(--muted); }
+	.track .ms button.on.m { background: #6b6b76; color: #fff; }
+	.track .ms button.on.s { background: var(--accent); color: var(--accent-ink); }
+	.track .ms button.e { font-size: 13px; opacity: .45; }
+	.track .ms button.e.on { opacity: 1; }
+	.track input { grid-column: 2 / span 2; width: 100%; accent-color: var(--accent); }
+	.track.muted .name, .track.muted .inst { opacity: .45; }
+
+	.field { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px; }
+	.field label { color: var(--muted); }
+	.field select { background: var(--raise-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; }
+	details { border-top: 1px solid var(--line); margin-top: 6px; }
+	summary { cursor: pointer; padding: 12px 8px 8px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; font-weight: 600; list-style: none; }
+	summary::after { content: "▾"; float: right; }
+	details[open] summary::after { content: "▴"; }
+	.menu-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px; border-radius: 9px; text-align: left; }
+	.menu-item:hover { background: var(--raise-2); }
+	.menu-item .kbd { margin-left: auto; }
+	.recent { color: var(--muted); font-size: 13px; padding: 6px 10px; display: block; width: 100%; text-align: left; border-radius: 8px; }
+	.recent:hover { background: var(--raise-2); color: var(--text); }
+
+	/* score context toolbar (click on the music) */
+	#ctx {
+		position: absolute; z-index: 5; display: none; transform: translate(-50%, calc(-100% - 10px));
+		background: #17171b; color: #ececf1; border-radius: 10px; padding: 4px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+		white-space: nowrap;
+	}
+	#ctx.open { display: flex; animation: rise .14s var(--ease); }
+	#ctx button { padding: 7px 10px; border-radius: 7px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+	#ctx button:hover { background: #2a2a31; }
+	#ctx .grp { display: none; gap: 2px; align-items: center; }
+	#ctx.edit .grp.edit, #ctx:not(.edit) .grp.view { display: inline-flex; }
+	#ctx .lbl { color: #8b8b96; font-size: 11px; padding: 0 6px; text-transform: uppercase; letter-spacing: .5px; }
+	#ctx .vr { width: 1px; align-self: stretch; background: #2f2f36; margin: 4px 2px; }
+
+	#follow {
+		position: fixed; z-index: 9; left: 50%; bottom: calc(var(--bottom) + 18px); transform: translateX(-50%);
+		background: var(--accent); color: var(--accent-ink); font-weight: 600; border-radius: 99px; padding: 8px 16px;
+		box-shadow: 0 8px 24px rgba(0,0,0,.35); display: none; transition: opacity .3s;
+	}
+	body.unfollowed #follow { display: block; }
+
+	/* piano keyboard visualizer, slides up above the transport */
+	#piano {
+		position: fixed; z-index: 9; left: 50%; bottom: calc(var(--bottom) + 10px); transform: translate(-50%, 140%);
+		width: min(760px, calc(100% - 24px)); height: 84px; border-radius: 12px; padding: 8px; background: var(--chrome);
+		backdrop-filter: blur(14px); border: 1px solid var(--line); transition: transform .3s var(--ease), opacity .3s;
+	}
+	body.piano #piano { transform: translate(-50%, 0); }
+	body.piano.unfollowed #follow { bottom: calc(var(--bottom) + 110px); }
+	#keys { position: relative; height: 100%; display: flex; }
+	#keys .w { flex: 1; background: #f4f4f4; border-right: 1px solid #c9c9c9; border-radius: 0 0 4px 4px; }
+	#keys .b { position: absolute; top: 0; height: 58%; background: #18181b; border-radius: 0 0 3px 3px; z-index: 1; }
+	#keys .lit0 { background: var(--s0) !important; }
+	#keys .lit1 { background: var(--s1) !important; }
+
+	#help { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; }
+	#help.open { display: flex; }
+	#help .card { background: var(--raise); border-radius: 16px; padding: 22px 24px; width: min(640px, calc(100% - 24px)); box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+	#help h3 { margin-bottom: 14px; }
+	#help .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 28px; }
+	#help .grid div { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+
+	#toast {
+		position: fixed; z-index: 50; left: 50%; top: calc(var(--top) + 14px); transform: translate(-50%, -10px);
+		background: #0d0d10; color: #ececf1; padding: 9px 14px; border-radius: 10px; opacity: 0; transition: .2s; pointer-events: none;
+	}
+	#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+	.note { position: fixed; left: 12px; bottom: calc(var(--bottom) + 12px); z-index: 8; font-size: 12px; color: var(--muted); max-width: 300px; }
+	body.piano .note, body.idle .note { display: none; }
+
+	/* ── Extension slots: status chips, edit tools, dock, start sheet, command palette ── */
+	.status {
+		display: none; align-items: center; gap: 6px; height: 28px; padding: 0 4px 0 10px; border-radius: 99px;
+		background: rgba(47,134,255,.16); color: #9cc3ff; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+	}
+	body.light .status { color: #1d5fc4; }
+	.status.on { display: inline-flex; }
+	.status button { width: 20px; height: 20px; border-radius: 50%; opacity: .8; }
+	.status button:hover { background: rgba(255,255,255,.12); opacity: 1; }
+	.status.clickable { cursor: pointer; }
+	#edit-btn.on { background: var(--accent); color: var(--accent-ink); }
+
+	#rail {
+		position: fixed; z-index: 11; left: 10px; top: 50%; transform: translate(-80px, -50%); transition: transform .25s var(--ease);
+		display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 14px;
+		background: var(--chrome); backdrop-filter: blur(14px); border: 1px solid var(--line);
+	}
+	body.editing #rail { transform: translate(0, -50%); }
+	#rail .icon-btn { width: 40px; height: 40px; }
+	#rail .icon-btn.on { background: var(--accent-soft); color: var(--accent); }
+	#rail .icon-btn[data-tip]:hover::after { bottom: auto; left: calc(100% + 10px); top: 50%; transform: translateY(-50%); }
+	body.inking #paper { cursor: crosshair; }
+
+	#ink-strip {
+		position: fixed; z-index: 9; left: 50%; bottom: calc(var(--bottom) + 10px); transform: translate(-50%, 140%);
+		display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 12px; background: var(--chrome);
+		backdrop-filter: blur(14px); border: 1px solid var(--line); transition: transform .3s var(--ease);
+	}
+	body.inking #ink-strip { transform: translate(-50%, 0); }
+	body.inking #piano { transform: translate(-50%, 140%); }
+	#ink-strip .lbl { color: var(--muted); font-size: 12px; padding: 0 8px; }
+	#ink-strip button { min-width: 64px; padding: 6px 10px; border-radius: 9px; background: var(--raise-2); display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--muted); }
+	#ink-strip button b { font-size: 22px; line-height: 1.1; color: var(--text); font-weight: 400; }
+	#ink-strip button.best { box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+	.modal { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.5); display: none; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+	.modal.open { display: flex; }
+	.sheet { background: var(--raise); border-radius: 16px; padding: 20px; width: min(720px, calc(100% - 24px)); box-shadow: 0 20px 60px rgba(0,0,0,.5); animation: rise .18s var(--ease); }
+	.sheet h3 { margin-bottom: 4px; }
+	.sheet .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+	.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+	.card-btn { text-align: left; padding: 14px; border-radius: 12px; background: var(--raise-2); display: flex; flex-direction: column; gap: 6px; min-height: 110px; }
+	.card-btn:hover { box-shadow: inset 0 0 0 1.5px var(--accent); }
+	.card-btn .em { font-size: 24px; }
+	.card-btn b { font-weight: 600; }
+	.card-btn span { color: var(--muted); font-size: 12.5px; }
+	.card-btn .tag { margin-top: auto; font-size: 11px; color: #9cc3ff; }
+
+	#palette .sheet { padding: 8px; }
+	#palette input { width: 100%; padding: 12px 14px; font: inherit; font-size: 16px; background: var(--raise-2); color: var(--text); border: 0; border-radius: 10px; outline: none; }
+	#palette ul { list-style: none; max-height: 50vh; overflow: auto; padding: 6px 0 2px; }
+	#palette li { display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; border-radius: 8px; cursor: pointer; }
+	#palette li .g { color: var(--muted); font-size: 12px; margin-left: 8px; }
+	#palette li.sel, #palette li:hover { background: var(--raise-2); }
+
+	/* ── Phone ──────────────────────────────────────────────────── */
+	.phone-only { display: none; }
+	@media (max-width: 720px) {
+		:root { --top: 48px; --bottom: 60px; }
+		.wordmark, .doc-sub, #top .seg, #share-btn .lbl, .meta, .vol, #restart, #piano-btn, #mixer-btn, #gear-btn, #full-btn, #loop-btn { display: none; }
+		.phone-only { display: inline-flex; }
+		#stage { padding: calc(var(--top) + 10px) 0 calc(var(--bottom) + 90px); }
+		#paper { width: 100%; border-radius: 0; }
+		.panel, .panel.left { left: 0; right: 0; top: auto; bottom: 0; width: auto; max-height: 72vh; border-radius: 16px 16px 0 0; transform: translateY(105%); }
+		.panel.open, .panel.left.open { transform: none; }
+		.note { display: none; }
+	}
+</style>
+</head>
+<body>
+
+<!-- ── Stage ── -->
+<main id="stage" aria-label="Score">
+	<div id="paper">
+		<img id="score" src="score.jpg" alt="Score: We three kings of Orient are" draggable="false">
+		<div id="title-hit" title="Click to edit title"></div>
+		<div class="loop-hl" id="loop-hl"></div>
+		<div class="bar-hl" id="bar-hl"></div>
+		<div id="playhead"></div>
+		<div id="ctx" role="toolbar" aria-label="Selection">
+			<span class="grp view">
+				<button data-act="play-here">▶ Play from here</button>
+				<button data-act="loop-bar">⟲ Loop bars</button>
+				<span class="vr"></span>
+				<button data-act="edit">✎ Edit</button>
+			</span>
+			<span class="grp edit">
+				<span class="lbl">Note</span>
+				<button title="Whole (1)">1</button><button title="Half (2)">2</button><button title="Quarter (4)">♩</button><button title="Eighth (8)">♪</button><button title="Sixteenth (6)">♬</button>
+				<span class="vr"></span>
+				<button title="Flat (-)">♭</button><button title="Natural (=)">♮</button><button title="Sharp (+)">♯</button>
+				<span class="vr"></span>
+				<button title="Dot (.)">·</button><button title="Tie (T)">⁀</button><button title="Delete">⌫</button>
+				<span class="vr"></span>
+				<button data-act="done">Done</button>
+			</span>
+		</div>
+	</div>
+</main>
+
+<!-- ── Top bar: what you're looking at, and how ── -->
+<header class="bar" id="top">
+	<button class="icon-btn" id="menu-btn" data-tip="Menu (open, save, export)" aria-label="Menu"><svg class="i"><use href="#i-menu"/></svg></button>
+	<span class="wordmark">Notably</span>
+	<div class="doc">
+		<span class="doc-title" id="doc-title" contenteditable="false" title="Click to edit">We three kings of Orient are</span>
+		<span class="doc-sub">Christmas traditional · 2 staves · ♩ 104</span>
+	</div>
+	<!-- status chips: features show up here only while they apply (transposed, scanned page, …) -->
+	<span class="status clickable" id="chip-transpose" title="Transposed — click to change">For B♭ Clarinet<button aria-label="Back to concert pitch">✕</button></span>
+	<span class="pill unsaved"><span class="dot"></span>Edited<button id="save-btn">Save</button></span>
+	<div class="seg" role="tablist" aria-label="View">
+		<button data-view="page">Page</button>
+		<button data-view="wrap" class="on">Wrap</button>
+		<button data-view="line">Line</button>
+		<button data-view="3d">3D</button>
+		<button id="views-more" aria-label="More views" title="More views">▾</button>
+	</div>
+	<button class="icon-btn" id="edit-btn" data-tip="Edit (E)" aria-label="Edit"><svg class="i"><use href="#i-pen"/></svg></button>
+	<button class="icon-btn" id="aa-btn" data-tip="Appearance" aria-label="Appearance"><span class="aa">Aa</span></button>
+	<button class="btn" id="share-btn" aria-label="Share"><svg class="i"><use href="#i-share"/></svg><span class="lbl">Share</span></button>
+</header>
+
+<!-- ── Bottom bar: playback, the way every media player does it ── -->
+<footer class="bar" id="bottom">
+	<div id="scrub" role="slider" aria-label="Seek" tabindex="0">
+		<div class="chap" data-from="1" data-to="19"><div class="fill"></div><div class="ticks"></div></div>
+		<div class="chap" data-from="20" data-to="36"><div class="fill"></div><div class="ticks"></div></div>
+		<div class="loop" id="scrub-loop"></div>
+		<div id="knob"></div>
+		<div id="scrub-tip"></div>
+	</div>
+	<div class="row">
+		<button class="play" id="play-btn" aria-label="Play (Space)"><svg class="i fill" id="play-ico"><use href="#i-play"/></svg></button>
+		<button class="icon-btn" id="restart" data-tip="Back to start (0)" aria-label="Back to start"><svg class="i"><use href="#i-restart"/></svg></button>
+		<span class="time"><span id="t-cur">0:00</span> <span class="dur">/ 0:34</span></span>
+		<span class="meta" id="t-bar">Bar 1 of 36 · Verse</span>
+		<span class="spacer"></span>
+		<button class="icon-btn" id="loop-btn" data-tip="Loop (R) — or drag across bars" aria-label="Loop"><svg class="i"><use href="#i-loop"/></svg></button>
+		<span class="vol">
+			<button class="icon-btn" id="mute-btn" data-tip="Mute (M)" aria-label="Mute"><svg class="i" id="vol-ico"><use href="#i-vol"/></svg></button>
+			<input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
+		</span>
+		<button class="chip" id="speed-btn" aria-label="Speed (Shift + &lt; / &gt;)" title="Speed (Shift + &lt; / &gt;)">1×</button>
+		<button class="icon-btn" id="piano-btn" data-tip="Keyboard (P)" aria-label="Piano keyboard"><svg class="i"><use href="#i-piano"/></svg></button>
+		<button class="icon-btn" id="mixer-btn" data-tip="Parts &amp; mixer (X)" aria-label="Parts and mixer"><svg class="i"><use href="#i-mixer"/></svg></button>
+		<button class="icon-btn" id="gear-btn" data-tip="Playback settings" aria-label="Playback settings"><svg class="i"><use href="#i-gear"/></svg></button>
+		<button class="icon-btn" id="full-btn" data-tip="Full screen (F)" aria-label="Full screen"><svg class="i"><use href="#i-full"/></svg></button>
+		<button class="icon-btn phone-only" id="more-btn" aria-label="More"><svg class="i fill"><use href="#i-more"/></svg></button>
+	</div>
+</footer>
+
+<button id="follow">↓ Back to the playhead</button>
+<div id="piano"><div id="keys"></div></div>
+
+<!-- Edit tools: the rail every input method plugs into (Select, Ink = StaffInk, Text, Erase) -->
+<nav id="rail" aria-label="Edit tools">
+	<button class="icon-btn on" data-tool="select" data-tip="Select (V)" aria-label="Select"><svg class="i"><use href="#i-pointer"/></svg></button>
+	<button class="icon-btn" data-tool="ink" data-tip="Write by hand (I)" aria-label="Write by hand"><svg class="i"><use href="#i-ink"/></svg></button>
+	<button class="icon-btn" data-tool="text" data-tip="Text (T)" aria-label="Text"><svg class="i"><use href="#i-text"/></svg></button>
+	<button class="icon-btn" data-tool="erase" data-tip="Erase" aria-label="Erase"><svg class="i"><use href="#i-erase"/></svg></button>
+</nav>
+<!-- Dock item for the Ink tool: recognition alternatives (StaffInk's strip) -->
+<div id="ink-strip" role="toolbar" aria-label="Recognised as">
+	<span class="lbl">Recognised as</span>
+	<button class="best"><b>♩</b>quarter</button><button><b>♪</b>eighth</button><button><b>𝄽</b>rest</button><button><b>♯</b>sharp</button>
+</div>
+<p class="note">Mockup — playback is simulated. Try: Space, ← →, R, M, P, X, F, E, /, ?, click or drag across the music, the scrub bar, ☰ → New / Open and Transpose, scroll while playing.</p>
+
+<!-- Speed -->
+<div class="pop" id="speed-pop" role="dialog" aria-label="Speed">
+	<h4>Speed</h4>
+	<div class="speed-grid">
+		<button data-s="0.5">0.5×</button><button data-s="0.75">0.75×</button><button data-s="1" class="sel">1×</button><button data-s="1.25">1.25×</button>
+	</div>
+	<input type="range" id="speed-range" min="0.25" max="2" step="0.05" value="1" aria-label="Speed">
+	<div class="opt" style="pointer-events:none"><span>Tempo</span><span class="v" id="tempo-v">♩ 104</span></div>
+</div>
+
+<!-- Playback settings -->
+<div class="pop" id="gear-pop" role="dialog" aria-label="Playback settings">
+	<h4>Playback</h4>
+	<button class="opt" role="switch" aria-checked="true" data-sw="follow"><span>Follow the playhead</span><span class="toggle"></span></button>
+	<button class="opt"><span>Follow position</span><span class="v">Near the top ›</span></button>
+	<button class="opt" role="switch" aria-checked="false" data-sw="countin"><span>Count-in</span><span class="toggle"></span></button>
+	<button class="opt" role="switch" aria-checked="false" data-sw="metro"><span>Metronome</span><span class="toggle"></span></button>
+	<button class="opt" role="switch" aria-checked="true" data-sw="repeats"><span>Play repeats</span><span class="toggle"></span></button>
+	<div class="sep"></div>
+	<button class="opt"><span>Highlight</span><span class="v">Notes ›</span></button>
+	<button class="opt"><span>Sound</span><span class="v">General MIDI ›</span></button>
+	<div class="sep"></div>
+	<button class="opt" id="help-open"><span>Keyboard shortcuts</span><span class="kbd">?</span></button>
+</div>
+
+<!-- Phone overflow -->
+<div class="pop" id="more-pop">
+	<button class="opt" data-proxy="loop-btn"><span>Loop</span></button>
+	<button class="opt" data-proxy="piano-btn"><span>Keyboard</span></button>
+	<button class="opt" data-proxy="mixer-btn"><span>Parts &amp; mixer</span></button>
+	<button class="opt" data-proxy="gear-btn"><span>Playback settings</span></button>
+	<button class="opt" data-proxy="aa-btn"><span>Appearance &amp; view</span></button>
+</div>
+
+<!-- Menu (left) -->
+<aside class="panel left" id="menu-panel" aria-label="Menu">
+	<header>Notably<button class="icon-btn" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+	<div class="body">
+		<button class="menu-item" id="new-btn">New / Open… <span class="kbd">⌘O</span></button>
+		<button class="menu-item">Samples ›</button>
+		<h4 style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;padding:12px 10px 4px">Recent</h4>
+		<button class="recent">We three kings of Orient are</button>
+		<button class="recent">A Child this day is born</button>
+		<button class="recent">Happy Birthday (trio)</button>
+		<div class="sep"></div>
+		<button class="menu-item">Save <span class="kbd">⌘S</span></button>
+		<button class="menu-item">Save as… <span class="v" style="margin-left:auto;color:var(--muted);font-size:13px">.nwctxt · .nwc · MusicXML</span></button>
+		<button class="menu-item">Export PDF…</button>
+		<button class="menu-item">Copy share link</button>
+		<div class="sep"></div>
+		<button class="menu-item" id="transpose-open">Transpose for an instrument…</button>
+		<button class="menu-item" id="palette-open">All commands <span class="kbd">/</span></button>
+		<div class="sep"></div>
+		<button class="menu-item" id="theme-btn">Light theme</button>
+		<button class="menu-item" id="help-open-2">Keyboard shortcuts <span class="kbd">?</span></button>
+		<button class="menu-item">About this score</button>
+	</div>
+</aside>
+
+<!-- Parts & mixer (right) -->
+<aside class="panel" id="mixer-panel" aria-label="Parts and mixer">
+	<header>Parts<button class="icon-btn" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+	<div class="body">
+		<div class="track" data-i="0">
+			<span class="sw" style="background:var(--s0)"></span>
+			<span class="name">Soprano · Alto</span>
+			<span class="ms"><button class="e on" title="Show on the page">👁</button><button class="m" title="Mute">M</button><button class="s" title="Solo">S</button></span>
+			<span class="inst">Choir Aahs</span>
+			<input type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Soprano · Alto volume">
+		</div>
+		<div class="track" data-i="1">
+			<span class="sw" style="background:var(--s1)"></span>
+			<span class="name">Tenor · Bass</span>
+			<span class="ms"><button class="e on" title="Show on the page">👁</button><button class="m" title="Mute">M</button><button class="s" title="Solo">S</button></span>
+			<span class="inst">Choir Aahs</span>
+			<input type="range" min="0" max="1" step="0.01" value="0.8" aria-label="Tenor · Bass volume">
+		</div>
+		<p style="color:var(--muted);font-size:12.5px;padding:10px 8px">A part's colour is the same everywhere: the lights in 3D, the keys on the keyboard, the playhead notes.</p>
+	</div>
+</aside>
+
+<!-- Appearance (right) -->
+<aside class="panel" id="aa-panel" aria-label="Appearance">
+	<header>Appearance<button class="icon-btn" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+	<div class="body">
+		<div class="field phone-only" style="display:none"></div>
+		<div class="field"><label>Zoom</label><span class="seg"><button>−</button><button class="on">100%</button><button>+</button><button>Fit</button></span></div>
+		<div class="field"><label>Music font</label><select><option>Bravura</option><option>Leland</option><option>Petaluma</option></select></div>
+		<div class="field"><label>Staff size</label><span class="seg"><button>−</button><button>+</button></span></div>
+		<div class="field"><label>Theme</label><span class="seg" id="theme-seg"><button class="on" data-t="dark">Studio</button><button data-t="light">Light</button></span></div>
+		<details><summary>Print look</summary>
+			<button class="opt" role="switch" aria-checked="false"><span>Inked paper</span><span class="toggle"></span></button>
+		</details>
+		<details><summary>Spacing</summary>
+			<div class="field"><label>Density</label><input type="range" min="0.5" max="3" step="0.05" value="1.5"></div>
+			<div class="field"><label>Rod / spring</label><input type="range" min="0" max="2" step="0.05" value="1"></div>
+		</details>
+		<details><summary>Page</summary>
+			<div class="field"><label>Size</label><select><option>Letter</option><option>A4</option></select></div>
+			<div class="field"><label>Arrangement</label><select><option>Vertical</option><option>Two-up</option></select></div>
+		</details>
+		<details><summary>Advanced</summary>
+			<button class="opt" role="switch" aria-checked="false"><span>Show hidden items</span><span class="toggle"></span></button>
+			<div class="field"><label>NWC parser</label><select><option>New</option><option>Old</option></select></div>
+		</details>
+	</div>
+</aside>
+
+<!-- Transpose (right) — ScoreShift's transform, for every score -->
+<aside class="panel" id="transpose-panel" aria-label="Transpose">
+	<header>Transpose<button class="icon-btn" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></header>
+	<div class="body">
+		<div class="field"><label>Written for</label><select><option>Concert pitch</option><option>B♭ Trumpet</option></select></div>
+		<div class="field"><label>Play on</label><select id="tr-target"><option>B♭ Clarinet</option><option>E♭ Alto Sax</option><option>F Horn</option><option>Viola</option></select></div>
+		<div class="field"><label>Octave</label><span class="seg"><button>−</button><button class="on">Auto</button><button>+</button></span></div>
+		<div class="field"><label>Clef</label><select><option>Follow the instrument</option><option>Keep the score's</option></select></div>
+		<div style="padding:8px"><button class="btn" id="tr-apply" style="width:100%;justify-content:center;background:var(--accent);color:var(--accent-ink)">Show transposed</button></div>
+		<p style="color:var(--muted);font-size:12.5px;padding:4px 8px">Works on any score. For a scanned page the photo itself is rewritten, in its own ink.</p>
+	</div>
+</aside>
+
+<!-- More views -->
+<div class="pop" id="views-pop" role="menu" aria-label="More views">
+	<h4>More views</h4>
+	<button class="opt" disabled style="opacity:.5"><span>Photo of the page</span><span class="v">scanned scores</span></button>
+	<button class="opt" disabled style="opacity:.5"><span>Piano roll</span><span class="v">later</span></button>
+	<button class="opt" disabled style="opacity:.5"><span>Falling notes</span><span class="v">later</span></button>
+</div>
+
+<!-- Start: every way a score can come in (new sources add a card) -->
+<div class="modal" id="start" role="dialog" aria-label="New or open">
+	<div class="sheet">
+		<h3>Start</h3>
+		<p class="sub">Drop a file or a photo anywhere, or pick a way in.</p>
+		<div class="cards">
+			<button class="card-btn"><span class="em">📂</span><b>Open a file</b><span>NoteWorthy, MusicXML, MuseScore, MIDI</span></button>
+			<button class="card-btn"><span class="em">📷</span><b>Scan a page</b><span>Photo or PDF of printed music</span><span class="tag">ScoreShift</span></button>
+			<button class="card-btn" id="start-ink"><span class="em">✍️</span><b>Write by hand</b><span>Pen, finger or mouse on a blank staff</span><span class="tag">StaffInk</span></button>
+			<button class="card-btn"><span class="em">🎼</span><b>Samples</b><span>Carols, chorales, trios</span></button>
+		</div>
+		<p class="sub" style="margin:16px 0 6px">Recent</p>
+		<button class="recent">We three kings of Orient are</button>
+		<button class="recent">A Child this day is born</button>
+	</div>
+</div>
+
+<!-- Command palette: every feature registers its commands here -->
+<div class="modal" id="palette" role="dialog" aria-label="Commands">
+	<div class="sheet">
+		<input id="palette-input" placeholder="Go to bar 12, a section, or a command…" autocomplete="off" aria-label="Command">
+		<ul id="palette-list"></ul>
+	</div>
+</div>
+
+<!-- Shortcuts -->
+<div id="help" role="dialog" aria-label="Keyboard shortcuts">
+	<div class="card">
+		<h3>Keyboard shortcuts</h3>
+		<div class="grid">
+			<div>Play / pause <span><span class="kbd">Space</span> <span class="kbd">K</span></span></div>
+			<div>Previous / next bar <span><span class="kbd">←</span> <span class="kbd">→</span></span></div>
+			<div>Back / ahead 5 bars <span><span class="kbd">J</span> <span class="kbd">L</span>&nbsp;·&nbsp;<span class="kbd">⇧←</span> <span class="kbd">⇧→</span></span></div>
+			<div>Jump to 0–90% <span class="kbd">0 … 9</span></div>
+			<div>Slower / faster <span><span class="kbd">⇧ ,</span> <span class="kbd">⇧ .</span></span></div>
+			<div>Loop on / off <span class="kbd">R</span></div>
+			<div>Mute <span class="kbd">M</span></div>
+			<div>Volume <span><span class="kbd">↑</span> <span class="kbd">↓</span></span></div>
+			<div>Keyboard visualizer <span class="kbd">P</span></div>
+			<div>Parts &amp; mixer <span class="kbd">X</span></div>
+			<div>Full screen <span class="kbd">F</span></div>
+			<div>Views: Page · Wrap · Line · 3D <span><span class="kbd">⌥1</span>…<span class="kbd">⌥4</span></span></div>
+			<div>Zoom <span><span class="kbd">⌘ +</span> <span class="kbd">⌘ −</span></span></div>
+			<div>Previous / next page <span><span class="kbd">PgUp</span> <span class="kbd">PgDn</span></span></div>
+			<div>Go to bar / command <span class="kbd">/</span></div>
+			<div>Edit on / off <span class="kbd">E</span></div>
+			<div>Close / deselect <span class="kbd">Esc</span></div>
+		</div>
+	</div>
+</div>
+<div id="toast" role="status"></div>
+
+<!-- Icons (Lucide-style, 24px grid) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+	<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></symbol>
+	<symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></symbol>
+	<symbol id="i-restart" viewBox="0 0 24 24"><path d="M19 20 9 12l10-8v16z"/><path d="M5 19V5"/></symbol>
+	<symbol id="i-loop" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+	<symbol id="i-vol" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></symbol>
+	<symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></symbol>
+	<symbol id="i-piano" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M8.8 19v-5M15.2 19v-5"/><path d="M7 5v9h3.5V5M13.5 5v9H17V5"/></symbol>
+	<symbol id="i-mixer" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></symbol>
+	<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+	<symbol id="i-full" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></symbol>
+	<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+	<symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></symbol>
+	<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+	<symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></symbol>
+	<symbol id="i-pointer" viewBox="0 0 24 24"><path d="m4 4 7 17 2.5-7.5L21 11 4 4z"/></symbol>
+	<symbol id="i-ink" viewBox="0 0 24 24"><path d="M3 17c3-1 4-6 7-6s2 5 5 5 3-3 6-4"/><circle cx="18.5" cy="6" r="2"/></symbol>
+	<symbol id="i-text" viewBox="0 0 24 24"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></symbol>
+	<symbol id="i-erase" viewBox="0 0 24 24"><path d="m7 21-4-4L14 6l6 6-9 9H7z"/><path d="M21 21H7"/><path d="m9 11 6 6"/></symbol>
+	<symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></symbol>
+</svg>
+
+<script>
+	const $ = id => document.getElementById(id)
+	const body = document.body
+
+	// ── The picture's geometry (fractions of the image): systems and their bars ──
+	const SYSTEMS = [
+		{ y0: 0.112, y1: 0.250, x0: 0.095, x1: 0.986, first: 1, bars: 10 },
+		{ y0: 0.358, y1: 0.436, x0: 0.047, x1: 0.986, first: 11, bars: 9 },
+		{ y0: 0.496, y1: 0.652, x0: 0.078, x1: 0.986, first: 20, bars: 8 },
+		{ y0: 0.871, y1: 0.994, x0: 0.078, x1: 0.925, first: 28, bars: 9 },
+	]
+	const BARS = 36, DURATION = 34, SEC_PER_BAR = DURATION / BARS, TEMPO = 104
+	const SECTIONS = [{ name: 'Verse', from: 1 }, { name: 'Chorus', from: 20 }]
+
+	const state = { t: 0, playing: false, speed: 1, volume: 0.8, muted: false, follow: true, loop: null, raf: 0, last: 0 }
+
+	const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0')
+	const barAt = t => Math.min(BARS, Math.floor(t / SEC_PER_BAR) + 1)
+	const sectionOf = bar => SECTIONS.filter(s => s.from <= bar).pop().name
+	const systemOf = bar => SYSTEMS.find(s => bar >= s.first && bar < s.first + s.bars) || SYSTEMS[SYSTEMS.length - 1]
+
+	function barRect(bar) {
+		const s = systemOf(bar), w = (s.x1 - s.x0) / s.bars
+		return { s, x: s.x0 + (bar - s.first) * w, w }
+	}
+
+	// ── Render the playhead, bar highlight, scrub bar, time ──
+	function render() {
+		const paper = $('paper'), W = paper.clientWidth, H = paper.clientHeight
+		const pos = state.t / SEC_PER_BAR // in bars, 0-based
+		const bar = Math.min(BARS, Math.floor(pos) + 1)
+		const { s, x, w } = barRect(bar)
+		const frac = Math.min(1, pos - (bar - 1))
+		const ph = $('playhead')
+		ph.style.left = (x + w * frac) * W + 'px'
+		ph.style.top = s.y0 * H + 'px'
+		ph.style.height = (s.y1 - s.y0) * H + 'px'
+		const hl = $('bar-hl')
+		hl.style.left = x * W + 'px'; hl.style.width = w * W + 'px'
+		hl.style.top = s.y0 * H - 6 + 'px'; hl.style.height = (s.y1 - s.y0) * H + 12 + 'px'
+		$('t-cur').textContent = fmt(state.t)
+		$('t-bar').textContent = `Bar ${bar} of ${BARS} · ${sectionOf(bar)}`
+		// scrub fill per chapter
+		for (const c of document.querySelectorAll('.chap')) {
+			const from = +c.dataset.from, to = +c.dataset.to
+			const f = Math.max(0, Math.min(1, (pos - (from - 1)) / (to - from + 1)))
+			c.querySelector('.fill').style.width = f * 100 + '%'
+			c.style.flex = String(to - from + 1)
+			c.querySelector('.ticks').style.backgroundSize = 100 / (to - from + 1) + '% 100%'
+		}
+		$('knob').style.left = scrubX(state.t) + 'px'
+		if (state.loop) {
+			const a = barRect(state.loop[0]), b = barRect(state.loop[1])
+			const lh = $('loop-hl')
+			lh.style.left = a.x * W + 'px'; lh.style.width = (b.x + b.w - a.x) * W + 'px'
+			lh.style.top = a.s.y0 * H - 10 + 'px'; lh.style.height = (a.s.y1 - a.s.y0) * H + 20 + 'px'
+			const sl = $('scrub-loop')
+			sl.style.left = scrubX((state.loop[0] - 1) * SEC_PER_BAR) + 'px'
+			sl.style.width = scrubX(state.loop[1] * SEC_PER_BAR) - scrubX((state.loop[0] - 1) * SEC_PER_BAR) + 'px'
+		}
+		lightKeys(bar)
+		return { s, bar }
+	}
+
+	// scrub bar x (px inside #scrub) for a time, accounting for the chapter gaps
+	function scrubX(t) {
+		const pos = t / SEC_PER_BAR
+		let x = 0
+		for (const c of document.querySelectorAll('.chap')) {
+			const from = +c.dataset.from, to = +c.dataset.to, n = to - from + 1
+			if (pos <= to) return x + Math.max(0, pos - (from - 1)) / n * c.offsetWidth
+			x += c.offsetWidth + 3
+		}
+		return x
+	}
+	function timeAtScrub(px) {
+		let x = 0
+		for (const c of document.querySelectorAll('.chap')) {
+			const from = +c.dataset.from, to = +c.dataset.to, n = to - from + 1
+			if (px <= x + c.offsetWidth) return Math.max(0, ((from - 1) + (px - x) / c.offsetWidth * n) * SEC_PER_BAR)
+			x += c.offsetWidth + 3
+		}
+		return DURATION
+	}
+
+	// ── Follow: keep the current system in the upper third, unless the reader scrolled away ──
+	let lastSystem = null, autoScrolling = false
+	function follow(s) {
+		if (!state.follow || s === lastSystem) return
+		lastSystem = s
+		const stage = $('stage'), paper = $('paper')
+		const y = paper.offsetTop + s.y0 * paper.clientHeight - stage.clientHeight * 0.28
+		autoScrolling = true
+		stage.scrollTo({ top: Math.max(0, y) })
+		setTimeout(() => { autoScrolling = false }, 600)
+	}
+	$('stage').addEventListener('wheel', () => { if (state.playing && state.follow) { state.follow = false; body.classList.add('unfollowed'); setSwitch('follow', false) } }, { passive: true })
+	$('follow').onclick = () => { state.follow = true; lastSystem = null; body.classList.remove('unfollowed'); setSwitch('follow', true); follow(render().s) }
+
+	// ── Transport ──
+	function tick(now) {
+		const dt = (now - state.last) / 1000
+		state.last = now
+		state.t += dt * state.speed
+		if (state.loop && state.t >= state.loop[1] * SEC_PER_BAR) state.t = (state.loop[0] - 1) * SEC_PER_BAR
+		if (state.t >= DURATION) { state.t = DURATION; pause(); }
+		const { s } = render()
+		follow(s)
+		if (state.playing) state.raf = requestAnimationFrame(tick)
+	}
+	function play() {
+		if (state.t >= DURATION) state.t = 0
+		state.playing = true
+		state.last = performance.now()
+		$('play-ico').innerHTML = '<use href="#i-pause"/>'
+		$('play-btn').setAttribute('aria-label', 'Pause (Space)')
+		state.raf = requestAnimationFrame(tick)
+		armIdle()
+	}
+	function pause() {
+		state.playing = false
+		cancelAnimationFrame(state.raf)
+		$('play-ico').innerHTML = '<use href="#i-play"/>'
+		$('play-btn').setAttribute('aria-label', 'Play (Space)')
+		wake()
+	}
+	const toggle = () => state.playing ? pause() : play()
+	function seek(t) { state.t = Math.max(0, Math.min(DURATION, t)); lastSystem = null; follow(render().s) }
+	const seekBar = b => seek((Math.max(1, Math.min(BARS, b)) - 1) * SEC_PER_BAR)
+	$('play-btn').onclick = toggle
+	$('restart').onclick = () => seek(0)
+
+	// scrubbing with a preview tooltip (bar, section, time) — like video chapters
+	const scrub = $('scrub')
+	scrub.addEventListener('pointermove', e => {
+		const r = scrub.getBoundingClientRect(), px = e.clientX - r.left, t = timeAtScrub(px), b = barAt(t)
+		const tip = $('scrub-tip')
+		tip.innerHTML = `<b>${sectionOf(b)}</b> · Bar ${b} · ${fmt(t)}`
+		tip.style.left = px + 'px'
+		if (body.classList.contains('scrubbing')) seek(t)
+	})
+	scrub.addEventListener('pointerdown', e => {
+		scrub.setPointerCapture(e.pointerId)
+		body.classList.add('scrubbing')
+		seek(timeAtScrub(e.clientX - scrub.getBoundingClientRect().left))
+	})
+	scrub.addEventListener('pointerup', () => body.classList.remove('scrubbing'))
+
+	// volume — hover reveals the slider, like YouTube
+	function setVolume(v) {
+		state.volume = Math.max(0, Math.min(1, v)); state.muted = state.volume === 0
+		$('vol').value = state.volume
+		$('vol-ico').innerHTML = `<use href="#i-${state.muted ? 'mute' : 'vol'}"/>`
+	}
+	$('vol').oninput = e => setVolume(+e.target.value)
+	let preMute = 0.8
+	$('mute-btn').onclick = () => { if (state.muted) setVolume(preMute || 0.8); else { preMute = state.volume; setVolume(0) } }
+
+	// speed
+	function setSpeed(s) {
+		state.speed = Math.round(Math.max(0.25, Math.min(2, s)) * 100) / 100
+		$('speed-btn').textContent = state.speed + '×'
+		$('speed-btn').classList.toggle('changed', state.speed !== 1)
+		$('speed-range').value = state.speed
+		$('tempo-v').textContent = `♩ ${Math.round(TEMPO * state.speed)}${state.speed !== 1 ? ' (written ' + TEMPO + ')' : ''}`
+		for (const b of document.querySelectorAll('.speed-grid button')) b.classList.toggle('sel', +b.dataset.s === state.speed)
+	}
+	for (const b of document.querySelectorAll('.speed-grid button')) b.onclick = () => setSpeed(+b.dataset.s)
+	$('speed-range').oninput = e => setSpeed(+e.target.value)
+
+	// loop
+	function setLoop(range) {
+		state.loop = range
+		body.classList.toggle('looping', !!range)
+		$('loop-btn').classList.toggle('on', !!range)
+		if (range) toast(`Looping bars ${range[0]}–${range[1]}`)
+		render()
+	}
+	$('loop-btn').onclick = () => setLoop(state.loop ? null : [barAt(state.t), Math.min(BARS, barAt(state.t) + 3)])
+
+	// ── Popovers & panels (one at a time) ──
+	function openPop(id, anchor) {
+		const p = $(id), was = p.classList.contains('open')
+		closeAll()
+		if (was) return
+		p.classList.add('open')
+		const r = anchor.getBoundingClientRect()
+		p.style.left = Math.max(8, Math.min(innerWidth - p.offsetWidth - 8, r.right - p.offsetWidth)) + 'px'
+		p.style.bottom = innerHeight - r.top + 10 + 'px'
+	}
+	function openPanel(id) {
+		const p = $(id), was = p.classList.contains('open')
+		closeAll()
+		if (!was) p.classList.add('open')
+		$('mixer-btn').classList.toggle('on', id === 'mixer-panel' && !was)
+	}
+	function closeAll() {
+		for (const el of document.querySelectorAll('.pop.open, .panel.open')) el.classList.remove('open')
+		$('mixer-btn').classList.remove('on')
+		$('ctx').classList.remove('open')
+	}
+	$('speed-btn').onclick = e => { e.stopPropagation(); openPop('speed-pop', e.currentTarget) }
+	$('gear-btn').onclick = e => { e.stopPropagation(); openPop('gear-pop', e.currentTarget) }
+	$('more-btn').onclick = e => { e.stopPropagation(); openPop('more-pop', e.currentTarget) }
+	$('mixer-btn').onclick = e => { e.stopPropagation(); openPanel('mixer-panel') }
+	$('aa-btn').onclick = e => { e.stopPropagation(); openPanel('aa-panel') }
+	$('menu-btn').onclick = e => { e.stopPropagation(); openPanel('menu-panel') }
+	for (const b of document.querySelectorAll('[data-proxy]')) b.onclick = e => { e.stopPropagation(); closeAll(); $(b.dataset.proxy).click() }
+	for (const b of document.querySelectorAll('[data-close]')) b.onclick = closeAll
+	for (const el of document.querySelectorAll('.pop, .panel')) el.addEventListener('click', e => e.stopPropagation())
+	document.addEventListener('click', closeAll)
+
+	function setSwitch(name, on) { const el = document.querySelector(`[data-sw="${name}"]`); if (el) el.setAttribute('aria-checked', String(on)) }
+	for (const el of document.querySelectorAll('.opt[role=switch]')) el.onclick = () => {
+		const on = el.getAttribute('aria-checked') !== 'true'
+		el.setAttribute('aria-checked', String(on))
+		if (el.dataset.sw === 'follow') { state.follow = on; body.classList.toggle('unfollowed', !on && state.playing); lastSystem = null }
+	}
+
+	// mixer: mute / solo, colours shared with the keyboard
+	for (const tr of document.querySelectorAll('.track')) {
+		tr.querySelector('.m').onclick = e => { e.currentTarget.classList.toggle('on'); tr.classList.toggle('muted', e.currentTarget.classList.contains('on')) }
+		tr.querySelector('.s').onclick = e => {
+			const on = !e.currentTarget.classList.contains('on')
+			for (const t of document.querySelectorAll('.track')) { t.querySelector('.s').classList.remove('on'); t.classList.toggle('muted', on && t !== tr) }
+			e.currentTarget.classList.toggle('on', on)
+		}
+	}
+
+	// views
+	for (const b of document.querySelectorAll('#top .seg button')) b.onclick = () => {
+		for (const o of document.querySelectorAll('#top .seg button')) o.classList.toggle('on', o === b)
+		if (b.dataset.view !== 'wrap') toast(`${b.textContent} view — in the app this re-lays out the score`)
+	}
+	function setTheme(t) {
+		body.classList.toggle('light', t === 'light')
+		for (const b of document.querySelectorAll('#theme-seg button')) b.classList.toggle('on', b.dataset.t === t)
+		$('theme-btn').textContent = t === 'light' ? 'Studio (dark) theme' : 'Light theme'
+	}
+	for (const b of document.querySelectorAll('#theme-seg button')) b.onclick = () => setTheme(b.dataset.t)
+	$('theme-btn').onclick = () => setTheme(body.classList.contains('light') ? 'dark' : 'light')
+
+	// piano keyboard visualizer (4 octaves from C2), lit by "current notes"
+	const keys = $('keys'), WHITE = [0, 2, 4, 5, 7, 9, 11]
+	const whites = [], blacks = []
+	for (let o = 0; o < 4; o++) for (const n of WHITE) { const k = document.createElement('div'); k.className = 'w'; keys.appendChild(k); whites.push({ el: k, midi: 36 + o * 12 + n }) }
+	requestAnimationFrame(() => {
+		const ww = keys.clientWidth / whites.length
+		whites.forEach((w, i) => {
+			const n = (w.midi - 36) % 12
+			if ([0, 2, 5, 7, 9].includes(n)) {
+				const b = document.createElement('div'); b.className = 'b'
+				b.style.left = (i + 1) * ww - ww * 0.3 + 'px'; b.style.width = ww * 0.6 + 'px'
+				keys.appendChild(b); blacks.push({ el: b, midi: w.midi + 1 })
+			}
+		})
+	})
+	function lightKeys(bar) {
+		const all = [...whites, ...blacks]
+		for (const k of all) k.el.classList.remove('lit0', 'lit1')
+		if (!state.playing) return
+		const seed = bar * 7
+		const pick = (lo, cls) => { const k = all.find(k => k.midi === lo + (seed % 5) * 2); if (k) k.el.classList.add(cls) }
+		pick(64, 'lit0'); pick(67, 'lit0'); pick(43, 'lit1'); pick(52, 'lit1')
+	}
+	$('piano-btn').onclick = () => { body.classList.toggle('piano'); $('piano-btn').classList.toggle('on', body.classList.contains('piano')) }
+
+	// full screen
+	$('full-btn').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.()
+
+	// share
+	$('share-btn').onclick = () => toast('Link copied — opens at bar ' + barAt(state.t) + (state.loop ? `, looping ${state.loop[0]}–${state.loop[1]}` : ''))
+
+	// title: edit in place (top bar and on the page are the same field)
+	$('doc-title').onclick = () => { const t = $('doc-title'); t.contentEditable = 'true'; t.focus(); document.getSelection().selectAllChildren(t) }
+	$('doc-title').onblur = () => { $('doc-title').contentEditable = 'false'; body.classList.add('edited') }
+	$('doc-title').onkeydown = e => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); e.currentTarget.blur() } }
+	$('title-hit').onclick = e => { e.stopPropagation(); $('doc-title').click() }
+	$('save-btn').onclick = () => { body.classList.remove('edited'); toast('Saved as We three kings of Orient are.nwctxt') }
+
+	// ── The score is the interface: click → context toolbar; drag → loop ──
+	function barFromPoint(e) {
+		const r = $('paper').getBoundingClientRect(), fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height
+		const s = SYSTEMS.find(s => fy >= s.y0 - 0.03 && fy <= s.y1 + 0.03)
+		if (!s || fx < s.x0 || fx > s.x1) return null
+		return s.first + Math.min(s.bars - 1, Math.floor((fx - s.x0) / ((s.x1 - s.x0) / s.bars)))
+	}
+	let dragFrom = null, ctxBar = null, dragged = false
+	$('paper').addEventListener('pointerdown', e => { if (e.target.closest('#ctx')) return; dragFrom = barFromPoint(e); dragged = false })
+	$('paper').addEventListener('pointermove', e => {
+		if (dragFrom == null || !(e.buttons & 1)) return
+		const b = barFromPoint(e)
+		if (b && b !== dragFrom) { dragged = true; state.loop = [Math.min(dragFrom, b), Math.max(dragFrom, b)]; body.classList.add('looping'); $('loop-btn').classList.add('on'); render() }
+	})
+	$('paper').addEventListener('pointerup', e => {
+		if (e.target.closest('#ctx')) return
+		if (dragged) { setLoop(state.loop); dragFrom = null; return }
+		const b = barFromPoint(e)
+		dragFrom = null
+		if (!b) return
+		e.stopPropagation()
+		closeAll()
+		ctxBar = b
+		const r = $('paper').getBoundingClientRect(), ctx = $('ctx')
+		ctx.classList.remove('edit')
+		ctx.style.left = e.clientX - r.left + 'px'
+		ctx.style.top = e.clientY - r.top + 'px'
+		ctx.classList.add('open')
+	})
+	$('paper').addEventListener('click', e => e.stopPropagation())
+	$('ctx').addEventListener('click', e => {
+		e.stopPropagation()
+		const act = e.target.closest('button')?.dataset.act
+		if (act === 'play-here') { seekBar(ctxBar); $('ctx').classList.remove('open'); play() }
+		else if (act === 'loop-bar') { setLoop([ctxBar, Math.min(BARS, ctxBar + 3)]); $('ctx').classList.remove('open') }
+		else if (act === 'edit') $('ctx').classList.add('edit')
+		else if (act === 'done') $('ctx').classList.remove('open')
+		else if (e.target.closest('.grp.edit button')) body.classList.add('edited')
+	})
+
+	// ── Chrome steps back while the music plays (mouse idle 2.5 s) ──
+	let idleTimer = 0
+	function wake() { body.classList.remove('idle'); clearTimeout(idleTimer); armIdle() }
+	function armIdle() {
+		clearTimeout(idleTimer)
+		if (!state.playing) return
+		idleTimer = setTimeout(() => {
+			if (state.playing && !document.querySelector('.pop.open, .panel.open, #ctx.open') && !$('bottom').matches(':hover')) body.classList.add('idle')
+		}, 2500)
+	}
+	addEventListener('pointermove', wake)
+
+	// ── Keyboard: YouTube's keys where they fit, bars where music needs them ──
+	$('help-open').onclick = $('help-open-2').onclick = () => { closeAll(); $('help').classList.add('open') }
+	$('help').onclick = () => $('help').classList.remove('open')
+	addEventListener('keydown', e => {
+		if (e.target.isContentEditable || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return
+		const k = e.key
+		let handled = true
+		if (k === ' ' || k === 'k' || k === 'K') toggle()
+		else if (k === 'ArrowRight') seekBar(barAt(state.t) + (e.shiftKey ? 5 : 1))
+		else if (k === 'ArrowLeft') seekBar(barAt(state.t) - (e.shiftKey ? 5 : 1))
+		else if (k === 'l' || k === 'L') seekBar(barAt(state.t) + 5)
+		else if (k === 'j' || k === 'J') seekBar(barAt(state.t) - 5)
+		else if (k === 'ArrowUp') setVolume(state.volume + 0.05)
+		else if (k === 'ArrowDown') setVolume(state.volume - 0.05)
+		else if (/^[0-9]$/.test(k) && !e.altKey) seek(DURATION * +k / 10)
+		else if (k === '>' || (k === '.' && e.shiftKey)) setSpeed(state.speed + 0.25)
+		else if (k === '<' || (k === ',' && e.shiftKey)) setSpeed(state.speed - 0.25)
+		else if (k === 'r' || k === 'R') $('loop-btn').click()
+		else if (k === 'm' || k === 'M') $('mute-btn').click()
+		else if (k === 'p' || k === 'P') $('piano-btn').click()
+		else if (k === 'x' || k === 'X') $('mixer-btn').click()
+		else if (k === 'f' || k === 'F') $('full-btn').click()
+		else if (k === '?') $('help').classList.toggle('open')
+		else if (k === 'Escape') { closeAll(); $('help').classList.remove('open') }
+		else handled = false
+		if (handled) { e.preventDefault(); wake() }
+	})
+
+	// ── Extension slots ──
+	for (const b of document.querySelectorAll('.track .e')) b.onclick = () => { b.classList.toggle('on'); toast(b.classList.contains('on') ? 'Staff shown' : 'Staff hidden from the page (still plays)') }
+	$('views-more').onclick = e => { e.stopPropagation(); openPop('views-pop', e.currentTarget); const p = $('views-pop'), r = e.currentTarget.getBoundingClientRect(); p.style.bottom = 'auto'; p.style.top = r.bottom + 8 + 'px' }
+
+	// Edit mode: a tool rail; tools are where input methods plug in
+	function setEditing(on) {
+		body.classList.toggle('editing', on)
+		$('edit-btn').classList.toggle('on', on)
+		if (!on) setTool('select')
+	}
+	function setTool(t) {
+		for (const b of document.querySelectorAll('#rail [data-tool]')) b.classList.toggle('on', b.dataset.tool === t)
+		body.classList.toggle('inking', t === 'ink')
+		if (t === 'ink') toast('Write on the staff — pause, and the ink becomes notes')
+	}
+	$('edit-btn').onclick = e => { e.stopPropagation(); setEditing(!body.classList.contains('editing')) }
+	for (const b of document.querySelectorAll('#rail [data-tool]')) b.onclick = e => { e.stopPropagation(); setTool(b.dataset.tool) }
+	for (const b of document.querySelectorAll('#ink-strip button')) b.onclick = e => { e.stopPropagation(); for (const o of document.querySelectorAll('#ink-strip button')) o.classList.toggle('best', o === b); body.classList.add('edited') }
+
+	// Start sheet (sources)
+	const openModal = id => { closeAll(); $(id).classList.add('open') }
+	const closeModals = () => { for (const m of document.querySelectorAll('.modal.open')) m.classList.remove('open') }
+	for (const m of document.querySelectorAll('.modal')) m.addEventListener('click', e => { if (e.target === m) closeModals() })
+	$('new-btn').onclick = () => openModal('start')
+	$('start-ink').onclick = () => { closeModals(); setEditing(true); setTool('ink') }
+
+	// Transpose: a transform shown as a status chip while it applies
+	$('transpose-open').onclick = () => openPanel('transpose-panel')
+	$('tr-apply').onclick = () => {
+		const name = $('tr-target').value
+		$('chip-transpose').firstChild.textContent = 'For ' + name
+		$('chip-transpose').classList.add('on')
+		closeAll()
+		toast(`Showing the part for ${name}`)
+	}
+	$('chip-transpose').onclick = e => { e.stopPropagation(); openPanel('transpose-panel') }
+	$('chip-transpose').querySelector('button').onclick = e => { e.stopPropagation(); $('chip-transpose').classList.remove('on'); toast('Back to concert pitch') }
+
+	// Command palette: every feature registers commands (name, group, shortcut, run)
+	const COMMANDS = [
+		{ name: 'Go to bar…', group: 'Navigate', key: 'b12', run: q => { const n = +(q.match(/\d+/) || [])[0]; if (n) seekBar(n) } },
+		{ name: 'Go to Chorus', group: 'Navigate', run: () => seekBar(20) },
+		{ name: 'Play / pause', group: 'Playback', key: 'Space', run: toggle },
+		{ name: 'Loop 4 bars from here', group: 'Practice', key: 'R', run: () => $('loop-btn').click() },
+		{ name: 'Speed 75%', group: 'Practice', run: () => setSpeed(0.75) },
+		{ name: 'Transpose for an instrument…', group: 'Score', run: () => openPanel('transpose-panel') },
+		{ name: 'Write by hand', group: 'Edit', key: 'I', run: () => { setEditing(true); setTool('ink') } },
+		{ name: 'Scan a page…', group: 'Open', run: () => openModal('start') },
+		{ name: 'Parts & mixer', group: 'Playback', key: 'X', run: () => $('mixer-btn').click() },
+		{ name: 'Light theme', group: 'Appearance', run: () => setTheme('light') },
+		{ name: 'Export PDF…', group: 'Share', run: () => toast('Exporting PDF…') },
+	]
+	let palSel = 0
+	function renderPalette() {
+		const q = $('palette-input').value.trim().toLowerCase()
+		const bar = q.match(/^b?\s*(\d+)$/)
+		const items = bar ? [{ ...COMMANDS[0], name: `Go to bar ${bar[1]}` }] : COMMANDS.filter(c => !q || (c.name + ' ' + c.group).toLowerCase().includes(q))
+		palSel = Math.min(palSel, Math.max(0, items.length - 1))
+		$('palette-list').innerHTML = items.map((c, i) => `<li class="${i === palSel ? 'sel' : ''}" data-i="${i}"><span>${c.name}<span class="g">${c.group}</span></span>${c.key ? `<span class="kbd">${c.key}</span>` : ''}</li>`).join('')
+		$('palette-list').onclick = e => { const li = e.target.closest('li'); if (li) runPalette(items[+li.dataset.i]) }
+		return items
+	}
+	function runPalette(cmd) { if (!cmd) return; closeModals(); cmd.run($('palette-input').value) }
+	function openPalette() { openModal('palette'); $('palette-input').value = ''; palSel = 0; renderPalette(); $('palette-input').focus() }
+	$('palette-open').onclick = openPalette
+	$('palette-input').oninput = () => { palSel = 0; renderPalette() }
+	$('palette-input').onkeydown = e => {
+		const items = renderPalette()
+		if (e.key === 'ArrowDown') { palSel = Math.min(items.length - 1, palSel + 1); renderPalette(); e.preventDefault() }
+		else if (e.key === 'ArrowUp') { palSel = Math.max(0, palSel - 1); renderPalette(); e.preventDefault() }
+		else if (e.key === 'Enter') runPalette(items[palSel])
+		else if (e.key === 'Escape') closeModals()
+		e.stopPropagation()
+	}
+	addEventListener('keydown', e => {
+		if (e.target.isContentEditable || e.target.tagName === 'INPUT') return
+		if (e.key === '/') { e.preventDefault(); openPalette() }
+		else if (e.key === 'e' || e.key === 'E') setEditing(!body.classList.contains('editing'))
+		else if (e.key === 'Escape') { if (document.querySelector('.modal.open')) closeModals(); else if (!document.querySelector('.pop.open, .panel.open') && body.classList.contains('editing')) setEditing(false) }
+	}, true)
+
+	let toastTimer = 0
+	function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2400) }
+
+	$('score').complete ? render() : $('score').addEventListener('load', render)
+	addEventListener('resize', render)
+	setSpeed(1)
+</script>
+</body>
+</html>
