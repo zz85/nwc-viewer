@@ -3161,6 +3161,7 @@ function addTitleBlock(drawing, info, left, right, titleY, creditY) {
 		if (!text) return
 		var t = new Claire.Text(text, 0, { font: font, textAlign: align })
 		t.moveTo(x, y)
+		t.isTitleBlock = true  // the 3D view draws its own title
 		drawing.add(t)
 	}
 	add('title', (left + right) / 2, titleY, 'center', textFontCss(3))
