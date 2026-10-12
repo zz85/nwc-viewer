@@ -14,7 +14,7 @@ import { sampleLink, embeddedLink, readLink } from './share.js'
 import { buildPdf, canvasToPdfImage } from './pdf-writer.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
-import { PlaybackController, buildNoteEvents, SOUNDFONT_PATH } from './audio.js'
+import { PlaybackController, buildNoteEvents, SOUNDS, convertSF3 } from './audio.js'
 import { Transport, formatTime } from './transport.js'
 import { register, renderMenu, itemsIn, onSlotChange } from './slots.js'
 import { bindDrawer, closeDrawers, setTheme, getTheme, onThemeChange, restoreTheme, docHeader, showAbout } from './shell.js'
@@ -459,6 +459,92 @@ function setSpeed(speed) {
 	transport.setSpeed(clamped)
 }
 
+// Sound (Playback settings ⚙): the soundfonts in SOUNDS, or one picked from
+// disk for this visit. The choice of a listed sound is remembered.
+const SOUND_STORAGE_KEY = 'nwc_sound'
+const soundSelect = document.getElementById('sound_select')
+const soundStatus = document.getElementById('sound_status')
+const soundFileInput = document.getElementById('soundfont_file')
+let currentSoundId = 'gm'
+let currentSoundLabel = SOUNDS[0].label
+let localSoundUrl = null
+
+for (const sound of SOUNDS) soundSelect.add(new Option(sound.label, sound.id))
+soundSelect.add(new Option('Load a soundfont file…', 'file'))
+for (const opt of soundSelect.options) {
+	const sound = SOUNDS.find((s) => s.id === opt.value)
+	opt.title = sound ? sound.detail : 'An .sf2 or .sf3 file from your computer (this visit only)'
+}
+
+function setSoundStatus(text) {
+	soundStatus.textContent = text || ''
+	soundStatus.hidden = !text
+}
+
+/** Switch to a sound: id from SOUNDS, or a file's object URL. */
+async function chooseSound(id, { url, label } = {}) {
+	const sound = SOUNDS.find((s) => s.id === id)
+	const paths = url ? [url] : sound?.soundfonts
+	if (!paths) return
+	const previous = currentSoundId
+	setSoundStatus(`Loading ${label || sound.label}…`)
+	try {
+		await playback.setSoundfonts(paths)
+		currentSoundId = id
+		currentSoundLabel = label || sound.label
+		if (sound) localStorage.setItem(SOUND_STORAGE_KEY, id)
+		else localSoundOption().text = label
+		setSoundStatus(sound ? sound.detail : 'From your computer, for this visit')
+	} catch (error) {
+		console.error('Soundfont failed:', error)
+		setSoundStatus(`Could not load ${label || sound.label}: ${error.message}`)
+		if (previous !== id && previous !== 'local') {
+			soundSelect.value = previous
+			playback.setSoundfonts(SOUNDS.find((s) => s.id === previous).soundfonts).catch(() => {})
+		}
+		return
+	}
+	soundSelect.value = id
+}
+
+/** The list entry for a soundfont loaded from disk (added on first use). */
+function localSoundOption() {
+	let opt = soundSelect.querySelector('option[value="local"]')
+	if (!opt) {
+		opt = new Option('', 'local')
+		soundSelect.add(opt, soundSelect.querySelector('option[value="file"]'))
+	}
+	return opt
+}
+
+soundSelect.onchange = () => {
+	if (soundSelect.value === 'file') {
+		soundSelect.value = currentSoundId
+		soundFileInput.click()
+		return
+	}
+	if (soundSelect.value === 'local') chooseSound('local', { url: localSoundUrl.url, label: localSoundUrl.label })
+	else chooseSound(soundSelect.value)
+}
+soundFileInput.onchange = () => {
+	const file = soundFileInput.files[0]
+	soundFileInput.value = ''
+	if (!file) return
+	if (localSoundUrl) URL.revokeObjectURL(localSoundUrl.blob)
+	const blob = URL.createObjectURL(file)
+	// the engine tells SF3 from SF2 by the name, so keep it on the URL
+	localSoundUrl = { blob, url: blob + '#' + file.name, label: file.name.replace(/\.sf[23]$/i, '') }
+	chooseSound('local', localSoundUrl)
+}
+{
+	const stored = localStorage.getItem(SOUND_STORAGE_KEY)
+	const sound = SOUNDS.find((s) => s.id === stored) || SOUNDS[0]
+	currentSoundId = sound.id
+	currentSoundLabel = sound.label
+	soundSelect.value = sound.id
+	playback.setSoundfonts(sound.soundfonts)  // loads with the engine, on the first Play
+}
+
 // Speed steps for < and >, like a video player's
 const SPEED_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
 function stepSpeed(dir) {
@@ -770,11 +856,12 @@ async function exportVideoFromMenu() {
 		seek: (t) => seekTo(t),
 		getAudioOpts: () => ({
 			vendorPath: new URL('../vendor/soundfont-engine/vendor', import.meta.url).href,
-			soundfonts: [SOUNDFONT_PATH],
+			soundfonts: playback.soundfonts,
+			convertSF3,
 			volume: transport.muted ? 0 : playback.volume,
 		}),
 		fileLabel: window.__currentFile,
-		soundLabel: 'General MIDI (Creative 8 MB)',
+		soundLabel: currentSoundLabel,
 		notify: (msg) => flashStatus(msg),
 	})
 }
@@ -1845,6 +1932,25 @@ register('source', {
 const settingsToggle = document.getElementById('settings_toggle')
 const settingsPanel = document.getElementById('settings_panel')
 const appearanceDrawer = bindDrawer(settingsToggle, settingsPanel)
+
+// Appearance groups stay open or closed the way they were left
+{
+	const OPEN_STORAGE_KEY = 'nwc_appearance_open'
+	let open = {}
+	try {
+		open = JSON.parse(localStorage.getItem(OPEN_STORAGE_KEY)) || {}
+	} catch {
+		open = {}
+	}
+	for (const group of settingsPanel.querySelectorAll('details')) {
+		const key = group.id || group.querySelector('summary').textContent.trim()
+		if (key in open) group.open = !!open[key]
+		group.addEventListener('toggle', () => {
+			open[key] = group.open
+			localStorage.setItem(OPEN_STORAGE_KEY, JSON.stringify(open))
+		})
+	}
+}
 
 const menuPanel = document.getElementById('menu_panel')
 const closeMenu = () => menuDrawer.close()
