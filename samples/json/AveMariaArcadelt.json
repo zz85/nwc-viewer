@@ -14,13 +14,91 @@
   },
   "score": {
     "allowLayering": false,
+    "staffLabels": "None",
+    "textFonts": [
+      {
+        "name": "Times New Roman",
+        "bold": true,
+        "italic": true,
+        "size": 11
+      },
+      {
+        "name": "Times New Roman",
+        "bold": true,
+        "italic": false,
+        "size": 10
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 10
+      },
+      {
+        "name": "Times New Roman",
+        "bold": true,
+        "italic": false,
+        "size": 18
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 12
+      },
+      {
+        "name": "Bookman Old Style",
+        "bold": false,
+        "italic": true,
+        "size": 8
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 7
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 5
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 5
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 5
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 8
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 8
+      }
+    ],
+    "staffSize": 17,
     "staves": [
       {
         "staff_name": "s",
         "staff_label": "s",
+        "staff_label_abbr": "",
         "group_name": "Standard",
-        "channel": 2,
+        "channel": 1,
         "muted": false,
+        "hidden": false,
         "patchName": 40,
         "transposition": 0,
         "bracketWithNext": true,
@@ -132,7 +210,7 @@
           {
             "type": "KeySignature",
             "flats": [
-              "A"
+              "B"
             ],
             "sharps": [],
             "key": "F"
@@ -2083,6 +2161,7 @@
             "placement": 0,
             "duration": 114,
             "note": 2,
+            "text": "",
             "beatDuration": 0.25
           },
           {
@@ -2109,6 +2188,7 @@
             "placement": 0,
             "duration": 108,
             "note": 2,
+            "text": "",
             "beatDuration": 0.25
           },
           {
@@ -2152,6 +2232,7 @@
             "placement": 0,
             "duration": 102,
             "note": 2,
+            "text": "",
             "beatDuration": 0.25
           },
           {
@@ -2291,6 +2372,7 @@
             "placement": 0,
             "duration": 56,
             "note": 2,
+            "text": "",
             "beatDuration": 0.25
           },
           {
@@ -2344,9 +2426,11 @@
       {
         "staff_name": "a",
         "staff_label": "a",
+        "staff_label_abbr": "",
         "group_name": "Standard",
-        "channel": 3,
+        "channel": 2,
         "muted": false,
+        "hidden": false,
         "patchName": 41,
         "transposition": 0,
         "bracketWithNext": true,
@@ -2458,7 +2542,7 @@
           {
             "type": "KeySignature",
             "flats": [
-              "A"
+              "B"
             ],
             "sharps": [],
             "key": "F"
@@ -3815,6 +3899,11 @@
             "systemBreak": false
           },
           {
+            "type": "Boundary",
+            "style": "NewSize",
+            "newPage": false
+          },
+          {
             "type": "Note",
             "position": -3,
             "duration": 2,
@@ -4410,9 +4499,11 @@
       {
         "staff_name": "t",
         "staff_label": "t",
+        "staff_label_abbr": "",
         "group_name": "Standard",
-        "channel": 6,
+        "channel": 5,
         "muted": false,
+        "hidden": false,
         "patchName": 42,
         "transposition": 0,
         "bracketWithNext": true,
@@ -4524,7 +4615,7 @@
           {
             "type": "KeySignature",
             "flats": [
-              "A"
+              "B"
             ],
             "sharps": [],
             "key": "F"
@@ -6512,9 +6603,11 @@
       {
         "staff_name": "b",
         "staff_label": "b",
+        "staff_label_abbr": "",
         "group_name": "Standard",
-        "channel": 5,
+        "channel": 4,
         "muted": false,
+        "hidden": false,
         "patchName": 43,
         "transposition": 0,
         "bracketWithNext": false,
@@ -6626,7 +6719,7 @@
           {
             "type": "KeySignature",
             "flats": [
-              "A"
+              "B"
             ],
             "sharps": [],
             "key": "F"
