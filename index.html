@@ -131,31 +131,6 @@
 				cursor: pointer;
 			}
 
-			.speed-control {
-				display: flex;
-				align-items: center;
-				gap: 4px;
-				font-size: 11px;
-				color: var(--text-dim);
-			}
-
-			.speed-control input[type="number"] {
-				background: var(--surface);
-				color: var(--text);
-				border: 1px solid var(--border);
-				border-radius: var(--radius);
-				padding: 2px 4px;
-				font-size: 11px;
-				font-family: inherit;
-				outline: none;
-				-moz-appearance: textfield;
-			}
-
-			.speed-control input[type="number"]::-webkit-inner-spin-button,
-			.speed-control input[type="number"]::-webkit-outer-spin-button {
-				-webkit-appearance: none;
-				margin: 0;
-			}
 
 			/* Segmented button group */
 			.btn-group {
@@ -230,15 +205,7 @@
 				padding: 2px 6px;
 			}
 
-			#progress_bar { width: 160px; }
-			/* Make room so the toolbar stays one row (Play turning into Pause
-			   widens it); page layout also adds page navigation */
 			#zoom_slider { width: 80px; }
-			@media (max-width: 1360px) {
-				#progress_bar { width: 120px; }
-				body.page-layout #progress_bar { width: 70px; }
-				body.page-layout #zoom_slider { width: 60px; }
-			}
 
 			#zoom_label {
 				font-size: 11px;
@@ -316,17 +283,6 @@
 				color: var(--text-dim);
 			}
 
-			.settings-panel .speed-control {
-				margin-bottom: 6px;
-			}
-
-			.settings-panel .speed-control span:first-child {
-				min-width: 0;
-			}
-
-			#speed_slider { width: 110px; }
-			#speed_input { width: 48px; }
-
 			#ink_paper_color {
 				width: 28px;
 				height: 24px;
@@ -352,8 +308,6 @@
 				.toolbar-group + .toolbar-group { padding-left: 6px; }
 				#logo { display: none; }
 				#samples { max-width: 140px; }
-				#progress_bar { width: 90px; }
-				.time-display { min-width: 0; }
 				#zoom_slider { width: 60px; }
 				#fit_width_btn, #fit_height_btn { display: none; }
 				.settings-group { margin-left: 0; }
@@ -400,6 +354,245 @@
 			body.view-3d #score,
 			body.view-3d #zoom_group { display: none; }
 
+			/* ── Stage: the score views, with the transport over their bottom edge ── */
+			:root {
+				--now: #f5a524;          /* what is playing now: progress, playhead control */
+				--now-soft: rgba(245, 165, 36, 0.18);
+				--transport-h: 58px;
+			}
+			#stage {
+				flex: 1 0;
+				position: relative;
+				display: flex;
+				flex-direction: column;
+				min-height: 0;
+			}
+			/* room to scroll the last system clear of the transport */
+			#score { padding-bottom: var(--transport-h); }
+
+			#transport {
+				position: absolute;
+				left: 0; right: 0; bottom: 0;
+				height: var(--transport-h);
+				z-index: 5;
+				background: rgba(24, 24, 27, 0.86);
+				backdrop-filter: blur(12px) saturate(1.2);
+				-webkit-backdrop-filter: blur(12px) saturate(1.2);
+				border-top: 1px solid rgba(255, 255, 255, 0.08);
+				color: var(--text);
+				transition: opacity 0.35s ease, transform 0.35s ease;
+				user-select: none;
+			}
+			#transport.idle { opacity: 0; transform: translateY(6px); pointer-events: none; }
+			@media (prefers-reduced-motion: reduce) { #transport { transition: none; } }
+
+			.t-row {
+				position: absolute;
+				inset: 9px 10px 0;
+				display: flex;
+				align-items: center;
+				gap: 2px;
+			}
+			.t-btn, .t-play, .t-chip {
+				background: none;
+				border: 0;
+				color: var(--text);
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				padding: 0;
+			}
+			.t-btn {
+				width: 36px; height: 36px;
+				border-radius: 8px;
+				opacity: 0.85;
+			}
+			.t-btn:hover { background: var(--surface-hover); opacity: 1; }
+			.t-btn.active { color: var(--now); opacity: 1; background: none; }
+			.t-btn.active:hover { background: var(--surface-hover); }
+			.t-play {
+				width: 40px; height: 40px;
+				border-radius: 50%;
+				background: var(--text);
+				color: #18181b;
+				margin-right: 4px;
+				transition: transform 0.1s;
+			}
+			.t-play:hover { background: #fff; transform: scale(1.05); }
+			.t-play:active { transform: scale(0.96); background: #fff; }
+			.t-btn:focus-visible, .t-play:focus-visible, .t-chip:focus-visible, #scrub:focus-visible {
+				outline: 2px solid var(--now);
+				outline-offset: 2px;
+			}
+			svg.i {
+				width: 20px; height: 20px;
+				fill: none; stroke: currentColor; stroke-width: 1.8;
+				stroke-linecap: round; stroke-linejoin: round;
+			}
+			svg.i.fill { fill: currentColor; stroke: none; }
+			.t-time {
+				font-size: 13px;
+				font-variant-numeric: tabular-nums;
+				padding: 0 8px;
+				white-space: nowrap;
+			}
+			.t-where {
+				font-size: 12px;
+				color: var(--text-dim);
+				font-variant-numeric: tabular-nums;
+				white-space: nowrap;
+				padding-left: 8px;
+				border-left: 1px solid var(--border);
+			}
+			.t-where:empty { display: none; }
+			.t-spacer { flex: 1; }
+			.t-volume { display: inline-flex; align-items: center; }
+			#volume {
+				width: 0; opacity: 0; margin: 0;
+				transition: width 0.2s ease, opacity 0.2s ease, margin 0.2s ease;
+				accent-color: var(--now);
+			}
+			.t-volume:hover #volume, .t-volume:focus-within #volume, .t-volume.open #volume {
+				width: 80px; opacity: 1; margin: 0 8px 0 2px;
+			}
+			.t-chip {
+				height: 30px; min-width: 44px;
+				padding: 0 10px;
+				border-radius: 15px;
+				font-size: 13px; font-weight: 600;
+				font-variant-numeric: tabular-nums;
+			}
+			.t-chip:hover { background: var(--surface-hover); }
+			.t-chip.changed { color: var(--now); background: var(--now-soft); }
+
+			/* Scrub bar: one segment per section, on the transport's top edge */
+			#scrub {
+				position: absolute;
+				left: 12px; right: 12px; top: -8px;
+				height: 16px;
+				cursor: pointer;
+				touch-action: none;
+			}
+			#scrub_track {
+				position: absolute; left: 0; right: 0; top: 50%;
+				display: flex; gap: 3px;
+				transform: translateY(-50%);
+			}
+			.t-section {
+				position: relative;
+				height: 4px;
+				border-radius: 2px;
+				background: rgba(255, 255, 255, 0.2);
+				overflow: hidden;
+				transition: height 0.12s;
+				flex-basis: 0;
+			}
+			#scrub:hover .t-section, #scrub.scrubbing .t-section { height: 7px; }
+			.t-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--now); }
+			#scrub_knob {
+				position: absolute; top: 50%;
+				width: 14px; height: 14px; margin: -7px 0 0 -7px;
+				border-radius: 50%;
+				background: var(--now);
+				box-shadow: 0 0 0 4px var(--now-soft);
+				transform: scale(0);
+				transition: transform 0.12s;
+				pointer-events: none;
+			}
+			#scrub:hover #scrub_knob, #scrub.scrubbing #scrub_knob, #scrub:focus-visible #scrub_knob { transform: scale(1); }
+			#scrub_tip {
+				position: absolute; bottom: 20px;
+				transform: translateX(-50%);
+				background: #0d0d10;
+				color: #ececf1;
+				font-size: 12px;
+				padding: 4px 8px;
+				border-radius: 6px;
+				white-space: nowrap;
+				pointer-events: none;
+			}
+			#scrub_tip[hidden] { display: none; }
+
+			/* Speed popover */
+			#speed_pop {
+				position: absolute;
+				right: 10px; bottom: calc(var(--transport-h) + 6px);
+				width: 230px;
+				padding: 10px;
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 12px;
+				box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+			}
+			#speed_pop[hidden] { display: none; }
+			.t-pop-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); margin-bottom: 8px; }
+			.speed-presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+			.speed-presets button { padding: 5px 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+			.speed-presets button.active { background: var(--now); border-color: var(--now); color: #1c1406; }
+			.speed-fine { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+			#speed_slider { flex: 1; accent-color: var(--now); }
+			#speed_input {
+				width: 54px;
+				background: var(--bg); color: var(--text);
+				border: 1px solid var(--border); border-radius: var(--radius);
+				padding: 3px 4px; font: inherit; font-size: 12px;
+			}
+			.t-pop-note { margin-top: 8px; font-size: 12px; color: var(--text-dim); min-height: 1em; }
+
+			/* "Back to the playhead": shown after scrolling away during playback */
+			#follow_pill {
+				position: absolute;
+				left: 50%; bottom: calc(var(--transport-h) + 14px);
+				transform: translateX(-50%);
+				z-index: 6;
+				background: var(--now);
+				border: 0;
+				color: #1c1406;
+				font-weight: 600;
+				border-radius: 999px;
+				padding: 7px 16px;
+				box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+			}
+			#follow_pill:hover { background: #ffb73d; }
+			#follow_pill[hidden] { display: none; }
+
+			/* Keyboard shortcut sheet (src/commands.js) */
+			#shortcut_sheet {
+				position: fixed; inset: 0; z-index: 50;
+				background: rgba(0, 0, 0, 0.55);
+				display: flex; align-items: center; justify-content: center;
+			}
+			#shortcut_sheet[hidden] { display: none; }
+			.sheet-card {
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 18px 22px;
+				width: min(720px, calc(100% - 24px));
+				max-height: calc(100vh - 48px);
+				overflow: auto;
+				box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+			}
+			.sheet-card h3 { margin: 0 0 12px; font-size: 16px; }
+			.sheet-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 28px; }
+			.sheet-grid h4 { display: block; margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); font-weight: 600; }
+			.sheet-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 3px 0; font-size: 13px; }
+			.sheet-keys { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+			kbd {
+				font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+				color: var(--text);
+				background: var(--bg);
+				border: 1px solid var(--border);
+				border-bottom-width: 2px;
+				border-radius: 5px;
+				padding: 1px 6px;
+			}
+
+			@media (max-width: 700px) {
+				.t-where, .t-volume, #fullscreen, #restart { display: none; }
+				.t-time { padding: 0 4px; }
+			}
+
 			#invisible_canvas {
 				display: block;
 				opacity: 0.9;
@@ -436,13 +629,6 @@
 				display: inline-block;
 			}
 
-			.time-display {
-				font-size: 11px;
-				min-width: 85px;
-				text-align: center;
-				font-variant-numeric: tabular-nums;
-				color: var(--text-dim);
-			}
 			/* Save menu and unsaved-changes status */
 			.save-group {
 				position: relative;
@@ -531,15 +717,6 @@
 						</span>
 					</div>
 
-					<!-- Transport -->
-					<div class="toolbar-group">
-						<button id="play" title="Play / Pause">Play</button>
-						<button id="stop" title="Stop">Stop</button>
-						<span id="playback_time" class="time-display">0:00 / 0:00</span>
-						<input type="range" id="progress_bar"
-							min="0" max="1" step="0.001" value="0" />
-					</div>
-
 					<!-- Layout + page navigation -->
 					<div class="toolbar-group">
 						<div class="btn-group" id="layout_group">
@@ -572,13 +749,6 @@
 						<div id="settings_panel" class="popover settings-panel" role="dialog" aria-label="Settings">
 							<section>
 								<h5>Playback</h5>
-								<label class="speed-control" title="Playback speed">
-									<span>Speed</span>
-									<input type="range" id="speed_slider"
-										min="0.1" max="3" step="0.05" value="1" />
-									<input type="number" id="speed_input"
-										min="0.1" max="4" step="0.05" value="1" />x
-								</label>
 								<div class="row">
 									<select id="solo_staff" title="Solo a single staff">
 										<option value="all">All Staves</option>
@@ -592,8 +762,8 @@
 									</select>
 								</div>
 								<div class="row">
-									<button id="autoscroll_toggle" class="active" title="Auto-scroll during playback">Auto-scroll</button>
-									<button id="piano_toggle" class="active" title="Piano keyboard">Piano keyboard</button>
+									<button id="autoscroll_toggle" class="active" title="Follow the playhead during playback">Auto-scroll</button>
+									<button id="shortcuts_btn" title="Keyboard shortcuts (?)">Keyboard shortcuts</button>
 								</div>
 							</section>
 
@@ -815,13 +985,68 @@
 				</div>
 			</div>
 
-			<div id="score">
-				<div id="invisible_canvas"></div>
+			<div id="stage">
+				<div id="score">
+					<div id="invisible_canvas"></div>
+				</div>
+
+				<div id="score3d" hidden>
+					<div id="score3d_status" hidden></div>
+				</div>
+
+				<button id="follow_pill" hidden>&darr; Back to the playhead</button>
+
+				<!-- Transport: playback, laid out like a video player (src/transport.js) -->
+				<div id="transport" role="region" aria-label="Playback">
+					<div id="scrub" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+						<div id="scrub_track"></div>
+						<div id="scrub_knob"></div>
+						<div id="scrub_tip" hidden></div>
+					</div>
+					<div class="t-row">
+						<button id="play" class="t-play" title="Play (Space)" aria-label="Play (Space)"><svg class="i fill"><use href="#i-play"/></svg></button>
+						<button id="restart" class="t-btn" title="Back to the start (Home)" aria-label="Back to the start"><svg class="i"><use href="#i-restart"/></svg></button>
+						<span id="playback_time" class="t-time">0:00 / 0:00</span>
+						<span id="playback_where" class="t-where"></span>
+						<span class="t-spacer"></span>
+						<span class="t-volume">
+							<button id="mute" class="t-btn" title="Mute (M)" aria-label="Mute (M)"><svg class="i"><use href="#i-vol"/></svg></button>
+							<input type="range" id="volume" min="0" max="1" step="0.01" value="0.8" aria-label="Volume" />
+						</span>
+						<button id="speed_chip" class="t-chip" title="Speed (&lt; &gt;)" aria-label="Speed" aria-haspopup="dialog" aria-expanded="false">1×</button>
+						<button id="piano_toggle" class="t-btn active" title="Piano keyboard (P)" aria-label="Piano keyboard"><svg class="i"><use href="#i-piano"/></svg></button>
+						<button id="fullscreen" class="t-btn" title="Full screen (F)" aria-label="Full screen (F)"><svg class="i"><use href="#i-full"/></svg></button>
+					</div>
+					<div id="speed_pop" role="dialog" aria-label="Speed" hidden>
+						<div class="t-pop-title">Speed</div>
+						<div class="speed-presets">
+							<button data-speed="0.5">0.5×</button>
+							<button data-speed="0.75">0.75×</button>
+							<button data-speed="1" class="active">1×</button>
+							<button data-speed="1.25">1.25×</button>
+							<button data-speed="1.5">1.5×</button>
+						</div>
+						<div class="speed-fine">
+							<input type="range" id="speed_slider" min="0.25" max="2" step="0.05" value="1" aria-label="Speed" />
+							<input type="number" id="speed_input" min="0.1" max="4" step="0.05" value="1" aria-label="Exact speed" />×
+						</div>
+						<div id="speed_tempo" class="t-pop-note"></div>
+					</div>
+				</div>
 			</div>
 
-			<div id="score3d" hidden>
-				<div id="score3d_status" hidden></div>
-			</div>
+			<!-- Icons (24px grid, stroke) -->
+			<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+				<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></symbol>
+				<symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></symbol>
+				<symbol id="i-restart" viewBox="0 0 24 24"><path d="M19 20 9 12l10-8v16z"/><path d="M5 19V5"/></symbol>
+				<symbol id="i-vol" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></symbol>
+				<symbol id="i-vol-low" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></symbol>
+				<symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></symbol>
+				<symbol id="i-piano" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M8.8 19v-5M15.2 19v-5"/><path d="M7 5v9h3.5V5M13.5 5v9H17V5"/></symbol>
+				<symbol id="i-full" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></symbol>
+				<symbol id="i-exit-full" viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/></symbol>
+			</svg>
 
 			<div id="footer">
 				Footer&nbsp;

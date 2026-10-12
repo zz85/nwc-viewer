@@ -227,7 +227,7 @@ Phone (< 720px)
 - Shift+< and Shift+> step it by 0.25×.
 - It is remembered per score.
 
-**Volume.** There is a master volume and a mute (M, ↑/↓). Volume is remembered.
+**Volume.** There is a master volume and a mute (M). Volume is remembered. ↑/↓ stay scroll keys: in a reader, scrolling the page matters more than YouTube's volume keys.
 Each part's level is in the Parts panel.
 
 **Parts.**
@@ -278,7 +278,7 @@ font. It is shown as a search icon so it isn't hidden; Dorico's Jump bar is
 | J / L, Shift+← / → | Back / ahead 5 bars | YouTube's ±10 s, in bars |
 | Home or 0, 1–9 | Start, jump to 10–90% | YouTube |
 | Shift+< / > | Slower / faster | YouTube, Soundslice |
-| ↑ / ↓, M | Volume, mute | YouTube |
+| M | Mute | YouTube (↑ / ↓ keep scrolling the score) |
 | F | Fullscreen | YouTube |
 | R | Loop on / off | **R**epeat. L is kept for YouTube's "ahead" |
 | P | Piano keyboard | MuseScore |
@@ -381,7 +381,7 @@ which slots it fills.
 | Settings → Import & tools, Advanced | Aa → Advanced; the converter link moves to ☰ Menu |
 | Unsaved changes status | **Edited · Save** pill |
 | Footer copyright | ☰ → About this score (and the end of the score) |
-| *(missing)* Volume | 🔊 + slider, M, ↑/↓ |
+| *(missing)* Volume | 🔊 + slider, M |
 | *(missing)* Loop, count-in, metronome | ⟲ / R / drag on the score; ⚙ Playback |
 
 ## 8. What we won't do
@@ -401,15 +401,22 @@ which slots it fills.
 
 Each step ships on its own and removes nothing.
 
-1. **Transport.**
-   - Bottom bar: play/pause, back to start, time and bar, chapter scrub bar.
-   - Volume, with a master gain in `PlaybackController`.
-   - Speed chip.
-   - Keyboard map and the `?` sheet.
-   - Chrome fades while playing.
+1. **Transport: done.**
+   - Bottom bar (`src/transport.js`): play/pause, back to start, time and
+     "Bar 12 of 36 · Chorus", a scrub bar split into sections.
+   - Sections are worked out in `src/transport-timeline.js`: double and repeat
+     barlines plus each repeat pass, named from bold or all-caps staff text.
+   - Volume in `PlaybackController`, sent as CC 7 because OxiSynth owns its
+     audio graph.
+   - Speed chip with presets, a slider, an exact value and the tempo as BPM.
+   - Keyboard map in `src/commands.js`, with the `?` sheet built from it.
+   - The bar fades while playing.
    - Follow pill.
+   - Fixed: Play after Pause restarted from the top, and seeking before the
+     first Play was ignored.
 
-   Play, Stop, progress and speed leave the top toolbar and Settings.
+   Play, Stop, progress, speed and the piano toggle left the top toolbar and
+   Settings.
 2. **Top bar, panels and the registry.**
    - ☰ menu drawer and Start sheet.
    - Title, composer and status chips in the bar.

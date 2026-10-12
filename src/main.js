@@ -14,7 +14,10 @@ import { sampleLink, embeddedLink, readLink } from './share.js'
 import { buildPdf, canvasToPdfImage } from './pdf-writer.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
-import { PlaybackController } from './audio.js'
+import { PlaybackController, buildNoteEvents } from './audio.js'
+import { Transport } from './transport.js'
+import { buildTimeline, stepBars } from './transport-timeline.js'
+import { registerCommand, bindShortcuts, openShortcutSheet, closeShortcutSheet, shortcutSheetOpen } from './commands.js'
 import { PlaybackHighlighter } from './playback-highlight.js'
 import { InkBleedRenderer } from './ink-bleed.js'
 import { PianoKeyboard } from './piano-keyboard.js'
@@ -422,25 +425,59 @@ if (_pianoFooter && pianoKeyboard._el) {
 let view3d = null
 let view3dActive = false
 
-function formatTime(sec) {
-	if (!isFinite(sec) || sec < 0) sec = 0
-	const m = Math.floor(sec / 60)
-	const s = Math.floor(sec % 60)
-	return m + ':' + String(s).padStart(2, '0')
+// ---- Transport (src/transport.js): the playback bar over the bottom of the score ----
+
+const VOLUME_STORAGE_KEY = 'nwc_volume'
+const MUTED_STORAGE_KEY = 'nwc_muted'
+let timeline = buildTimeline(null)
+
+const transport = new Transport(document.getElementById('transport'), {
+	onToggle: () => togglePlayPause(),
+	onRestart: () => restart(),
+	onSeek: (t) => seekTo(t),
+	onVolume: (volume, muted) => setVolume(volume, muted),
+	onSpeed: (speed) => setSpeed(speed),
+})
+
+function setVolume(volume, muted) {
+	playback.setVolume(muted ? 0 : volume)
+	transport.setVolume(volume, muted)
+	localStorage.setItem(VOLUME_STORAGE_KEY, String(volume))
+	localStorage.setItem(MUTED_STORAGE_KEY, muted ? '1' : '0')
+}
+{
+	const stored = parseFloat(localStorage.getItem(VOLUME_STORAGE_KEY))
+	setVolume(isFinite(stored) ? stored : 0.8, localStorage.getItem(MUTED_STORAGE_KEY) === '1')
 }
 
-const playBtn = document.getElementById('play')
-const stopBtn = document.getElementById('stop')
-const progressBar = document.getElementById('progress_bar')
-const timeLabel = document.getElementById('playback_time')
+function setSpeed(speed) {
+	if (!isFinite(speed) || speed <= 0) return
+	const clamped = Math.max(0.1, Math.min(4, speed))
+	playback.setSpeed(clamped)
+	transport.setSpeed(clamped)
+}
 
-let _seeking = false
+// Speed steps for < and >, like a video player's
+const SPEED_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+function stepSpeed(dir) {
+	const s = playback.speed
+	const next = dir > 0 ? SPEED_STEPS.find(v => v > s + 1e-6) : [...SPEED_STEPS].reverse().find(v => v < s - 1e-6)
+	if (next) setSpeed(next)
+}
 
-playback.onTime((t, dur) => {
-	if (!_seeking) {
-		progressBar.value = dur > 0 ? t / dur : 0
+/** Bars, sections and length of the score, for the transport (after every layout). */
+function updateTimeline(data) {
+	try {
+		timeline = buildTimeline(data, { duration: buildNoteEvents(data).duration })
+	} catch (error) {
+		console.warn('Transport timeline failed:', error)
+		timeline = buildTimeline(null)
 	}
-	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(dur)
+	transport.setTimeline(timeline)
+}
+
+playback.onTime((t) => {
+	transport.setTime(t)
 	highlighter.updateTime(t)
 	view3d?.onTime(t)
 })
@@ -455,7 +492,7 @@ playback.onNoteOff((ev) => {
 })
 
 playback.onStateChange((playing) => {
-	playBtn.textContent = playing ? 'Pause' : 'Play'
+	transport.setPlaying(playing)
 	// The 2D highlighter repaints the score every frame; not while it is hidden
 	if (playing && !view3dActive) highlighter.start()
 	else if (!playing) highlighter.pause()  // keep highlights frozen on pause
@@ -463,9 +500,7 @@ playback.onStateChange((playing) => {
 })
 
 playback.onEnd(() => {
-	playBtn.textContent = 'Play'
-	progressBar.value = 0
-	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
+	transport.setTime(0)
 	highlighter.stop()
 	pianoKeyboard.clear()
 	view3d?.setPlaying(false)
@@ -475,25 +510,63 @@ async function togglePlayPause() {
 	if (playback.playing) {
 		playback.pause()
 	} else {
-		// Load current score data before playing
+		// Load current score data before playing (playback resumes where it was)
 		const data = scoreManager.getData()
+		if (!data) return
 		await playback.load(data)
 		await playback.play()
 	}
 }
 
-playBtn.onclick = togglePlayPause
+/** Jump to t seconds: the audio, the 2D cursor, the 3D view and the transport. */
+function seekTo(t) {
+	t = Math.max(0, Math.min(t, timeline.duration || t))
+	playback.seek(t)
+	highlighter.clearNotes()
+	pianoKeyboard.clear()
+	highlighter.updateTime(t)
+	highlighter.resumeFollow()
+	if (!highlighter.active) {
+		const scoreElm = document.getElementById('score')
+		quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+	}
+	view3d?.seek(t)
+	transport.setTime(t)
+}
 
-stopBtn.onclick = () => {
+function stopPlayback() {
 	playback.stop()
 	highlighter.stop()
 	pianoKeyboard.clear()
 	view3d?.setPlaying(false, 0)
-	progressBar.value = 0
-	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
+	transport.setTime(0)
 }
 
-progressBar.addEventListener('pointerdown', () => { _seeking = true })
+/** Back to the start: keeps playing from the top, or stops when paused. */
+function restart() {
+	if (playback.playing) seekTo(0)
+	else stopPlayback()
+}
+
+// "Back to the playhead": following pauses while the reader scrolls away
+const followPill = document.getElementById('follow_pill')
+highlighter.onFollowChange = (suspended) => { followPill.hidden = !suspended }
+followPill.onclick = () => highlighter.resumeFollow()
+{
+	const scoreElm = document.getElementById('score')
+	const away = () => highlighter.suspendFollow()
+	let downX = 0, downY = 0
+	scoreElm.addEventListener('wheel', away, { passive: true })
+	scoreElm.addEventListener('touchmove', away, { passive: true })
+	scoreElm.addEventListener('pointerdown', (e) => { downX = e.clientX; downY = e.clientY })
+	scoreElm.addEventListener('pointermove', (e) => {
+		// drag-to-scroll (a click moves less than 5px)
+		if (e.buttons & 1 && (e.clientX - downX) ** 2 + (e.clientY - downY) ** 2 > 25) away()
+	})
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') away()
+	})
+}
 
 // Highlight mode selector
 const highlightSelect = document.getElementById('highlight_mode')
@@ -716,14 +789,7 @@ function downloadFile(data, filename, type) {
 		const time = highlighter.getTimeAtPosition(scoreX, scoreY)
 		if (time == null) return
 
-		// Seek the playback engine and update the visual cursor
-		playback.seek(time)
-		highlighter.updateTime(time)
-
-		// Update progress bar position
-		if (playback.duration > 0) {
-			progressBar.value = time / playback.duration
-		}
+		seekTo(time)
 	})
 }
 
@@ -795,39 +861,6 @@ if (pianoToggleBtn) {
 			quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 		}
 	}
-}
-
-progressBar.addEventListener('pointerup', () => {
-	_seeking = false
-	const t = parseFloat(progressBar.value) * playback.duration
-	playback.seek(t)
-	view3d?.seek(t)
-})
-progressBar.addEventListener('input', () => {
-	const t = parseFloat(progressBar.value) * playback.duration
-	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(playback.duration)
-})
-
-// Speed control
-const speedSlider = document.getElementById('speed_slider')
-const speedInput = document.getElementById('speed_input')
-
-function applySpeed(val) {
-	const n = parseFloat(val)
-	if (!isFinite(n) || n <= 0) return
-	const clamped = Math.max(0.1, Math.min(4, n))
-	playback.setSpeed(clamped)
-	// Keep slider and input in sync (slider max is 3, input max is 4)
-	speedSlider.value = Math.min(clamped, parseFloat(speedSlider.max))
-	speedInput.value = clamped
-}
-
-if (speedSlider) {
-	speedSlider.addEventListener('input', () => applySpeed(speedSlider.value))
-}
-
-if (speedInput) {
-	speedInput.addEventListener('change', () => applySpeed(speedInput.value))
 }
 
 // Ink bleed / print emulation toggle
@@ -932,6 +965,7 @@ const rerender = () => {
 
 				// Update highlighter with new layout positions
 				highlighter.setScore(data)
+				updateTimeline(data)
 				rebuild3D()
 			},
 			null,
@@ -962,6 +996,7 @@ if (typeof document !== 'undefined' && document.fonts) {
 }
 
 function setDataAndRender(_data) {
+	stopPlayback()  // a new score starts at the top
 	titleEditor.finish(false)
 	applyDraft(_data)
 	scoreManager.setData(_data)
@@ -1861,3 +1896,58 @@ if (propSlider) {
 var storedProp = localStorage.getItem(PROP_STORAGE_KEY)
 if (storedProp !== null) setDurationProportionality(parseFloat(storedProp))
 updateProportionalityUI()
+
+// ---- Keyboard shortcuts (src/commands.js) ----
+// A video player's keys where they fit (Space/K, M, F, 0–9, < >, ?), bars
+// where music needs them: ← → step a bar, J / L and ⇧← / ⇧→ five bars.
+// ↑ ↓ are left to scroll the score.
+
+{
+	const nowTime = () => playback.currentTime
+	const seekBars = (n) => seekTo(stepBars(timeline, nowTime(), n))
+	const toggleLayout = (i) => document.querySelectorAll('#layout_group button')[i]?.click()
+
+	registerCommand({ id: 'play', label: 'Play / pause', group: 'Playback', keys: ['Space', 'k'], run: () => { togglePlayPause() } })
+	registerCommand({ id: 'start', label: 'Back to the start', group: 'Playback', keys: ['Home', '0'], run: () => seekTo(0) })
+	registerCommand({ id: 'bar-prev', label: 'Previous / next bar', group: 'Playback', keys: ['ArrowLeft'], keyLabel: '← →', run: () => seekBars(-1) })
+	registerCommand({ id: 'bar-next', label: 'Next bar', group: 'Playback', keys: ['ArrowRight'], sheet: false, run: () => seekBars(1) })
+	registerCommand({ id: 'bars-back', label: 'Back / ahead 5 bars', group: 'Playback', keys: ['j', 'Shift+ArrowLeft'], keyLabel: 'J L', run: () => seekBars(-5) })
+	registerCommand({ id: 'bars-ahead', label: 'Ahead 5 bars', group: 'Playback', keys: ['l', 'Shift+ArrowRight'], sheet: false, run: () => seekBars(5) })
+	registerCommand({
+		id: 'jump', label: 'Jump to 10% … 90%', group: 'Playback', keys: ['1', '2', '3', '4', '5', '6', '7', '8', '9'], keyLabel: '1 … 9',
+		run: (e) => seekTo(timeline.duration * (+e.key) / 10),
+	})
+	registerCommand({ id: 'slower', label: 'Slower / faster', group: 'Playback', keys: ['<'], keyLabel: '< >', run: () => stepSpeed(-1) })
+	registerCommand({ id: 'faster', label: 'Faster', group: 'Playback', keys: ['>'], sheet: false, run: () => stepSpeed(1) })
+	registerCommand({ id: 'mute', label: 'Mute', group: 'Playback', keys: ['m'], run: () => transport.toggleMute() })
+
+	registerCommand({ id: 'fullscreen', label: 'Full screen', group: 'View', keys: ['f'], run: () => transport.toggleFullscreen() })
+	registerCommand({ id: 'piano', label: 'Piano keyboard', group: 'View', keys: ['p'], run: () => pianoToggleBtn?.click() })
+	registerCommand({
+		id: 'layouts', label: 'Scroll · Wrap · Page · 3D', group: 'View', keys: ['Alt+1', 'Alt+2', 'Alt+3', 'Alt+4'], keyLabel: '⌥1 … ⌥4',
+		run: (e) => toggleLayout(+e.code.slice(5) - 1),
+	})
+	registerCommand({
+		id: 'page-prev', label: 'Previous / next page', group: 'View', keys: ['PageUp'], keyLabel: 'PgUp PgDn',
+		when: () => getLayoutMode() === 'page' && !view3dActive, run: () => pagePrevBtn?.click(),
+	})
+	registerCommand({
+		id: 'page-next', label: 'Next page', group: 'View', keys: ['PageDown'], sheet: false,
+		when: () => getLayoutMode() === 'page' && !view3dActive, run: () => pageNextBtn?.click(),
+	})
+
+	registerCommand({ id: 'help', label: 'Keyboard shortcuts', group: 'Help', keys: ['?'], run: () => (shortcutSheetOpen() ? closeShortcutSheet() : openShortcutSheet()) })
+	registerCommand({
+		id: 'close', label: 'Close', group: 'Help', keys: ['Escape'],
+		when: () => shortcutSheetOpen() || transport.speedOpen,
+		run: () => { closeShortcutSheet(); transport.closeSpeed() },
+	})
+	bindShortcuts()
+
+	const shortcutsBtn = document.getElementById('shortcuts_btn')
+	if (shortcutsBtn) shortcutsBtn.onclick = (e) => {
+		e.stopPropagation()
+		if (settingsPanel?.classList.contains('open')) settingsToggle.click()
+		openShortcutSheet()
+	}
+}

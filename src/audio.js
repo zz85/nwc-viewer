@@ -358,6 +358,13 @@ export class PlaybackController {
 		this._fileMutedStaves = new Set()
 		this._allNotes = []   // unfiltered notes from last load
 		this._scoreData = null // last loaded score data
+
+		// Where playback resumes: kept across load() (which resets the
+		// scheduler to 0) and before the scheduler exists (seek before Play)
+		this._position = 0
+		// Master volume 0..1, sent as channel volume (CC 7): the synth
+		// renders into its own audio graph, so there is no gain node to use
+		this._volume = 0.8
 	}
 
 	/** Register a callback for time updates: fn(currentTime, duration) */
@@ -430,15 +437,27 @@ export class PlaybackController {
 		const pos = this.currentTime
 		const filtered = this._filterNotes(this._allNotes)
 		this._scheduler.load({ notes: filtered })
-		if (wasPlaying) {
-			this._scheduler.seek(pos)
-			this._scheduler.play()
-		}
+		this._scheduler.seek(pos)
+		if (wasPlaying) this._scheduler.play()
 	}
 
 	get playing() { return this._scheduler?.playing ?? false }
-	get currentTime() { return this._scheduler?.currentTime ?? 0 }
+	get currentTime() { return this._scheduler ? this._scheduler.currentTime : this._position }
 	get duration() { return this._scheduler?.duration ?? 0 }
+
+	/** Master volume, 0..1. */
+	get volume() { return this._volume }
+
+	setVolume(volume) {
+		this._volume = Math.max(0, Math.min(1, volume))
+		this._applyVolume()
+	}
+
+	_applyVolume() {
+		if (!this._initialized) return
+		const value = Math.round(this._volume * 127)
+		for (let ch = 0; ch < 16; ch++) this._engine.controlChange(ch, 7, value)
+	}
 
 	/** Current playback speed multiplier (1 = normal). */
 	get speed() { return this._speed }
@@ -486,6 +505,7 @@ export class PlaybackController {
 		})
 
 		this._scheduler.on('end', () => {
+			this._position = 0
 			this._onStateChange?.(false)
 			this._onEnd?.()
 		})
@@ -540,8 +560,13 @@ export class PlaybackController {
 			const program = staves[si].patchName ?? 0
 			this._engine.programChange(ch, program)
 		}
+		this._applyVolume()
+		// load() rewinds the scheduler; carry on from where playback was left
+		const resumeAt = this.playing ? this.currentTime : this._position
 		const filtered = this._filterNotes(notes)
 		this._scheduler.load({ notes: filtered })
+		if (resumeAt > 0 && resumeAt < this._scheduler.duration) this._scheduler.seek(resumeAt)
+		else this._position = 0
 	}
 
 	async play() {
@@ -553,16 +578,19 @@ export class PlaybackController {
 
 	pause() {
 		this._scheduler?.pause()
+		this._position = this.currentTime
 		this._onStateChange?.(false)
 	}
 
 	stop() {
 		this._scheduler?.stop()
+		this._position = 0
 		this._onStateChange?.(false)
 	}
 
 	seek(time) {
-		this._scheduler?.seek(time)
+		this._position = Math.max(0, time)
+		this._scheduler?.seek(this._position)
 	}
 
 	dispose() {
