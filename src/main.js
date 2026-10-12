@@ -1,5 +1,5 @@
 import './constants.js'
-import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel, setZoomLevel, getPageDimensions, setPageViewMode, getPageViewMode, setZoomFitMode, getZoomFitMode } from './constants.js'
+import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel, setZoomLevel, getPageDimensions, setPageViewMode, getPageViewMode, setZoomFitMode, getZoomFitMode, setShowHiddenItems } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -1101,6 +1101,17 @@ if (parserBtn) parserBtn.onclick = toggleParser
 // the new parser
 localStorage.removeItem(PARSER_STORAGE_KEY)
 updateParserButton()
+
+// Show hidden items (Settings > Advanced): draw what the score hides as
+// ghosts, for debugging and seeing how a file is set up. Page only.
+const showHiddenBox = document.getElementById('show_hidden_items')
+if (showHiddenBox) {
+	showHiddenBox.checked = false
+	showHiddenBox.onchange = () => {
+		setShowHiddenItems(showHiddenBox.checked)
+		if (scoreManager.getData()) rerender()
+	}
+}
 
 // ---- Layout mode (segmented button group) ----
 

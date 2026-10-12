@@ -202,6 +202,9 @@ function layoutTies(_drawing, _data) {
 	const fontSize = getFontSize()
 
 	staves.forEach((stave, staveIndex) => {
+		// Ties and slurs of a hidden staff (shown with "Show hidden items")
+		// are hidden too
+		drawing.markHidden = !!stave.hidden
 		// Staff Y for collision avoidance.  Derived from the first note's
 		// glyph -- glyph.y is the Y of the top staff line for that staff.
 		let staffY = null
@@ -367,6 +370,7 @@ function layoutTies(_drawing, _data) {
 			drawing.add(slur)
 		}
 	})
+	drawing.markHidden = false
 }
 
 /**

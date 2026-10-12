@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getMusicFont, MUSIC_FONTS, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getShowHiddenItems, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getMusicFont, MUSIC_FONTS, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie, getCode, glyphPathGet } from '../drawing.js'
@@ -1037,6 +1037,7 @@ function layoutLyricDashes(drawing, staves) {
 	var lyricFontSize = Math.round(fs * 0.38)
 
 	for (var si = 0; si < staves.length; si++) {
+		drawing.markHidden = !!staves[si].hidden // ghost dashes of a shown hidden staff
 		var tokens = staves[si].tokens
 		if (!tokens) continue
 
@@ -1078,6 +1079,7 @@ function layoutLyricDashes(drawing, staves) {
 			}
 		}
 	}
+	drawing.markHidden = false
 }
 
 /**
@@ -1095,6 +1097,7 @@ function layoutTripletBrackets(drawing, staves) {
 	var fs = getFontSize()
 
 	for (var si = 0; si < staves.length; si++) {
+		drawing.markHidden = !!staves[si].hidden // ghosts of a shown hidden staff
 		var tokens = staves[si].tokens
 		if (!tokens) continue
 
@@ -1210,6 +1213,7 @@ function layoutTripletBrackets(drawing, staves) {
 			i++
 		}
 	}
+	drawing.markHidden = false
 }
 
 /**
@@ -1390,6 +1394,7 @@ function layoutNoteHairpins(drawing, staves) {
 		return null
 	}
 	for (var si = 0; si < staves.length; si++) {
+		drawing.markHidden = !!staves[si].hidden // ghosts of a shown hidden staff
 		var tokens = staves[si].tokens || []
 		var markPos = -13  // NWC position of the most recent dynamic/variance
 		var run = null
@@ -1422,6 +1427,7 @@ function layoutNoteHairpins(drawing, staves) {
 		}
 		close(null)
 	}
+	drawing.markHidden = false
 }
 
 /**
@@ -1657,9 +1663,11 @@ window.everyStaveTokens = () => {
 
 /**
  * The score as laid out: hidden staves (NWC Page Setup > Contents) are left
- * out of the layout but stay in the data for playback.
+ * out of the layout but stay in the data for playback. With "Show hidden
+ * items" they stay in, drawn as ghosts.
  */
 function visibleScore(data) {
+	if (getShowHiddenItems()) return data
 	var staves = data.score.staves
 	var shown = staves.filter(function(s) { return !s.hidden })
 	if (shown.length === staves.length || shown.length === 0) return data
@@ -1855,6 +1863,7 @@ function layoutEndingBarlines(drawing, staves, stavePointers) {
 			cursor.staveX = endX
 			var eb = new Barline(0, 8, ebStyle)
 			eb.extendBelow = barConnectLength(staves, staveIndex, true)
+			eb.hidden = !!stave.hidden
 			cursor.posGlyph(eb)
 			drawing.add(eb)
 			// Nudge past the barline's right edge
@@ -2217,6 +2226,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 		for (var si = 0; si < staves.length; si++) {
 			var staveEl = new Stave(justifiedWidth - labelIndents[sysIdx])
+			staveEl.hidden = !!staves[si].hidden
 			staveEl.moveTo(sysLeft, getStaffY(si) + yOffset)
 			drawing.add(staveEl)
 		}
@@ -2234,6 +2244,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 				for (var cei = 0; cei < elements.length; cei++) {
 					// Position courtesy items after the left margin
 					elements[cei].x += sysLeft
+					elements[cei].hidden = !!staves[si].hidden
 					drawing.add(elements[cei])
 				}
 			}
@@ -2769,6 +2780,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 		for (var si = 0; si < staves.length; si++) {
 			var staveEl = new Stave(justifiedWidth - labelIndents[sysIdx])
+			staveEl.hidden = !!staves[si].hidden
 			staveEl.moveTo(xBase, getStaffY(si) + yOffset)
 			drawing.add(staveEl)
 		}
@@ -2785,6 +2797,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 				)
 				for (var cei = 0; cei < elements.length; cei++) {
 					elements[cei].x += xBase
+					elements[cei].hidden = !!staves[si].hidden
 					drawing.add(elements[cei])
 				}
 			}
@@ -3070,6 +3083,7 @@ function drawStaffLabels(drawing, staves, yOffset, systemLeftX, isFirstSystem) {
 			textAlign: 'right',
 		})
 		labelDraw.moveTo(rightX, labelY)
+		labelDraw.hidden = !!staves[li].hidden
 		drawing.add(labelDraw)
 	}
 }
@@ -3508,6 +3522,7 @@ function addStave(cursor, staveIndex) {
 	const width = cursor.staveX - cursor.lastBarline
 	const s = new Stave(width)
 	s.moveTo(cursor.lastBarline, getStaffY(staveIndex))
+	s.hidden = !!currentStaves[staveIndex]?.hidden
 	drawing.add(s)
 }
 
@@ -3595,6 +3610,28 @@ function tempoMarkingText(token) {
 }
 
 function handleToken(token, tokenIndex, staveIndex, cursor) {
+	if (!getShowHiddenItems()) return layoutToken(token, tokenIndex, staveIndex, cursor)
+
+	// Show hidden items: everything on a hidden staff, and hidden marks, is
+	// drawn as a ghost. Hidden marks still take no room, so the visible
+	// score keeps its spacing.
+	var hiddenMark = HIDEABLE_ANNOTATIONS.has(token.type) && isTokenHidden(token, staveIndex)
+	var ghost = hiddenMark || !!currentStaves[staveIndex]?.hidden
+	if (!ghost) return layoutToken(token, tokenIndex, staveIndex, cursor)
+	var staveX = cursor.staveX, padRight = cursor.lastPadRight
+	drawing.markHidden = true
+	try {
+		layoutToken(token, tokenIndex, staveIndex, cursor)
+	} finally {
+		drawing.markHidden = false
+		if (hiddenMark) {
+			cursor.staveX = staveX
+			cursor.lastPadRight = padRight
+		}
+	}
+}
+
+function layoutToken(token, tokenIndex, staveIndex, cursor) {
 	// Store staff index on the token for playback highlight lookups
 	token.staffIndex = staveIndex
 
@@ -3617,7 +3654,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 	let clef
 
 	var hidden = isTokenHidden(token, staveIndex)
-	if (hidden && HIDEABLE_ANNOTATIONS.has(type)) return
+	if (hidden && HIDEABLE_ANNOTATIONS.has(type) && !getShowHiddenItems()) return
 
 	switch (type) {
 		default:
@@ -3878,12 +3915,14 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			}
 			// Rest chord: draw the rest voice in the same column, on the side
 			// away from the notes' stems unless the file gives an offset
-			if (token.restVoice && !token.restVoice.hidden && !isTokenHidden(token, staveIndex)) {
+			var rvHidden = token.restVoice && (token.restVoice.hidden || isTokenHidden(token, staveIndex))
+			if (token.restVoice && (!rvHidden || getShowHiddenItems())) {
 				var rv = token.restVoice
 				var rSym = { 1: 'restWhole', 2: 'restHalf', 4: 'restQuarter', 8: 'rest8th', 16: 'rest16th', 32: 'rest32nd', 64: 'rest64th' }[rv.duration]
 				if (rSym) {
 					var rPos = rv.position || (token.stem === 2 ? 4 : -4)
 					var restGlyph = new Glyph(rSym, rPos + 4)
+					if (rvHidden) restGlyph.hidden = true
 					restGlyph.moveTo(token.drawingNoteHead ? token.drawingNoteHead.x : tmp, getStaffY(staveIndex))
 					drawing.add(restGlyph)
 				}

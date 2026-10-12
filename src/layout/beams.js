@@ -508,6 +508,9 @@ function layoutBeaming(_drawing, _data) {
 	const staves = data.score.staves
 	
 	staves.forEach((stave) => {
+		// Stems and beams of a hidden staff (shown with "Show hidden items")
+		// are hidden too
+		drawing.markHidden = !!stave.hidden
 		// Group beamable notes
 		const beamGroups = groupBeamableNotes(stave.tokens)
 		
@@ -525,6 +528,7 @@ function layoutBeaming(_drawing, _data) {
 			}
 		})
 	})
+	drawing.markHidden = false
 }
 
 export { layoutBeaming, computeBeamLayout, groupBeamableNotes, computeStemLength }
