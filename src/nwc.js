@@ -225,6 +225,9 @@ function decodeBytes(array) {
 	if (!array || array.length === 0) return ''
 	var bytes = array instanceof Uint8Array ? array : new Uint8Array(array)
 	try { return _td_utf8.decode(bytes) } catch (e) {}
+	// Only spaces / non-breaking spaces (0xA0): runs of 0xA0 otherwise pass
+	// as EUC-KR or GBK double-byte text
+	if (bytes.every(function(b) { return b === 0x20 || b === 0xA0 })) return _td_w1252.decode(bytes)
 	if (looksLikeWestern(bytes)) return _td_w1252.decode(bytes)
 	if (looksLikeEUCKR(bytes)) return _td_euckr.decode(bytes)
 	if (looksLikeShiftJIS(bytes)) return _td_sjis.decode(bytes)
@@ -407,7 +410,9 @@ function adaptObject(obj) {
 			var restDt = obj.getDurationType ? obj.getDurationType() : 0
 			token.duration = ADAPTER_DURATIONS[durIdx] || 4
 			token.dots = (restDt & 0x02) ? 2 : (restDt & 0x01) ? 1 : 0
-			token.position = 0
+			// Vertical offset (layered voices move rests off the middle line);
+			// stored negated like note positions
+			token.position = -(obj.offset || 0)
 			token.triplet = (restDt >> 2) & 3
 			break
 		}
@@ -503,7 +508,7 @@ function adaptObject(obj) {
 				token.duration = ADAPTER_DURATIONS[obj.getDuration()] || 4
 				var rcDt = typeof obj.getDurationType === 'function' ? obj.getDurationType() : 0
 				token.dots = (rcDt & 0x02) ? 2 : (rcDt & 0x01) ? 1 : 0
-				token.position = 0
+				token.position = -(obj.offset || 0)
 				token.triplet = (rcDt >> 2) & 3
 			}
 			token.chords = rcNoteChildren.length
@@ -517,7 +522,7 @@ function adaptObject(obj) {
 					duration: ADAPTER_DURATIONS[obj.getDuration()] || 4,
 					dots: (restDt & 0x02) ? 2 : (restDt & 0x01) ? 1 : 0,
 					triplet: (restDt >> 2) & 3,
-					position: obj.offset || 0,
+					position: -(obj.offset || 0),
 					hidden: !!obj.hideRest,
 				}
 				var len = function(d, dots, trip) { return (1 / d) * (2 - Math.pow(0.5, dots)) * (trip ? 2 / 3 : 1) }
