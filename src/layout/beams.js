@@ -511,6 +511,7 @@ function layoutBeaming(_drawing, _data) {
 		// Stems and beams of a hidden staff (shown with "Show hidden items")
 		// are hidden too
 		drawing.markHidden = !!stave.hidden
+		drawing.currentStaff = staves.indexOf(stave)
 		// Group beamable notes
 		const beamGroups = groupBeamableNotes(stave.tokens)
 		
@@ -529,6 +530,7 @@ function layoutBeaming(_drawing, _data) {
 		})
 	})
 	drawing.markHidden = false
+	drawing.currentStaff = null
 }
 
 export { layoutBeaming, computeBeamLayout, groupBeamableNotes, computeStemLength }

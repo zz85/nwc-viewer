@@ -1247,6 +1247,9 @@ class Drawing {
 		this.set = new Set()
 		// While set, added elements are marked hidden (see add())
 		this.markHidden = false
+		// Staff index recorded on added elements as _staff (null: none), so
+		// system layout can move or hide a staff's elements (collapsing)
+		this.currentStaff = null
 
 		ctx.font = `${getFontSize()}px ${getMusicTextFamily()}`
 		ctx.textBaseline = 'alphabetic' // alphabetic  bottom top
@@ -1255,6 +1258,7 @@ class Drawing {
 
 	add(el) {
 		if (this.markHidden) el.hidden = true
+		if (this.currentStaff != null && el._staff == null) el._staff = this.currentStaff
 		this.set.add(el)
 	}
 

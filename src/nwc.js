@@ -489,6 +489,11 @@ function adaptObject(obj) {
 			token.text = obj.text || ''
 			break
 
+		case 22: // Boundary (Collapse, EndCollapse, NewSystem, ...)
+			token.style = obj.styleName || ''
+			token.newPage = !!obj.newPage
+			break
+
 		case 18: { // RestChord (RestCM)
 			var rcChildren = obj.children || []
 			// Filter out any child objects that lack the NoteObj interface (e.g.
