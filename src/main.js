@@ -1083,24 +1083,23 @@ function updateParserButton() {
 	if (btn) btn.textContent = getUseNewParser() ? 'New' : 'Old'
 }
 
+// The old parser is a fallback (decodeNwcArrayBuffer switches to it when the
+// new one fails); the toggle is for comparing them and lasts for this page
+// only, so a stale choice can't stick.
 function toggleParser() {
-	const next = !getUseNewParser()
-	setUseNewParser(next)
-	localStorage.setItem(PARSER_STORAGE_KEY, next)
+	setUseNewParser(!getUseNewParser())
 	updateParserButton()
 	if (window._lastPayload) {
-		processData(window._lastPayload)
+		processData(window._lastPayload, window.__currentFile)
 	}
 }
 
 const parserBtn = document.getElementById('parser_toggle')
 if (parserBtn) parserBtn.onclick = toggleParser
 
-// Restore persisted parser preference
-const storedParser = localStorage.getItem(PARSER_STORAGE_KEY)
-if (storedParser !== null) {
-	setUseNewParser(storedParser === 'true')
-}
+// Earlier versions remembered the toggle; drop that so everyone starts on
+// the new parser
+localStorage.removeItem(PARSER_STORAGE_KEY)
 updateParserButton()
 
 // ---- Layout mode (segmented button group) ----
@@ -1125,6 +1124,7 @@ function updateLayoutUI() {
 	const orientGroup = document.getElementById('orientation_group')
 	const pageViewModeEl = document.getElementById('page_view_mode')
 	const isPage = mode === 'page'
+	document.body.classList.toggle('page-layout', isPage)
 	if (pageSizeEl) pageSizeEl.style.display = isPage ? 'inline' : 'none'
 	if (orientGroup) orientGroup.style.display = isPage ? 'inline-flex' : 'none'
 	if (pageViewModeEl) pageViewModeEl.style.display = isPage ? 'inline' : 'none'

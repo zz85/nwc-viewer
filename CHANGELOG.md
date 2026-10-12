@@ -25,12 +25,18 @@
 - Title block, text styles, text scaling and tempo marks match NWC
 - Object Visibility respected; staves left out of the score are hidden
 - Fixed placement of flow marks, repeats and texts
+- Staff text (chord names, expressions in staff fonts) sized like NWC: 1:1 with the staff size
+- Bar numbers no longer count a leading repeat or a ":||:" pair as a bar
+- Scroll mode: title shown on the opening screen, staff labels with room made for them
+- Rests in layered voices keep their vertical offset
 
 #### Parsing
 - NWC 2.75 text parsed to parity with binary files; plain .nwctxt files use the new parser (instruments and transposition)
 - NWC 2.05 files and 2.0x header edge cases
 - Encoding detection for EUC-KR/CP949, Shift-JIS, GBK and Windows-1251; Western text no longer misdetected as CJK
 - Fixed nwctxt key signatures, MIDI channels and blank lyric syllables
+- Staff names made of non-breaking spaces no longer decode as Korean text
+- The old parser is only an automatic fallback; its comparison toggle moved to Settings > Advanced and is no longer remembered
 - Fixed swapped beam middle/end in NWC to MusicXML
 
 #### Playback
@@ -38,7 +44,7 @@
 - Grace notes take no metric time; fixed rest-chord timing
 
 #### UI
-- Toolbar reorganised into a main bar and a Settings menu
+- Toolbar reorganised into a main bar and a Settings menu, kept on one row in page mode
 - New sample: Happy Birthday for oboe, viola and double bass
 
 ### v2.4 - May 2026

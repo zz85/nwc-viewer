@@ -224,6 +224,10 @@
 			}
 
 			#progress_bar { width: 160px; }
+			/* Page layout adds page navigation; make room so the bar stays one row */
+			@media (max-width: 1360px) {
+				body.page-layout #progress_bar { width: 90px; }
+			}
 			#zoom_slider { width: 80px; }
 
 			#zoom_label {
@@ -680,6 +684,14 @@
 									<a href="nwc2xml_converter.html" class="link-button" title="Convert NWC to MusicXML">NWC to MusicXML converter &rarr;</a>
 								</div>
 							</section>
+
+							<section>
+								<h5>Advanced</h5>
+								<div class="row">
+									<span class="toolbar-label">NWC parser</span>
+									<button id="parser_toggle" title="Switch between the new parser and the old one, for comparison. Not remembered: a reload goes back to the new parser, which falls back to the old one by itself if it fails.">New</button>
+								</div>
+							</section>
 						</div>
 					</div>
 				</div>
@@ -691,8 +703,6 @@
 						<button id="blank_button">Blank</button>
 						<button id="new_staff">Add staff</button>
 						<button onclick="activateEdit()">Edit</button>
-						<span class="toolbar-label">Parser</span>
-						<button id="parser_toggle">New</button>
 					</div>
 				</div>
 			</div>

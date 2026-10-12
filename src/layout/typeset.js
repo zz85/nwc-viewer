@@ -24,9 +24,10 @@ class StaveCursor {
 	constructor(stave, staveIndex) {
 		this.tokenIndex = -1
 		this.staveIndex = staveIndex
-		// Left margin: scroll mode starts one fontSize from canvas edge;
-		// wrap and page modes use 0 (reflow adds its own margins).
-		var leftEdge = getLayoutMode() === 'scroll' ? getFontSize() : 0
+		// Left margin: scroll mode starts one fontSize from canvas edge, plus
+		// room for staff labels; wrap and page modes use 0 (reflow adds its
+		// own margins and label indents).
+		var leftEdge = getLayoutMode() === 'scroll' ? getFontSize() + scrollLabelIndent : 0
 		this.lastBarline = leftEdge
 		// Stave-to-clef gap (standard engraving: 0.75 staff-space).
 		this.staveX = leftEdge + getFontSize() * headerGap(CLEF_LEFT_MARGIN)
@@ -89,19 +90,47 @@ let info // running debug info
 function collectMeasureBoundaries(staves) {
 	// Use the first stave (index 0) as the reference for measure boundaries.
 	// All staves share the same barline positions due to TickTracker alignment.
+	// `measure` is the number of the bar that starts after each barline
 	const tokens = staves[0]?.tokens || []
 	const boundaries = []
+	const counter = measureCounter()
 	for (let i = 0; i < tokens.length; i++) {
 		const token = tokens[i]
+		const startsBar = counter(token)
 		if (token.type === 'Barline' && token.drawingBarline) {
 			boundaries.push({
 				x: token.drawingBarline.x,
 				tokenIndex: i,
 				systemBreak: !!token.systemBreak,
+				measure: counter.measure,
+				startsBar: startsBar,
 			})
 		}
 	}
 	return boundaries
+}
+
+/**
+ * Bar numbering: a barline starts a new bar only if notes or rests came
+ * since the previous one, so a leading repeat sign or a back-to-back
+ * ":||:" pair doesn't count as a bar of its own.  Feed it tokens in order;
+ * it returns true for barlines that start a bar, and .measure is the number
+ * of the current bar.
+ */
+function measureCounter() {
+	var sawContent = false
+	var count = function(token) {
+		var t = token.type
+		if (t === 'Note' || t === 'Chord' || t === 'Rest' || t === 'RestChord') sawContent = true
+		else if (t === 'Barline' && sawContent) {
+			sawContent = false
+			count.measure++
+			return true
+		}
+		return false
+	}
+	count.measure = 1
+	return count
 }
 
 /**
@@ -1659,6 +1688,8 @@ function score(dataOrContext) {
 	var info = data.info || {}
 	var titleBottom = (info.author || info.lyricist) ? getFontSize() * 2.35 : info.title ? getFontSize() * 1.65 : 0
 	buildStaffYMap(staves, data.score.allowLayering, extents, titleBottom)
+	// Scroll mode is one system: indent it so the staff labels fit
+	scrollLabelIndent = getLayoutMode() === 'scroll' ? staffLabelIndent(staves, true, getFontSize() * 0.9) : 0
 	const stavePointers = staves.map(
 		(stave, staveIndex) => new StaveCursor(stave, staveIndex)
 	)
@@ -1859,7 +1890,7 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// Build system geometry (single system for scroll mode)
 	var firstStaffY = getStaffY(0)
-	var staveStartX = fs  // StaveCursor starts at getFontSize() in scroll mode
+	var staveStartX = fs + scrollLabelIndent  // where StaveCursor starts in scroll mode
 	_systemGeometry = [{
 		topY: firstStaffY - fs,
 		bottomY: lastStaveY,
@@ -1871,10 +1902,14 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	centerMeasureRests(staves)
 	_measureGeometry = buildMeasureGeometry(staves)
 
-	drawBracketsAndBraces(drawing, staves, 0)
-	drawStaffLabels(drawing, staves, 0)
+	var systemLeftX = fs * 0.9 + scrollLabelIndent
+	drawBracketsAndBraces(drawing, staves, 0, systemLeftX)
+	drawStaffLabels(drawing, staves, 0, systemLeftX)
 	drawBarNumbers(drawing, staves, 0, fs, 1, 'scroll')
-	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
+	// Title block over the opening screen, not centred on the whole (long) line
+	var scoreElm = document.getElementById('score')
+	var visibleWidth = ((scoreElm?.clientWidth || 800) - 20) / getZoomLevel()
+	drawTitleAndAuthor(drawing, data, Math.min(maxCanvasWidth, visibleWidth))
 	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
 }
 
@@ -2209,7 +2244,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		drawStaffLabels(drawing, staves, yOffset, sysLeft, sysIdx === 0)
 
 		// Draw bar number at system start
-		var firstMeasure = sysIdx === 0 ? 1 : systemBreaks[sysIdx - 1].boundaryIndex + 2
+		var firstMeasure = sysIdx === 0 ? 1 : boundaries[systemBreaks[sysIdx - 1].boundaryIndex].measure
 		drawBarNumbers(drawing, staves, yOffset, sysLeft, firstMeasure)
 	}
 
@@ -2759,7 +2794,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		drawStaffLabels(drawing, staves, yOffset, xBase, sysIdx === 0)
 
 		// Draw bar number at system start
-		var firstMeasureP = sysIdx === 0 ? 1 : systemBreaks[sysIdx - 1].boundaryIndex + 2
+		var firstMeasureP = sysIdx === 0 ? 1 : boundaries[systemBreaks[sysIdx - 1].boundaryIndex].measure
 		drawBarNumbers(drawing, staves, yOffset, xBase, firstMeasureP)
 	}
 
@@ -2976,7 +3011,8 @@ function staffLabelsForSystem(staves, isFirstSystem) {
 	return staves.map(function(st, i) {
 		if (mode === 'None') return ''
 		if (i > 0 && getStaffY(i) === getStaffY(i - 1)) return ''
-		return (full ? st.staff_label : st.staff_label_abbr) || ''
+		// Blank labels (names of only spaces) take no room
+		return ((full ? st.staff_label : st.staff_label_abbr) || '').trim()
 	})
 }
 
@@ -3078,14 +3114,13 @@ function drawBarNumbers(drawing, staves, yOffset, leftMarginX, firstMeasureNum, 
 				break
 			}
 		}
-		var barNum = 1
+		var counter = measureCounter()
 		for (var i = 0; i < tokens.length; i++) {
 			var tok = tokens[i]
-			if (tok.type !== 'Barline' || !tok.drawingBarline) continue
 			if (i > lastNoteIdx) break  // trailing barline — no new measure
-			barNum++
+			if (!counter(tok) || !tok.drawingBarline) continue
 			var bx = tok.drawingBarline.x
-			var barNumDraw = new Claire.Text(String(barNum), 0, {
+			var barNumDraw = new Claire.Text(String(counter.measure), 0, {
 				font: numFont,
 				textAlign: 'center',
 			})
@@ -3155,6 +3190,9 @@ function sizeSpacerAndRender(canvas, canvasWidth, canvasHeight) {
 
 	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 }
+
+// Scroll-mode indent (px) that makes room for staff labels; set by score()
+var scrollLabelIndent = 0
 
 // Computed Y positions for each stave, respecting WithNextStaff flags.
 // Built once per score() call; consumed by getStaffY().
@@ -3485,14 +3523,23 @@ var DEFAULT_TEXT_FONTS = [
 	{ size: 10 }, { size: 10 }, { size: 10 }, { size: 10 }, { size: 10 }, { size: 10 },
 ]
 
+// Text size per point of staff size, as a fraction of the staff height
+// (fontSize), measured from NWC's own rendering (references/
+// what-child-is-this.png, 17 pt staff = 32 px): staff fonts scale 1:1 with
+// the staff (10 pt StaffLyric = 18.9 px), page fonts less (18 pt title =
+// 28 px, 12 pt credit = 13 px).
+var STAFF_TEXT_SCALE = 1.0
+var PAGE_TEXT_SCALE = 0.66
+var PAGE_FONT_INDEXES = [3, 4, 5] // PageTitleText, PageText, PageSmallText
+
 /**
  * CSS font for a text object using the file's font style `index`. NWC font
- * sizes are relative to the staff size (Page Setup): on a 16 pt staff,
- * 10 pt text ≈ 0.41 fontSize, matching lyrics.
+ * sizes are relative to the staff size (Page Setup).
  */
 function textFontCss(index) {
 	var f = currentTextFonts[index] || DEFAULT_TEXT_FONTS[index] || DEFAULT_TEXT_FONTS[0]
-	var px = Math.max(6, Math.round((f.size || 10) / currentStaffSizePt * 0.66 * getFontSize()))
+	var scale = PAGE_FONT_INDEXES.includes(index) ? PAGE_TEXT_SCALE : STAFF_TEXT_SCALE
+	var px = Math.max(6, Math.round((f.size || 10) / currentStaffSizePt * scale * getFontSize()))
 	return (f.italic ? 'italic ' : '') + (f.bold ? 'bold ' : '') + px + 'px ' + getMusicTextFamily()
 }
 
