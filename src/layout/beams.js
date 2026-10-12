@@ -374,7 +374,9 @@ function drawBeamGroup(group) {
 		const subBeam = new Beam(segStartY, segEndY, segStartX, segEndX, 1)
 		subBeam.stemUp = stemUp
 		if (isGraceGroup) subBeam._graceScale = graceScale
-		subBeam._beamOffset = seg.level
+		// Beams stack ¾ space apart from the stem tip: beam number `level`
+		// (1 = primary) sits at stack index level - 1
+		subBeam._beamOffset = seg.level - 1
 		subBeam.moveTo(firstStem.x, firstStem.y)
 		drawing.add(subBeam)
 	}

@@ -9,7 +9,7 @@ globalThis.document = globalThis.document || {
 globalThis.window = globalThis.window || { ctx: null, canvas: null }
 globalThis.XMLHttpRequest = globalThis.XMLHttpRequest || class { open() {} send() {} }
 
-const { computeBeamLayout, groupBeamableNotes, computeStemLength } = await import('../src/layout/beams.js')
+const { computeBeamLayout, groupBeamableNotes, computeStemLength, layoutBeaming } = await import('../src/layout/beams.js')
 
 describe('computeBeamLayout', () => {
 	test('two 8th notes → 1 primary beam, no sub-beams', () => {
@@ -308,5 +308,30 @@ describe('computeStemLength', () => {
 		// Standalone flagged notes should use beamCount=0
 		// A 32nd note standalone: 7 base, no beam extras
 		expect(computeStemLength(0, true, 0, 0)).toBe(7)
+	})
+})
+
+describe('layoutBeaming: sub-beam stacking', () => {
+	// Beams stack ¾ space apart from the stem tip. Beam number `level`
+	// (1 = primary) belongs at stack index level - 1, right inside the
+	// primary beam; one index more left a whole space of gap (regression).
+	const note = (duration, beam, x) => ({
+		type: 'Note', duration, position: 3, stem: 2, beam,
+		drawingNoteHead: { x, y: 100, width: 10 },
+	})
+	function subBeamOffsets(tokens) {
+		const added = []
+		const drawing = { add: el => added.push(el), markHidden: false }
+		layoutBeaming(drawing, { score: { staves: [{ tokens }] } })
+		return added.filter(el => el.constructor.name === 'Beam' && el._beamOffset !== undefined).map(el => el._beamOffset)
+	}
+
+	test('dotted-8th + 16th: the 16th stub sits next to the primary beam', () => {
+		expect(subBeamOffsets([note(8, 1, 0), note(16, 3, 40)])).toEqual([1])
+	})
+
+	test('8th + 16th + 32nd + 32nd: the 16th and 32nd beams stack one after another', () => {
+		const offsets = subBeamOffsets([note(8, 1, 0), note(16, 2, 30), note(32, 2, 60), note(32, 3, 90)])
+		expect(offsets.sort()).toEqual([1, 2])
 	})
 })
