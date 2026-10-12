@@ -171,9 +171,10 @@ function intermediateNoteClearance(entries, startIdx, endIdx, arcObj, direction,
 
 		if (intrusion <= 0) continue  // note is on the safe side
 
-		// The arc shape at this fraction (parabolic approximation of bezier).
-		// Peaks at 1.0 at the midpoint, 0 at the endpoints.
-		const arcFraction = 4 * fraction * (1 - fraction)
+		// Offset of the arc at this fraction as a share of arcHeight: both
+		// bezier control points sit at arcHeight, so the curve is exactly
+		// 3u(1-u) * arcHeight (peaking at 0.75 * arcHeight mid-span).
+		const arcFraction = 3 * fraction * (1 - fraction)
 		if (arcFraction < 0.1) continue  // too close to edge, skip
 
 		// How much total arc height is needed so the curve at this X
@@ -346,6 +347,11 @@ function layoutTies(_drawing, _data) {
 				)
 				if (intBoost !== 0) {
 					slur.arcHeight += intBoost
+					// A symmetric arc tall enough for a melody peaking mid-slur
+					// would tower over the staff; cap it (engravers would reshape
+					// the slur instead) at ~5 staff spaces of arc parameter.
+					var maxArc = fontSize * 1.25
+					if (Math.abs(slur.arcHeight) > maxArc) slur.arcHeight = maxArc * Math.sign(slur.arcHeight)
 				}
 			}
 

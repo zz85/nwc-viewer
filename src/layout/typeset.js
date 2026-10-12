@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getMusicFont, MUSIC_FONTS, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie, getCode, glyphPathGet } from '../drawing.js'
@@ -24,9 +24,10 @@ class StaveCursor {
 	constructor(stave, staveIndex) {
 		this.tokenIndex = -1
 		this.staveIndex = staveIndex
-		// Left margin: scroll mode starts one fontSize from canvas edge;
-		// wrap and page modes use 0 (reflow adds its own margins).
-		var leftEdge = getLayoutMode() === 'scroll' ? getFontSize() : 0
+		// Left margin: scroll mode starts one fontSize from canvas edge, plus
+		// room for staff labels; wrap and page modes use 0 (reflow adds its
+		// own margins and label indents).
+		var leftEdge = getLayoutMode() === 'scroll' ? getFontSize() + scrollLabelIndent : 0
 		this.lastBarline = leftEdge
 		// Stave-to-clef gap (standard engraving: 0.75 staff-space).
 		this.staveX = leftEdge + getFontSize() * headerGap(CLEF_LEFT_MARGIN)
@@ -89,19 +90,116 @@ let info // running debug info
 function collectMeasureBoundaries(staves) {
 	// Use the first stave (index 0) as the reference for measure boundaries.
 	// All staves share the same barline positions due to TickTracker alignment.
+	// `measure` is the number of the bar that starts after each barline
 	const tokens = staves[0]?.tokens || []
 	const boundaries = []
+	const counter = measureCounter()
 	for (let i = 0; i < tokens.length; i++) {
 		const token = tokens[i]
+		const startsBar = counter(token)
 		if (token.type === 'Barline' && token.drawingBarline) {
 			boundaries.push({
 				x: token.drawingBarline.x,
 				tokenIndex: i,
 				systemBreak: !!token.systemBreak,
+				measure: counter.measure,
+				startsBar: startsBar,
 			})
 		}
 	}
 	return boundaries
+}
+
+/**
+ * Bar numbering: a barline starts a new bar only if notes or rests came
+ * since the previous one, so a leading repeat sign or a back-to-back
+ * ":||:" pair doesn't count as a bar of its own.  Feed it tokens in order;
+ * it returns true for barlines that start a bar, and .measure is the number
+ * of the current bar.
+ */
+function measureCounter() {
+	var sawContent = false
+	var count = function(token) {
+		var t = token.type
+		if (t === 'Note' || t === 'Chord' || t === 'Rest' || t === 'RestChord') sawContent = true
+		else if (t === 'Barline' && sawContent) {
+			sawContent = false
+			count.measure++
+			return true
+		}
+		return false
+	}
+	count.measure = 1
+	return count
+}
+
+/**
+ * Center whole-measure rests in their bar, as engraving convention requires.
+ * Runs after layout/reflow on final positions. A bar is centered when every
+ * staff of a layer group (staves sharing a Y) has nothing but rests in it and
+ * the visible content is a single lone rest; that rest moves midway between
+ * its current (left-aligned) position and the closing barline, together with
+ * markings attached to it (fermatas, dynamics, text at the same X).
+ */
+function centerMeasureRests(staves) {
+	var fs = getFontSize()
+	var DURATIONAL = { Note: 1, Chord: 1, Rest: 1, RestChord: 1 }
+
+	// Per staff: bars[k] = { durs: [...], marks: [...], bar: barlineToken }
+	var staffBars = staves.map(function(st) {
+		var bars = [], durs = [], marks = []
+		for (var tok of st.tokens || []) {
+			if (DURATIONAL[tok.type]) durs.push(tok)
+			else if (tok.type === 'Barline') { bars.push({ durs: durs, marks: marks, bar: tok }); durs = []; marks = [] }
+			else if (tok.drawingAnnotation || tok.drawingDynamic) marks.push(tok.drawingAnnotation || tok.drawingDynamic)
+		}
+		return bars
+	})
+
+	var si = 0
+	while (si < staves.length) {
+		// Layer group: staves drawn at the same Y
+		var group = [si]
+		while (si + group.length < staves.length && getStaffY(si + group.length) === getStaffY(si)) group.push(si + group.length)
+		si += group.length
+
+		var barCount = Math.min.apply(null, group.map(function(g) { return staffBars[g].length }))
+		for (var k = 0; k < barCount; k++) {
+			// Every voice in the bar must be rests only; each voice may show at
+			// most one (layered voices often repeat the same full-bar rest,
+			// drawn on top of each other).
+			var targets = [], ok = true
+			for (var g of group) {
+				var b = staffBars[g][k]
+				if (b.durs.some(function(t) { return t.type !== 'Rest' })) { ok = false; break }
+				var visible = b.durs.filter(function(t) { return t.drawingNoteHead && !t.drawingNoteHead.hidden })
+				if (visible.length === 0) continue
+				// A lone rest fills the bar whatever its written value (e.g. a half
+				// rest in 2/4), so it is a full-measure rest.
+				if (visible.length > 1 || b.durs.length > 1) { ok = false; break }
+				targets.push({ rest: visible[0], bar: b })
+			}
+			if (!ok || !targets.length) continue
+			var moved = []
+			for (var t of targets) {
+				var glyph = t.rest.drawingNoteHead
+				var barGlyph = t.bar.bar.drawingBarline
+				if (!barGlyph || Math.abs(glyph.y - barGlyph.y) > fs * 2) continue  // same system only
+				var delta = (barGlyph.x - glyph.x - (glyph.width || 0)) / 2
+				if (delta <= 0) continue
+				moved.push({ origX: glyph.x, delta: delta })
+				glyph.x += delta
+			}
+			if (!moved.length) continue
+			// Move markings attached to the rest (laid out at the rest's X)
+			for (var g2 of group) {
+				for (var mark of staffBars[g2][k].marks) {
+					var m = moved.find(function(mv) { return Math.abs(mark.x - mv.origX) < fs * 0.75 })
+					if (m) mark.x += m.delta
+				}
+			}
+		}
+	}
 }
 
 /**
@@ -623,6 +721,25 @@ function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
 			1.0 + (targetWidth - naturalWidth) / effectiveSprings))
 		: 1.0
 
+	// When compressing, a gap may not shrink below the rod (rigid width,
+	// including lyric text) of the note before it; only the excess is
+	// elastic. Recompute the factor with those limits so the system still
+	// fills the target width.
+	var compressing = factor < 1
+	var springOf = function(i) {
+		var naturalGap = entries[i].anchorX - entries[i - 1].anchorX
+		var sp = Math.min(entries[i - 1].spring * balance, naturalGap)
+		if (compressing) sp = Math.min(sp, Math.max(0, naturalGap - entries[i - 1].rod))
+		return sp
+	}
+	if (compressing) {
+		var limitedSprings = trailingNatural > 0 ? Math.min(lastEntry.spring * balance, trailingNatural) : 0
+		for (var i = 1; i < entries.length; i++) limitedSprings += springOf(i)
+		if (limitedSprings > 0) {
+			factor = Math.max(SPRING_FACTOR_MIN, Math.min(1, 1.0 + (targetWidth - naturalWidth) / limitedSprings))
+		}
+	}
+
 	var anchors = []
 	var anchorOffsets = [0]
 	anchors.push(entries[0].anchorX)
@@ -630,9 +747,7 @@ function buildSpringMap(staves, systemStartX, systemEndX, targetWidth) {
 	for (var i = 1; i < entries.length; i++) {
 		anchors.push(entries[i].anchorX)
 		var naturalGap = entries[i].anchorX - entries[i - 1].anchorX
-		var springPortion = entries[i - 1].spring * balance
-		// Clamp springPortion to not exceed the natural gap
-		if (springPortion > naturalGap) springPortion = naturalGap
+		var springPortion = springOf(i)
 		var rodPortion = naturalGap - springPortion
 		var newGap = rodPortion + springPortion * factor
 		cumOffset += (newGap - naturalGap)
@@ -925,54 +1040,42 @@ function layoutLyricDashes(drawing, staves) {
 		var tokens = staves[si].tokens
 		if (!tokens) continue
 
-		// Compute lyric Y offset for this stave (same logic as drawForNote)
-		var thisStaveY = getStaffY(si)
-		var nextStaveY = null
-		for (var nsi = si + 1; nsi < staves.length; nsi++) {
-			if (getStaffY(nsi) !== thisStaveY) {
-				nextStaveY = getStaffY(nsi)
-				break
-			}
-		}
-		var lyricOffsetY
-		if (nextStaveY !== null) {
-			var gap = nextStaveY - thisStaveY
-			lyricOffsetY = gap / 2 - fs / 2
-		} else {
-			lyricOffsetY = fs * 1.5
-		}
-
+		var verseOf = function(t, v) { return (t.texts || (t.text ? [t.text] : []))[v] || '' }
 		for (var i = 0; i < tokens.length; i++) {
 			var token = tokens[i]
-			// Only notes/chords with a hyphen-terminated lyric
-			if (!token.text || !token.text.endsWith('-')) continue
 			if (!token.drawingNoteHead) continue
+			var verses = token.texts || (token.text ? [token.text] : [])
+			for (var vi = 0; vi < verses.length; vi++) {
+				// Only syllables that continue a word into a later note
+				if (!verses[vi] || !verses[vi].endsWith('-')) continue
 
-			// Find the next note/chord with a drawingNoteHead (the next lyric target)
-			var nextHead = null
-			for (var j = i + 1; j < tokens.length; j++) {
-				var nt = tokens[j]
-				if (nt.drawingNoteHead && (nt.type === 'Note' || nt.type === 'Chord' || nt.type === 'Rest')) {
-					nextHead = nt.drawingNoteHead
-					break
+				// The word continues at the next note carrying a syllable in this
+				// verse; notes in between (slurred/tied) carry no text.
+				var nextHead = null
+				for (var j = i + 1; j < tokens.length; j++) {
+					var nt = tokens[j]
+					if (nt.type === 'Barline' || !nt.drawingNoteHead) continue
+					if (verseOf(nt, vi)) { nextHead = nt.drawingNoteHead; break }
+				}
+				if (!nextHead) continue
+
+				var startX = token.drawingNoteHead.x + ((token._verseWidths && token._verseWidths[vi]) || token.drawingNoteHead.width || 0)
+				var endX = nextHead.x
+				if (endX <= startX) continue
+
+				// One dash centered in the gap; long gaps get a dash every ~3 spaces
+				var gapW = endX - startX
+				var count = Math.max(1, Math.floor(gapW / (fs * 3)))
+				for (var di = 0; di < count; di++) {
+					var dash = new Text('-', 0, {
+						font: lyricFontSize + 'px ' + getMusicTextFamily(),
+						textAlign: 'center',
+					})
+					dash.moveTo(startX + gapW * (di + 0.5) / count, getStaffY(si))
+					dash.offsetY = lyricVerseOffsetY(staves, si, vi)
+					drawing.add(dash)
 				}
 			}
-			if (!nextHead) continue
-
-			var startX = token.drawingNoteHead.x + (token.drawingNoteHead.width || 0)
-			var endX = nextHead.x
-			if (endX <= startX) continue
-
-			var midX = (startX + endX) / 2
-
-			var dash = new Text('-', 0, {
-			font: lyricFontSize + 'px ' + getMusicTextFamily(),
-			textAlign: 'center',
-		})
-
-			dash.moveTo(midX, thisStaveY)
-			dash.offsetY = lyricOffsetY
-			drawing.add(dash)
 		}
 	}
 }
@@ -1140,10 +1243,10 @@ function splitCrossSystemTies(drawing, systemHeight, interSystemGap) {
 		// Primary: use stored system index from reflow pass.
 		// Fallback: Y-distance heuristic for elements without _sysIdx.
 		var isCrossSystem = false
-		if (el._sysIdx != null) {
-			// If the end Y is on a different system, the Y shift during
-			// reflow only applied the *start* system's offset to endy,
-			// so the two endpoints will be far apart in Y.
+		if (el._endYShift != null) {
+			// Reflow recorded that the end point lies in a later system
+			isCrossSystem = el._endYShift !== 0
+		} else if (el._sysIdx != null) {
 			var yDiff = Math.abs(el.endy - el.y)
 			isCrossSystem = yDiff > systemHeight * 0.5
 		} else {
@@ -1235,6 +1338,265 @@ function layoutHairpinSpans(drawing, staves) {
 }
 
 /**
+ * Flow marks written right after a barline belong to it: closing marks
+ * (Fine, D.C., D.S., To Coda) are right-aligned to end at that barline, and
+ * Segno/Coda signs start the following bar. Laid out at the cursor after the
+ * barline they would hang past the end of a system at a line break (or be
+ * reflowed onto the wrong system). Runs on the single-line layout.
+ */
+function anchorFlowMarks(staves) {
+	var fs = getFontSize()
+	var DURATIONAL = { Note: 1, Chord: 1, Rest: 1, RestChord: 1 }
+	for (var stave of staves) {
+		var tokens = stave.tokens || []
+		for (var i = 0; i < tokens.length; i++) {
+			var t = tokens[i]
+			if (t.type !== 'Flow' || !t.drawingAnnotation) continue
+			// Nearest barline on each side with no note/rest in between
+			var before = -1, after = -1
+			for (var b = i - 1; b >= 0 && !DURATIONAL[tokens[b].type]; b--) if (tokens[b].type === 'Barline') { before = b; break }
+			for (var a = i + 1; a < tokens.length && !DURATIONAL[tokens[a].type]; a++) if (tokens[a].type === 'Barline') { after = a; break }
+			var el = t.drawingAnnotation
+			if (el instanceof Text) {
+				// Closing mark: end at the barline it precedes (or follows)
+				var bar = after >= 0 ? tokens[after].drawingBarline : before >= 0 ? tokens[before].drawingBarline : null
+				if (!bar) continue
+				el.textAlign = 'right'
+				el.x = bar.x - fs * 0.1
+			} else if (before >= 0 || after >= 0) {
+				// Sign: onto the first note/rest of the bar that starts here
+				for (var j = Math.max(i, after) + 1; j < tokens.length; j++) {
+					if (DURATIONAL[tokens[j].type] && tokens[j].drawingNoteHead) { el.x = tokens[j].drawingNoteHead.x; break }
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Hairpins from note attributes: NWC's Crescendo/Diminuendo commands flag
+ * the selected notes, and the wedge spans each run of consecutive flagged
+ * notes (across barlines), at the height of the most recent dynamic or
+ * variance on the staff. The wedge is stored on the run's first note as
+ * drawingHairpin so later passes (collisions, reflow) treat it like others.
+ */
+function layoutNoteHairpins(drawing, staves) {
+	var fs = getFontSize()
+	var flagOf = function(t) {
+		if (t.type !== 'Note' && t.type !== 'Chord') return null
+		var notes = t.notes || [t]
+		if (t.crescendo || notes.some(function(n) { return n.crescendo })) return 'Crescendo'
+		if (t.diminuendo || notes.some(function(n) { return n.diminuendo })) return 'Diminuendo'
+		return null
+	}
+	for (var si = 0; si < staves.length; si++) {
+		var tokens = staves[si].tokens || []
+		var markPos = -13  // NWC position of the most recent dynamic/variance
+		var run = null
+		var close = function(endTok) {
+			if (!run) return
+			var first = run.first.drawingNoteHead
+			var lastHead = run.last.drawingNoteHead
+			// End at the next note when there is one, else past the last note
+			var endX = endTok && endTok.drawingNoteHead ? endTok.drawingNoteHead.x - fs * 0.2
+				: lastHead.x + (lastHead.width || fs * 0.3) + fs * 0.3
+			var hp = new Hairpin(run.style, Math.max(fs, endX - first.x), run.pos + 4)
+			hp.moveTo(first.x, first.y)
+			drawing.add(hp)
+			run.first.drawingHairpin = hp
+			run = null
+		}
+		for (var t of tokens) {
+			if (t.type === 'Dynamic' || t.type === 'DynamicVariance') {
+				if (t.position !== undefined) markPos = t.position
+				continue
+			}
+			if (t.type !== 'Note' && t.type !== 'Chord' && t.type !== 'Rest') continue
+			if (!t.drawingNoteHead || t.drawingNoteHead.hidden) continue
+			var style = flagOf(t)
+			if (run && style !== run.style) close(t)
+			if (style) {
+				if (!run) run = { style: style, first: t, last: t, pos: markPos }
+				else run.last = t
+			}
+		}
+		close(null)
+	}
+}
+
+/**
+ * Vertical extent (relative to baseline, px; negative = up) of a dynamic
+ * marking's glyphs, from the font outlines.
+ */
+function dynamicExtent(el) {
+	if (el._extent) return el._extent
+	var top = 0, bottom = 0
+	for (var g of el._glyphs || []) {
+		var bb = g.path && g.path.getBoundingBox && g.path.getBoundingBox()
+		if (!bb) continue
+		top = Math.min(top, bb.y1)
+		bottom = Math.max(bottom, bb.y2)
+	}
+	if (top === 0 && bottom === 0) top = -getFontSize() * 0.4
+	return (el._extent = { top: top, bottom: bottom })
+}
+
+/**
+ * Keep dynamics and hairpins clear of the notes they sit under (or over),
+ * then put chained expression marks — a dynamic leading into a hairpin that
+ * ends at the next dynamic — on one shared line. NWC positions these marks
+ * at a fixed staff position, so low notes or downward stems run into them.
+ * Runs on the single-line layout; reflow preserves offsetY.
+ */
+function resolveExpressionCollisions(staves) {
+	var fs = getFontSize()
+	var hs = fs / 8
+	var clearance = fs * 0.15
+
+	for (var si = 0; si < staves.length; si++) {
+		var tokens = staves[si].tokens || []
+		var staffY = null
+
+		// Notes of this staff and its layer partners (same Y) as boxes
+		var boxes = []
+		for (var gi = 0; gi < staves.length; gi++) {
+			if (getStaffY(gi) !== getStaffY(si)) continue
+			for (var tok of staves[gi].tokens || []) {
+				var head = tok.drawingNoteHead
+				if (!head || head.hidden || (tok.type !== 'Note' && tok.type !== 'Chord')) continue
+				if (staffY === null) staffY = head.y
+				var positions = tok.notes ? tok.notes.map(function(n) { return n.position }) : [tok.position]
+				var ys = positions.map(function(p) { return head.y - ((p || 0) + 4) * hs })
+				var top = Math.min.apply(null, ys) - hs
+				var bottom = Math.max.apply(null, ys) + hs
+				if (tok.duration > 1) {
+					// Stem: NWC stem 1 = up, 2 = down; default by position
+					var avg = positions.reduce(function(a, b) { return a + (b || 0) }, 0) / positions.length
+					var down = tok.stem === 2 || (tok.stem !== 1 && avg >= 0)
+					if (down) bottom = Math.max.apply(null, ys) + 7 * hs
+					else top = Math.min.apply(null, ys) - 7 * hs
+				}
+				boxes.push({ x0: head.x - fs * 0.1, x1: head.x + (head.width || fs * 0.3) + fs * 0.1, top: top, bottom: bottom })
+			}
+		}
+
+		// Expression marks of this staff, in order
+		var marks = []
+		for (var ti = 0; ti < tokens.length; ti++) {
+			var t = tokens[ti]
+			var el = t.drawingHairpin || ((t.type === 'Dynamic' || t.type === 'DynamicVariance') && t.drawingDynamic) ||
+				(t.type === 'DynamicVariance' && t.drawingAnnotation)
+			if (!el) continue
+			marks.push({ el: el, isHairpin: !!t.drawingHairpin })
+		}
+		if (!marks.length) continue
+		if (staffY === null) staffY = marks[0].el.y
+		// Lyric lines of the nearest staff above (a different staff Y), as a
+		// vertical band in this staff's coordinates
+		var lyricBand = null
+		for (var pi = si - 1; pi >= 0; pi--) {
+			if (getStaffY(pi) === getStaffY(si)) continue
+			var lines = lyricLineCount(staves[pi])
+			if (lines) {
+				var shift = staffY - getStaffY(si)  // single-line staff Y of this staff
+				var py = getStaffY(pi) + shift
+				lyricBand = {
+					top: py + lyricVerseOffsetY(staves, pi, 0) - lyricFontPx() * 0.8,
+					bottom: py + lyricVerseOffsetY(staves, pi, lines - 1) + lyricFontPx() * 0.25,
+				}
+			}
+			break
+		}
+		// Marks are "above" only when placed above the top line; anything on
+		// or inside the staff goes below, the normal place for dynamics.
+		var midY = staffY - fs
+
+		function extent(m) {
+			if (m.isHairpin) return { top: -hs, bottom: hs }
+			return dynamicExtent(m.el)
+		}
+		function baseY(m) { return m.el.y + (m.el.offsetY || 0) }
+
+		// 1. Push each mark clear of the notes and the staff
+		for (var m of marks) {
+			var e = extent(m)
+			var x0 = m.el.x, x1 = m.el.x + (m.el.width || fs)
+			var below = baseY(m) > midY
+			if (below) {
+				var need = staffY + clearance
+				for (var b of boxes) if (b.x1 > x0 && b.x0 < x1) need = Math.max(need, b.bottom + clearance)
+				var top = baseY(m) + e.top
+				if (top < need) m.el.offsetY = (m.el.offsetY || 0) + (need - top)
+			} else {
+				var limit = staffY - fs - clearance
+				for (var b2 of boxes) if (b2.x1 > x0 && b2.x0 < x1) limit = Math.min(limit, b2.top - clearance)
+				var bottom = baseY(m) + e.bottom
+				if (bottom > limit) m.el.offsetY = (m.el.offsetY || 0) - (bottom - limit)
+				// Keep clear of the lyrics of the staff above: sit below them
+				// when there is room before this staff's notes
+				if (lyricBand) {
+					var topNow = baseY(m) + e.top
+					var bottomNow = baseY(m) + e.bottom
+					if (topNow < lyricBand.bottom + clearance && bottomNow > lyricBand.top) {
+						var down = lyricBand.bottom + clearance - topNow
+						if (bottomNow + down <= limit + clearance) m.el.offsetY = (m.el.offsetY || 0) + down
+					}
+				}
+			}
+		}
+
+		// 2. Align chains: hairpin → dynamic at its end, dynamic → hairpin right after it
+		var chain = [marks[0]]
+		var flush = function() {
+			if (chain.length > 1) {
+				var below = baseY(chain[0]) > midY
+				// Visual centre: hairpin centre line, or the middle of the dynamic glyph
+				var center = function(m) { var e = extent(m); return baseY(m) + (m.isHairpin ? 0 : (e.top + e.bottom) / 2) }
+				var target = chain.reduce(function(acc, m) { var c = center(m); return below ? Math.max(acc, c) : Math.min(acc, c) }, center(chain[0]))
+				for (var m of chain) m.el.offsetY = (m.el.offsetY || 0) + (target - center(m))
+			}
+		}
+		// 3. Text marks (a tempo, dolce, cresc.) overlapping a dynamic glyph
+		// read after it: 'ff a tempo'. Move the text past the dynamic.
+		var ctx2 = window.ctx
+		if (ctx2) {
+			for (var tt of tokens) {
+				var txt = tt.drawingAnnotation
+				if (!(txt instanceof Text) || txt.textAlign === 'right' || txt.textAlign === 'center') continue
+				ctx2.save()
+				ctx2.font = txt.font || ('italic bold ' + Math.round(fs * 0.43) + 'px ' + getMusicTextFamily())
+				var tw = ctx2.measureText(txt.text || '').width
+				ctx2.restore()
+				var ty = txt.y + (txt.offsetY || 0)
+				for (var dm of marks) {
+					if (dm.isHairpin || !(dm.el instanceof DynamicMarking)) continue
+					var de = dynamicExtent(dm.el)
+					var dy = baseY(dm)
+					var dx0 = dm.el.x, dx1 = dm.el.x + (dm.el.width || 0)
+					var overlapX = txt.x < dx1 + fs * 0.1 && txt.x + tw > dx0
+					var overlapY = ty - fs * 0.35 < dy + de.bottom && ty + fs * 0.1 > dy + de.top
+					if (!overlapX || !overlapY) continue
+					// Text starting at/after the dynamic follows it; text starting
+					// before it ends just before it ('Semplice mf')
+					if (txt.x >= dx0 - fs * 0.3) txt.x = dx1 + fs * 0.15
+					else txt.x = dx0 - fs * 0.15 - tw
+				}
+			}
+		}
+
+		for (var mi = 1; mi < marks.length; mi++) {
+			var prev = marks[mi - 1], cur = marks[mi]
+			var prevEnd = prev.el.x + (prev.el.width || 0)
+			var linked = (prev.isHairpin || cur.isHairpin) && cur.el.x - prevEnd < fs * 1.2 &&
+				(baseY(prev) > midY) === (baseY(cur) > midY)
+			if (linked) chain.push(cur)
+			else { flush(); chain = [cur] }
+		}
+		flush()
+	}
+}
+
+/**
  * Adjust volta bracket widths to span from the Ending token to the next
  * Ending token or the next barline (whichever comes first).
  */
@@ -1293,9 +1655,20 @@ window.everyStaveTokens = () => {
 	return tokens
 }
 
+/**
+ * The score as laid out: hidden staves (NWC Page Setup > Contents) are left
+ * out of the layout but stay in the data for playback.
+ */
+function visibleScore(data) {
+	var staves = data.score.staves
+	var shown = staves.filter(function(s) { return !s.hidden })
+	if (shown.length === staves.length || shown.length === 0) return data
+	return Object.assign({}, data, { score: Object.assign({}, data.score, { staves: shown }) })
+}
+
 function score(dataOrContext) {
 	// Support both legacy data object and new MusicContext
-	const data = dataOrContext.getData ? dataOrContext.getData() : dataOrContext
+	const data = visibleScore(dataOrContext.getData ? dataOrContext.getData() : dataOrContext)
 	const ctx = dataOrContext.getContext ? dataOrContext.getContext() : window.ctx
 	const canvas = dataOrContext.getCanvas ? dataOrContext.getCanvas() : window.canvas
 	
@@ -1305,8 +1678,18 @@ function score(dataOrContext) {
 	const staves = data.score.staves
 	currentStaves = staves
 	currentAllowLayering = data.score.allowLayering !== false
+	currentStaffLabelMode = data.score.staffLabels || ''
+	currentTextFonts = data.score.textFonts || []
+	currentStaffSizePt = data.score.staffSize > 4 ? data.score.staffSize : 16
 	var extents = computeStaffExtents(staves)
-	buildStaffYMap(staves, data.score.allowLayering, extents)
+	currentExtents = extents
+	// Bottom of the title block (title baseline 1.43 fs, author 2.14 fs; see
+	// drawTitleAndAuthor) so the first staff's top content starts below it
+	var info = data.info || {}
+	var titleBottom = (info.author || info.lyricist) ? getFontSize() * 2.35 : info.title ? getFontSize() * 1.65 : 0
+	buildStaffYMap(staves, data.score.allowLayering, extents, titleBottom)
+	// Scroll mode is one system: indent it so the staff labels fit
+	scrollLabelIndent = getLayoutMode() === 'scroll' ? staffLabelIndent(staves, true, getFontSize() * 0.9) : 0
 	const stavePointers = staves.map(
 		(stave, staveIndex) => new StaveCursor(stave, staveIndex)
 	)
@@ -1377,6 +1760,12 @@ function score(dataOrContext) {
 	layoutTripletBrackets(drawing, staves)
 	/* Layout hairpin spans (adjust width to reach the next DynamicVariance or note) */
 	layoutHairpinSpans(drawing, staves)
+	/* Hairpins from note Crescendo/Diminuendo attributes */
+	layoutNoteHairpins(drawing, staves)
+	/* Anchor flow marks that follow a barline (Fine at the barline, Segno on the next bar) */
+	anchorFlowMarks(staves)
+	/* Keep dynamics/hairpins clear of notes and on a shared line */
+	resolveExpressionCollisions(staves)
 	/* Layout volta bracket spans */
 	layoutVoltaSpans(drawing, staves)
 
@@ -1410,6 +1799,74 @@ function hasTrailingBarline(tokens) {
 }
 
 /**
+ * How far a bar line on `staveIndex` extends below its staff to reach the
+ * next (non-layered) staff when connectBarsWithNext is set, else 0.
+ * Lyrics under the staff break the connection (the line would cross the
+ * text) unless `acrossLyrics` is set, as for the final bar line.
+ */
+function barConnectLength(staves, staveIndex, acrossLyrics) {
+	var stave = staves[staveIndex]
+	if (!stave || !stave.connectBarsWithNext || staveIndex >= staves.length - 1) return 0
+	var y = getStaffY(staveIndex)
+	if (!acrossLyrics) {
+		for (var si = staveIndex; si < staves.length - 1; si++) {
+			if (si > staveIndex && getStaffY(si) !== y) break
+			var lyrics = staves[si].lyrics
+			if (lyrics && lyrics.length && lyrics.some(function(l) { return l && l.length > 0 })) return 0
+		}
+	}
+	// Skip layered staves drawn at the same Y
+	var nextSi = staveIndex + 1
+	while (nextSi < staves.length - 1 && getStaffY(nextSi) === y) nextSi++
+	// From this staff's bottom line to the top line of the next
+	return Math.max(0, getStaffY(nextSi) - getFontSize() - y)
+}
+
+/**
+ * Draw the ending bar line of every staff at one shared X (just past the
+ * longest staff) so they line up and connect through the staff group, then
+ * the final stave segment of each staff up to it.
+ */
+function layoutEndingBarlines(drawing, staves, stavePointers) {
+	// endingBar staff property → BarStyle mapping
+	var endingBarStyles = [3, 7, 0, 1, 8] // SectionClose, MasterClose, Single, Double, Hidden
+	// Leave the last note its usual space after it (as before any barline),
+	// so a long final note isn't cramped against the ending barline
+	var endX = 0
+	stavePointers.forEach((cursor, staveIndex) => {
+		if (!hasTrailingBarline(staves[staveIndex].tokens)) {
+			var pad = Math.max(spacerWidth() * 2, (cursor.lastPadRight || 0) * X_STRETCH)
+			endX = Math.max(endX, cursor.staveX + pad)
+		}
+	})
+
+	stavePointers.forEach((cursor, staveIndex) => {
+		var stave = staves[staveIndex]
+		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
+
+		if (hasTrailingBarline(stave.tokens)) {
+			// Token stream already ends with a barline (MusicXML/MuseScore).
+			// Snap cursor back to the barline, then nudge past the thick
+			// line's right edge so the stave fully covers the barline.
+			cursor.staveX = cursor.lastBarline + getFontSize() / 16
+		} else if (ebStyle !== 8) { // not hidden
+			// NWC-style: place the ending barline, so the subsequent
+			// addStave() extends the stave lines to meet it.
+			cursor.staveX = endX
+			var eb = new Barline(0, 8, ebStyle)
+			eb.extendBelow = barConnectLength(staves, staveIndex, true)
+			cursor.posGlyph(eb)
+			drawing.add(eb)
+			// Nudge past the barline's right edge
+			cursor.incStaveX(getFontSize() / 16)
+		}
+
+		// Final stave segment extends to the ending/trailing barline
+		addStave(cursor, staveIndex)
+	})
+}
+
+/**
  * Original single-line (scroll) layout — draws staves, brackets, braces, labels,
  * title/author, and sizes the spacer for horizontal scrolling.
  */
@@ -1417,70 +1874,8 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var fs = getFontSize()
 
 	/* Layout staves */
-	// endingBar staff property → BarStyle mapping
-	var endingBarStyles = [3, 7, 0, 1, 8] // SectionClose, MasterClose, Single, Double, Hidden
-	stavePointers.forEach((cursor, staveIndex) => {
-		var stave = staves[staveIndex]
-		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
-		var trailing = hasTrailingBarline(stave.tokens)
-
-		if (trailing) {
-			// Token stream already ends with a barline (MusicXML/MuseScore).
-			// Snap cursor back to the barline, then nudge past the thick
-			// line's right edge so the stave fully covers the barline.
-			cursor.staveX = cursor.lastBarline + getFontSize() / 16
-		} else if (ebStyle !== 8) { // not hidden
-			// NWC-style: advance cursor and place ending barline, so the
-			// subsequent addStave() extends the stave lines to meet it.
-			cursor.incStaveX(spacerWidth() * 2)
-			var eb = new Barline(0, 8, ebStyle)
-			cursor.posGlyph(eb)
-			drawing.add(eb)
-			// Nudge past the barline's right edge
-			cursor.incStaveX(getFontSize() / 16)
-
-			// Connect ending barline between staves if appropriate
-			// Skip if lyrics exist between staves (same logic as regular barlines)
-			var hasEndLyrics = false
-			for (var elsi = staveIndex; elsi < staves.length - 1; elsi++) {
-				if (elsi > staveIndex && getStaffY(elsi) !== getStaffY(staveIndex)) break
-				var elLyrics = staves[elsi].lyrics
-				if (elLyrics && elLyrics.length && elLyrics.some(function(l) { return l && l.length > 0 })) {
-					hasEndLyrics = true
-					break
-				}
-			}
-			var shouldConnectEnd = stave && !hasEndLyrics && staveIndex < staves.length - 1 && (
-				stave.connectBarsWithNext ||
-				((stave.layerWithNext || stave.bracketWithNext) && currentAllowLayering)
-			)
-			if (shouldConnectEnd) {
-				var nextSi = staveIndex + 1
-				while (nextSi < staves.length - 1 && getStaffY(nextSi) === getStaffY(staveIndex)) {
-					nextSi++
-				}
-				let thisY = getStaffY(staveIndex) + getFontSize()
-				let nextY = getStaffY(nextSi)
-				if (nextY > thisY) {
-					let barX = cursor.staveX
-					let lw = ebStyle === 3 || ebStyle === 5 || ebStyle === 7
-						? getFontSize() / 8 : getFontSize() / 24
-					var connPath = new Claire.Path(function(ctx) {
-						ctx.beginPath()
-						ctx.lineWidth = lw
-						ctx.moveTo(barX, thisY)
-						ctx.lineTo(barX, nextY)
-						ctx.stroke()
-					})
-					drawing.add(connPath)
-				}
-			}
-		}
-
-		// Draw the final stave segment — extends to the ending barline
-		// position (or to the trailing barline for imported formats).
-		addStave(cursor, staveIndex)
-
+	layoutEndingBarlines(drawing, staves, stavePointers)
+	stavePointers.forEach(cursor => {
 		maxCanvasWidth = Math.max(cursor.staveX + 100, maxCanvasWidth)
 	})
 
@@ -1491,11 +1886,11 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	maxCanvasHeight = bottom + 100
 
 	// Clear page geometry (not in page mode)
-	_pageGeometry = null
+	_pageGeometry = window._pageGeometry = null
 
 	// Build system geometry (single system for scroll mode)
 	var firstStaffY = getStaffY(0)
-	var staveStartX = fs  // StaveCursor starts at getFontSize() in scroll mode
+	var staveStartX = fs + scrollLabelIndent  // where StaveCursor starts in scroll mode
 	_systemGeometry = [{
 		topY: firstStaffY - fs,
 		bottomY: lastStaveY,
@@ -1504,12 +1899,17 @@ function scoreScrollLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}]
 
 	// Build measure geometry from barline positions
+	centerMeasureRests(staves)
 	_measureGeometry = buildMeasureGeometry(staves)
 
-	drawBracketsAndBraces(drawing, staves, 0)
-	drawStaffLabels(drawing, staves, 0)
+	var systemLeftX = fs * 0.9 + scrollLabelIndent
+	drawBracketsAndBraces(drawing, staves, 0, systemLeftX)
+	drawStaffLabels(drawing, staves, 0, systemLeftX)
 	drawBarNumbers(drawing, staves, 0, fs, 1, 'scroll')
-	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
+	// Title block over the opening screen, not centred on the whole (long) line
+	var scoreElm = document.getElementById('score')
+	var visibleWidth = ((scoreElm?.clientWidth || 800) - 20) / getZoomLevel()
+	drawTitleAndAuthor(drawing, data, Math.min(maxCanvasWidth, visibleWidth))
 	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
 }
 
@@ -1522,9 +1922,14 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var scoreElm = document.getElementById('score')
 
 	// Determine the available page width (in score-space, before zoom).
-	// Use the viewport width minus small margins.
+	// The canvas is sized to clientWidth - 20 (see resizeToFit), so systems
+	// must fit within that, leaving room for the left bracket margin and a
+	// small right margin so the final barline of each system stays visible.
 	var zoom = getZoomLevel()
-	var pageWidth = (scoreElm?.clientWidth || 800) / zoom - fs * 1.5
+	var leftMargin = fs * 0.9  // space for brackets/braces/labels
+	var rightMargin = fs * 0.5
+	var visibleWidth = ((scoreElm?.clientWidth || 800) - 20) / zoom
+	var pageWidth = visibleWidth - leftMargin - rightMargin
 
 	// Calculate system height: distance from top of first stave to bottom
 	// of last stave, plus some padding.
@@ -1532,30 +1937,11 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var lastStaffY = getStaffY(staves.length - 1)
 	var systemHeight = (lastStaffY - firstStaffY) + fs  // top-of-first to bottom-of-last
 
-	var leftMargin = fs * 0.9  // space for brackets/braces/labels
-	var interSystemGap = fs * 1.5  // vertical gap between systems
+	var interSystemGap = computeInterSystemGap(staves)
 
 	// First, draw the ending barline on each stave in the single-line layout
 	// (so it gets reflowed with everything else).
-	var endingBarStyles = [3, 7, 0, 1, 8]
-	stavePointers.forEach((cursor, staveIndex) => {
-		var stave = staves[staveIndex]
-		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
-		var trailing = hasTrailingBarline(stave.tokens)
-
-		if (trailing) {
-			cursor.staveX = cursor.lastBarline + getFontSize() / 16
-		} else if (ebStyle !== 8) {
-			cursor.incStaveX(spacerWidth() * 2)
-			var eb = new Barline(0, 8, ebStyle)
-			cursor.posGlyph(eb)
-			drawing.add(eb)
-			cursor.incStaveX(getFontSize() / 16)
-		}
-
-		// Final stave segment extends to the ending/trailing barline
-		addStave(cursor, staveIndex)
-	})
+	layoutEndingBarlines(drawing, staves, stavePointers)
 
 	// Track the single-line total width before reflow
 	var singleLineWidth = 0
@@ -1629,6 +2015,15 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		courtesyWidths.push(maxCourtesyWidth + spacerWidth())
 	}
 
+	// Staff labels: indent systems whose labels don't fit in the left margin
+	// (normally just the first system, which carries the full names). The
+	// indent shifts content like a courtesy width does.
+	var labelIndents = []
+	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		labelIndents.push(staffLabelIndent(staves, sysIdx === 0, leftMargin))
+		courtesyWidths[sysIdx] += labelIndents[sysIdx]
+	}
+
 	// --- Compute per-system natural widths ---
 	var systemNaturalWidths = []
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
@@ -1639,6 +2034,12 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// --- Collect all note/rest anchor positions (single-line coords) ---
 	var allAnchors = collectAnchors(staves)
+
+	// The last system is left at its natural width unless it is too wide to
+	// fit; the line breaker accepts slightly overfull lines, which must be
+	// compressed like any other system.
+	var lastIdx = systemCount - 1
+	var lastFits = systemNaturalWidths[lastIdx] + courtesyWidths[lastIdx] <= pageWidth
 
 	// --- Build per-system barline maps for measure-level justification ---
 	// Extra space is distributed both between and within measures:
@@ -1652,7 +2053,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var naturalWidth = systemNaturalWidths[sysIdx]
 		var courtesyW = courtesyWidths[sysIdx]
 		var contentWidth = pageWidth - courtesyW
-		var isLastSystem = sysIdx === systemCount - 1
+		var isLastSystem = sysIdx === lastIdx && lastFits
 		var shouldJustify = !isLastSystem
 		var extraSpace = shouldJustify ? contentWidth - naturalWidth : 0
 
@@ -1682,7 +2083,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
 			var courtesyW = courtesyWidths[sysIdx]
 			var contentWidth = pageWidth - courtesyW
-			var isLastSystem = sysIdx === systemCount - 1
+			var isLastSystem = sysIdx === lastIdx && lastFits
 			var naturalWidth = systemNaturalWidths[sysIdx]
 			var shouldJustify = !isLastSystem
 			systemSpringMaps.push(shouldJustify
@@ -1690,6 +2091,14 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 				: null)
 		}
 	}
+
+	// Per-system vertical placement: each gap sized from its two systems
+	var systemGaps = computeSystemGaps(staves, breakXs)
+	var systemYs = [0]
+	for (var gk = 1; gk < systemCount; gk++) systemYs.push(systemYs[gk - 1] + systemHeight + systemGaps[gk - 1])
+
+	var spanContinuations = []
+	var openRepeats = []
 
 	// --- Reflow all existing drawing elements into systems with justification ---
 	for (const el of drawing.set) {
@@ -1702,6 +2111,8 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			if (el.x > breakXs[i]) sysIdx = i + 1
 			else break
 		}
+
+		openRepeatAtBreak(el, sysIdx, breakXs, openRepeats)
 
 		// Compute relative X within this system
 		var systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
@@ -1739,42 +2150,74 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		// at different positions within the system, so recompute the width.
 		else if (el.endx != null && el.width != null) {
 			var origEndAbsX = el.x + el.width
-			var relEnd = origEndAbsX - systemStartX
-
 			el.x = justify(relX) + leftMargin + courtesyW
-			var justEnd = justify(relEnd) + leftMargin + courtesyW
+
+			// A tie/slur may end in a later system: place its end point in
+			// that system (its own justification and offsets) so that
+			// splitCrossSystemTies sees the two systems and draws partial arcs.
+			var endSysIdx = sysIdx
+			while (endSysIdx < breakXs.length && origEndAbsX > breakXs[endSysIdx]) endSysIdx++
+			var endStartX = endSysIdx === 0 ? 0 : breakXs[endSysIdx - 1]
+			var endSpring = useSpring ? systemSpringMaps[endSysIdx] : null
+			var endBarMap = systemBarlineMaps[endSysIdx]
+			var relEnd = origEndAbsX - endStartX
+			var justEnd = (endSpring ? springJustifyX(relEnd, endSpring) : computeJustifyX(relEnd, endBarMap)) +
+				leftMargin + courtesyWidths[endSysIdx]
 			el.width = justEnd - el.x
 			el.endx = justEnd
+			el._endYShift = systemYs[endSysIdx] - systemYs[sysIdx]
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
+		}
+		// Spanners (hairpins, volta brackets): justify the end point too, and
+		// stop at the end of the system rather than running off the edge.
+		else if (el.spanWidth != null) {
+			var spanOrigX = el.x, spanOrigEnd = el.x + el.spanWidth
+			var spanSysEnd = sysIdx < breakXs.length ? breakXs[sysIdx] : Infinity
+			var spanEnd = Math.min(spanOrigEnd, spanSysEnd)
+			el.x = justify(relX) + leftMargin + courtesyW
+			var spanW = Math.max(fs * 0.5, justify(spanEnd - systemStartX) + leftMargin + courtesyW - el.x)
+			el.spanWidth = el.width = spanW
+			// A hairpin running past the line break continues on the next system(s)
+			if (spanOrigEnd > spanSysEnd && el instanceof Hairpin) {
+				spanContinuations.push({ el: el, sysIdx: sysIdx, origX: spanOrigX, origEnd: spanOrigEnd })
+			}
 		}
 		else {
 			el.x = justify(relX) + leftMargin + courtesyW
 		}
 
 		// Shift Y: add the system's vertical offset
-		var yShift = sysIdx * (systemHeight + interSystemGap)
+		var yShift = systemYs[sysIdx]
 		el.y = el.y + yShift
 
 		// For Tie objects, also shift the absolute end-Y coordinate
+		// (by the end system's offset when it ends in a later system)
 		if (el.endy != null) {
-			el.endy = el.endy + yShift
+			el.endy = el.endy + yShift + (el._endYShift || 0)
 		}
 	}
+
+	addHairpinContinuations(drawing, spanContinuations, breakXs, function(k, relX) {
+		var sm = useSpring ? systemSpringMaps[k] : null
+		return (sm ? springJustifyX(relX, sm) : computeJustifyX(relX, systemBarlineMaps[k])) + leftMargin + courtesyWidths[k]
+	}, function(k) { return systemYs[k] })
+	moveOpenRepeats(drawing, openRepeats, function(k) { return leftMargin + courtesyWidths[k] }, function(k) { return systemYs[k] })
 
 	// --- Draw per-system stave lines, brackets, braces, labels, and courtesy items ---
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
 		var naturalWidth = systemNaturalWidths[sysIdx]
-		var isLastSystem = sysIdx === systemCount - 1
+		var isLastSystem = sysIdx === lastIdx && lastFits
 		var courtesyW = courtesyWidths[sysIdx]
 		var contentWidth = pageWidth - courtesyW
 		var justifiedWidth = isLastSystem
 			? naturalWidth + courtesyW : pageWidth
-		var yOffset = sysIdx * (systemHeight + interSystemGap)
+		var yOffset = systemYs[sysIdx]
+		var sysLeft = leftMargin + labelIndents[sysIdx]
 
 		for (var si = 0; si < staves.length; si++) {
-			var staveEl = new Stave(justifiedWidth)
-			staveEl.moveTo(leftMargin, getStaffY(si) + yOffset)
+			var staveEl = new Stave(justifiedWidth - labelIndents[sysIdx])
+			staveEl.moveTo(sysLeft, getStaffY(si) + yOffset)
 			drawing.add(staveEl)
 		}
 
@@ -1790,53 +2233,114 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 				)
 				for (var cei = 0; cei < elements.length; cei++) {
 					// Position courtesy items after the left margin
-					elements[cei].x += leftMargin
+					elements[cei].x += sysLeft
 					drawing.add(elements[cei])
 				}
 			}
 		}
 
 		// Draw brackets, braces, and labels for each system
-		drawBracketsAndBraces(drawing, staves, yOffset, leftMargin)
-		drawStaffLabels(drawing, staves, yOffset, leftMargin)
+		drawBracketsAndBraces(drawing, staves, yOffset, sysLeft)
+		drawStaffLabels(drawing, staves, yOffset, sysLeft, sysIdx === 0)
 
 		// Draw bar number at system start
-		var firstMeasure = sysIdx === 0 ? 1 : systemBreaks[sysIdx - 1].boundaryIndex + 2
-		drawBarNumbers(drawing, staves, yOffset, leftMargin, firstMeasure)
+		var firstMeasure = sysIdx === 0 ? 1 : boundaries[systemBreaks[sysIdx - 1].boundaryIndex].measure
+		drawBarNumbers(drawing, staves, yOffset, sysLeft, firstMeasure)
 	}
 
 	// Calculate canvas dimensions for wrapped layout
-	var totalHeight = systemCount * (systemHeight + interSystemGap) + firstStaffY
-	maxCanvasWidth = pageWidth + leftMargin + fs
+	var totalHeight = systemYs[systemCount - 1] + systemHeight + systemGaps[systemCount - 1] + firstStaffY
+	maxCanvasWidth = leftMargin + pageWidth + rightMargin
 	maxCanvasHeight = totalHeight + fs * 2
 
 	// Split ties/slurs that cross system breaks into partial arcs
 	splitCrossSystemTies(drawing, systemHeight, interSystemGap)
 
 	// Clear page geometry (not in page mode)
-	_pageGeometry = null
+	_pageGeometry = window._pageGeometry = null
 
 	// Build system geometry for playback cursor spanning
 	_systemGeometry = []
 	for (var gi = 0; gi < systemCount; gi++) {
-		var gYOffset = gi * (systemHeight + interSystemGap)
+		var gYOffset = systemYs[gi]
 		var sysNatWidth = systemNaturalWidths[gi]
 		var sysCourtW = courtesyWidths[gi]
-		var isLastSys = gi === systemCount - 1
+		var isLastSys = gi === lastIdx && lastFits
 		var sysJustW = isLastSys ? sysNatWidth + sysCourtW : pageWidth
 		_systemGeometry.push({
 			topY: firstStaffY + gYOffset - fs,
 			bottomY: lastStaffY + gYOffset,
-			startX: leftMargin,
+			startX: leftMargin + labelIndents[gi],
 			endX: leftMargin + sysJustW,
 		})
 	}
 
 	// Build measure geometry from barline positions
+	centerMeasureRests(staves)
 	_measureGeometry = buildMeasureGeometry(staves)
 
 	drawTitleAndAuthor(drawing, data, maxCanvasWidth)
 	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
+}
+
+/**
+ * Continue hairpins that cross a system break: the reflowed first part ends
+ * at the system edge with a partial opening, and each later system gets a
+ * segment from its content start, openings interpolated along the original
+ * single-line span so the wedge keeps widening (or narrowing) smoothly.
+ * placeX(k, relX) maps a single-line X relative to system k's start to its
+ * final X; systemY(k) is system k's vertical offset.
+ */
+function addHairpinContinuations(drawing, continuations, breakXs, placeX, systemY) {
+	var fs = getFontSize()
+	for (var c of continuations) {
+		var el = c.el
+		var total = c.origEnd - c.origX
+		var cresc = el.style === 'Crescendo'
+		var openAt = function(x) { var f = Math.min(1, Math.max(0, (x - c.origX) / total)); return cresc ? f : 1 - f }
+		el.endOpen = openAt(breakXs[c.sysIdx])
+		el.startOpen = cresc ? 0 : 1
+		for (var k = c.sysIdx + 1; k <= breakXs.length; k++) {
+			var segStart = breakXs[k - 1]
+			if (c.origEnd <= segStart) break
+			var segEnd = k < breakXs.length ? Math.min(c.origEnd, breakXs[k]) : c.origEnd
+			var x0 = placeX(k, 0)
+			var x1 = placeX(k, segEnd - segStart)
+			var part = new Hairpin(el.style, Math.max(fs * 0.5, x1 - x0))
+			part.x = x0
+			part.y = el.y - systemY(c.sysIdx) + systemY(k)
+			part.offsetY = el.offsetY
+			part.startOpen = openAt(segStart)
+			part.endOpen = openAt(segEnd)
+			drawing.add(part)
+		}
+	}
+}
+
+/**
+ * A repeat-open barline that falls on a line break: engraving closes the
+ * line with a plain barline and opens the next one with the repeat sign
+ * (after its courtesy clef/key). openRepeatAtBreak() records candidates
+ * during reflow (single-line x, before reassignment); moveOpenRepeats()
+ * applies the change once systems are placed.
+ */
+function openRepeatAtBreak(el, sysIdx, breakXs, list) {
+	if (el.constructor.name !== 'Barline' || (el.style !== 4 && el.style !== 6)) return
+	if (sysIdx >= breakXs.length || Math.abs(el.x - breakXs[sysIdx]) > getFontSize() * 0.5) return
+	list.push({ el: el, sysIdx: sysIdx })
+}
+
+function moveOpenRepeats(drawing, list, contentStartX, systemY) {
+	var fs = getFontSize()
+	for (var r of list) {
+		var el = r.el
+		var opening = new el.constructor(0, el.len, el.style)
+		opening.x = contentStartX(r.sysIdx + 1) - fs * 0.45
+		opening.y = el.y - systemY(r.sysIdx) + systemY(r.sysIdx + 1)
+		opening.offsetY = el.offsetY
+		drawing.add(opening)
+		el.style = 0
+	}
 }
 
 /**
@@ -1875,6 +2379,28 @@ function _drawPageBackgrounds(ctx, pg) {
 }
 
 /**
+ * Paint one page of the current page layout onto a new canvas at `scale`
+ * device pixels per score pixel (96 DPI), for PDF export.  Unlike the
+ * on-screen view nothing outside the window is culled, and playback
+ * highlights and print-look effects are left out.
+ */
+function renderPage(pageIdx, scale) {
+	var pg = _pageGeometry
+	if (!pg || pageIdx < 0 || pageIdx >= pg.pageCount) return null
+	var pos = pg.pagePositions[pageIdx]
+	var out = document.createElement('canvas')
+	out.width = Math.round(pg.pageWidth * scale)
+	out.height = Math.round(pg.pageHeight * scale)
+	var ctx = out.getContext('2d')
+	ctx.fillStyle = '#ffffff'
+	ctx.fillRect(0, 0, out.width, out.height)
+	ctx.scale(scale, scale)
+	ctx.translate(-pos.x, -pos.y)
+	drawing.draw(ctx, { x: pos.x, y: pos.y, width: pg.pageWidth, height: pg.pageHeight })
+	return out
+}
+
+/**
  * Page layout — renders the score onto fixed-size pages (Letter or A4) with
  * margins, page breaks, and a PDF-viewer appearance.
  *
@@ -1895,28 +2421,11 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var firstStaffY = getStaffY(0)
 	var lastStaffY = getStaffY(staves.length - 1)
 	var systemHeight = (lastStaffY - firstStaffY) + fs
-	var interSystemGap = fs * 1.5
+	var interSystemGap = computeInterSystemGap(staves)
 	var leftMargin = margins.left
 
 	// --- Draw ending barlines (same as wrap mode) ---
-	var endingBarStyles = [3, 7, 0, 1, 8]
-	stavePointers.forEach((cursor, staveIndex) => {
-		var stave = staves[staveIndex]
-		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
-		var trailing = hasTrailingBarline(stave.tokens)
-
-		if (trailing) {
-			cursor.staveX = cursor.lastBarline + getFontSize() / 16
-		} else if (ebStyle !== 8) {
-			cursor.incStaveX(spacerWidth() * 2)
-			var eb = new Barline(0, 8, ebStyle)
-			cursor.posGlyph(eb)
-			drawing.add(eb)
-			cursor.incStaveX(getFontSize() / 16)
-		}
-
-		addStave(cursor, staveIndex)
-	})
+	layoutEndingBarlines(drawing, staves, stavePointers)
 
 	var singleLineWidth = 0
 	stavePointers.forEach(cursor => {
@@ -1973,6 +2482,13 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		courtesyWidths.push(maxCourtesyWidth + spacerWidth())
 	}
 
+	// Staff label indents (see scoreWrapLayout)
+	var labelIndents = []
+	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
+		labelIndents.push(staffLabelIndent(staves, sysIdx === 0, leftMargin))
+		courtesyWidths[sysIdx] += labelIndents[sysIdx]
+	}
+
 	// --- Per-system natural widths ---
 	var systemNaturalWidths = []
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
@@ -1980,6 +2496,10 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
 		systemNaturalWidths.push(sysEndX - sysStartX)
 	}
+
+	// Last system: natural width only if it fits (see scoreWrapLayout)
+	var lastIdx = systemCount - 1
+	var lastFits = systemNaturalWidths[lastIdx] + courtesyWidths[lastIdx] <= contentW
 
 	// --- Collect anchors and build per-system barline maps (same as wrap) ---
 	var allAnchors = collectAnchors(staves)
@@ -1990,7 +2510,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var naturalWidth = systemNaturalWidths[sysIdx]
 		var courtesyW = courtesyWidths[sysIdx]
 		var sysContentW = contentW - courtesyW
-		var isLastSystem = sysIdx === systemCount - 1
+		var isLastSystem = sysIdx === lastIdx && lastFits
 		var shouldJustify = !isLastSystem
 		var extraSpace = shouldJustify ? sysContentW - naturalWidth : 0
 
@@ -2018,7 +2538,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var sysEndX = sysIdx < breakXs.length ? breakXs[sysIdx] : singleLineWidth
 			var courtesyW = courtesyWidths[sysIdx]
 			var sysContentW = contentW - courtesyW
-			var isLastSystem = sysIdx === systemCount - 1
+			var isLastSystem = sysIdx === lastIdx && lastFits
 			var naturalWidth = systemNaturalWidths[sysIdx]
 			var shouldJustify = !isLastSystem
 			systemSpringMapsPage.push(shouldJustify
@@ -2032,12 +2552,20 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var fs = getFontSize()
 	var titleHeight = 0
 	if (data.info?.title) titleHeight += Math.round(fs * 1.07)
-	if (data.info?.author) titleHeight += Math.round(fs * 0.71)
+	if (data.info?.author || data.info?.lyricist) titleHeight += Math.round(fs * 0.71)
 	if (titleHeight > 0) titleHeight += Math.round(fs * 0.54)  // gap after title block
+
+	// Room above each page's first system for its top staff line and any
+	// content standing above it (high notes, tempo marks, voltas).
+	var topClearance = computeSystemTopClearance(staves)
+	var firstTopClearance = computeSystemTopClearance(staves, true)
+
+	// Gap below each system, sized from its own content (see computeSystemGaps)
+	var systemGaps = computeSystemGaps(staves, breakXs)
 
 	var pages = []        // [{systemStart, systemEnd}]
 	var currentPage = 0
-	var currentPageY = titleHeight  // start after title on page 1
+	var currentPageY = titleHeight + firstTopClearance  // start after title on page 1
 	var pageStart = 0
 
 	for (var sysIdx = 0; sysIdx < systemCount; sysIdx++) {
@@ -2047,10 +2575,10 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			// Finish current page
 			pages.push({ systemStart: pageStart, systemEnd: sysIdx - 1 })
 			currentPage++
-			currentPageY = 0
+			currentPageY = topClearance
 			pageStart = sysIdx
 		}
-		currentPageY += sysH + interSystemGap
+		currentPageY += sysH + systemGaps[sysIdx]
 	}
 	// Last page
 	pages.push({ systemStart: pageStart, systemEnd: systemCount - 1 })
@@ -2125,15 +2653,20 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var page = pages[pi]
 		var pos = pagePositions[pi]
 		var pageContentY = pos.y + margins.top
-		var localY = (pi === 0) ? titleHeight : 0
+		// localY tracks the top line of each system's first staff;
+		// systemYOffsets holds that staff's bottom line (one staff height lower).
+		var localY = (pi === 0) ? titleHeight + firstTopClearance : topClearance
 
 		for (var si = page.systemStart; si <= page.systemEnd; si++) {
-			systemYOffsets[si] = pageContentY + localY
+			systemYOffsets[si] = pageContentY + localY + fs
 			// X offset: difference between this page's x and the default horizontalPad
 			systemXOffsets[si] = pos.x - horizontalPad
-			localY += systemHeight + interSystemGap
+			localY += systemHeight + systemGaps[si]
 		}
 	}
+
+	var spanContinuationsP = []
+	var openRepeatsP = []
 
 	// --- Reflow drawing elements ---
 	for (const el of drawing.set) {
@@ -2144,6 +2677,8 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			if (el.x > breakXs[i]) sysIdx = i + 1
 			else break
 		}
+
+		openRepeatAtBreak(el, sysIdx, breakXs, openRepeatsP)
 
 		var systemStartX = sysIdx === 0 ? 0 : breakXs[sysIdx - 1]
 		var relX = el.x - systemStartX
@@ -2174,14 +2709,32 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			el.endX = justEnd - justOrigin
 		} else if (el.endx != null && el.width != null) {
 			var origEndAbsX = el.x + el.width
-			var relEnd = origEndAbsX - systemStartX
-
 			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
-			var justEnd = justifyP(relEnd) + leftMargin + courtesyW + horizontalPad + xPageShift
+
+			// End point in its own system (see scoreWrapLayout)
+			var endSysIdx = sysIdx
+			while (endSysIdx < breakXs.length && origEndAbsX > breakXs[endSysIdx]) endSysIdx++
+			var endStartX = endSysIdx === 0 ? 0 : breakXs[endSysIdx - 1]
+			var endSpring = useSpringPage ? systemSpringMapsPage[endSysIdx] : null
+			var relEnd = origEndAbsX - endStartX
+			var justEnd = (endSpring ? springJustifyX(relEnd, endSpring) : computeJustifyX(relEnd, systemBarlineMaps[endSysIdx])) +
+				leftMargin + courtesyWidths[endSysIdx] + horizontalPad + systemXOffsets[endSysIdx]
 			el.width = justEnd - el.x
 			el.endx = justEnd
+			el._endYShift = systemYOffsets[endSysIdx] - systemYOffsets[sysIdx]
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
+		} else if (el.spanWidth != null) {
+			// Spanners: justify the end point, clipped to the system (see scoreWrapLayout)
+			var spanOrigXP = el.x, spanOrigEndP = el.x + el.spanWidth
+			var spanSysEndP = sysIdx < breakXs.length ? breakXs[sysIdx] : Infinity
+			var spanEndP = Math.min(spanOrigEndP, spanSysEndP)
+			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
+			var spanWP = Math.max(fs * 0.5, justifyP(spanEndP - systemStartX) + leftMargin + courtesyW + horizontalPad + xPageShift - el.x)
+			el.spanWidth = el.width = spanWP
+			if (spanOrigEndP > spanSysEndP && el instanceof Hairpin) {
+				spanContinuationsP.push({ el: el, sysIdx: sysIdx, origX: spanOrigXP, origEnd: spanOrigEndP })
+			}
 		} else {
 			el.x = justifyP(relX) + leftMargin + courtesyW + horizontalPad + xPageShift
 		}
@@ -2191,22 +2744,31 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		el.y = el.y + yShift
 
 		if (el.endy != null) {
-			el.endy = el.endy + yShift
+			el.endy = el.endy + yShift + (el._endYShift || 0)
 		}
 	}
+
+	addHairpinContinuations(drawing, spanContinuationsP, breakXs, function(k, relX) {
+		var sm = useSpringPage ? systemSpringMapsPage[k] : null
+		return (sm ? springJustifyX(relX, sm) : computeJustifyX(relX, systemBarlineMaps[k])) +
+			leftMargin + courtesyWidths[k] + horizontalPad + systemXOffsets[k]
+	}, function(k) { return systemYOffsets[k] })
+	moveOpenRepeats(drawing, openRepeatsP, function(k) {
+		return leftMargin + courtesyWidths[k] + horizontalPad + systemXOffsets[k]
+	}, function(k) { return systemYOffsets[k] })
 
 	// --- Draw per-system stave lines, brackets, braces, labels, courtesy items ---
 	for (let sysIdx = 0; sysIdx < systemCount; sysIdx++) {
 		var naturalWidth = systemNaturalWidths[sysIdx]
-		var isLastSystem = sysIdx === systemCount - 1
+		var isLastSystem = sysIdx === lastIdx && lastFits
 		var courtesyW = courtesyWidths[sysIdx]
 		var justifiedWidth = isLastSystem
 			? naturalWidth + courtesyW : contentW
 		var yOffset = systemYOffsets[sysIdx] - firstStaffY
-		var xBase = leftMargin + horizontalPad + systemXOffsets[sysIdx]
+		var xBase = leftMargin + horizontalPad + systemXOffsets[sysIdx] + labelIndents[sysIdx]
 
 		for (var si = 0; si < staves.length; si++) {
-			var staveEl = new Stave(justifiedWidth)
+			var staveEl = new Stave(justifiedWidth - labelIndents[sysIdx])
 			staveEl.moveTo(xBase, getStaffY(si) + yOffset)
 			drawing.add(staveEl)
 		}
@@ -2229,10 +2791,10 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		}
 
 		drawBracketsAndBraces(drawing, staves, yOffset, xBase)
-		drawStaffLabels(drawing, staves, yOffset, xBase)
+		drawStaffLabels(drawing, staves, yOffset, xBase, sysIdx === 0)
 
 		// Draw bar number at system start
-		var firstMeasureP = sysIdx === 0 ? 1 : systemBreaks[sysIdx - 1].boundaryIndex + 2
+		var firstMeasureP = sysIdx === 0 ? 1 : boundaries[systemBreaks[sysIdx - 1].boundaryIndex].measure
 		drawBarNumbers(drawing, staves, yOffset, xBase, firstMeasureP)
 	}
 
@@ -2241,22 +2803,8 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var page1TopY = page1Pos.y + margins.top
 	var titleCenterX = page1Pos.x + PAGE_W / 2
 	var titleFs = getFontSize()
-	if (data.info?.title) {
-		const titleDraw = new Claire.Text(data.info.title, 0, {
-			font: 'bold ' + Math.round(titleFs * 0.71) + 'px ' + getMusicTextFamily(),
-			textAlign: 'center',
-		})
-		titleDraw.moveTo(titleCenterX, page1TopY + Math.round(titleFs * 0.36))
-		drawing.add(titleDraw)
-	}
-	if (data.info?.author) {
-		const authorDraw = new Claire.Text(data.info.author, 0, {
-			font: 'italic ' + Math.round(titleFs * 0.50) + 'px ' + getMusicTextFamily(),
-			textAlign: 'center',
-		})
-		authorDraw.moveTo(titleCenterX, page1TopY + Math.round(titleFs * 1.07))
-		drawing.add(authorDraw)
-	}
+	addTitleBlock(drawing, data.info || {}, page1Pos.x + margins.left, page1Pos.x + PAGE_W - margins.right,
+		page1TopY + Math.round(titleFs * 0.36), page1TopY + Math.round(titleFs * 1.07))
 
 	// --- Footer ---
 	var { copyright1, copyright2 } = data.info || {}
@@ -2308,19 +2856,20 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	for (var gi = 0; gi < systemCount; gi++) {
 		var sysNatWidthP = systemNaturalWidths[gi]
 		var sysCourtWP = courtesyWidths[gi]
-		var isLastSysP = gi === systemCount - 1
+		var isLastSysP = gi === lastIdx && lastFits
 		var sysJustWP = isLastSysP ? sysNatWidthP + sysCourtWP : contentW
-		var sysXBase = leftMargin + horizontalPad + systemXOffsets[gi]
+		var sysXBase = leftMargin + horizontalPad + systemXOffsets[gi] + labelIndents[gi]
 		// After reflow, first staff bottom line is at systemYOffsets[gi]
 		_systemGeometry.push({
 			topY: systemYOffsets[gi] - fs,
 			bottomY: systemYOffsets[gi] + (lastStaffY - firstStaffY),
 			startX: sysXBase,
-			endX: sysXBase + sysJustWP,
+			endX: sysXBase - labelIndents[gi] + sysJustWP,
 		})
 	}
 
 	// Build measure geometry from barline positions
+	centerMeasureRests(staves)
 	_measureGeometry = buildMeasureGeometry(staves)
 
 	// --- Canvas sizing ---
@@ -2344,7 +2893,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 	var fs = getFontSize()
 	var sysBarX = leftMarginOverride !== undefined ? leftMarginOverride : fs * 0.9
-	var bracketX = leftMarginOverride !== undefined ? leftMarginOverride * 0.6 : fs * 0.55
+	var bracketX = sysBarX - fs * 0.36
 
 	function visibleStaffY(si) {
 		return getStaffY(si) + yOffset
@@ -2445,23 +2994,82 @@ function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 	}
 }
 
+var LABEL_GAP_SCALE = 1.0  // label right edge to system barline, clears brackets and braces
+
+function staffLabelFont() {
+	return Math.round(getFontSize() * 0.5) + 'px ' + getMusicTextFamily()
+}
+
 /**
- * Draw staff labels to the left of each visible stave.
+ * Label text per staff for one system ('' = none). The first system shows
+ * full labels; later systems show abbreviations (nwctxt LabelAbbr) unless
+ * the file asks for full labels on all systems. Layered staves share one.
  */
-function drawStaffLabels(drawing, staves, yOffset, leftMarginOverride) {
+function staffLabelsForSystem(staves, isFirstSystem) {
+	var mode = currentStaffLabelMode
+	var full = isFirstSystem || mode === 'All Systems'
+	return staves.map(function(st, i) {
+		if (mode === 'None') return ''
+		if (i > 0 && getStaffY(i) === getStaffY(i - 1)) return ''
+		// Blank labels (names of only spaces) take no room
+		return ((full ? st.staff_label : st.staff_label_abbr) || '').trim()
+	})
+}
+
+function measureStaffLabels(labels) {
+	var ctx = window.ctx
+	if (!ctx) return 0
+	ctx.save()
+	ctx.font = staffLabelFont()
+	var maxW = 0
+	for (var i = 0; i < labels.length; i++) {
+		if (labels[i]) maxW = Math.max(maxW, ctx.measureText(labels[i]).width)
+	}
+	ctx.restore()
+	return maxW
+}
+
+/**
+ * Extra left indent a system needs so its labels fit before the bracket,
+ * given the left margin already available.
+ */
+function staffLabelIndent(staves, isFirstSystem, availableLeft) {
+	var maxW = measureStaffLabels(staffLabelsForSystem(staves, isFirstSystem))
+	if (!maxW) return 0
 	var fs = getFontSize()
+	return Math.max(0, Math.ceil(maxW + fs * (LABEL_GAP_SCALE + 0.2) - availableLeft))
+}
+
+/**
+ * Draw staff labels right-aligned to the left of each visible stave.
+ * systemLeftX is the system barline X; layouts indent it via
+ * staffLabelIndent() so labels fit. Without an indent (scroll mode), labels
+ * that would run off the left edge are skipped.
+ */
+function drawStaffLabels(drawing, staves, yOffset, systemLeftX, isFirstSystem) {
+	var fs = getFontSize()
+	var sysLeft = systemLeftX !== undefined ? systemLeftX : fs * 0.9
+	var rightX = sysLeft - fs * LABEL_GAP_SCALE
+	var labels = staffLabelsForSystem(staves, isFirstSystem !== false)
+	var ctx = window.ctx
 	for (var li = 0; li < staves.length; li++) {
-		var label = staves[li].staff_label || ''
+		var label = labels[li]
 		if (!label) continue
-		// Skip duplicate labels for layered staves at the same Y
-		if (li > 0 && getStaffY(li) === getStaffY(li - 1)) continue
-		var labelY = getStaffY(li) + yOffset - fs * 0.5 // vertically centered on staff
-		var labelX = leftMarginOverride !== undefined ? leftMarginOverride * 0.05 : fs * 0.05
+		if (ctx && systemLeftX === undefined) {
+			ctx.save()
+			ctx.font = staffLabelFont()
+			var w = ctx.measureText(label).width
+			ctx.restore()
+			if (w > rightX) continue
+		}
+		// Staff spans getStaffY - fs (top line) to getStaffY (bottom line);
+		// put the text baseline a little below the middle line.
+		var labelY = getStaffY(li) + yOffset - fs * 0.5 + fs * 0.17
 		var labelDraw = new Claire.Text(label, 0, {
-			font: Math.round(fs * 0.6) + 'px ' + getMusicTextFamily(),
-			textAlign: 'left',
+			font: staffLabelFont(),
+			textAlign: 'right',
 		})
-		labelDraw.moveTo(labelX, labelY)
+		labelDraw.moveTo(rightX, labelY)
 		drawing.add(labelDraw)
 	}
 }
@@ -2506,14 +3114,13 @@ function drawBarNumbers(drawing, staves, yOffset, leftMarginX, firstMeasureNum, 
 				break
 			}
 		}
-		var barNum = 1
+		var counter = measureCounter()
 		for (var i = 0; i < tokens.length; i++) {
 			var tok = tokens[i]
-			if (tok.type !== 'Barline' || !tok.drawingBarline) continue
 			if (i > lastNoteIdx) break  // trailing barline — no new measure
-			barNum++
+			if (!counter(tok) || !tok.drawingBarline) continue
 			var bx = tok.drawingBarline.x
-			var barNumDraw = new Claire.Text(String(barNum), 0, {
+			var barNumDraw = new Claire.Text(String(counter.measure), 0, {
 				font: numFont,
 				textAlign: 'center',
 			})
@@ -2526,28 +3133,40 @@ function drawBarNumbers(drawing, staves, yOffset, leftMarginX, firstMeasureNum, 
 /**
  * Draw title and author centered above the score.
  */
+/**
+ * Title block as NWC prints it: title centered (PageTitleText style), author
+ * right-aligned and lyricist left-aligned on the line below (PageText).
+ * titleY/creditY are baselines.
+ */
+function addTitleBlock(drawing, info, left, right, titleY, creditY) {
+	_titleFields = []
+	var add = function(field, x, y, align, font) {
+		var text = info[field] || ''
+		// Record every field, empty ones too, so they can be edited in place
+		_titleFields.push({ field: field, text: text, x: x, y: y, align: align, font: font })
+		if (!text) return
+		var t = new Claire.Text(text, 0, { font: font, textAlign: align })
+		t.moveTo(x, y)
+		drawing.add(t)
+	}
+	add('title', (left + right) / 2, titleY, 'center', textFontCss(3))
+	add('author', right, creditY, 'right', textFontCss(4))
+	add('lyricist', left, creditY, 'left', textFontCss(4))
+}
+
+// Title block fields of the last layout: { field, text, x, y (baseline),
+// align, font } in score space.  Read by the click-to-edit title editor.
+var _titleFields = []
+
+function getTitleFields() {
+	return _titleFields
+}
+
 function drawTitleAndAuthor(drawing, data, canvasWidth) {
-	var { title, author, copyright1, copyright2 } = data.info || {}
-
-	var middle = canvasWidth / 2
+	var { copyright1, copyright2 } = data.info || {}
 	var fs = getFontSize()
-	if (title) {
-		const titleDrawing = new Claire.Text(title, 0, {
-			font: 'bold ' + Math.round(fs * 0.71) + 'px ' + getMusicTextFamily(),
-			textAlign: 'center',
-		})
-		titleDrawing.moveTo(middle, Math.round(fs * 1.43))
-		drawing.add(titleDrawing)
-	}
-
-	if (author) {
-		const authorDrawing = new Claire.Text(author, 0, {
-			font: 'italic ' + Math.round(fs * 0.50) + 'px ' + getMusicTextFamily(),
-			textAlign: 'center',
-		})
-		authorDrawing.moveTo(middle, Math.round(fs * 2.14))
-		drawing.add(authorDrawing)
-	}
+	addTitleBlock(drawing, data.info || {}, fs * 0.9, canvasWidth - fs * 0.5,
+		Math.round(fs * 1.43), Math.round(fs * 2.14))
 	var footerEl = document.getElementById('footer')
 	if (footerEl) footerEl.innerText = (copyright1 || '') + '\n' + (copyright2 || '')
 }
@@ -2572,9 +3191,16 @@ function sizeSpacerAndRender(canvas, canvasWidth, canvasHeight) {
 	quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 }
 
+// Scroll-mode indent (px) that makes room for staff labels; set by score()
+var scrollLabelIndent = 0
+
 // Computed Y positions for each stave, respecting WithNextStaff flags.
 // Built once per score() call; consumed by getStaffY().
 var staffYMap = []
+var currentExtents = [] // per-staff content extents from computeStaffExtents()
+var currentStaffLabelMode = ''
+var currentTextFonts = [] // file font table (NWC style order), see textFontCss()
+var currentStaffSizePt = 16 // file staff height in points; text sizes are relative to it // nwctxt PgSetup StaffLabels: None | First System | Top Systems | All Systems
 var currentStaves = [] // reference to current staves array for handleToken
 var currentAllowLayering = true // file-level allowLayering flag
 
@@ -2586,77 +3212,151 @@ var currentAllowLayering = true // file-level allowLayering flag
  * Estimates stem length as ~7 half-spaces from the notehead (one octave).
  * Accounts for dynamics below and tempo/flow marks above.
  */
+/**
+ * Vertical extent of one token in drawing-frame staff positions (bottom line
+ * 0, top line 8), or null when it takes no vertical room. Used by the staff
+ * extents and the per-system gap computation.
+ */
+var EXTENT_MARK_DEFAULTS = { Text: 11, Tempo: 11, PerformanceStyle: 9, Dynamic: -13, DynamicVariance: -13, TempoVariance: 11, Flow: 11 }
+function tokenExtent(tok) {
+	if (tok.Visibility === 'Never') return null
+	if (tok.type === 'Note' || tok.type === 'Rest' || (tok.type === 'Chord' && tok.notes)) {
+		var positions = tok.notes ? tok.notes.map(function(n) { return (n.position || 0) + 4 }) : [(tok.position || 0) + 4]
+		var lo = Math.min.apply(null, positions) - 1, hi = Math.max.apply(null, positions) + 1
+		// Stem tip ~7 half-spaces from the notehead on the stem side
+		if (tok.type !== 'Rest' && tok.duration > 1) {
+			var stemUp = tok.stem === 1 || (tok.stem !== 2 && (4 - (lo + 1)) >= ((hi - 1) - 4))
+			if (stemUp) hi = Math.max(hi, hi - 1 + 7)
+			else lo = Math.min(lo, lo + 1 - 7)
+		}
+		return { lo: lo, hi: hi, note: true }
+	}
+	if (tok.type in EXTENT_MARK_DEFAULTS) {
+		var base = (tok.position !== undefined ? tok.position : EXTENT_MARK_DEFAULTS[tok.type]) + 4
+		return { lo: base - 1, hi: base + 3.5 }
+	}
+	if (tok.type === 'Ending') return { lo: 8, hi: 16 }
+	return null
+}
+
+/**
+ * Gap below each system: from the bottom line of its last staff group to the
+ * top line of the next system's first group, sized from the content of
+ * those two systems only (lyrics, low notes, text blocks below; tempo,
+ * voltas, high notes above). gaps[last] is the room below the final system.
+ * Uses single-line X positions, so call before reflow.
+ */
+function computeSystemGaps(staves, breakXs) {
+	var fs = getFontSize()
+	var hs = fs / 8
+	var n = breakXs.length + 1
+	var below = new Array(n).fill(0)  // lowest position under the last group
+	var above = new Array(n).fill(8)  // highest position over the first group
+	var firstY = getStaffY(0), lastY = getStaffY(staves.length - 1)
+	var sysOf = function(x) {
+		var k = 0
+		while (k < breakXs.length && x > breakXs[k]) k++
+		return k
+	}
+	for (var si = 0; si < staves.length; si++) {
+		var inFirst = getStaffY(si) === firstY, inLast = getStaffY(si) === lastY
+		if (!inFirst && !inLast) continue
+		var lyricLines = lyricLineCount(staves[si])
+		var lyricLo = lyricLines ? -13 - Math.ceil((lyricLines - 1) * lyricLineHeight() / hs) : 0
+		var lastX = 0
+		for (var tok of staves[si].tokens || []) {
+			var d = tok.drawingNoteHead || tok.drawingAnnotation || tok.drawingDynamic || tok.drawingHairpin || tok.drawingBarline
+			if (d && d.x != null) lastX = d.x
+			var e = tokenExtent(tok)
+			if (!e) continue
+			var k = sysOf(lastX)
+			if (inLast) {
+				below[k] = Math.min(below[k], e.lo)
+				if (lyricLo && (tok.texts || tok.text)) below[k] = Math.min(below[k], lyricLo)
+			}
+			if (inFirst) above[k] = Math.max(above[k], e.hi)
+		}
+	}
+	var gaps = []
+	for (var k = 0; k < n; k++) {
+		var nextAbove = k + 1 < n ? above[k + 1] - 8 : 0
+		gaps.push(Math.max(fs * 1.5, (-below[k] + nextAbove) * hs + fs * 0.6))
+	}
+	return gaps
+}
+
 function computeStaffExtents(staves) {
+	// Units are the drawing code's staff positions: bottom line 0, top line 8
+	// (a note at NWC position p is drawn at p + 4).
+	var TEXT_ASCENT = 3.5, TEXT_DESCENT = 1  // half-spaces around a text baseline
+	var markDefaults = { Text: 11, Tempo: 11, PerformanceStyle: 9, Dynamic: -13, DynamicVariance: -13, TempoVariance: 11, Flow: 11 }
 	var extents = []
 	for (var si = 0; si < staves.length; si++) {
 		var minPos = 0   // bottom staff line
 		var maxPos = 8   // top staff line
+		// Marks before the first note (opening tempo, title-like text) only
+		// affect the space under the title, not every system break.
+		var headMax = 8
+		var seenNote = false
 		var tokens = staves[si].tokens || []
 
 		for (var ti = 0; ti < tokens.length; ti++) {
 			var tok = tokens[ti]
+			if (tok.Visibility === 'Never') continue
 
-			if (tok.type === 'Note' || tok.type === 'Rest') {
-				var pos = tok.position || 0
-				minPos = Math.min(minPos, pos)
-				maxPos = Math.max(maxPos, pos)
-				// Estimate stem tip: ~7 half-spaces from notehead
-				if (tok.type === 'Note') {
-					var stemUp = pos < 4  // stem up if below middle line
-					var stemTip = stemUp ? pos + 7 : pos - 7
-					minPos = Math.min(minPos, stemTip)
-					maxPos = Math.max(maxPos, stemTip)
+			if (tok.type === 'Note' || tok.type === 'Rest' || (tok.type === 'Chord' && tok.notes)) {
+				var positions = tok.notes ? tok.notes.map(function(n) { return (n.position || 0) + 4 }) : [(tok.position || 0) + 4]
+				var lo = Math.min.apply(null, positions), hi = Math.max.apply(null, positions)
+				minPos = Math.min(minPos, lo - 1)
+				maxPos = Math.max(maxPos, hi + 1)
+				// Stem tip ~7 half-spaces from the notehead on the stem side
+				if (tok.type !== 'Rest' && tok.duration > 1) {
+					var stemUp = tok.stem === 1 || (tok.stem !== 2 && (4 - lo) >= (hi - 4))
+					if (stemUp) maxPos = Math.max(maxPos, hi + 7)
+					else minPos = Math.min(minPos, lo - 7)
 				}
+				seenNote = true
+				continue
 			}
 
-			if (tok.type === 'Chord' && tok.notes) {
-				var chordMin = Infinity, chordMax = -Infinity
-				for (var ni = 0; ni < tok.notes.length; ni++) {
-					var npos = tok.notes[ni].position || 0
-					chordMin = Math.min(chordMin, npos)
-					chordMax = Math.max(chordMax, npos)
-				}
-				if (chordMin < Infinity) {
-					minPos = Math.min(minPos, chordMin)
-					maxPos = Math.max(maxPos, chordMax)
-					// Chord stem direction: up if lowest note is further from
-					// middle line than highest; one octave from the stem-side note
-					var stemUp = (4 - chordMin) >= (chordMax - 4)
-					var stemTip = stemUp ? chordMax + 7 : chordMin - 7
-					minPos = Math.min(minPos, stemTip)
-					maxPos = Math.max(maxPos, stemTip)
-				}
-			}
-
-			// Dynamics and hairpins extend below the staff
-			if (tok.type === 'Dynamic' || tok.type === 'DynamicVariance') {
-				minPos = Math.min(minPos, -9)
-			}
-
-			// Tempo, flow marks, and voltas extend above
-			if (tok.type === 'Tempo' || tok.type === 'Flow' || tok.type === 'TempoVariance') {
-				maxPos = Math.max(maxPos, 15)
+			if (tok.type in markDefaults) {
+				var basePos = (tok.position !== undefined ? tok.position : markDefaults[tok.type]) + 4
+				if (seenNote) maxPos = Math.max(maxPos, basePos + TEXT_ASCENT)
+				else headMax = Math.max(headMax, basePos + TEXT_ASCENT)
+				minPos = Math.min(minPos, basePos - TEXT_DESCENT)
 			}
 			if (tok.type === 'Ending') {
 				maxPos = Math.max(maxPos, 16)
 			}
 		}
 
-		// Account for lyrics below the staff (if present)
-		var stLyrics = staves[si].lyrics
-		if (stLyrics && stLyrics.length && stLyrics.some(function(l) { return l && l.length > 0 })) {
-			minPos = Math.min(minPos, -10)
+		// Account for lyrics below the staff (if present). Under the bottom
+		// staff they sit at a fixed 1.5 * fontSize (12 half-spaces) below the
+		// bottom line; allow one more half-space for descenders.
+		var lyricLines = lyricLineCount(staves[si])
+		if (lyricLines > 0) {
+			var extraLines = (lyricLines - 1) * lyricLineHeight() / (getFontSize() / 8)
+			minPos = Math.min(minPos, -13 - Math.ceil(extraLines))
 		}
 
-		extents.push({ minPos: minPos, maxPos: maxPos })
+		extents.push({ minPos: minPos, maxPos: maxPos, headMax: Math.max(headMax, maxPos) })
 	}
 	return extents
 }
 
-function buildStaffYMap(staves, allowLayering, extents) {
+function buildStaffYMap(staves, allowLayering, extents, titleBottom) {
 	var fs = getFontSize()
 	var halfSpace = fs / 8  // 1 NWC staff position = half a space = fontSize/8 px
-	var initialOffset = fs * 4
+	// First staff's bottom line: at least 4 fs down, and low enough that content
+	// above its top line (tempo, text, high notes) clears the title block.
+	var above = 0
+	if (extents) {
+		for (var ei = 0; ei < staves.length && ei < extents.length; ei++) {
+			above = Math.max(above, (extents[ei].headMax || extents[ei].maxPos) - 8)
+			if (!(staves[ei].layerWithNext && allowLayering !== false)) break
+		}
+	}
+	var initialOffset = Math.max(fs * 4, (titleBottom || 0) + fs * 0.3 + above * halfSpace + fs)
 	var layerSpacing = 0               // layered staves overlap completely
 	var padding = fs * 0.6             // minimum clearance between content extents
 
@@ -2669,9 +3369,7 @@ function buildStaffYMap(staves, allowLayering, extents) {
 		var nextStave = staves[i + 1]
 
 		// Layered staves collapse to the same Y position.
-		// layerWithNext is the explicit flag; bracketWithNext also triggers
-		// layering when the file-level allowLayering is true (SATB choral scores).
-		if ((stave.layerWithNext || stave.bracketWithNext) && allowLayering !== false) {
+		if (stave.layerWithNext && allowLayering !== false) {
 			y += layerSpacing
 			continue
 		}
@@ -2709,13 +3407,93 @@ function buildStaffYMap(staves, allowLayering, extents) {
 		// maxPos (highest position on staff i+1, positive = above staff)
 		// are in half-space units.  The needed gap is the distance between
 		// the lowest point of staff i and the highest point of staff i+1.
+		// Layered staves share a Y, so use the union of each layer group.
 		if (extents && extents[i] && extents[i + 1]) {
-			var contentGap = (extents[i + 1].maxPos - extents[i].minPos) * halfSpace + padding
+			var groupMin = extents[i].minPos
+			for (var gj = i - 1; gj >= 0 && staffYMap[gj] === staffYMap[i]; gj--) {
+				groupMin = Math.min(groupMin, extents[gj].minPos)
+			}
+			// Staff spacing is shared by every system, so the first system's
+			// opening marks (staff names as text, performance styles) count
+			// here even though they don't affect later system gaps.
+			var headOf = function(e) { return Math.max(e.maxPos, e.headMax || 0) }
+			var groupMax = headOf(extents[i + 1])
+			for (var gk = i + 1; gk < staves.length - 1 && staves[gk].layerWithNext && allowLayering !== false; gk++) {
+				groupMax = Math.max(groupMax, headOf(extents[gk + 1]))
+			}
+			var contentGap = (groupMax - groupMin) * halfSpace + padding
 			gapPixels = Math.max(gapPixels, contentGap)
 		}
 
 		y += gapPixels
 	}
+}
+
+/** Number of lyric lines under a staff (index of the last non-empty verse + 1). */
+function lyricLineCount(stave) {
+	var lyr = (stave && stave.lyrics) || []
+	var n = 0
+	for (var i = 0; i < lyr.length; i++) if (lyr[i] && lyr[i].length) n = i + 1
+	return n
+}
+
+function lyricFontPx() { return Math.round(getFontSize() * 0.38) }
+function lyricLineHeight() { return lyricFontPx() * 1.3 }
+
+/**
+ * Baseline offset (from the staff's bottom line) of lyric verse v under
+ * staff si. Between staves the verse block is centered in the gap; under
+ * the last staff it hangs at a fixed distance.
+ */
+function lyricVerseOffsetY(staves, si, v) {
+	var fs = getFontSize()
+	var thisY = getStaffY(si)
+	var nextY = null
+	for (var nsi = si + 1; nsi < staves.length; nsi++) {
+		if (getStaffY(nsi) !== thisY) { nextY = getStaffY(nsi); break }
+	}
+	var lines = Math.max(1, lyricLineCount(staves[si]))
+	var lh = lyricLineHeight()
+	if (nextY !== null) return (nextY - thisY) / 2 - fs / 2 - (lines - 1) * lh / 2 + v * lh
+	return fs * 1.5 + v * lh
+}
+
+/**
+ * Vertical gap between systems: from the bottom line of a system's last
+ * staff (group) to the top line of the next system's first staff, large
+ * enough that content hanging below (lyrics, low stems, dynamics) clears
+ * content standing above (high notes, tempo marks, voltas).
+ */
+function computeInterSystemGap(staves) {
+	var fs = getFontSize()
+	var minGap = fs * 1.5
+	if (!currentExtents.length || !staves.length) return minGap
+	var halfSpace = fs / 8
+	var firstY = getStaffY(0)
+	var lastY = getStaffY(staves.length - 1)
+	var below = 0  // lowest position under the last staff group (bottom line = 0)
+	var above = 8  // highest position over the first staff group (top line = 8)
+	for (var si = 0; si < staves.length && si < currentExtents.length; si++) {
+		if (getStaffY(si) === lastY) below = Math.min(below, currentExtents[si].minPos)
+		if (getStaffY(si) === firstY) above = Math.max(above, currentExtents[si].maxPos)
+	}
+	var contentGap = (-below + (above - 8)) * halfSpace + fs * 0.6
+	return Math.max(minGap, contentGap)
+}
+
+/**
+ * Height needed above a system's top staff line for content standing above
+ * the first staff group, in pixels.
+ */
+function computeSystemTopClearance(staves, includeOpening) {
+	var fs = getFontSize()
+	if (!currentExtents.length || !staves.length) return 0
+	var firstY = getStaffY(0)
+	var above = 8
+	for (var si = 0; si < staves.length && si < currentExtents.length; si++) {
+		if (getStaffY(si) === firstY) above = Math.max(above, includeOpening ? currentExtents[si].headMax : currentExtents[si].maxPos)
+	}
+	return (above - 8) * (fs / 8)
 }
 
 function getStaffY(staffIndex) {
@@ -2735,6 +3513,85 @@ function addStave(cursor, staveIndex) {
 
 function spacerWidth() {
 	return getFontSize() * 0.25
+}
+
+// NWC default text styles, by font index: StaffItalic, StaffBold, StaffLyric,
+// PageTitleText, PageText, PageSmallText, User1..User6
+var DEFAULT_TEXT_FONTS = [
+	{ size: 10, bold: true, italic: true }, { size: 10, bold: true }, { size: 10 },
+	{ size: 18, bold: true }, { size: 12 }, { size: 8 },
+	{ size: 10 }, { size: 10 }, { size: 10 }, { size: 10 }, { size: 10 }, { size: 10 },
+]
+
+// Text size per point of staff size, as a fraction of the staff height
+// (fontSize), measured from NWC's own rendering (references/
+// what-child-is-this.png, 17 pt staff = 32 px): staff fonts scale 1:1 with
+// the staff (10 pt StaffLyric = 18.9 px), page fonts less (18 pt title =
+// 28 px, 12 pt credit = 13 px).
+var STAFF_TEXT_SCALE = 1.0
+var PAGE_TEXT_SCALE = 0.66
+var PAGE_FONT_INDEXES = [3, 4, 5] // PageTitleText, PageText, PageSmallText
+
+/**
+ * CSS font for a text object using the file's font style `index`. NWC font
+ * sizes are relative to the staff size (Page Setup).
+ */
+function textFontCss(index) {
+	var f = currentTextFonts[index] || DEFAULT_TEXT_FONTS[index] || DEFAULT_TEXT_FONTS[0]
+	var scale = PAGE_FONT_INDEXES.includes(index) ? PAGE_TEXT_SCALE : STAFF_TEXT_SCALE
+	var px = Math.max(6, Math.round((f.size || 10) / currentStaffSizePt * scale * getFontSize()))
+	return (f.italic ? 'italic ' : '') + (f.bold ? 'bold ' : '') + px + 'px ' + getMusicTextFamily()
+}
+
+// Annotation types that are skipped entirely (no glyph, no width) when hidden
+var HIDEABLE_ANNOTATIONS = new Set([
+	'Dynamic', 'DynamicVariance', 'Tempo', 'TempoVariance', 'PerformanceStyle',
+	'Text', 'Flow', 'SustainPedal', 'Pedal', 'Instrument',
+])
+
+/**
+ * Whether a token is hidden under NWC's Visibility rules:
+ *   Never       — always hidden
+ *   TopStaff    — shown only on the top staff of the system
+ *   SingleStaff — shown only when the score displays a single staff
+ *   MultiStaff  — shown only when the score displays several staves
+ */
+function isTokenHidden(token, staveIndex) {
+	var vis = token.Visibility
+	// Default visibility is 'Always' for most objects, but 'On Top Staff' for
+	// flow directions (NWC manual, Visibility property)
+	if ((!vis || vis === 'Default') && token.type === 'Flow') vis = 'TopStaff'
+	if (!vis || vis === 'Default' || vis === 'Always') return false
+	if (vis === 'Never') return true
+	var isTop = getStaffY(staveIndex) === getStaffY(0)
+	var multi = staffYMap.length > 1 && getStaffY(staffYMap.length - 1) !== getStaffY(0)
+	if (vis === 'TopStaff') return !isTop
+	if (vis === 'SingleStaff') return multi
+	if (vis === 'MultiStaff') return !multi
+	return false
+}
+
+// Text fonts whose SMuFL metronome glyphs (U+ECA3..) we can use in tempo marks;
+// others fall back to the Unicode note characters.
+var SMUFL_TEXT_FONTS = new Set(['BravuraText', 'LelandText', 'PetalumaText', 'SebastianText', 'FinaleMaestroText'])
+
+/**
+ * Tempo marking as NWC prints it: optional text followed by a metronome
+ * mark, e.g. "Adagio (♩ = 66)". The beat unit comes from beatDuration
+ * (whole-note fraction; dotted values are 1.5x).
+ */
+function tempoMarkingText(token) {
+	var bd = token.beatDuration || 0.25
+	var dotted = [0.1875, 0.375, 0.75].indexOf(bd) !== -1
+	var base = dotted ? bd / 1.5 : bd
+	var smufl = SMUFL_TEXT_FONTS.has(MUSIC_FONTS[getMusicFont()]?.textFamily)
+	var note = smufl
+		? ({ 0.125: '\uECA7', 0.25: '\uECA5', 0.5: '\uECA3' })[base] || '\uECA5'
+		: ({ 0.125: '\u266A', 0.25: '\u2669', 0.5: '\uD834\uDD5E' })[base] || '\u2669'
+	if (dotted) note += smufl ? '\uECB7' : '.'
+	var words = (token.text || '').replace(/^"|"$/g, '').trim()
+	var mark = '(' + note + ' = ' + token.duration + ')'
+	return words ? words + ' ' + mark : mark
 }
 
 function handleToken(token, tokenIndex, staveIndex, cursor) {
@@ -2758,6 +3615,9 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 	}
 
 	let clef
+
+	var hidden = isTokenHidden(token, staveIndex)
+	if (hidden && HIDEABLE_ANNOTATIONS.has(type)) return
 
 	switch (type) {
 		default:
@@ -2838,6 +3698,8 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			s = new Glyph(sym, token.position + 4) // + 4
 			cursor.posGlyph(s)
 			s._text = info
+			// Hidden rests (filler rests in layered voices) keep their spacing
+			s.hidden = hidden
 			drawing.add(s)
 			token.drawingNoteHead = s  // reuse same field as notes for anchor collection
 
@@ -2859,51 +3721,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			// Save the X where the barline LINE was drawn (pre-gap).
 			var barlineDrawnX = cursor.staveX
 
-			// Connect barlines to next staff if flagged
-			// bracketWithNext or layerWithNext cause connection when allowLayering is on;
-			// connectBarsWithNext always causes connection.
-			// BUT skip connection when lyrics exist between the staves — the
-			// barline would draw across the lyrics text which looks wrong.
-			var staveData = currentStaves[staveIndex]
-			var hasLyricsBetween = false
-			if (staveData) {
-				// Check if any staff at the current Y position (including layered) has lyrics
-				for (var lsi = staveIndex; lsi < currentStaves.length - 1; lsi++) {
-					if (lsi > staveIndex && getStaffY(lsi) !== getStaffY(staveIndex)) break
-					var stLyrics = currentStaves[lsi].lyrics
-					if (stLyrics && stLyrics.length && stLyrics.some(function(l) { return l && l.length > 0 })) {
-						hasLyricsBetween = true
-						break
-					}
-				}
-			}
-			var shouldConnect = staveData && !hasLyricsBetween && staveIndex < currentStaves.length - 1 && (
-				staveData.connectBarsWithNext ||
-				((staveData.layerWithNext || staveData.bracketWithNext) && currentAllowLayering)
-			)
-			if (shouldConnect) {
-				// Find the next non-layered staff (skip staves at the same Y)
-				var nextSi = staveIndex + 1
-				while (nextSi < currentStaves.length - 1 && getStaffY(nextSi) === getStaffY(staveIndex)) {
-					nextSi++
-				}
-				// Draw a single continuous barline from the top of this staff
-				// to the bottom of the next staff (standard grand staff engraving).
-				let topY = getStaffY(staveIndex) - getFontSize()  // top line of this staff
-				let botY = getStaffY(nextSi)                       // bottom line of next staff
-				if (botY > topY) {
-					let barX = cursor.staveX
-					let lw = getFontSize() / 24
-					var connPath = new Claire.Path(function(ctx) {
-						ctx.beginPath()
-						ctx.lineWidth = lw
-						ctx.moveTo(barX, topY)
-						ctx.lineTo(barX, botY)
-						ctx.stroke()
-					})
-					drawing.add(connPath)
-				}
-			}
+			// Connect barlines to the next (non-layered) staff when connectBarsWithNext
+			// is set, as one continuous line (standard grand staff engraving).
+			// The glyph carries the extension so it survives wrap/page reflow.
+			s.extendBelow = barConnectLength(currentStaves, staveIndex, false)
 
 			addStave(cursor, staveIndex)
 			cursor.updateBarline()
@@ -3055,6 +3876,18 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			if (hasRightDisplacement && token._rod) {
 				token._rod += chordNhWidth
 			}
+			// Rest chord: draw the rest voice in the same column, on the side
+			// away from the notes' stems unless the file gives an offset
+			if (token.restVoice && !token.restVoice.hidden && !isTokenHidden(token, staveIndex)) {
+				var rv = token.restVoice
+				var rSym = { 1: 'restWhole', 2: 'restHalf', 4: 'restQuarter', 8: 'rest8th', 16: 'rest16th', 32: 'rest32nd', 64: 'rest64th' }[rv.duration]
+				if (rSym) {
+					var rPos = rv.position || (token.stem === 2 ? 4 : -4)
+					var restGlyph = new Glyph(rSym, rPos + 4)
+					restGlyph.moveTo(token.drawingNoteHead ? token.drawingNoteHead.x : tmp, getStaffY(staveIndex))
+					drawing.add(restGlyph)
+				}
+			}
 			break
 
 		case 'Note':
@@ -3065,13 +3898,29 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			// Convert to rendering coords: pass -(pos + 4) so Text's internal
 			// negation yields positionY(pos + 4)  — same mapping notes use.
 			var pos = token.position !== undefined ? token.position : 11
-			var text = new Text(token.text, -(pos + 4))
+			// Verse numbers ("1.", "2.") sit in the lyric line just before the
+			// first syllable; Text takes no width, so right-align them to end
+			// a little before the note instead of overprinting its syllable.
+			var isVerseNumber = /^\s*\d+\.?\s*$/.test(token.text || '') && pos < 0
+			var text = token.drawingAnnotation = new Text(isVerseNumber ? token.text.trim() : token.text, -(pos + 4),
+				isVerseNumber
+					? { textAlign: 'right', font: Math.round(getFontSize() * 0.38) + 'px ' + getMusicTextFamily() }
+					: { font: textFontCss(token.font || 0) })
 			cursor.posGlyph(text)
+			if (isVerseNumber) {
+				text.offsetX = -getFontSize() * 0.15
+				// Sit on that verse's lyric line (lyric lines are placed by the
+				// layout, not at the staff positions NWC used)
+				var verseNo = parseInt(token.text, 10)
+				if (verseNo >= 1 && verseNo <= lyricLineCount(currentStaves[cursor.staveIndex])) {
+					text.offsetY = lyricVerseOffsetY(currentStaves, cursor.staveIndex, verseNo - 1)
+				}
+			}
 			drawing.add(text)
 			break
 		case 'PerformanceStyle':
 			var pos = token.position !== undefined ? token.position : 9
-			var text = new Text(token.text, -(pos + 4), {
+			var text = token.drawingAnnotation = new Text(token.text, -(pos + 4), {
 				font: 'italic ' + Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily(),
 			})
 			cursor.posGlyph(text)
@@ -3080,9 +3929,9 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 		case 'Tempo':
 			var pos = token.position !== undefined ? token.position : 11
 			var text = new Text(
-				`(${token.duration})`,
+				tempoMarkingText(token),
 				-(pos + 4),
-				{ font: Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily() }
+				{ font: 'bold ' + Math.round(getFontSize() * 0.43) + 'px ' + getMusicTextFamily() }
 			)
 			cursor.posGlyph(text)
 			drawing.add(text)
@@ -3096,26 +3945,24 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			break
 
 		case 'DynamicVariance':
-			// Hairpin wedges (crescendo/diminuendo) and text markings (rfz, sfz)
+			// NWC prints a dynamic variance as a word ('mp cresc. f', NWC manual);
+			// hairpin wedges are a note attribute, see layoutNoteHairpins().
 			var dvStyles = ['Crescendo', 'Decrescendo', 'Diminuendo', 'Rinforzando', 'Sforzando']
 			var dvStyleName = dvStyles[token.style] || 'Crescendo'
 			var dvPos = token.position !== undefined ? token.position : -13
-			if (dvStyleName === 'Crescendo' || dvStyleName === 'Decrescendo' || dvStyleName === 'Diminuendo') {
-				// Hairpin wedge — estimate span width based on font size
-				// Real span would need the next note's X, but for initial layout
-				// we use a fixed width that gets stretched during justification.
-				var hpWidth = getFontSize() * 3
-				var hp = new Hairpin(dvStyleName, hpWidth, dvPos + 4)
-				cursor.posGlyph(hp)
-				drawing.add(hp)
-				// Store reference for span calculation in post-layout
-				token.drawingHairpin = hp
-			} else {
-				// Rinforzando / Sforzando — render as dynamic text
-				var dynText = dvStyleName === 'Rinforzando' ? 'rfz' : 'sfz'
-				var dvGlyph = new DynamicMarking(dynText, dvPos + 4)
+			if (dvStyleName === 'Rinforzando' || dvStyleName === 'Sforzando') {
+				var dvGlyph = new DynamicMarking(dvStyleName === 'Rinforzando' ? 'rfz' : 'sfz', dvPos + 4)
 				cursor.posGlyph(dvGlyph)
 				drawing.add(dvGlyph)
+				token.drawingDynamic = dvGlyph
+			} else {
+				var dvWord = { Crescendo: 'cresc.', Decrescendo: 'decresc.', Diminuendo: 'dim.' }[dvStyleName]
+				var dvText = new Text(dvWord, -(dvPos + 4), {
+					font: 'italic ' + Math.round(getFontSize() * 0.43) + 'px ' + getMusicTextFamily(),
+				})
+				cursor.posGlyph(dvText)
+				drawing.add(dvText)
+				token.drawingAnnotation = dvText
 			}
 			break
 
@@ -3149,12 +3996,12 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			if (flowStyleName === 'Coda' || flowStyleName === 'Segno') {
 				// Render as SMuFL glyph
 				var flowGlyphName = flowStyleName === 'Coda' ? 'coda' : 'segno'
-				var flowGlyph = new Glyph(flowGlyphName, flowPos + 4)
+				var flowGlyph = token.drawingAnnotation = new Glyph(flowGlyphName, flowPos + 4)
 				cursor.posGlyph(flowGlyph)
 				drawing.add(flowGlyph)
 			} else {
 				// Render as italic text
-				var flowText = new Text(flowStyleName, -(flowPos + 4), {
+				var flowText = token.drawingAnnotation = new Text(flowStyleName, -(flowPos + 4), {
 					font: 'bold italic ' + Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily(),
 				})
 				cursor.posGlyph(flowText)
@@ -3168,12 +4015,12 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			var tvStyleName = tvStyles[token.style] || 'Fermata'
 			var tvPos = token.position !== undefined ? token.position : 11
 			if (tvStyleName === 'Fermata') {
-				var fermGlyph = new ArticulationMark('fermata', tvPos + 4)
+				var fermGlyph = token.drawingAnnotation = new ArticulationMark('fermata', tvPos + 4)
 				cursor.posGlyph(fermGlyph)
 				drawing.add(fermGlyph)
 			} else if (tvStyleName === 'Breath Mark') {
 				// Render as a comma-like mark above the staff
-				var breathText = new Text(',', -(tvPos + 4), {
+				var breathText = token.drawingAnnotation = new Text(',', -(tvPos + 4), {
 					font: 'bold ' + Math.round(getFontSize() * 0.6) + 'px ' + getMusicTextFamily(),
 				})
 				cursor.posGlyph(breathText)
@@ -3191,7 +4038,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 					'Caesura': '//',
 				}
 				var tvDisplayText = tvTextMap[tvStyleName] || tvStyleName
-				var tvText = new Text(tvDisplayText, -(tvPos + 4), {
+				var tvText = token.drawingAnnotation = new Text(tvDisplayText, -(tvPos + 4), {
 					font: 'italic ' + Math.round(getFontSize() * 0.39) + 'px ' + getMusicTextFamily(),
 				})
 				cursor.posGlyph(tvText)
@@ -3281,56 +4128,43 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 
 	token.drawingNoteHead = noteHead
 
-	if (token.text) {
+	// Syllables belong to the chord, not its member notes: draw them once,
+	// with the chord's first note.
+	var lyricOwner = durToken || token
+	var drawsLyrics = lyricOwner === token || (lyricOwner.notes && lyricOwner.notes[0] === token)
+	var verses = drawsLyrics ? (lyricOwner.texts || (lyricOwner.text ? [lyricOwner.text] : [])) : []
+	var lyricWidth = 0
+	if (drawsLyrics) lyricOwner._verseWidths = []
+	for (var vi = 0; vi < verses.length; vi++) {
+		if (!verses[vi]) continue
 		// Strip trailing hyphens for display — NWC draws hyphens as dashes
 		// centered between note positions, not on the syllable text itself.
-		var displayText = token.text.replace(/-$/, '')
-		if (displayText) {
-			var lyricFontSize = Math.round(getFontSize() * 0.38)
+		// '_' joins words onto one note (NWC); it prints as a space.
+		var displayText = verses[vi].replace(/-$/, '').replace(/_/g, '\u00a0')
+		if (!displayText) continue
+		var lyricFont = lyricFontPx() + 'px ' + getMusicTextFamily()
+		var text = new Text(displayText, 0, {
+			font: lyricFont,
+			textAlign: 'left',
+		})
+		cursor.posGlyph(text)
+		text.offsetY = lyricVerseOffsetY(currentStaves, cursor.staveIndex, vi)
+		drawing.add(text)
 
-			// Compute lyric Y to center in the gap between this staff and the
-			// next non-layered staff below it.
-			var staveIndex = cursor.staveIndex
-			var thisStaveY = getStaffY(staveIndex)
-			var nextStaveY = null
-			for (var nsi = staveIndex + 1; nsi < currentStaves.length; nsi++) {
-				if (getStaffY(nsi) !== thisStaveY) {
-					nextStaveY = getStaffY(nsi)
-					break
-				}
-			}
-			var lyricOffsetY
-			if (nextStaveY !== null) {
-				// Center in the gap: midpoint between bottom of this staff and
-				// top of next staff.  Bottom line = staveY, top line of next = nextStaveY - fs.
-				var gap = nextStaveY - thisStaveY
-				lyricOffsetY = gap / 2 - getFontSize() / 2
-			} else {
-				// No staff below — fall back to fixed offset
-				lyricOffsetY = getFontSize() * 1.5
-			}
-
-			var lyricFont = lyricFontSize + 'px ' + getMusicTextFamily()
-			var text = new Text(displayText, 0, {
-				font: lyricFont,
-				textAlign: 'left',
-			})
-			cursor.posGlyph(text)
-			text.offsetY = lyricOffsetY
-			drawing.add(text)
-
-			// Measure lyric text width for spring-rod spacing.
-			// The rod of a note should be at least as wide as its lyric
-			// so syllables don't overlap when springs compress.
-			var ctx = window.ctx
-			if (ctx) {
-				ctx.save()
-				ctx.font = lyricFont
-				token._lyricWidth = ctx.measureText(displayText).width
-				ctx.restore()
-			}
+		// Measure lyric text width for spring-rod spacing.
+		// The rod of a note should be at least as wide as its widest
+		// syllable so syllables don't overlap when springs compress.
+		var ctx = window.ctx
+		if (ctx) {
+			ctx.save()
+			ctx.font = lyricFont
+			var verseW = ctx.measureText(displayText).width
+			lyricOwner._verseWidths[vi] = verseW
+			lyricWidth = Math.max(lyricWidth, verseW)
+			ctx.restore()
 		}
 	}
+	if (lyricWidth) lyricOwner._lyricWidth = lyricWidth
 
 	/*
 
@@ -3438,6 +4272,12 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 	} else {
 		var spaceMultiplier = calculatePadding(durValue || token.durValue)
 		cursor.tokenPadRight(noteHead.width * spaceMultiplier + stemBuffer)
+		// Leave room for this note's lyric before the next note
+		var lyricW = durToken._lyricWidth || token._lyricWidth || 0
+		if (lyricW) {
+			var lyricPad = noteHead.x + lyricW + spacerWidth() * 0.5 - cursor.staveX
+			if (lyricPad > cursor.lastPadRight) cursor.tokenPadRight(lyricPad)
+		}
 	}
 
 	// --- Record rod (rigid width) and spring (elastic gap) for spring-rod model ---
@@ -3454,7 +4294,7 @@ function drawForNote(token, cursor, durToken, skipLedger) {
 	// If this note carries a lyric syllable, the rod must be at least as
 	// wide as the text so adjacent syllables don't overlap when springs
 	// compress.  Add a small gap (half spacerWidth) for breathing room.
-	var lyricW = token._lyricWidth || 0
+	var lyricW = (durToken || token)._lyricWidth || 0
 	if (lyricW > 0) {
 		thisRod = Math.max(thisRod, lyricW + spacerWidth() * 0.5)
 	}
@@ -3523,4 +4363,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }
+export { score, renderPage, getTitleFields, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }

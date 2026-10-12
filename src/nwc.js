@@ -80,12 +80,62 @@ function decodeNwcArrayBuffer(arrayBuffer) {
 
 // NWC files store text in the locale codepage of the authoring Windows
 // machine. We try UTF-8 first (covers ASCII and any modern file), then
-// detect EUC-KR / CP949 (Korean) via lead+trail byte pattern, and finally
-// fall back to Windows-1252 which losslessly maps any byte sequence.
+// detect the most common Windows codepages via lead+trail byte patterns:
+//   EUC-KR/CP949 (Korean), Shift-JIS/CP932 (Japanese), GBK/CP936 (Chinese),
+//   Windows-1251 (Cyrillic), and finally Windows-1252 (Western fallback).
 var _td_utf8  = new TextDecoder('utf-8', { fatal: true })
 var _td_euckr = new TextDecoder('euc-kr')
+var _td_sjis  = new TextDecoder('shift-jis')
+var _td_gbk   = new TextDecoder('gbk')
 var _td_w1252 = new TextDecoder('windows-1252')
 
+// Windows-1251 manual decoder (TextDecoder may not support it in all runtimes)
+var _w1251_map = '\u0402\u0403\u201A\u0453\u201E\u2026\u2020\u2021\u20AC\u2030\u0409\u2039\u040A\u040C\u040B\u040F\u0452\u2018\u2019\u201C\u201D\u2022\u2013\u2014\uFFFD\u2122\u0459\u203A\u045A\u045C\u045B\u045F\u00A0\u040E\u045E\u0408\u00A4\u0490\u00A6\u00A7\u0401\u00A9\u0404\u00AB\u00AC\u00AD\u00AE\u0407\u00B0\u00B1\u0406\u0456\u0491\u00B5\u00B6\u00B7\u0451\u2116\u0454\u00BB\u0458\u0405\u0455\u0457'
+function decodeWindows1251(bytes) {
+	var result = ''
+	for (var i = 0; i < bytes.length; i++) {
+		var b = bytes[i]
+		if (b < 0x80) result += String.fromCharCode(b)
+		else if (b >= 0xC0) result += String.fromCharCode(0x0410 + (b - 0xC0))
+		else result += _w1251_map[b - 0x80]
+	}
+	return result
+}
+
+// Windows-1252 (Western): accented Latin letters and symbols such as © – é
+// appear as isolated high bytes between ASCII characters, or at most two
+// adjacent Latin letters (e.g. "ção"). CJK and Cyrillic text produce longer
+// runs of high bytes or bytes outside this set. Checked before the CJK
+// detectors, whose permissive trail ranges also match "é" + ASCII letter.
+function isWesternHighByte(b) {
+	if (b >= 0xA0) return true
+	return b === 0x80 || b === 0x85 || b === 0x8A || b === 0x8C || b === 0x8E ||
+		(b >= 0x91 && b <= 0x97) || b === 0x99 || b === 0x9A || b === 0x9C ||
+		b === 0x9E || b === 0x9F
+}
+
+function looksLikeWestern(bytes) {
+	var high = 0
+	for (var i = 0; i < bytes.length; i++) {
+		var b = bytes[i]
+		if (b < 0x80) continue
+		high++
+		if (!isWesternHighByte(b)) return false
+		var run = 1
+		while (i + run < bytes.length && bytes[i + run] >= 0x80) run++
+		if (run > 2) return false
+		if (run === 2) {
+			var n = bytes[i + 1]
+			if (b < 0xC0 || n < 0xC0) return false
+			high++
+			i++
+		}
+	}
+	return high > 0
+}
+
+// EUC-KR / CP949: lead 0x81-0xFE, trail 0x41-0x5A | 0x61-0x7A | 0x81-0xFE.
+// Strict trail ranges make this a good first CJK check.
 function looksLikeEUCKR(bytes) {
 	var high = 0
 	for (var i = 0; i < bytes.length; i++) {
@@ -101,17 +151,88 @@ function looksLikeEUCKR(bytes) {
 				continue
 			}
 		}
-		// Unpaired high byte — not EUC-KR
 		return false
 	}
 	return high > 0
 }
 
+// Shift-JIS / CP932: lead 0x81-0x9F | 0xE0-0xFC, trail 0x40-0x7E | 0x80-0xFC.
+// Also allows single-byte half-width katakana 0xA1-0xDF.
+function looksLikeShiftJIS(bytes) {
+	var high = 0
+	for (var i = 0; i < bytes.length; i++) {
+		var b = bytes[i]
+		if (b < 0x80) continue
+		high++
+		// Half-width katakana (single byte)
+		if (b >= 0xA1 && b <= 0xDF) continue
+		// Double-byte lead
+		if (((b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC)) && i + 1 < bytes.length) {
+			var n = bytes[i + 1]
+			if ((n >= 0x40 && n <= 0x7E) || (n >= 0x80 && n <= 0xFC)) {
+				i++
+				continue
+			}
+		}
+		return false
+	}
+	return high > 0
+}
+
+// GBK / CP936: lead 0x81-0xFE, trail 0x40-0x7E | 0x80-0xFE.
+// Very permissive trail range — used as a CJK catch-all after stricter checks.
+function looksLikeGBK(bytes) {
+	var high = 0
+	for (var i = 0; i < bytes.length; i++) {
+		var b = bytes[i]
+		if (b < 0x80) continue
+		high++
+		if (b >= 0x81 && b <= 0xFE && i + 1 < bytes.length) {
+			var n = bytes[i + 1]
+			if ((n >= 0x40 && n <= 0x7E) || (n >= 0x80 && n <= 0xFE)) {
+				i++
+				continue
+			}
+		}
+		return false
+	}
+	return high > 0
+}
+
+// Windows-1251 (Cyrillic): most Cyrillic letters map to 0xC0-0xFF as single
+// bytes. Detect by checking that high bytes are predominantly in this range,
+// with at least 2 high bytes to avoid false positives on single accented chars.
+function looksLikeCyrillic(bytes) {
+	var cyrillic = 0
+	var other = 0
+	for (var i = 0; i < bytes.length; i++) {
+		var b = bytes[i]
+		if (b < 0x80) continue
+		if (b >= 0xC0 && b <= 0xFF) cyrillic++
+		else other++
+	}
+	return cyrillic > 1 && cyrillic >= other * 2
+}
+
+// Detection order: UTF-8 (exact) → Western (isolated accents/symbols) → EUC-KR (strict trails) → Shift-JIS
+// (medium strictness + half-width katakana) → GBK (wide catch-all for CJK)
+// → Windows-1251 (Cyrillic) → Windows-1252 (lossless Western fallback).
+//
+// Note: short strings (2-4 bytes) may be ambiguous between encodings since
+// byte ranges overlap. Detection is most reliable on longer strings such as
+// titles, author names, or full lyric lines.
 function decodeBytes(array) {
 	if (!array || array.length === 0) return ''
 	var bytes = array instanceof Uint8Array ? array : new Uint8Array(array)
 	try { return _td_utf8.decode(bytes) } catch (e) {}
+	// Only spaces / non-breaking spaces (0xA0): runs of 0xA0 otherwise pass
+	// as EUC-KR or GBK double-byte text
+	if (bytes.every(function(b) { return b === 0x20 || b === 0xA0 })) return _td_w1252.decode(bytes)
+	if (looksLikeWestern(bytes)) return _td_w1252.decode(bytes)
 	if (looksLikeEUCKR(bytes)) return _td_euckr.decode(bytes)
+	if (looksLikeShiftJIS(bytes)) return _td_sjis.decode(bytes)
+	if (looksLikeGBK(bytes)) return _td_gbk.decode(bytes)
+	if (looksLikeCyrillic(bytes)) return decodeWindows1251(bytes)
 	return _td_w1252.decode(bytes)
 }
 
@@ -260,6 +381,7 @@ function adaptObject(obj) {
 			token.placement = obj.placement || 0
 			token.duration = obj.value || obj.getSpeed?.() || 120
 			token.note = obj.base ?? 2
+			token.text = obj.text || ''
 			// Compute beat duration in whole-note units for tempo map conversion.
 			// getTempoNote() returns 'eighth'/'quarter'/'half'; isDotted() flags dotted beat.
 			{
@@ -288,7 +410,9 @@ function adaptObject(obj) {
 			var restDt = obj.getDurationType ? obj.getDurationType() : 0
 			token.duration = ADAPTER_DURATIONS[durIdx] || 4
 			token.dots = (restDt & 0x02) ? 2 : (restDt & 0x01) ? 1 : 0
-			token.position = 0
+			// Vertical offset (layered voices move rests off the middle line);
+			// stored negated like note positions
+			token.position = -(obj.offset || 0)
 			token.triplet = (restDt >> 2) & 3
 			break
 		}
@@ -384,11 +508,38 @@ function adaptObject(obj) {
 				token.duration = ADAPTER_DURATIONS[obj.getDuration()] || 4
 				var rcDt = typeof obj.getDurationType === 'function' ? obj.getDurationType() : 0
 				token.dots = (rcDt & 0x02) ? 2 : (rcDt & 0x01) ? 1 : 0
-				token.position = 0
+				token.position = -(obj.offset || 0)
 				token.triplet = (rcDt >> 2) & 3
 			}
 			token.chords = rcNoteChildren.length
 			token.notes = rcNotes
+			// A rest chord is a rest voice plus split-stem notes. Treat it as a
+			// chord that also carries a rest: it advances by the shorter of the
+			// two voices (like split-stem chords), and its notes are played.
+			if (rcNoteChildren.length > 0 && typeof obj.getDuration === 'function') {
+				var restDt = typeof obj.getDurationType === 'function' ? obj.getDurationType() : 0
+				var rest = {
+					duration: ADAPTER_DURATIONS[obj.getDuration()] || 4,
+					dots: (restDt & 0x02) ? 2 : (restDt & 0x01) ? 1 : 0,
+					triplet: (restDt >> 2) & 3,
+					position: -(obj.offset || 0),
+					hidden: !!obj.hideRest,
+				}
+				var len = function(d, dots, trip) { return (1 / d) * (2 - Math.pow(0.5, dots)) * (trip ? 2 / 3 : 1) }
+				if (len(rest.duration, rest.dots, rest.triplet) < len(token.duration, token.dots, token.triplet)) {
+					token.duration = rest.duration
+					token.dots = rest.dots
+				}
+				// The triplet marking lives on the rest voice; the group keeps it
+				if (rest.triplet && !token.triplet) token.triplet = rest.triplet
+				token.type = 'Chord'
+				token.restVoice = rest
+			} else if (rcNoteChildren.length === 0) {
+				// No note voice: it's just a rest
+				token.type = 'Rest'
+				delete token.notes
+				delete token.chords
+			}
 			break
 		}
 
@@ -420,12 +571,20 @@ function convertFromNewParser(nwcFile) {
 		},
 		score: {
 			allowLayering: nwcFile.allowLayering !== false,
+			staffLabels: nwcFile.staffLabels || '',
+			textFonts: nwcFile.fonts || [],
+			staffSize: nwcFile.staffSize || 0,
 			staves: nwcFile.staffs.map(function(staff) {
 				return {
 					staff_name: staff.name || '',
-					staff_label: staff.label || '',
+					// Files before 2.0 have no separate label; NWC prints the staff name
+					staff_label: staff.label || (nwcFile.version < 0x200 ? staff.name || '' : ''),
+					staff_label_abbr: staff.labelAbbr || '',
 					group_name: staff.group || '',
 					channel: staff.channel || 0,
+					muted: !!staff.muted,
+					// Not shown in the score (NWC Page Setup > Contents); still played
+					hidden: staff.visible === false,
 				patchName: staff.patchName ?? 0,
 				transposition: staff.transposition || 0,
 					// WithNextStaff grouping flags
@@ -1344,4 +1503,4 @@ if (typeof window !== 'undefined') {
 	Object.assign(window, { decodeNwcArrayBuffer })
 }
 
-export { decodeNwcArrayBuffer }
+export { decodeNwcArrayBuffer, looksLikeWestern, looksLikeEUCKR, looksLikeShiftJIS, looksLikeGBK, looksLikeCyrillic, decodeBytes }

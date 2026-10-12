@@ -145,7 +145,8 @@ export function buildNoteEvents(data) {
 
 				// Accumulate duration through tied notes WITHIN this segment.
 				// Ties don't cross segment boundaries (repeat boundaries break ties).
-				let totalDur = typeof durValue === 'number' ? durValue : durValue.value()
+				let totalDur = tok.graceDuration != null ? tok.graceDuration
+					: typeof durValue === 'number' ? durValue : durValue.value()
 				if (tok.tie) {
 					let next = findNextTiedInSegment(tokens, ti, seg.endTick)
 					while (next !== -1) {
@@ -352,6 +353,9 @@ export class PlaybackController {
 		// _muteStaves: Set of staff indices that are muted
 		this._soloStaves = new Set()
 		this._muteStaves = new Set()
+		// Staves muted in the file itself (NWC staff property); kept separate so
+		// clearing the user's solo/mute selection doesn't unmute them.
+		this._fileMutedStaves = new Set()
 		this._allNotes = []   // unfiltered notes from last load
 		this._scoreData = null // last loaded score data
 	}
@@ -406,13 +410,13 @@ export class PlaybackController {
 	/**
 	 * Filter notes based on current solo/mute state.
 	 * - If any staves are soloed, only those staves play (mute is ignored for soloed).
-	 * - Otherwise, muted staves are excluded.
+	 * - Otherwise, staves muted by the user or by the file are excluded.
 	 */
 	_filterNotes(notes) {
 		const hasSolo = this._soloStaves.size > 0
 		return notes.filter(n => {
 			if (hasSolo) return this._soloStaves.has(n.staffIndex)
-			return !this._muteStaves.has(n.staffIndex)
+			return !this._muteStaves.has(n.staffIndex) && !this._fileMutedStaves.has(n.staffIndex)
 		})
 	}
 
@@ -529,7 +533,9 @@ export class PlaybackController {
 		// Send GM program change for each staff's instrument before playback.
 		// This sets the correct instrument sound per channel.
 		const staves = data.score.staves
+		this._fileMutedStaves = new Set()
 		for (let si = 0; si < staves.length; si++) {
+			if (staves[si].muted) this._fileMutedStaves.add(si)
 			const ch = channels[si]
 			const program = staves[si].patchName ?? 0
 			this._engine.programChange(ch, program)

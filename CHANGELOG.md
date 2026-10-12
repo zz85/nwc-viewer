@@ -1,5 +1,52 @@
 # Changelog
 
+### v2.5 - October 2026
+
+#### Save, Share & Export
+- Save menu: NoteWorthy text (.nwctxt), NoteWorthy Composer 2.75 (.nwc), MusicXML and PDF, including edits made in the viewer
+- Text and 2.75 sources keep every other line byte for byte; older binary files are converted (new nwctxt writer)
+- Unsaved changes are kept in the browser with the original file and restored on reload, with Discard
+- Share links: `?song=<sample>` opens a built-in sample; other or edited scores travel compressed in the URL fragment
+- PDF export at 300 DPI on Letter/A4, portrait or landscape, with an option to fit on one page
+
+#### Editing
+- Click the title, author or lyricist to edit it in place
+
+#### Engraving & Layout
+- Ending barlines line up across staves and connect through the staff group, with proper space after the last note
+- Connected barlines are kept in wrap and page modes
+- Fixed stem direction of beamed groups without a stored direction
+- System gaps sized from the content of the systems they separate; page mode keeps systems below the title
+- First system indented for staff labels
+- Ties, slurs and hairpins split across system breaks; slurs shaped to clear the notes they span
+- Dynamics and hairpins kept clear of notes, on a shared line; hairpins from note attributes
+- All lyric verses, lyrics on chords, verse numbers, '_' as a space, no overlapping syllables
+- Full-bar rests centred (only when alone in the bar), 2.75 multi-bar rests expanded, rest chords drawn and timed
+- Title block, text styles, text scaling and tempo marks match NWC
+- Object Visibility respected; staves left out of the score are hidden
+- Fixed placement of flow marks, repeats and texts
+- Staff text (chord names, expressions in staff fonts) sized like NWC: 1:1 with the staff size
+- Bar numbers no longer count a leading repeat or a ":||:" pair as a bar
+- Scroll mode: title shown on the opening screen, staff labels with room made for them
+- Rests in layered voices keep their vertical offset
+
+#### Parsing
+- NWC 2.75 text parsed to parity with binary files; plain .nwctxt files use the new parser (instruments and transposition)
+- NWC 2.05 files and 2.0x header edge cases
+- Encoding detection for EUC-KR/CP949, Shift-JIS, GBK and Windows-1251; Western text no longer misdetected as CJK
+- Fixed nwctxt key signatures, MIDI channels and blank lyric syllables
+- Staff names made of non-breaking spaces no longer decode as Korean text
+- The old parser is only an automatic fallback; its comparison toggle moved to Settings > Advanced and is no longer remembered
+- Fixed swapped beam middle/end in NWC to MusicXML
+
+#### Playback
+- Muted staves stay silent
+- Grace notes take no metric time; fixed rest-chord timing
+
+#### UI
+- Toolbar reorganised into a main bar and a Settings menu, kept on one row in page mode
+- New sample: Happy Birthday for oboe, viola and double bass
+
 ### v2.4 - May 2026
 
 #### MuseScore Import (.mscx/.mscz)

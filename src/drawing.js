@@ -595,6 +595,9 @@ class Barline extends Draw {
 		super()
 		this.len = len || 8
 		this.style = style || 0
+		// Extra length below the staff (px) so the line reaches the next
+		// staff when bar lines are connected
+		this.extendBelow = 0
 	}
 
 	draw(ctx) {
@@ -604,6 +607,7 @@ class Barline extends Draw {
 		const gap = fs / 10
 		const top = 0
 		const bot = this.unitsToY(this.len)
+		const end = top + this.extendBelow
 		const dotR = fs / 12
 		// Dots are placed at 1/3 and 2/3 of the staff height
 		const dotY1 = top + (bot - top) * 0.37
@@ -616,11 +620,11 @@ class Barline extends Draw {
 		case 1: // Double — two thin lines
 			ctx.beginPath()
 			ctx.lineWidth = thinLw
-			ctx.moveTo(-gap, top)
+			ctx.moveTo(-gap, end)
 			ctx.lineTo(-gap, bot)
 			ctx.stroke()
 			ctx.beginPath()
-			ctx.moveTo(0, top)
+			ctx.moveTo(0, end)
 			ctx.lineTo(0, bot)
 			ctx.stroke()
 			break
@@ -628,12 +632,12 @@ class Barline extends Draw {
 		case 2: // SectionOpen — thick then thin (heavy-light)
 			ctx.beginPath()
 			ctx.lineWidth = thickLw
-			ctx.moveTo(0, top)
+			ctx.moveTo(0, end)
 			ctx.lineTo(0, bot)
 			ctx.stroke()
 			ctx.beginPath()
 			ctx.lineWidth = thinLw
-			ctx.moveTo(gap + thickLw / 2, top)
+			ctx.moveTo(gap + thickLw / 2, end)
 			ctx.lineTo(gap + thickLw / 2, bot)
 			ctx.stroke()
 			break
@@ -641,12 +645,12 @@ class Barline extends Draw {
 		case 3: // SectionClose — thin then thick (light-heavy, final barline)
 			ctx.beginPath()
 			ctx.lineWidth = thinLw
-			ctx.moveTo(-gap - thickLw / 2, top)
+			ctx.moveTo(-gap - thickLw / 2, end)
 			ctx.lineTo(-gap - thickLw / 2, bot)
 			ctx.stroke()
 			ctx.beginPath()
 			ctx.lineWidth = thickLw
-			ctx.moveTo(0, top)
+			ctx.moveTo(0, end)
 			ctx.lineTo(0, bot)
 			ctx.stroke()
 			break
@@ -655,12 +659,12 @@ class Barline extends Draw {
 		case 6: // MasterOpen — same visual
 			ctx.beginPath()
 			ctx.lineWidth = thickLw
-			ctx.moveTo(0, top)
+			ctx.moveTo(0, end)
 			ctx.lineTo(0, bot)
 			ctx.stroke()
 			ctx.beginPath()
 			ctx.lineWidth = thinLw
-			ctx.moveTo(gap + thickLw / 2, top)
+			ctx.moveTo(gap + thickLw / 2, end)
 			ctx.lineTo(gap + thickLw / 2, bot)
 			ctx.stroke()
 			ctx.beginPath()
@@ -681,12 +685,12 @@ class Barline extends Draw {
 			ctx.fill()
 			ctx.beginPath()
 			ctx.lineWidth = thinLw
-			ctx.moveTo(-gap - thickLw / 2, top)
+			ctx.moveTo(-gap - thickLw / 2, end)
 			ctx.lineTo(-gap - thickLw / 2, bot)
 			ctx.stroke()
 			ctx.beginPath()
 			ctx.lineWidth = thickLw
-			ctx.moveTo(0, top)
+			ctx.moveTo(0, end)
 			ctx.lineTo(0, bot)
 			ctx.stroke()
 			break
@@ -694,7 +698,7 @@ class Barline extends Draw {
 		default: // Single (0) or fallback
 			ctx.beginPath()
 			ctx.lineWidth = thinLw
-			ctx.moveTo(0, top)
+			ctx.moveTo(0, end)
 			ctx.lineTo(0, bot)
 			ctx.stroke()
 			break
@@ -850,23 +854,20 @@ class Hairpin extends Draw {
 		var lw = fs / 24
 		var w = this.spanWidth
 
+		// Opening at each end as a fraction of full: crescendo 0 → 1,
+		// decrescendo/diminuendo 1 → 0. A hairpin split across systems draws
+		// each part with an intermediate opening (startOpen/endOpen).
+		var cresc = this.style === 'Crescendo'
+		var a = (this.startOpen != null ? this.startOpen : (cresc ? 0 : 1)) * halfOpen
+		var b = (this.endOpen != null ? this.endOpen : (cresc ? 1 : 0)) * halfOpen
+
 		ctx.beginPath()
 		ctx.lineWidth = lw
 		ctx.strokeStyle = '#000'
-
-		if (this.style === 'Crescendo') {
-			// Point on the left, opening to the right
-			ctx.moveTo(0, 0)
-			ctx.lineTo(w, -halfOpen)
-			ctx.moveTo(0, 0)
-			ctx.lineTo(w, halfOpen)
-		} else {
-			// Opening on the left, point on the right (decresc/dimin)
-			ctx.moveTo(0, -halfOpen)
-			ctx.lineTo(w, 0)
-			ctx.moveTo(0, halfOpen)
-			ctx.lineTo(w, 0)
-		}
+		ctx.moveTo(0, -a)
+		ctx.lineTo(w, -b)
+		ctx.moveTo(0, a)
+		ctx.lineTo(w, b)
 		ctx.stroke()
 	}
 }
@@ -1240,6 +1241,9 @@ class Drawing {
 
 	static _draw(ctx, el, viewportWidth, viewportOffsetX, viewportHeight, viewportOffsetY) {
 		if (el instanceof Draw) {
+			// Hidden elements (NWC Visibility: Never) keep their layout
+			// position for spacing and anchors but are not painted.
+			if (el.hidden) return
 			// Viewport culling — skip elements entirely outside the visible area.
 			// The margin scales with font size so that large zoom levels don't
 			// clip oversized glyphs / staves.  Most elements never set `height`,
@@ -1275,16 +1279,20 @@ class Drawing {
 		}
 	}
 
-	draw(ctx) {
+	/**
+	 * @param {object} [viewport] - score-space { x, y, width, height } to
+	 *   cull against; defaults to the visible part of the #score element.
+	 */
+	draw(ctx, viewport) {
 		// Convert screen-space viewport bounds to score-space for culling.
 		// quickDraw() applies ctx.scale(zoom) so drawing coordinates are in
 		// score-space, but scrollLeft/clientWidth are in screen pixels.
 		const zoom = getZoomLevel()
 		const _scoreElm = document.getElementById('score')
-		const viewportWidth = (_scoreElm?.clientWidth || 800) / zoom
-		const viewportOffsetX = (_scoreElm?.scrollLeft || 0) / zoom
-		const viewportHeight = (_scoreElm?.clientHeight || 600) / zoom
-		const viewportOffsetY = (_scoreElm?.scrollTop || 0) / zoom
+		const viewportWidth = viewport ? viewport.width : (_scoreElm?.clientWidth || 800) / zoom
+		const viewportOffsetX = viewport ? viewport.x : (_scoreElm?.scrollLeft || 0) / zoom
+		const viewportHeight = viewport ? viewport.height : (_scoreElm?.clientHeight || 600) / zoom
+		const viewportOffsetY = viewport ? viewport.y : (_scoreElm?.scrollTop || 0) / zoom
 
 		// Restore default font/baseline — canvas resets wipe context state
 		// (e.g. after resizeToFit()), so re-apply on every draw pass.

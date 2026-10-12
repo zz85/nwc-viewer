@@ -127,48 +127,75 @@ function SightReader() {
 	this.reset()
 }
 
-var lyricsToken
+// Playback length of a grace note (whole-note fraction)
+var GRACE_LENGTH = 1 / 32
+
+// One syllable queue per lyric verse of the staff being read
+var lyricVerses = []
+
+/**
+ * Turn one verse into a queue of syllables, one per lyric-bearing note.
+ * New parser: pre-split syllable array; prefixes are ' ' (word boundary),
+ * '-' (continues a word) and '\r' (new line). Whitespace/CR prefixes are
+ * stripped; a leading '-' becomes a trailing '-' on the previous syllable
+ * (the tokenizer's 'Glo-' format) so the renderer can draw dashes.
+ * Old parser: raw string that needs tokenizing.
+ */
+function verseSyllables(line) {
+	if (!Array.isArray(line)) return line ? tokenizeLyrics(line) : []
+	var out = []
+	for (var li = 0; li < line.length; li++) {
+		var trimmed = line[li].replace(/^[\s\r]+/, '')
+		if (trimmed.startsWith('-')) {
+			if (out.length > 0 && !out[out.length - 1].endsWith('-')) {
+				out[out.length - 1] += '-'
+			}
+			trimmed = trimmed.slice(1)
+		}
+		out.push(trimmed)
+	}
+	return out
+}
+
+function hasPendingLyrics() {
+	return lyricVerses.some(function(v) { return v.length })
+}
+
+/**
+ * Give a note the next syllable of every verse. token.texts[v] is verse v
+ * ('' when that verse has nothing here); token.text stays verse 1.
+ * Bare continuation markers ('-', '_') are skipped, not printed.
+ */
+function assignSyllables(token) {
+	var texts = lyricVerses.map(function(verse) {
+		var syllable = verse.shift()
+		while (syllable && /^[-_]$/.test(syllable) && verse.length) {
+			syllable = verse.shift()
+		}
+		return syllable && !/^[-_]$/.test(syllable) ? syllable : ''
+	})
+	if (texts.some(Boolean)) token.texts = texts
+	if (texts[0]) token.text = texts[0]
+}
 
 SightReader.prototype.read = function (staves) {
 	staves.forEach((staff) => {
 		this.reset()
 
-		lyricsToken = null
-		var lyrics = staff.lyrics
-		if (lyrics && lyrics.length) {
-			var firstLine = lyrics[0]
-			if (Array.isArray(firstLine)) {
-				// New parser: pre-split syllable array — each element maps 1:1 to
-				// a note.  Prefix conventions:
-				//   ' ' (space)    = word boundary
-				//   '-' (hyphen)   = syllable continuation within a word
-				//   '\r' (CR)      = new phrase/line
-				// We strip whitespace/CR prefixes but keep '-' prefix so the
-				// renderer can detect continuations and draw inter-note dashes.
-				// A leading '-' becomes a trailing '-' on the previous syllable
-				// (equivalent to the tokenizer's 'Glo-' format).
-				lyricsToken = []
-				for (var li = 0; li < firstLine.length; li++) {
-					var raw = firstLine[li]
-					var trimmed = raw.replace(/^[\s\r]+/, '')
-					if (trimmed.startsWith('-')) {
-						// Continuation syllable: mark previous token with trailing hyphen
-						// and strip the leading hyphen from this syllable.
-						if (lyricsToken.length > 0) {
-							var prev = lyricsToken[lyricsToken.length - 1]
-							if (!prev.endsWith('-')) {
-								lyricsToken[lyricsToken.length - 1] = prev + '-'
-							}
-						}
-						trimmed = trimmed.slice(1)
-					}
-					lyricsToken.push(trimmed)
-				}
-			} else {
-				// Old parser: raw string that needs tokenizing
-				lyricsToken = tokenizeLyrics(firstLine)
-			}
+		lyricVerses = (staff.lyrics || []).map(verseSyllables)
+		var pendingGrace = []  // grace notes awaiting their principal note
+
+		// Mark whole rests that are the only durational token in their bar
+		var barDurs = []
+		var flushBar = function() {
+			if (barDurs.length === 1 && barDurs[0].type === 'Rest') barDurs[0]._aloneInBar = true
+			barDurs = []
 		}
+		staff.tokens.forEach(function(t) {
+			if (t.type === 'Barline') flushBar()
+			else if (t.type === 'Note' || t.type === 'Chord' || t.type === 'Rest') barDurs.push(t)
+		})
+		flushBar()
 		staff.tokens.forEach((token) => {
 			var type = token.type
 
@@ -184,13 +211,23 @@ SightReader.prototype.read = function (staves) {
 			// if (token.type === 'Boundary') console.log('$$$', token);
 
 			if (token.durValue) {
-				// computes cumulative value duration
-				this.tickCounter.add(token.durValue).simplify()
-				// Grace notes should NOT advance the display counter (tabCounter).
-				// They occupy visual space via rod/spring but have zero timing
-				// so the principal note after them aligns with the same beat
-				// on other staves.
-				if (!token.grace) {
+				// Grace notes take no metric time — neither the display counter
+				// (tabCounter) nor the playback clock (tickCounter) advances, so
+				// the principal note stays on the beat with the other staves.
+				// They sound just before it: each run is placed ahead of the
+				// principal note at GRACE_LENGTH apiece.
+				if (token.grace) {
+					pendingGrace.push(token)
+				} else {
+					if (pendingGrace.length) {
+						var graceLen = Math.min(GRACE_LENGTH, token.tickValue / pendingGrace.length || 0)
+						pendingGrace.forEach(function(g, gi) {
+							g.tickValue = token.tickValue - graceLen * (pendingGrace.length - gi)
+							g.graceDuration = graceLen
+						})
+						pendingGrace = []
+					}
+					this.tickCounter.add(token.durValue).simplify()
 					this.tabCounter.add(token.durValue).simplify()
 				}
 			} else {
@@ -365,8 +402,10 @@ function octaveIndex(pitch) {
 }
 
 SightReader.prototype.Rest = function (token) {
-	if (token.duration === 1) {
-		// whole bar rest take into account time signature
+	if (token.duration === 1 && token._aloneInBar) {
+		// A whole rest alone in its bar is a full-bar rest: it lasts the
+		// whole measure in the current time signature (e.g. 3/4 or 4/2).
+		// Alongside other notes/rests it is an ordinary semibreve.
 
 		token.durValue = this.timeSigVal.clone()
 		return
@@ -381,7 +420,7 @@ SightReader.prototype.Chord = function (token) {
 	// Chords get a syllable unless they contain tied notes from previous notes.
 	// A chord with both rest+note is considered audible and gets a syllable.
 	// lyricSyllable overrides: Always(1) forces, Never(2) skips.
-	if (lyricsToken && lyricsToken.length) {
+	if (hasPendingLyrics()) {
 		var isSlurBeneficiary = token.slur === 2 || token.slur === 3
 		var isTieBeneficiary = !!token.tieEnd
 
@@ -400,15 +439,7 @@ SightReader.prototype.Chord = function (token) {
 			shouldAssign = !isSlurBeneficiary && !isTieBeneficiary
 		}
 
-		if (shouldAssign) {
-			var syllable = lyricsToken.shift()
-			while (syllable && /^[-_]$/.test(syllable) && lyricsToken.length) {
-				syllable = lyricsToken.shift()
-			}
-			if (syllable && !/^[-_]$/.test(syllable)) {
-				token.text = syllable
-			}
-		}
+		if (shouldAssign) assignSyllables(token)
 	}
 
 	// Resolve pitch and accidentals for each note in the chord
@@ -497,7 +528,7 @@ SightReader.prototype.Note = function (token) {
 	// - Rests are ignored (handled in Rest handler, not here).
 	// - Slur start (1) and tie start get a syllable normally.
 	// - lyricSyllable: 0=Default (use rules above), 1=Always, 2=Never
-	if (lyricsToken && lyricsToken.length) {
+	if (hasPendingLyrics()) {
 		var isSlurBeneficiary = token.slur === 2 || token.slur === 3
 		var isTieBeneficiary = !!token.tieEnd
 
@@ -512,19 +543,7 @@ SightReader.prototype.Note = function (token) {
 			shouldAssign = !isSlurBeneficiary && !isTieBeneficiary // Default
 		}
 
-		if (shouldAssign) {
-			var syllable = lyricsToken.shift()
-
-			// Skip bare continuation markers (hyphens, underscores) that shouldn't
-			// render as lyric text.  They indicate syllable continuation, not content.
-			while (syllable && /^[-_]$/.test(syllable) && lyricsToken.length) {
-				syllable = lyricsToken.shift()
-			}
-			// Don't assign bare markers as lyric text
-			if (syllable && !/^[-_]$/.test(syllable)) {
-				token.text = syllable
-			}
-		}
+		if (shouldAssign) assignSyllables(token)
 	}
 
 	// duration of this note

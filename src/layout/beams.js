@@ -189,7 +189,8 @@ function drawBeamGroup(group) {
 			}
 			return sum + token.position
 		}, 0) / group.length
-		stemUp = avgPosition >= 0
+		// Same rule as single notes: below the middle line → stems up
+		stemUp = avgPosition < 0
 	}
 
 	// Compute beam count from durations
