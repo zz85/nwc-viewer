@@ -18,7 +18,7 @@ import { getFontSize, getMusicTextFamily, getShowHiddenItems } from '../constant
 export const VIEW3D_DEFAULTS = {
 	view: 'cinema', theme: 'cinema', zoom: 1, bounce: 1,
 	bloom: true, dof: true, trail: true, shadows: true, fx: false,
-	litMode: 'fade', headFinish: 'satin', paperFinish: 'matte',
+	litMode: 'fade', restMode: 'glide', headFinish: 'satin', paperFinish: 'matte',
 }
 
 export class View3D {

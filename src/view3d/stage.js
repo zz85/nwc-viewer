@@ -338,7 +338,7 @@ export class NotationStage {
 		this.opts = {
 			bloom: true, dof: true, fx: false, shadows: true, trail: true, bounce: 1, zoom: 1, view: 'cinema', theme: 'cinema',
 			arcMode: 'distance',  // 'distance' (low, leaps go high) | 'classic' (time-based, bouncy)
-			restMode: 'leap',     // 'leap' (wait on the note, leap in at the end) | 'glide' (one long arc over the rest)
+			restMode: 'glide',    // 'glide' (one long arc over the rest) | 'leap' (wait on the note, leap in at the end)
 			litMode: 'fade',      // 'stay' | 'fade' | 'off' — what played notes do after the flash
 			litFade: 4,           // seconds (music time) to fade back to ink
 			headFinish: 'satin',
