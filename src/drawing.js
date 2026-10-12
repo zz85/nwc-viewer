@@ -169,7 +169,8 @@ function resizeToFit() {
 
 	// TODO take min of canvas size vs bb heigh
 	// resize(bb.width, bb.height)
-	resize(score.clientWidth - 20, score.clientHeight - 20)
+	// #score has no size while the 3D view replaces it; resize() then falls back
+	resize(Math.max(0, score.clientWidth - 20), Math.max(0, score.clientHeight - 20))
 }
 
 function resize(width, height) {

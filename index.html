@@ -6,6 +6,13 @@
 		<meta name="keywords" content="Music,Notation,Composer,Scorewriter,Editor,NWC,Noteworthy" />
 		<meta name="author" content="Joshua Koo" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<!-- three.js for the 3D view (loaded only when it is opened); its addons import 'three' -->
+		<script type="importmap">
+			{ "imports": {
+				"three": "./vendor/three-0.170.0/build/three.module.min.js",
+				"three/addons/": "./vendor/three-0.170.0/examples/jsm/"
+			} }
+		</script>
 		<style>
 			/* Companion text fonts for each SMuFL music font */
 			/* BravuraText, LelandText and PetalumaText carry no Latin letters, only a
@@ -224,11 +231,14 @@
 			}
 
 			#progress_bar { width: 160px; }
-			/* Page layout adds page navigation; make room so the bar stays one row */
-			@media (max-width: 1360px) {
-				body.page-layout #progress_bar { width: 90px; }
-			}
+			/* Make room so the toolbar stays one row (Play turning into Pause
+			   widens it); page layout also adds page navigation */
 			#zoom_slider { width: 80px; }
+			@media (max-width: 1360px) {
+				#progress_bar { width: 120px; }
+				body.page-layout #progress_bar { width: 70px; }
+				body.page-layout #zoom_slider { width: 60px; }
+			}
 
 			#zoom_label {
 				font-size: 11px;
@@ -361,6 +371,34 @@
 				background: #fff;
 				position: fixed;
 			}
+
+			/* 3D view: replaces #score while open */
+			#score3d {
+				flex: 1 0;
+				position: relative;
+				overflow: hidden;
+				min-height: 0;
+				background: #000;
+			}
+			#score3d[hidden] { display: none; }
+			#score3d canvas {
+				position: static;
+				display: block;
+				background: none;
+			}
+			#score3d_status {
+				position: absolute;
+				inset: 0;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: #ccc;
+				font-size: 14px;
+				pointer-events: none;
+			}
+			#score3d_status[hidden] { display: none; }
+			body.view-3d #score,
+			body.view-3d #zoom_group { display: none; }
 
 			#invisible_canvas {
 				display: block;
@@ -508,6 +546,7 @@
 							<button data-mode="scroll" title="One long horizontal line">Scroll</button>
 							<button data-mode="wrap" class="active" title="Wrap systems to the window width">Wrap</button>
 							<button data-mode="page" title="Printed pages">Page</button>
+							<button data-mode="3d" title="3D score: lights hop from note to note as it plays">3D</button>
 						</div>
 						<span id="page_nav" style="display: none;">
 							<button id="page_prev" title="Previous page" class="compact">&lt;</button>
@@ -518,7 +557,7 @@
 					</div>
 
 					<!-- Zoom -->
-					<div class="toolbar-group">
+					<div class="toolbar-group" id="zoom_group">
 						<input type="range" id="zoom_slider" title="Zoom"
 							min="0.25" max="4.0" step="0.01" value="1.0"
 							oninput="onZoomSliderInput(parseFloat(this.value))" />
@@ -555,6 +594,66 @@
 								<div class="row">
 									<button id="autoscroll_toggle" class="active" title="Auto-scroll during playback">Auto-scroll</button>
 									<button id="piano_toggle" class="active" title="Piano keyboard">Piano keyboard</button>
+								</div>
+							</section>
+
+							<section id="view3d_settings">
+								<h5>3D view</h5>
+								<div class="row">
+									<select data-opt3d="view" title="Camera (clicking the 3D view also cycles through them)">
+										<option value="cinema">Camera: Grazing</option>
+										<option value="bounce">Camera: Note Bounce</option>
+										<option value="tilt">Camera: Tilted</option>
+										<option value="flat">Camera: Flat</option>
+										<option value="table">Camera: Tabletop</option>
+										<option value="low">Camera: Low angle</option>
+										<option value="free">Camera: Free orbit (mouse)</option>
+									</select>
+									<select data-opt3d="theme" title="Look of the table, ink and lights">
+										<option value="cinema">Theme: Cinematic</option>
+										<option value="marble">Theme: Marble</option>
+										<option value="night">Theme: Night ink</option>
+										<option value="paper">Theme: Paper</option>
+									</select>
+								</div>
+								<div class="row">
+									<select data-opt3d="litMode" title="What played notes do after they light up">
+										<option value="fade">Lit notes: Fade back</option>
+										<option value="stay">Lit notes: Stay lit</option>
+										<option value="off">Lit notes: Flash only</option>
+									</select>
+									<select data-opt3d="headFinish" title="Notehead surface">
+										<option value="satin">Noteheads: Satin</option>
+										<option value="matte">Noteheads: Matte</option>
+										<option value="gloss">Noteheads: Glossy</option>
+										<option value="chrome">Noteheads: Chrome</option>
+										<option value="gold">Noteheads: Gold</option>
+									</select>
+									<select data-opt3d="paperFinish" title="Surface of the paper / table">
+										<option value="matte">Paper: Matte</option>
+										<option value="satin">Paper: Satin</option>
+										<option value="glossy">Paper: Glossy</option>
+										<option value="mirror">Paper: Glossy + reflections</option>
+									</select>
+								</div>
+								<div class="row">
+									<button data-opt3d="bloom" class="active" title="Glow around lit notes">Bloom</button>
+									<button data-opt3d="dof" class="active" title="Depth of field">Focus blur</button>
+									<button data-opt3d="trail" class="active" title="Streaks behind the moving lights">Trails</button>
+									<button data-opt3d="shadows" class="active" title="Shadows">Shadows</button>
+									<button data-opt3d="fx" title="Sparkles, dust and ripples">Sparkles</button>
+								</div>
+								<div class="slider-list">
+									<label title="Camera distance">
+										<span>Zoom</span>
+										<input type="range" data-opt3d="zoom" min="0.4" max="3" step="0.05" value="1" />
+										<span class="slider-value" data-opt3d-label="zoom">1.00</span>
+									</label>
+									<label title="How high the lights hop between notes">
+										<span>Hop</span>
+										<input type="range" data-opt3d="bounce" min="0" max="2.5" step="0.05" value="1" />
+										<span class="slider-value" data-opt3d-label="bounce">1.00</span>
+									</label>
 								</div>
 							</section>
 
@@ -714,6 +813,10 @@
 
 			<div id="score">
 				<div id="invisible_canvas"></div>
+			</div>
+
+			<div id="score3d" hidden>
+				<div id="score3d_status" hidden></div>
 			</div>
 
 			<div id="footer">

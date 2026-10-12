@@ -418,6 +418,10 @@ if (_pianoFooter && pianoKeyboard._el) {
 	pianoKeyboard._el.parentElement.insertBefore(pianoKeyboard._el, _pianoFooter)
 }
 
+// 3D view (src/view3d/view3d.js, loaded on first use); see "3D view" below
+let view3d = null
+let view3dActive = false
+
 function formatTime(sec) {
 	if (!isFinite(sec) || sec < 0) sec = 0
 	const m = Math.floor(sec / 60)
@@ -438,6 +442,7 @@ playback.onTime((t, dur) => {
 	}
 	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(dur)
 	highlighter.updateTime(t)
+	view3d?.onTime(t)
 })
 
 playback.onNoteOn((ev) => {
@@ -451,8 +456,10 @@ playback.onNoteOff((ev) => {
 
 playback.onStateChange((playing) => {
 	playBtn.textContent = playing ? 'Pause' : 'Play'
-	if (playing) highlighter.start()
-	else highlighter.pause()  // keep highlights frozen on pause
+	// The 2D highlighter repaints the score every frame; not while it is hidden
+	if (playing && !view3dActive) highlighter.start()
+	else if (!playing) highlighter.pause()  // keep highlights frozen on pause
+	view3d?.setPlaying(playing, playback.currentTime)
 })
 
 playback.onEnd(() => {
@@ -461,6 +468,7 @@ playback.onEnd(() => {
 	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
 	highlighter.stop()
 	pianoKeyboard.clear()
+	view3d?.setPlaying(false)
 })
 
 async function togglePlayPause() {
@@ -480,6 +488,7 @@ stopBtn.onclick = () => {
 	playback.stop()
 	highlighter.stop()
 	pianoKeyboard.clear()
+	view3d?.setPlaying(false, 0)
 	progressBar.value = 0
 	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
 }
@@ -757,6 +766,7 @@ if (soloSelect) {
 		}
 		// Re-filter and reload if we have notes loaded
 		await playback._reloadFiltered()
+		rebuild3D()  // only audible staves light up
 	}
 }
 
@@ -791,6 +801,7 @@ progressBar.addEventListener('pointerup', () => {
 	_seeking = false
 	const t = parseFloat(progressBar.value) * playback.duration
 	playback.seek(t)
+	view3d?.seek(t)
 })
 progressBar.addEventListener('input', () => {
 	const t = parseFloat(progressBar.value) * playback.duration
@@ -921,6 +932,7 @@ const rerender = () => {
 
 				// Update highlighter with new layout positions
 				highlighter.setScore(data)
+				rebuild3D()
 			},
 			null,
 			(canvas) => {
@@ -1126,7 +1138,7 @@ function updateLayoutUI() {
 	const group = document.getElementById('layout_group')
 	if (group) {
 		for (const btn of group.querySelectorAll('button')) {
-			btn.classList.toggle('active', btn.dataset.mode === mode)
+			btn.classList.toggle('active', btn.dataset.mode === (view3dActive ? '3d' : mode))
 		}
 	}
 
@@ -1161,11 +1173,179 @@ if (layoutGroup) {
 	layoutGroup.addEventListener('click', (e) => {
 		const btn = e.target.closest('button')
 		if (!btn || !btn.dataset.mode) return
+		if (btn.dataset.mode === '3d') {
+			enter3D()
+			return
+		}
+		if (view3dActive) {
+			exit3D(btn.dataset.mode)
+			localStorage.setItem(LAYOUT_STORAGE_KEY, btn.dataset.mode)
+			return
+		}
 		setLayoutMode(btn.dataset.mode)
 		localStorage.setItem(LAYOUT_STORAGE_KEY, btn.dataset.mode)
 		updateLayoutUI()
 		rerender()
 	})
+}
+
+// ---- 3D view ----
+// Replaces #score with a three.js scene of the score (src/view3d/). It is
+// built from the scroll layout (one long line), so opening it switches the
+// layout to scroll and closing it restores the previous mode. Its options
+// (Settings > 3D view) are remembered together in one localStorage entry.
+
+const VIEW3D_STORAGE_KEY = 'nwc_view_3d'
+const VIEW3D_OPTS_STORAGE_KEY = 'nwc_3d_opts'
+const score3dEl = document.getElementById('score3d')
+const score3dStatus = document.getElementById('score3d_status')
+const view3dControls = document.querySelectorAll('[data-opt3d]')
+let view3dLoading = null   // Promise of the View3D, once loading started
+let layoutBefore3D = null
+
+function set3DStatus(text) {
+	score3dStatus.textContent = text || ''
+	score3dStatus.hidden = !text
+}
+
+function load3DOptions() {
+	try {
+		return JSON.parse(localStorage.getItem(VIEW3D_OPTS_STORAGE_KEY)) || {}
+	} catch {
+		return {}
+	}
+}
+
+function save3DOption(key, value) {
+	const opts = load3DOptions()
+	opts[key] = value
+	localStorage.setItem(VIEW3D_OPTS_STORAGE_KEY, JSON.stringify(opts))
+}
+
+function read3DControl(el) {
+	if (el.tagName === 'BUTTON') return el.classList.contains('active')
+	if (el.type === 'range') return parseFloat(el.value)
+	return el.value
+}
+
+function write3DControl(el, value) {
+	if (el.tagName === 'BUTTON') el.classList.toggle('active', !!value)
+	else if (el.tagName === 'SELECT' && ![...el.options].some(o => o.value === value)) return
+	else el.value = value
+	const label = document.querySelector(`[data-opt3d-label="${el.dataset.opt3d}"]`)
+	if (label) label.textContent = parseFloat(el.value).toFixed(2)
+}
+
+/** Staves whose notes light up: the ones that are heard (solo / mute). */
+function isStaffAudible(si) {
+	if (playback.soloStaves.size) return playback.soloStaves.has(si)
+	return !playback.muteStaves.has(si) && !scoreManager.getData()?.score?.staves[si]?.muted
+}
+
+function ensureView3D() {
+	view3dLoading ||= import('./view3d/view3d.js').then(({ View3D }) => {
+		const options = {}
+		for (const el of view3dControls) options[el.dataset.opt3d] = read3DControl(el)
+		view3d = new View3D(score3dEl, {
+			options,
+			getSpeed: () => playback.speed,
+			onViewChange: (view) => {
+				for (const el of view3dControls) if (el.dataset.opt3d === 'view') write3DControl(el, view)
+				save3DOption('view', view)
+			},
+		})
+		return view3d
+	})
+	return view3dLoading
+}
+
+/**
+ * Rebuild the 3D scene from the current (scroll) layout, if the view is open.
+ * Coalesced to one rebuild per frame: rerenders come in bursts (text fonts
+ * arriving), and a rebuild costs far more than a 2D layout.
+ */
+let rebuild3DPending = false
+function rebuild3D() {
+	if (!view3dActive || !view3d || rebuild3DPending) return
+	rebuild3DPending = true
+	requestAnimationFrame(() => {
+		rebuild3DPending = false
+		const data = scoreManager.getData()
+		if (!view3dActive || !data) return
+		try {
+			view3d.rebuild(data, isStaffAudible)
+			set3DStatus('')
+		} catch (error) {
+			console.error('3D view failed:', error)
+			set3DStatus('3D view failed: ' + error.message)
+		}
+	})
+}
+
+async function enter3D() {
+	if (view3dActive) return
+	view3dActive = true
+	layoutBefore3D = getLayoutMode()
+	localStorage.setItem(VIEW3D_STORAGE_KEY, '1')
+	document.body.classList.add('view-3d')
+	score3dEl.hidden = false
+	if (highlighter.active) highlighter.pause()
+	setLayoutMode('scroll')
+	updateLayoutUI()
+	if (!view3d) set3DStatus('Loading 3D view…')
+	try {
+		await ensureView3D()
+	} catch (error) {
+		console.error('Could not load the 3D view:', error)
+		view3dLoading = null
+		set3DStatus('Could not load the 3D view: ' + error.message)
+		return
+	}
+	if (!view3dActive) return  // closed while loading
+	set3DStatus('')
+	view3d.setPlaying(playback.playing, playback.currentTime)
+	view3d.show()
+	if (scoreManager.getData()) rerender()  // lays out in scroll mode, then rebuild3D()
+}
+
+function exit3D(mode) {
+	if (!view3dActive) return
+	view3dActive = false
+	localStorage.setItem(VIEW3D_STORAGE_KEY, '0')
+	view3d?.hide()
+	set3DStatus('')
+	score3dEl.hidden = true
+	document.body.classList.remove('view-3d')
+	setLayoutMode(mode || layoutBefore3D || 'wrap')
+	updateLayoutUI()
+	if (scoreManager.getData()) rerender()
+	if (playback.playing) highlighter.start()
+}
+
+{
+	const stored = load3DOptions()
+	for (const el of view3dControls) {
+		const key = el.dataset.opt3d
+		if (key in stored) write3DControl(el, stored[key])
+		const commit = () => {
+			const value = read3DControl(el)
+			save3DOption(key, value)
+			view3d?.setOption(key, value)
+		}
+		if (el.tagName === 'BUTTON') {
+			el.onclick = () => {
+				el.classList.toggle('active')
+				commit()
+			}
+		} else if (el.type === 'range') {
+			el.oninput = () => {
+				write3DControl(el, el.value)
+				commit()
+			}
+		} else {
+			el.onchange = commit
+		}
+	}
 }
 
 // Page size selector
@@ -1457,6 +1637,7 @@ if (storedZoomFit === 'width' || storedZoomFit === 'height') {
 	updateFitButtonsUI()
 }
 updateLayoutUI()
+if (localStorage.getItem(VIEW3D_STORAGE_KEY) === '1') enter3D()
 
 // ---- Music font selector ----
 
