@@ -328,6 +328,11 @@
 			}
 
 			/* Narrow screens: keep the main bar to one or two rows */
+			/* Sized to the longest sample name otherwise, crowding the toolbar */
+			#samples {
+				max-width: 170px;
+			}
+
 			@media (max-width: 700px) {
 				.toolbar { padding: 4px 6px; gap: 6px; }
 				.toolbar-group + .toolbar-group { padding-left: 6px; }
@@ -396,6 +401,36 @@
 				font-variant-numeric: tabular-nums;
 				color: var(--text-dim);
 			}
+			/* Save menu and unsaved-changes status */
+			.save-group {
+				position: relative;
+				display: inline-block;
+			}
+			.save-menu {
+				min-width: 230px;
+				padding: 6px;
+			}
+			.save-menu.open {
+				gap: 2px;
+			}
+			.save-menu button {
+				text-align: left;
+			}
+			.save-menu .hint {
+				margin: 4px 6px;
+			}
+			.unsaved-status {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 12px;
+				color: var(--text-dim);
+				white-space: nowrap;
+			}
+			.unsaved-status[hidden] {
+				display: none;
+			}
+
 			/* Click-to-edit title block (src/title-editor.js) */
 			.title-hover {
 				position: fixed;
@@ -437,7 +472,21 @@
 						<button id="open">Open</button>
 						<input type="file" id="opener" accept=".nwc,.nwz,.nwctxt,.mid,.midi,.mscx,.mscz,.musicxml,.mxl,.xml" hidden />
 						<select id="samples" title="Sample scores"></select>
-						<button id="export_pdf" title="Export the score as a PDF, laid out on pages (size and orientation from Settings → Page)">Export PDF</button>
+						<div class="save-group">
+							<button id="save_btn" title="Save the score with your changes" aria-haspopup="true" aria-expanded="false">Save &#9662;</button>
+							<div id="save_menu" class="popover save-menu" role="menu" aria-label="Save as">
+								<button data-format="nwctxt" role="menuitem">NoteWorthy text (.nwctxt)</button>
+								<button data-format="nwc" role="menuitem">NoteWorthy Composer (.nwc)</button>
+								<button data-format="musicxml" role="menuitem">MusicXML (.musicxml)</button>
+								<p class="hint" id="save_hint" hidden>Saving is available for NoteWorthy files (.nwc, .nwctxt) so far.</p>
+								<button id="export_pdf" role="menuitem" title="Lay the score out on pages (size and orientation from Settings → Page) and download a PDF">PDF (.pdf)</button>
+							</div>
+						</div>
+						<button id="share_btn" title="Copy a link that opens this score, with your changes">Share</button>
+						<span id="unsaved_status" class="unsaved-status" hidden>
+							<span id="unsaved_text"></span>
+							<button id="discard_changes" class="compact" title="Throw away the unsaved changes and reload the file">Discard</button>
+						</span>
 					</div>
 
 					<!-- Transport -->
@@ -644,8 +693,6 @@
 						<button onclick="activateEdit()">Edit</button>
 						<span class="toolbar-label">Parser</span>
 						<button id="parser_toggle">New</button>
-						<button>Save</button>
-						<button>Load</button>
 					</div>
 				</div>
 			</div>

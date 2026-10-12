@@ -8,6 +8,9 @@ import { setup, resizeToFit, changeFont } from './drawing.js'
 import { exportLilypond } from './exporter.js'
 import { score, renderPage, getTitleFields, setPlaybackHighlighter, setInkBleedRenderer } from './layout/typeset.js'
 import { TitleEditor } from './title-editor.js'
+import { getDraft, getDraftPayload, saveEdit, clearDraft, getLastDoc, setLastDoc } from './drafts.js'
+import { buildSaveFile, isNoteWorthy } from './save.js'
+import { sampleLink, embeddedLink, readLink } from './share.js'
 import { buildPdf, canvasToPdfImage } from './pdf-writer.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
@@ -65,6 +68,7 @@ window.findFirstToken = (predicate) => {
 }
 
 var samples = [
+	'HappyBirthdayTrio.nwctxt', // nwctxt (oboe, viola, double bass)
 	'AChildThisDayIsBorn.nwc', // v2.02
 	'AveMariaArcadelt.nwc', // v2.75
 	'WakenChristianChildren.nwc', // v2.75
@@ -92,18 +96,54 @@ nwcSamples.forEach((sample) => {
 	option.text = sample
 	sample_dom.appendChild(option)
 })
-sample_dom.onchange = function () {
-	const path = samples.includes(sample_dom.value) ? 'samples/' : 'nwcs/'
-	ajax(path + sample_dom.value, (buf) => processData(buf, sample_dom.value))
-	localStorage.setItem('nwc_last_song', sample_dom.value)
+const LAST_SONG_KEY = 'nwc_last_song'
+const isSample = (name) => samples.includes(name) || nwcSamples.includes(name)
+
+// How the next processData() document was opened: 'sample' (address bar
+// shows ?song=), 'link' (opened from a shared link) or null (local file)
+let nextDocSource = null
+let nextDocEdits = null
+
+function loadSample(name) {
+	const path = samples.includes(name) ? 'samples/' : 'nwcs/'
+	ajax(path + name, (buf) => {
+		nextDocSource = 'sample'
+		processData(buf, name)
+	})
+	if (sample_dom) sample_dom.value = name
+	localStorage.setItem(LAST_SONG_KEY, name)
 }
 
-// Default loading — restore last song or fall back to WhatChildIsThis
-const LAST_SONG_KEY = 'nwc_last_song'
-const lastSong = localStorage.getItem(LAST_SONG_KEY) || 'WhatChildIsThis.nwc'
-const lastSongPath = samples.includes(lastSong) ? 'samples/' : 'nwcs/'
-ajax(lastSongPath + lastSong, (buf) => processData(buf, lastSong))
-if (sample_dom) sample_dom.value = lastSong
+sample_dom.onchange = function () {
+	loadSample(sample_dom.value)
+}
+
+// Opening: a shared link first, then the last document if it has unsaved
+// changes, else the last song (or WhatChildIsThis). Async, so it runs after
+// this module has finished initializing (processData uses it).
+async function openInitialScore() {
+	let link = null
+	try {
+		link = await readLink(location.href)
+	} catch (error) {
+		console.warn('Could not read the shared link:', error)
+	}
+	if (link?.song && isSample(link.song)) return loadSample(link.song)
+	if (link?.bytes) {
+		nextDocSource = 'link'
+		nextDocEdits = link.edits
+		if (sample_dom && isSample(link.name)) sample_dom.value = link.name
+		return processData(link.bytes, link.name)
+	}
+	const lastDoc = getLastDoc()
+	const lastDocBytes = lastDoc ? getDraftPayload(lastDoc) : null
+	if (lastDocBytes) {
+		if (sample_dom && isSample(lastDoc)) sample_dom.value = lastDoc
+		return processData(lastDocBytes, lastDoc)
+	}
+	loadSample(localStorage.getItem(LAST_SONG_KEY) || 'WhatChildIsThis.nwc')
+}
+openInitialScore()
 
 // Doesn't work yet
 
@@ -465,9 +505,177 @@ const titleEditor = new TitleEditor({
 		if (!data) return
 		data.info = data.info || {}
 		data.info[field] = value
+		recordEdit(field, value)
 		rerender()
 	},
 })
+
+// ---- Unsaved changes ----
+// Edits are kept in localStorage (src/drafts.js) until the score is saved,
+// and re-applied when the same file is opened again.
+
+let sessionEdits = {}      // edits to the open file (kept after saving, for the next save)
+let pendingDoc = null      // file being opened by processData(), for draft lookup
+
+function recordEdit(field, value) {
+	sessionEdits[field] = value
+	const name = window.__currentFile
+	const kept = name && window._lastPayload ? saveEdit(name, window._lastPayload, field, value) : false
+	setUnsavedStatus(kept ? 'Unsaved changes' : "Unsaved changes (couldn't keep them in this browser)", true)
+}
+
+function setUnsavedStatus(text, canDiscard) {
+	const status = document.getElementById('unsaved_status')
+	if (!status) return
+	status.hidden = !text
+	document.getElementById('unsaved_text').textContent = text || ''
+	status.title = canDiscard ? 'Kept in this browser until you save' : ''
+	document.getElementById('discard_changes').hidden = !canDiscard
+}
+
+/** Called for every newly loaded score: re-apply its draft, if any. */
+function applyDraft(data) {
+	sessionEdits = {}
+	const doc = pendingDoc
+	pendingDoc = null
+	if (!doc) {
+		setUnsavedStatus('')
+		return
+	}
+	setLastDoc(doc.name)
+	// Keep the address bar shareable: ?song= for samples, the shared link as
+	// opened, nothing for local files (the old link would open another score)
+	if (doc.source === 'sample') history.replaceState(null, '', sampleLink(location.href, doc.name))
+	else if (doc.source !== 'link' && (location.search || location.hash)) history.replaceState(null, '', location.pathname)
+
+	const draft = getDraft(doc.name, doc.payload)
+	if (draft && Object.keys(draft.edits).length) {
+		data.info = Object.assign(data.info || {}, draft.edits)
+		sessionEdits = { ...draft.edits }
+		setUnsavedStatus('Restored unsaved changes', true)
+	} else if (doc.edits && Object.keys(doc.edits).length) {
+		// Edits that came with a shared link are this browser's unsaved changes
+		for (const [field, value] of Object.entries(doc.edits)) {
+			data.info = data.info || {}
+			data.info[field] = value
+			recordEdit(field, value)
+		}
+	} else {
+		setUnsavedStatus('')
+	}
+}
+
+/** Show a short message in the status area, then return to the unsaved state. */
+function flashStatus(text) {
+	setUnsavedStatus(text, false)
+	setTimeout(() => {
+		if (document.getElementById('unsaved_text').textContent !== text) return
+		const name = window.__currentFile
+		const unsaved = name && window._lastPayload && getDraft(name, window._lastPayload)
+		setUnsavedStatus(unsaved ? 'Unsaved changes' : '', !!unsaved)
+	}, 2500)
+}
+
+// ---- Share ----
+
+/** Copy a link that opens the current score (with its edits). */
+async function copyShareLink() {
+	const name = window.__currentFile
+	const payload = window._lastPayload
+	if (!payload) return
+	const edited = Object.keys(sessionEdits).length > 0
+	const bytes = payload instanceof Uint8Array ? payload : new Uint8Array(payload)
+	const link = isSample(name) && !edited
+		? sampleLink(location.href, name)
+		: await embeddedLink(location.href, bytes, name, sessionEdits)
+	try {
+		await navigator.clipboard.writeText(link)
+		flashStatus('Link copied')
+	} catch {
+		prompt('Copy this link:', link)
+	}
+	return link
+}
+window.copyShareLink = copyShareLink
+
+const shareBtn = document.getElementById('share_btn')
+if (shareBtn) {
+	shareBtn.onclick = () => copyShareLink().catch((error) => {
+		console.error('Share failed:', error)
+		alert(`Could not make a link: ${error.message}`)
+	})
+}
+
+const discardBtn = document.getElementById('discard_changes')
+if (discardBtn) {
+	discardBtn.onclick = () => {
+		const name = window.__currentFile
+		if (!name || !window._lastPayload) return
+		clearDraft(name)
+		processData(window._lastPayload, name)
+	}
+}
+
+// ---- Save ----
+
+const saveBtn = document.getElementById('save_btn')
+const saveMenu = document.getElementById('save_menu')
+if (saveBtn && saveMenu) {
+	const setOpen = (open) => {
+		saveMenu.classList.toggle('open', open)
+		saveBtn.setAttribute('aria-expanded', String(open))
+		if (!open) return
+		const supported = !!window._lastPayload && isNoteWorthy(window._lastPayload)
+		// PDF export works for any score; the file formats need a NoteWorthy source
+		for (const item of saveMenu.querySelectorAll('button[data-format]')) item.disabled = !supported
+		document.getElementById('save_hint').hidden = supported
+	}
+	saveBtn.onclick = (e) => {
+		e.stopPropagation()
+		setOpen(!saveMenu.classList.contains('open'))
+	}
+	document.addEventListener('click', (e) => {
+		if (!saveMenu.contains(e.target) && e.target !== saveBtn) setOpen(false)
+	})
+	saveMenu.addEventListener('click', async (e) => {
+		const item = e.target.closest('button[data-format]')
+		if (!item) return
+		setOpen(false)
+		try {
+			await saveAs(item.dataset.format)
+		} catch (error) {
+			console.error('Save failed:', error)
+			alert(`Save failed: ${error.message}`)
+		}
+	})
+}
+
+/** Download the open score in `format` with the edits made to it. */
+async function saveAs(format) {
+	const name = window.__currentFile
+	const payload = window._lastPayload
+	if (!payload) return
+	const file = await buildSaveFile(format, payload, sessionEdits)
+	downloadFile(file.data, baseFileName() + '.' + file.ext, file.type)
+	// The changes are in the saved file now; stop restoring them
+	if (name) clearDraft(name)
+	flashStatus('Saved')
+}
+window.saveAs = saveAs
+
+function baseFileName() {
+	const title = scoreManager.getData()?.info?.title || ''
+	return (window.__currentFile || title || 'score').replace(/\.[^.]+$/, '')
+}
+
+function downloadFile(data, filename, type) {
+	const url = URL.createObjectURL(new Blob([data], { type }))
+	const link = document.createElement('a')
+	link.href = url
+	link.download = filename
+	link.click()
+	setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 
 // Click-to-seek: clicking on the score positions the playback cursor.
 // Distinguishes clicks from drag-scrolls using a 5px movement threshold.
@@ -743,6 +951,7 @@ if (typeof document !== 'undefined' && document.fonts) {
 
 function setDataAndRender(_data) {
 	titleEditor.finish(false)
+	applyDraft(_data)
 	scoreManager.setData(_data)
 	updateSoloStaffOptions(_data)
 	rerender()
@@ -802,6 +1011,8 @@ function processData(payload, filename) {
 	try {
 		window._lastPayload = payload
 		window.__currentFile = filename || '(unknown)'
+		pendingDoc = filename ? { name: filename, payload, source: nextDocSource, edits: nextDocEdits } : null
+		nextDocSource = nextDocEdits = null
 		window.__renderComplete = null
 		// Detect MuseScore files (.mscx / .mscz)
 		if (isMuseScoreFileStrict(payload, filename)) {
@@ -1311,15 +1522,8 @@ async function exportPdf() {
 	for (const canvas of canvases) {
 		pages.push({ widthPt: pg.pageWidth * ptPerPx, heightPt: pg.pageHeight * ptPerPx, image: await canvasToPdfImage(canvas) })
 	}
-	const data = scoreManager.getData()
-	const title = data?.info?.title || ''
-	const baseName = (window.__currentFile || title || 'score').replace(/\.[^.]+$/, '')
-	const url = URL.createObjectURL(new Blob([buildPdf(pages, title)], { type: 'application/pdf' }))
-	const link = document.createElement('a')
-	link.href = url
-	link.download = baseName + '.pdf'
-	link.click()
-	setTimeout(() => URL.revokeObjectURL(url), 1000)
+	const title = scoreManager.getData()?.info?.title || ''
+	downloadFile(buildPdf(pages, title), baseFileName() + '.pdf', 'application/pdf')
 
 	if (fitOnePage && pages.length > 1) {
 		alert(`The score doesn't fit on one page even at the smallest staff size, so the PDF has ${pages.length} pages.`)
@@ -1330,6 +1534,7 @@ async function exportPdf() {
 const exportPdfBtn = document.getElementById('export_pdf')
 if (exportPdfBtn) {
 	exportPdfBtn.onclick = async () => {
+		saveMenu?.classList.remove('open')
 		exportPdfBtn.disabled = true
 		try {
 			await exportPdf()
