@@ -149,9 +149,13 @@ the engraver from, and delete its copies. That leaves one source of truth.
    - Skip the rebuild when the layout input is unchanged, for example after a font
      `loadingdone`.
 3. **Extras.**
-   - Video export: needs `video-export.js` and a vendored `mp4-muxer`. OxiSynth is
-     already at `vendor/soundfont-engine/vendor/oxisynth`. The schedule and programs
-     come from the events plus `stave.patchName`, as in the midiviz NWC path.
+   - **Video export: done.** It lives in `src/view3d/video-export.js` and
+     `export-dialog.js`, and opens from ☰ → Video (.mp4), which switches to 3D
+     first if needed.
+     - `mp4-muxer` is vendored, and the audio comes from OxiSynth, rendered offline.
+     - The schedule is the audible notes from `buildNoteEvents`, with each
+       staff's `patchName` as its program.
+     - Checked with a 720p30 export: H.264 video plus AAC audio.
    - `midi-score.js` as an alternative MIDI importer, which also benefits 2D.
 
 ## Testing

@@ -250,17 +250,36 @@ export class Transport {
 
 	// ── Speed: chip + popover with presets, slider and an exact value ──
 
-	_bindSpeed() {
-		const pop = this.el.speedPop, chip = this.el.speedChip
+	/** A button that opens a popover above the bar; one popover at a time. */
+	_bindPop(button, pop) {
+		this._pops ||= []
 		const open = show => {
+			if (show) this.closePops()
 			pop.hidden = !show
-			chip.setAttribute('aria-expanded', String(show))
+			button.setAttribute('aria-expanded', String(show))
+			button.classList.toggle('open', show)
 			if (show) this.wake()
 		}
-		this.closeSpeed = () => open(false)
-		chip.onclick = e => { e.stopPropagation(); open(pop.hidden) }
+		this._pops.push(() => open(false))
+		button.onclick = e => { e.stopPropagation(); open(pop.hidden) }
+		pop.addEventListener('click', e => e.stopPropagation())
+		document.addEventListener('click', e => { if (!pop.hidden && !pop.contains(e.target)) open(false) })
+	}
+
+	closePops() {
+		for (const close of this._pops || []) close()
+	}
+
+	get popOpen() {
+		return [...this.root.querySelectorAll('.t-pop')].some(p => !p.hidden)
+	}
+
+	_bindSpeed() {
+		const pop = this.el.speedPop
+		this._bindPop(this.el.speedChip, pop)
+		const settings = this.root.querySelector('#playback_settings'), settingsPop = this.root.querySelector('#playback_pop')
+		if (settings && settingsPop) this._bindPop(settings, settingsPop)
 		pop.addEventListener('click', e => {
-			e.stopPropagation()
 			const b = e.target.closest('[data-speed]')
 			if (b) this._h.onSpeed(+b.dataset.speed)
 		})
@@ -270,10 +289,7 @@ export class Transport {
 			if (isFinite(n) && n > 0) this._h.onSpeed(n)
 			else this.setSpeed(this.speed)
 		})
-		document.addEventListener('click', e => { if (!pop.hidden && !pop.contains(e.target)) open(false) })
 	}
-
-	get speedOpen() { return !this.el.speedPop.hidden }
 
 	_renderTempo() {
 		const { bpm, beat, written } = this.timeline.tempo
@@ -308,7 +324,7 @@ export class Transport {
 		setInterval(() => {
 			if (!this.playing || this.root.classList.contains('idle')) return
 			if (performance.now() - this._lastActivity < IDLE_MS) return
-			if (this.root.matches(':hover') || this.speedOpen || this._scrubbing || this.root.querySelector(':focus-visible')) return
+			if (this.root.matches(':hover') || this.popOpen || this._scrubbing || this.root.querySelector(':focus-visible')) return
 			this.root.classList.add('idle')
 		}, 250)
 	}

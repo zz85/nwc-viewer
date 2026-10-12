@@ -28,7 +28,9 @@ opener.onchange = function () {
 	handleFileList(files)
 }
 
-document.getElementById('open').onclick = () => opener.click()
+// The viewer opens files from its menu (an 'Open a file' source, main.js)
+const openBtn = document.getElementById('open')
+if (openBtn) openBtn.onclick = () => opener.click()
 
 function handleFileList(files) {
 	if (files && files.length) {

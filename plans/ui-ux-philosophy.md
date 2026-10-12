@@ -417,17 +417,29 @@ Each step ships on its own and removes nothing.
 
    Play, Stop, progress, speed and the piano toggle left the top toolbar and
    Settings.
-2. **Top bar, panels and the registry.**
-   - ☰ menu drawer and Start sheet.
-   - Title, composer and status chips in the bar.
-   - View switch with ▾ More (Scroll renamed Line).
-   - Share.
-   - The Settings popover becomes the Aa panel with collapsed groups.
-   - The footer moves to About.
-   - Studio and Light themes.
-
-   The bars, menu, start sheet and panels are built from the §6 registry from
-   the start, so later steps only register things.
+2. **Top bar, panels and the registry: done.**
+   - **Top bar:** ☰ · Notably · the title (click to rename) and composer · status
+     chips ("Unsaved changes · Save · Discard") · Page | Wrap | Line | 3D · page
+     nav · **Aa** · Share.
+   - **☰ menu drawer** (`src/shell.js`). It is drawn from the slots in `src/slots.js`:
+     - *Open*: the `source` slot, plus the sample list.
+     - *Save & export*: the `export` slot, with nwctxt, nwc, MusicXML, PDF and
+       **Video (.mp4)**, the 3D exporter ported from midiviz (`src/view3d/export-dialog.js`).
+     - Copy link, Theme, Shortcuts, About this score, and the converter and
+       GitHub links.
+   - **Aa (Appearance) drawer:** what used to be Settings. View and Theme come
+     first, then Zoom and Fit, then collapsible Engraving, Page, Print look,
+     Spacing and Advanced groups. The 3D options show only while 3D is open.
+   - **Playback settings** moved into the transport's ⚙ popover: Follow,
+     Highlight, Solo and Shortcuts.
+   - **Studio and Light themes**, remembered.
+   - The footer copyright moved to About.
+   - Phones get a single-row bar (☰, title, Aa, Share). The drawers become
+     bottom sheets, and the view switch moves into Aa.
+   - **Simplified for now:** the Start sheet and the ▾ More views overflow wait
+     until there is something to put in them, which is a second source (Scan,
+     Write by hand) or a fifth view. The slots already exist; the menu's Open
+     section *is* the source list today.
 3. **Parts panel.** Mute, solo, volume and eye per staff. One shared palette for
    the parts, the piano keys, the 3D lights and the highlights.
 4. **Practice.**

@@ -14,8 +14,10 @@ import { sampleLink, embeddedLink, readLink } from './share.js'
 import { buildPdf, canvasToPdfImage } from './pdf-writer.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
-import { PlaybackController, buildNoteEvents } from './audio.js'
-import { Transport } from './transport.js'
+import { PlaybackController, buildNoteEvents, SOUNDFONT_PATH } from './audio.js'
+import { Transport, formatTime } from './transport.js'
+import { register, renderMenu, itemsIn, onSlotChange } from './slots.js'
+import { bindDrawer, closeDrawers, setTheme, getTheme, onThemeChange, restoreTheme, docHeader, showAbout } from './shell.js'
 import { buildTimeline, stepBars } from './transport-timeline.js'
 import { registerCommand, bindShortcuts, openShortcutSheet, closeShortcutSheet, shortcutSheetOpen } from './commands.js'
 import { PlaybackHighlighter } from './playback-highlight.js'
@@ -582,15 +584,26 @@ const titleEditor = new TitleEditor({
 	getCanvas: () => window.canvas,
 	getZoom: getZoomLevel,
 	getFields: getTitleFields,
-	onCommit: (field, value) => {
-		const data = scoreManager.getData()
-		if (!data) return
-		data.info = data.info || {}
-		data.info[field] = value
-		recordEdit(field, value)
-		rerender()
-	},
+	onCommit: (field, value) => commitInfoEdit(field, value),
 })
+
+/** Change a title-block field (title, author, lyricist) and keep it as an unsaved edit. */
+function commitInfoEdit(field, value) {
+	const data = scoreManager.getData()
+	if (!data) return
+	data.info = data.info || {}
+	data.info[field] = value
+	recordEdit(field, value)
+	rerender()
+}
+
+// The title and composer in the top bar; click the title to rename the score
+const docTitle = docHeader({
+	title: document.getElementById('doc_title'),
+	sub: document.getElementById('doc_sub'),
+	onRename: (value) => commitInfoEdit('title', value),
+})
+restoreTheme()
 
 // ---- Unsaved changes ----
 // Edits are kept in localStorage (src/drafts.js) until the score is saved,
@@ -613,6 +626,7 @@ function setUnsavedStatus(text, canDiscard) {
 	document.getElementById('unsaved_text').textContent = text || ''
 	status.title = canDiscard ? 'Kept in this browser until you save' : ''
 	document.getElementById('discard_changes').hidden = !canDiscard
+	document.getElementById('save_now').hidden = !canDiscard
 }
 
 /** Called for every newly loaded score: re-apply its draft, if any. */
@@ -698,39 +712,86 @@ if (discardBtn) {
 	}
 }
 
-// ---- Save ----
+// ---- Save & export: the 'export' slot, listed in the ☰ menu ----
 
-const saveBtn = document.getElementById('save_btn')
-const saveMenu = document.getElementById('save_menu')
-if (saveBtn && saveMenu) {
-	const setOpen = (open) => {
-		saveMenu.classList.toggle('open', open)
-		saveBtn.setAttribute('aria-expanded', String(open))
-		if (!open) return
-		const supported = !!window._lastPayload && isNoteWorthy(window._lastPayload)
-		// PDF export works for any score; the file formats need a NoteWorthy source
-		for (const item of saveMenu.querySelectorAll('button[data-format]')) item.disabled = !supported
-		document.getElementById('save_hint').hidden = supported
-	}
-	saveBtn.onclick = (e) => {
-		e.stopPropagation()
-		setOpen(!saveMenu.classList.contains('open'))
-	}
-	document.addEventListener('click', (e) => {
-		if (!saveMenu.contains(e.target) && e.target !== saveBtn) setOpen(false)
+const canSaveNoteWorthy = () =>
+	(!!window._lastPayload && isNoteWorthy(window._lastPayload)) || 'NoteWorthy files only, so far'
+register('export', { id: 'nwctxt', label: 'NoteWorthy text (.nwctxt)', available: canSaveNoteWorthy, run: () => saveAs('nwctxt') })
+register('export', { id: 'nwc', label: 'NoteWorthy Composer (.nwc)', available: canSaveNoteWorthy, run: () => saveAs('nwc') })
+register('export', { id: 'musicxml', label: 'MusicXML (.musicxml)', available: canSaveNoteWorthy, run: () => saveAs('musicxml') })
+register('export', {
+	id: 'pdf', label: 'PDF (.pdf)',
+	title: 'Lay the score out on pages (size and orientation from Appearance → Page) and download a PDF',
+	run: () => exportPdf(),
+})
+
+register('export', {
+	id: 'video', label: 'Video (.mp4)…', hint: 'The 3D view, rendered frame by frame',
+	available: () => typeof VideoEncoder !== 'undefined' || 'Needs Chrome, Edge or Safari 17+',
+	run: () => exportVideoFromMenu(),
+})
+
+/** What the video exporter plays: the audible notes, programs and length. */
+function exportSong() {
+	const data = scoreManager.getData()
+	const { notes, channels } = buildNoteEvents(data)
+	const heard = notes.filter((n) => isStaffAudible(n.staffIndex))
+	const programs = new Map()
+	data.score.staves.forEach((st, si) => {
+		if (channels[si] !== 9) programs.set(channels[si], st.patchName ?? 0)
 	})
-	saveMenu.addEventListener('click', async (e) => {
-		const item = e.target.closest('button[data-format]')
-		if (!item) return
-		setOpen(false)
-		try {
-			await saveAs(item.dataset.format)
-		} catch (error) {
-			console.error('Save failed:', error)
-			alert(`Save failed: ${error.message}`)
-		}
+	return {
+		title: data.info?.title || baseFileName(),
+		subtitle: data.info?.author || '',
+		schedule: { notes: heard.map(({ midi, time, duration, velocity, channel }) => ({ midi, time, duration, velocity, channel })), controlChanges: [] },
+		programs,
+		duration: heard.reduce((end, n) => Math.max(end, n.time + n.duration), 0),
+	}
+}
+
+/** Export video: opens the 3D view if needed, then the export dialog. */
+async function exportVideoFromMenu() {
+	if (!scoreManager.getData()) return
+	if (!view3dActive) {
+		window.__render3DComplete = null
+		await enter3D()
+		const t0 = performance.now()
+		while (!window.__render3DComplete && performance.now() - t0 < 20000) await new Promise((r) => setTimeout(r, 50))
+		if (!window.__render3DComplete) throw new Error('the 3D view did not open')
+	}
+	const { openExportDialog } = await import('./view3d/export-dialog.js')
+	openExportDialog({
+		stage: view3d.stage,
+		view3d,
+		getSong: exportSong,
+		getTime: () => playback.currentTime,
+		pause: () => { if (playback.playing) playback.pause() },
+		play: () => { if (!playback.playing) togglePlayPause() },
+		seek: (t) => seekTo(t),
+		getAudioOpts: () => ({
+			vendorPath: new URL('../vendor/soundfont-engine/vendor', import.meta.url).href,
+			soundfonts: [SOUNDFONT_PATH],
+			volume: transport.muted ? 0 : playback.volume,
+		}),
+		fileLabel: window.__currentFile,
+		soundLabel: 'General MIDI (Creative 8 MB)',
+		notify: (msg) => flashStatus(msg),
 	})
 }
+
+/** Save in the score's own NoteWorthy format (the Edited · Save chip). */
+function saveInPlace() {
+	if (canSaveNoteWorthy() !== true) {
+		menuDrawer.open()
+		return
+	}
+	const format = /\.nwctxt$/i.test(window.__currentFile || '') ? 'nwctxt' : 'nwc'
+	saveAs(format).catch((error) => {
+		console.error('Save failed:', error)
+		alert(`Save failed: ${error.message}`)
+	})
+}
+document.getElementById('save_now').onclick = saveInPlace
 
 /** Download the open score in `format` with the edits made to it. */
 async function saveAs(format) {
@@ -966,6 +1027,7 @@ const rerender = () => {
 				// Update highlighter with new layout positions
 				highlighter.setScore(data)
 				updateTimeline(data)
+				docTitle.update(data.info, (window.__currentFile || '').replace(/\.[^.]+$/, ''))
 				rebuild3D()
 			},
 			null,
@@ -1169,12 +1231,9 @@ const ORIENTATION_STORAGE_KEY = 'nwc_page_orientation'
 function updateLayoutUI() {
 	const mode = getLayoutMode()
 
-	// Update segmented button group active state
-	const group = document.getElementById('layout_group')
-	if (group) {
-		for (const btn of group.querySelectorAll('button')) {
-			btn.classList.toggle('active', btn.dataset.mode === (view3dActive ? '3d' : mode))
-		}
+	// Update the view switches (top bar, and Appearance on phones)
+	for (const btn of document.querySelectorAll('.view-switch button')) {
+		btn.classList.toggle('active', btn.dataset.mode === (view3dActive ? '3d' : mode))
 	}
 
 	// Show/hide page-only controls
@@ -1202,27 +1261,41 @@ function updateLayoutUI() {
 	}
 }
 
-// Layout button group click handler
-const layoutGroup = document.getElementById('layout_group')
-if (layoutGroup) {
-	layoutGroup.addEventListener('click', (e) => {
-		const btn = e.target.closest('button')
-		if (!btn || !btn.dataset.mode) return
-		if (btn.dataset.mode === '3d') {
-			enter3D()
-			return
-		}
-		if (view3dActive) {
-			exit3D(btn.dataset.mode)
-			localStorage.setItem(LAYOUT_STORAGE_KEY, btn.dataset.mode)
-			return
-		}
-		setLayoutMode(btn.dataset.mode)
-		localStorage.setItem(LAYOUT_STORAGE_KEY, btn.dataset.mode)
-		updateLayoutUI()
-		rerender()
-	})
+// ---- Views: the 'view' slot ----
+// Drawn as the top bar's switch (and in Appearance on phones). A view that
+// only some scores have, or one used less, registers here too.
+
+function chooseLayout(mode) {
+	if (view3dActive) {
+		exit3D(mode)
+		localStorage.setItem(LAYOUT_STORAGE_KEY, mode)
+		return
+	}
+	setLayoutMode(mode)
+	localStorage.setItem(LAYOUT_STORAGE_KEY, mode)
+	updateLayoutUI()
+	rerender()
 }
+
+register('view', { id: 'page', label: 'Page', title: 'Printed pages', run: () => chooseLayout('page') })
+register('view', { id: 'wrap', label: 'Wrap', title: 'Systems wrapped to the window width', run: () => chooseLayout('wrap') })
+register('view', { id: 'scroll', label: 'Line', title: 'One long line', run: () => chooseLayout('scroll') })
+register('view', { id: '3d', label: '3D', title: '3D score: lights hop from note to note as it plays', run: () => enter3D() })
+
+function renderViews() {
+	for (const group of document.querySelectorAll('.view-switch')) {
+		group.replaceChildren(...itemsIn('view').map((view) => {
+			const b = document.createElement('button')
+			b.dataset.mode = view.id
+			b.textContent = view.label
+			b.title = view.title || ''
+			b.onclick = () => view.run()
+			return b
+		}))
+	}
+}
+onSlotChange('view', () => { renderViews(); updateLayoutUI() })
+renderViews()
 
 // ---- 3D view ----
 // Replaces #score with a three.js scene of the score (src/view3d/). It is
@@ -1758,46 +1831,66 @@ async function exportPdf() {
 	return { pageCount: pages.length, fontSize: exportFontSize }
 }
 
-const exportPdfBtn = document.getElementById('export_pdf')
-if (exportPdfBtn) {
-	exportPdfBtn.onclick = async () => {
-		saveMenu?.classList.remove('open')
-		exportPdfBtn.disabled = true
-		try {
-			await exportPdf()
-		} catch (error) {
-			console.error('PDF export failed:', error)
-			alert(`PDF export failed: ${error.message}`)
-		} finally {
-			exportPdfBtn.disabled = false
-		}
-	}
-}
 window.exportPdf = exportPdf
 
-// ---- Settings menu ----
+// ---- The menu (☰) and Appearance (Aa) drawers ----
+// The menu lists the 'source' and 'export' slots: new ways in or out
+// register items there (src/slots.js) instead of adding buttons.
+
+register('source', {
+	id: 'open-file', label: 'Open a file…', hint: 'NWC, MusicXML, MuseScore, MIDI',
+	run: () => document.getElementById('opener').click(),
+})
 
 const settingsToggle = document.getElementById('settings_toggle')
 const settingsPanel = document.getElementById('settings_panel')
-if (settingsToggle && settingsPanel) {
-	const setSettingsOpen = (open) => {
-		settingsPanel.classList.toggle('open', open)
-		settingsToggle.classList.toggle('active', open)
-		settingsToggle.setAttribute('aria-expanded', String(open))
-	}
-	settingsToggle.onclick = (e) => {
-		e.stopPropagation()
-		setSettingsOpen(!settingsPanel.classList.contains('open'))
-	}
-	document.addEventListener('click', (e) => {
-		if (!settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) setSettingsOpen(false)
-	})
-	document.addEventListener('keydown', (e) => {
-		if (e.key === 'Escape' && settingsPanel.classList.contains('open')) {
-			setSettingsOpen(false)
-			settingsToggle.focus()
-		}
-	})
+const appearanceDrawer = bindDrawer(settingsToggle, settingsPanel)
+
+const menuPanel = document.getElementById('menu_panel')
+const closeMenu = () => menuDrawer.close()
+renderMenu(document.getElementById('source_items'), 'source', closeMenu)
+const refreshExports = renderMenu(document.getElementById('export_items'), 'export', closeMenu)
+const menuDrawer = bindDrawer(document.getElementById('menu_btn'), menuPanel, { onOpen: () => refreshExports() })
+sample_dom.addEventListener('change', closeMenu)
+
+document.getElementById('menu_copy_link').onclick = () => {
+	closeMenu()
+	copyShareLink().catch((error) => alert(`Could not make a link: ${error.message}`))
+}
+document.getElementById('menu_shortcuts').onclick = () => {
+	closeMenu()
+	openShortcutSheet()
+}
+
+// Theme: Studio (dark surround) or Light
+const themeToggle = document.getElementById('theme_toggle')
+themeToggle.onclick = () => setTheme(getTheme() === 'light' ? 'studio' : 'light')
+for (const b of document.querySelectorAll('#theme_group button')) b.onclick = () => setTheme(b.dataset.theme)
+onThemeChange((theme) => {
+	themeToggle.firstElementChild.textContent = theme === 'light' ? 'Studio theme' : 'Light theme'
+	for (const b of document.querySelectorAll('#theme_group button')) b.classList.toggle('active', b.dataset.theme === theme)
+})
+
+// About this score: what the title block doesn't show (the copyright used to sit in a footer)
+const aboutDialog = document.getElementById('about_dialog')
+document.getElementById('about_close').onclick = () => aboutDialog.close()
+document.getElementById('menu_about').onclick = () => {
+	closeMenu()
+	const data = scoreManager.getData()
+	const info = data?.info || {}
+	const staves = data?.score?.staves || []
+	const clean = (s) => String(s || '').replace(/­/g, '').trim()
+	const name = window.__currentFile || ''
+	showAbout(aboutDialog, [
+		['Title', info.title],
+		['Composer', info.author],
+		['Lyricist', info.lyricist],
+		['Copyright', [info.copyright1, info.copyright2].map(clean).filter(Boolean).join('\n')],
+		['Comment', clean(info.comment)],
+		['File', name],
+		['Staves', staves.length ? `${staves.length}: ` + staves.map((s, i) => s.staff_name || s.staff_label || `Staff ${i + 1}`).join(', ') : ''],
+		['Length', timeline.barCount ? `${timeline.barCount} bars · ${formatTime(timeline.duration)}` : ''],
+	])
 }
 
 // ---- Tuning popover ----
@@ -1905,7 +1998,7 @@ updateProportionalityUI()
 {
 	const nowTime = () => playback.currentTime
 	const seekBars = (n) => seekTo(stepBars(timeline, nowTime(), n))
-	const toggleLayout = (i) => document.querySelectorAll('#layout_group button')[i]?.click()
+	const toggleLayout = (i) => itemsIn('view')[i]?.run()
 
 	registerCommand({ id: 'play', label: 'Play / pause', group: 'Playback', keys: ['Space', 'k'], run: () => { togglePlayPause() } })
 	registerCommand({ id: 'start', label: 'Back to the start', group: 'Playback', keys: ['Home', '0'], run: () => seekTo(0) })
@@ -1924,7 +2017,7 @@ updateProportionalityUI()
 	registerCommand({ id: 'fullscreen', label: 'Full screen', group: 'View', keys: ['f'], run: () => transport.toggleFullscreen() })
 	registerCommand({ id: 'piano', label: 'Piano keyboard', group: 'View', keys: ['p'], run: () => pianoToggleBtn?.click() })
 	registerCommand({
-		id: 'layouts', label: 'Scroll · Wrap · Page · 3D', group: 'View', keys: ['Alt+1', 'Alt+2', 'Alt+3', 'Alt+4'], keyLabel: '⌥1 … ⌥4',
+		id: 'layouts', label: 'Page · Wrap · Line · 3D', group: 'View', keys: ['Alt+1', 'Alt+2', 'Alt+3', 'Alt+4'], keyLabel: '⌥1 … ⌥4',
 		run: (e) => toggleLayout(+e.code.slice(5) - 1),
 	})
 	registerCommand({
@@ -1939,15 +2032,16 @@ updateProportionalityUI()
 	registerCommand({ id: 'help', label: 'Keyboard shortcuts', group: 'Help', keys: ['?'], run: () => (shortcutSheetOpen() ? closeShortcutSheet() : openShortcutSheet()) })
 	registerCommand({
 		id: 'close', label: 'Close', group: 'Help', keys: ['Escape'],
-		when: () => shortcutSheetOpen() || transport.speedOpen,
-		run: () => { closeShortcutSheet(); transport.closeSpeed() },
+		when: () => shortcutSheetOpen() || transport.popOpen,
+		run: () => { closeShortcutSheet(); transport.closePops() },
 	})
 	bindShortcuts()
 
 	const shortcutsBtn = document.getElementById('shortcuts_btn')
 	if (shortcutsBtn) shortcutsBtn.onclick = (e) => {
 		e.stopPropagation()
-		if (settingsPanel?.classList.contains('open')) settingsToggle.click()
+		closeDrawers()
+		transport.closePops()
 		openShortcutSheet()
 	}
 }

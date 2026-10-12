@@ -54,6 +54,7 @@ export function bindShortcuts(root = document) {
 	bound = true
 	root.addEventListener('keydown', e => {
 		if (e.defaultPrevented || e.ctrlKey || e.metaKey || isTyping(e.target)) return
+		if (document.querySelector('dialog[open]')) return  // a modal (About, video export) has the keys
 		const name = keyName(e)
 		const cmd = commands.find(c => c.keys?.includes(name) && (!c.when || c.when()))
 		if (!cmd || cmd.run(e) === false) return

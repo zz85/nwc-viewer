@@ -326,7 +326,7 @@ export function ticksToSeconds(tick, tempoMap) {
 
 // ── PlaybackController ─────────────────────────────────────────────────────
 
-const SOUNDFONT_PATH = 'soundfonts/Creative(emu10k1)8MBGMSFX.sf2'
+export const SOUNDFONT_PATH = 'soundfonts/Creative(emu10k1)8MBGMSFX.sf2'
 
 /**
  * Manages a SoundFontEngine + MidiScheduler lifecycle and exposes a simple
