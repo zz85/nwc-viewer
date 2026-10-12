@@ -1875,16 +1875,22 @@ function score(dataOrContext) {
 		}
 
 		/* position stuff of the same tab value to the furthest */
+		// At equal times, zero-length items (clef changes, barlines, marks)
+		// go first on every staff, so the notes at that time align after
+		// all of them rather than only on the staff that has them
 		var smallestTick = Infinity,
-			smallestIndex = -1
+			smallestIndex = -1,
+			smallestHasDuration = true
 		stavePointers.forEach((cursor) => {
 			const token = cursor.peek()
 			if (!token) return
 			const tick = token.tabValue || 0
+			const hasDuration = !!token.durValue
 
-			if (tick < smallestTick) {
+			if (tick < smallestTick || (tick === smallestTick && smallestHasDuration && !hasDuration)) {
 				smallestTick = tick
 				smallestIndex = cursor.staveIndex
+				smallestHasDuration = hasDuration
 			}
 		})
 

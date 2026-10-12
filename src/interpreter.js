@@ -38,6 +38,9 @@ var untabbableTypes = new Set([
 	'MidiInstruction',
 ])
 
+// Header items that also occur as mid-piece changes (see interpret)
+var headerChangeTypes = new Set(['Clef', 'KeySignature', 'TimeSignature'])
+
 var NOTE_NAMES = 'C D E F G A B'.split(' ')
 
 function isTabbable(token) {
@@ -196,8 +199,15 @@ SightReader.prototype.read = function (staves) {
 			else if (t.type === 'Note' || t.type === 'Chord' || t.type === 'Rest') barDurs.push(t)
 		})
 		flushBar()
+		// Clef / key / time signatures get a display slot (tabCounter) only
+		// in the header, before the first note: header offsets are lined up
+		// across staves below. A mid-piece change on one staff must not move
+		// its timeline against the others; it takes room on the page and
+		// the layout's cross-staff alignment makes space for it.
+		var inHeader = true
 		staff.tokens.forEach((token) => {
 			var type = token.type
+			if (type === 'Note' || type === 'Chord' || type === 'Rest' || type === 'RestChord' || type === 'Barline') inHeader = false
 
 			// absolute time value when note should be played
 			token.tickValue = this.tickCounter.value()
@@ -231,7 +241,7 @@ SightReader.prototype.read = function (staves) {
 					this.tabCounter.add(token.durValue).simplify()
 				}
 			} else {
-				if (isTabbable(token)) {
+				if (isTabbable(token) && (inHeader || !headerChangeTypes.has(type))) {
 					this.tmpFraction.set(1, 4)
 					this.tabCounter.add(this.tmpFraction).simplify()
 				}
