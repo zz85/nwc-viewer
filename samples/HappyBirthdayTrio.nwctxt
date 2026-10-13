@@ -180,7 +180,7 @@
 |Note|Dur:8th,Dotted|Pos:-2|Opts:Beam=First
 |Note|Dur:16th|Pos:-2|Opts:Beam=End
 |Bar
-|Chord|Dur:Half|Pos:1,6
+|Chord|Dur:Half|Pos:1,4
 |Chord|Dur:4th|Pos:2,6
 |Bar
 |TempoVariance|Style:Fermata|Pause:8|Pos:9
