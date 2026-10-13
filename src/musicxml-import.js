@@ -715,7 +715,7 @@ function handleNote(noteEl, state, tokens) {
 			token.triplet = triplet
 			tokens.push(token)
 		} else {
-			const durFraction = makeDurationFraction(durType, dots)
+			const durFraction = noteLength(noteEl, state, durType, dots)
 			const token = {
 				type: 'Rest',
 				position: 0,
@@ -824,7 +824,7 @@ function handleNote(noteEl, state, tokens) {
 	}
 
 	// Single note (non-chord)
-	const durFraction = durType ? makeDurationFraction(durType, dots) : new Fraction(1, 4)
+	const durFraction = noteLength(noteEl, state, durType || 'quarter', dots)
 
 	const token = {
 		type: 'Note',
@@ -877,6 +877,27 @@ function handleNote(noteEl, state, tokens) {
 /**
  * Advance the tick counter for a note/rest we're skipping (wrong staff/voice).
  */
+/**
+ * How long a note or rest lasts, in whole notes. Taken from its <duration>
+ * over the divisions when present, which is exact for tuplets and is the
+ * same measure that advanceTiming (notes on the other staff) and
+ * <backup>/<forward> use, so the staves of a part stay in step. Without
+ * one (grace notes), its <type> and dots, scaled by any
+ * <time-modification> (3 in the time of 2…).
+ */
+function noteLength(noteEl, state, durType, dots) {
+	const xmlDuration = parseInt(xmlText(noteEl, 'duration'), 10)
+	if (xmlDuration > 0 && state.currentDivisions > 0) return new Fraction(xmlDuration, state.currentDivisions * 4)
+	const frac = makeDurationFraction(durType, dots)
+	const timeMod = noteEl.getElementsByTagName('time-modification')[0]
+	if (timeMod) {
+		const actual = xmlInt(timeMod, 'actual-notes', 1)
+		const normal = xmlInt(timeMod, 'normal-notes', 1)
+		if (actual > 0 && normal > 0) frac.multiply(normal, actual)
+	}
+	return frac
+}
+
 function advanceTiming(noteEl, state) {
 	const durationText = xmlText(noteEl, 'duration')
 	if (durationText) {
