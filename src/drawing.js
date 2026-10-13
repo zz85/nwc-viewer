@@ -147,6 +147,8 @@ const fontMap = {
 
 	// Brackets and braces (U+E000–U+E00F)
 	brace: 'E000',
+	bracketTop: 'E003',
+	bracketBottom: 'E004',
 
 	// Common ornaments (U+E560–U+E56F)
 }

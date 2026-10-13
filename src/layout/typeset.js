@@ -3072,127 +3072,158 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 }
 
 /**
- * Draw orchestral brackets and per-group braces at a given Y offset.
- * Brackets span from the first to last visible stave in each bracketWithNext
- * chain.  When allowLayering is on, adjacent bracket groups that are layered
- * onto the same Y are merged into one visual bracket spanning all of them.
- * Braces are drawn for chains of staves linked by braceWithNext.
- * Used once per system in wrap mode, once total in scroll mode.
+ * Staff groups drawn at the start of a system, over the staves shown in it:
+ * braces (one instrument on several staves) and brackets (instrument
+ * families), as { type, first, last } staff indexes. Both run from a staff
+ * linked "with next" to the first staff that isn't — as the NWC viewer
+ * draws binary Orchestral staves too (albadagio's strings bracket reaches
+ * the organ below them) — and need two positions.
+ */
+function systemStaffGroups(staves) {
+	var groups = []
+	function chains(type, isMember, linksToNext) {
+		for (var si = 0; si < staves.length; si++) {
+			if (!isMember(si)) continue
+			var end = si
+			while (end < staves.length - 1 && linksToNext(end)) end++
+			var shown = []
+			for (var k = si; k <= end; k++) if (staffShownInSystem(k)) shown.push(k)
+			// layered staves share a position
+			var positions = new Set(shown.map(systemStaffY)).size
+			if (positions >= 2) groups.push({ type: type, first: shown[0], last: shown[shown.length - 1] })
+			si = end
+		}
+	}
+	chains('brace', function(i) { return staves[i].braceWithNext }, function(i) { return staves[i].braceWithNext })
+	chains('bracket', function(i) { return staves[i].bracketWithNext }, function(i) { return staves[i].bracketWithNext })
+	return groups
+}
+
+// Bracket thickness and gaps, in staff spaces (SMuFL engravingDefaults:
+// bracketThickness 0.5)
+var BRACKET_THICKNESS = 0.5
+var BRACKET_GAP = 0.25 // from the system barline or the brace it encloses
+
+/**
+ * Where the braces and brackets of a system go, left of the system barline
+ * at sysBarX: braces sit against it, a bracket just outside it or outside
+ * the braces of staves it encloses.
+ * Returns { braces: [{ topY, tipX, xScale, yScale, bbox, path, left }],
+ *           brackets: [{ left, right, topY, botY }] }.
+ */
+function staffGroupLayout(staves, yOffset, sysBarX) {
+	var fs = getFontSize()
+	var sp = fs / 4
+	var staffTop = function(si) { return systemStaffY(si) + yOffset - fs }
+	var staffBottom = function(si) { return systemStaffY(si) + yOffset }
+	var groups = systemStaffGroups(staves)
+	var braces = [], brackets = []
+
+	// Braces: the SMuFL brace glyph scaled to the group's height
+	var path = glyphPathGet(getCode('brace'), fs * 4)
+	var bbox = path.getBoundingBox()
+	groups.forEach(function(g) {
+		if (g.type !== 'brace' || bbox.y2 <= bbox.y1) return
+		var topY = staffTop(g.first), botY = staffBottom(g.last)
+		var yScale = (botY - topY) / (bbox.y2 - bbox.y1)
+		// keep X proportional but cap it, so tall braces don't get too wide
+		var xScale = Math.min(yScale, 1.5)
+		var tipX = sysBarX - bbox.x2 * xScale - fs * 0.075  // 0.3 staff-spaces
+		braces.push({ first: g.first, last: g.last, topY: topY, tipX: tipX, xScale: xScale, yScale: yScale,
+			bbox: bbox, path: path, left: tipX + bbox.x1 * xScale })
+	})
+
+	// Brackets: a thick bar ending in the font's curved bracket ends
+	groups.forEach(function(g) {
+		if (g.type !== 'bracket') return
+		var right = sysBarX - BRACKET_GAP * sp
+		braces.forEach(function(b) {
+			if (b.last >= g.first && b.first <= g.last) right = Math.min(right, b.left - BRACKET_GAP * sp)
+		})
+		brackets.push({ left: right - BRACKET_THICKNESS * sp, right: right, topY: staffTop(g.first), botY: staffBottom(g.last) })
+	})
+	return { braces: braces, brackets: brackets }
+}
+
+/** How far the braces and brackets reach left of the system barline (px). */
+function staffGroupsWidth(staves) {
+	var layout = staffGroupLayout(staves, 0, 0)
+	return Math.max(0, ...layout.braces.map(function(b) { return -b.left }), ...layout.brackets.map(function(b) { return -b.left }))
+}
+
+/**
+ * Draw the system barline, braces and brackets at the start of a system.
+ * Braces sit against the system barline; a bracket goes just outside it, or
+ * outside the braces of staves it encloses. Brackets are a thick bar with the
+ * font's bracketTop / bracketBottom ends (as Verovio and LilyPond draw them).
+ * Used once per system in wrap/page mode, once in scroll mode.
  */
 function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 	var fs = getFontSize()
 	var sysBarX = leftMarginOverride !== undefined ? leftMarginOverride : fs * 0.9
-	var bracketX = sysBarX - fs * 0.36
+	var staffBottom = function(si) { return systemStaffY(si) + yOffset }
 
-	function visibleStaffY(si) {
-		return systemStaffY(si) + yOffset
-	}
-
-	// Collect unique visible Y positions (collapsed staves left out)
-	var visibleYs = []
-	var hasBracket = false
+	// System barline: from the top of the first shown staff to the bottom
+	// of the last, for 2+ positions
+	var shownYs = []
 	for (var vi = 0; vi < staves.length; vi++) {
 		if (!staffShownInSystem(vi)) continue
-		var vy = visibleStaffY(vi)
-		if (visibleYs.length === 0 || visibleYs[visibleYs.length - 1] !== vy) {
-			visibleYs.push(vy)
-		}
-		if (staves[vi].bracketWithNext) hasBracket = true
+		var vy = staffBottom(vi)
+		if (shownYs[shownYs.length - 1] !== vy) shownYs.push(vy)
 	}
-
-	// System barline: a thin vertical line at the left edge connecting the
-	// top of the first staff to the bottom of the last staff.  Drawn for
-	// any score with 2+ distinct visible stave positions.
-	if (visibleYs.length > 1) {
-		let sysTopY = visibleYs[0] - fs                  // top line of first staff
-		let sysBotY = visibleYs[visibleYs.length - 1]    // bottom line of last staff
-		let sysLw = fs / 14
-		var sysBarline = new Claire.Path(function(ctx) {
+	if (shownYs.length > 1) {
+		let sysTopY = shownYs[0] - fs, sysBotY = shownYs[shownYs.length - 1], sysLw = fs / 14
+		drawing.add(new Claire.Path(function(ctx) {
 			ctx.beginPath()
 			ctx.lineWidth = sysLw
 			ctx.moveTo(sysBarX, sysTopY)
 			ctx.lineTo(sysBarX, sysBotY)
 			ctx.stroke()
-		})
-		drawing.add(sysBarline)
+		}))
 	}
 
-	if (hasBracket && visibleYs.length > 1) {
-		let topY = visibleYs[0] - fs
-		let botY = visibleYs[visibleYs.length - 1]
-		let hookLen = fs * 0.25
-		let lw = fs / 12
-		var sysBracket = new Claire.Path(function(ctx) {
-			ctx.beginPath()
-			ctx.lineWidth = lw
-			ctx.moveTo(bracketX + hookLen, topY)
-			ctx.lineTo(bracketX, topY)
-			ctx.lineTo(bracketX, botY)
-			ctx.lineTo(bracketX + hookLen, botY)
-			ctx.stroke()
-		})
-		drawing.add(sysBracket)
-	}
+	var layout = staffGroupLayout(staves, yOffset, sysBarX)
+	layout.braces.forEach(function(b) {
+		drawing.add(new Claire.Path(function(ctx) {
+			ctx.save()
+			ctx.translate(b.tipX, b.topY - b.bbox.y1 * b.yScale)
+			ctx.scale(b.xScale, b.yScale)
+			ctx.fillStyle = '#000'
+			b.path.fill = '#000'
+			b.path.draw(ctx)
+			ctx.restore()
+		}))
+	})
 
-	// Draw per-group braces for braceWithNext chains
-	var braceChar = getCode('brace')
-	for (var si = 0; si < staves.length; si++) {
-		var stave = staves[si]
-		if (stave.braceWithNext) {
-			var endSi = si
-			while (endSi < staves.length - 1 && staves[endSi].braceWithNext) {
-				endSi++
-			}
-			// Span the staves of the group shown in this system
-			var firstSi = si, lastSi = endSi
-			while (firstSi <= endSi && !staffShownInSystem(firstSi)) firstSi++
-			while (lastSi >= firstSi && !staffShownInSystem(lastSi)) lastSi--
-			if (firstSi > lastSi || systemStaffY(firstSi) === systemStaffY(lastSi)) {
-				si = endSi
-				continue
-			}
-			let topY = visibleStaffY(firstSi) - fs     // top line of first staff
-			let botY = visibleStaffY(lastSi)           // bottom line of last staff
-			let braceH = botY - topY
-
-			// Render the SMuFL brace glyph, scaled vertically to span the
-			// staff group.  The glyph is measured at a reference size, then a
-			// Y scale is computed to stretch it to the required height.
-			var refSize = fs * 4  // reference rendering size
-			var refPath = glyphPathGet(braceChar, refSize)
-			var bbox = refPath.getBoundingBox()
-			var designH = bbox.y2 - bbox.y1
-			if (designH <= 0) {
-				// Fallback if bounding box is invalid
-				si = endSi
-				continue
-			}
-			var yScale = braceH / designH
-			// Keep X proportional but cap to prevent overly wide braces
-			var xScale = Math.min(yScale, 1.5)
-
-			// Position brace so its right edge (tips) sits just left of the
-			// system barline / stave left edge.  LilyPond uses 0.3 sp padding.
-			var braceRightEdge = bbox.x2 * xScale
-			var bracePadding = fs * 0.075   // 0.3 staff-spaces
-			var braceTipX = sysBarX - braceRightEdge - bracePadding
-
-			var brace = new Claire.Path(function(ctx) {
-				ctx.save()
-				ctx.translate(braceTipX, topY - bbox.y1 * yScale)
-				ctx.scale(xScale, yScale)
-				ctx.fillStyle = '#000'
-				refPath.draw(ctx)
-				ctx.restore()
-			})
-			drawing.add(brace)
-
-			si = endSi  // skip past the chain
-		}
-	}
+	var topPath = glyphPathGet(getCode('bracketTop'), fs)
+	var bottomPath = glyphPathGet(getCode('bracketBottom'), fs)
+	var topBox = topPath.getBoundingBox(), bottomBox = bottomPath.getBoundingBox()
+	layout.brackets.forEach(function(g) {
+		let left = g.left, right = g.right, topY = g.topY, botY = g.botY
+		drawing.add(new Claire.Path(function(ctx) {
+			ctx.save()
+			ctx.fillStyle = '#000'
+			ctx.fillRect(left, topY, right - left, botY - topY)
+			// ends: the glyphs' left edge on the bar's left edge, their
+			// origin at the bar's end
+			ctx.translate(left - topBox.x1, topY)
+			topPath.fill = '#000'
+			topPath.draw(ctx)
+			ctx.translate(topBox.x1 - bottomBox.x1, botY - topY)
+			bottomPath.fill = '#000'
+			bottomPath.draw(ctx)
+			ctx.restore()
+		}))
+	})
 }
 
-var LABEL_GAP_SCALE = 1.0  // label right edge to system barline, clears brackets and braces
+var LABEL_GAP_SCALE = 1.0  // label right edge to system barline, at least
+
+/** Gap from staff labels to the system barline: clear of its braces and brackets. */
+function labelGap(staves) {
+	var fs = getFontSize()
+	return Math.max(fs * LABEL_GAP_SCALE, staffGroupsWidth(staves) + fs * 0.3)
+}
 
 function staffLabelFont() {
 	return Math.round(getFontSize() * 0.5) + 'px ' + getMusicTextFamily()
@@ -3235,7 +3266,7 @@ function staffLabelIndent(staves, isFirstSystem, availableLeft) {
 	var maxW = measureStaffLabels(staffLabelsForSystem(staves, isFirstSystem))
 	if (!maxW) return 0
 	var fs = getFontSize()
-	return Math.max(0, Math.ceil(maxW + fs * (LABEL_GAP_SCALE + 0.2) - availableLeft))
+	return Math.max(0, Math.ceil(maxW + labelGap(staves) + fs * 0.2 - availableLeft))
 }
 
 /**
@@ -3247,7 +3278,7 @@ function staffLabelIndent(staves, isFirstSystem, availableLeft) {
 function drawStaffLabels(drawing, staves, yOffset, systemLeftX, isFirstSystem) {
 	var fs = getFontSize()
 	var sysLeft = systemLeftX !== undefined ? systemLeftX : fs * 0.9
-	var rightX = sysLeft - fs * LABEL_GAP_SCALE
+	var rightX = sysLeft - labelGap(staves)
 	var labels = staffLabelsForSystem(staves, isFirstSystem !== false)
 	var ctx = window.ctx
 	for (var li = 0; li < staves.length; li++) {
