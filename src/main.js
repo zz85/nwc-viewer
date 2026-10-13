@@ -74,6 +74,8 @@ window.findFirstToken = (predicate) => {
 
 var samples = [
 	'HappyBirthdayTrio.nwctxt', // nwctxt (oboe, viola, double bass)
+	'HappyBirthdayVirtuoso.nwctxt', // nwctxt (violin and piano variations)
+	'HappyBirthdayPiano.nwctxt', // nwctxt (concert paraphrase for piano)
 	'AChildThisDayIsBorn.nwc', // v2.02
 	'AveMariaArcadelt.nwc', // v2.75
 	'WakenChristianChildren.nwc', // v2.75
