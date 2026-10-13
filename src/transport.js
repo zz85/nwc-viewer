@@ -1,13 +1,14 @@
 /**
  * transport.js — the playback bar along the bottom of the score, laid out
- * like a video player's: play/pause, back to start, time and position, a
- * scrub bar split into the score's sections, volume, speed and fullscreen.
+ * like a media player's: time and position on the left; previous section,
+ * play/pause and next section in the middle; volume, speed and fullscreen on
+ * the right, over a scrub bar split into the score's sections.
  * While the music plays and the pointer rests, it fades away.
  *
  * It draws and reports; main.js owns playback (PlaybackController) and
  * persistence.
  */
-import { positionAt } from './transport-timeline.js'
+import { positionAt, stepSections } from './transport-timeline.js'
 
 const IDLE_MS = 2500
 const GAP_PX = 3  // between scrub bar sections
@@ -27,17 +28,16 @@ export class Transport {
 	 * @param {HTMLElement} root - #transport
 	 * @param {object} handlers
 	 * @param {() => void} handlers.onToggle - play / pause
-	 * @param {() => void} handlers.onRestart - back to the start
 	 * @param {(t: number) => void} handlers.onSeek - scrubbed to t seconds
 	 * @param {(volume: number, muted: boolean) => void} handlers.onVolume
 	 * @param {(speed: number) => void} handlers.onSpeed
 	 */
-	constructor(root, { onToggle, onRestart, onSeek, onVolume, onSpeed }) {
+	constructor(root, { onToggle, onSeek, onVolume, onSpeed }) {
 		this.root = root
-		this._h = { onToggle, onRestart, onSeek, onVolume, onSpeed }
+		this._h = { onToggle, onSeek, onVolume, onSpeed }
 		const $ = id => root.querySelector('#' + id)
 		this.el = {
-			play: $('play'), restart: $('restart'), time: $('playback_time'), where: $('playback_where'),
+			play: $('play'), prev: $('prev_section'), next: $('next_section'), time: $('playback_time'), where: $('playback_where'),
 			scrub: $('scrub'), track: $('scrub_track'), knob: $('scrub_knob'), tip: $('scrub_tip'),
 			mute: $('mute'), volume: $('volume'), speedChip: $('speed_chip'), speedPop: $('speed_pop'),
 			speedSlider: $('speed_slider'), speedInput: $('speed_input'), tempo: $('speed_tempo'), full: $('fullscreen'),
@@ -52,7 +52,8 @@ export class Transport {
 		this._lastActivity = performance.now()
 
 		this.el.play.onclick = () => this._h.onToggle()
-		this.el.restart.onclick = () => this._h.onRestart()
+		this.el.prev.onclick = () => this.stepSection(-1)
+		this.el.next.onclick = () => this.stepSection(1)
 		this._bindScrub()
 		this._bindVolume()
 		this._bindSpeed()
@@ -160,6 +161,27 @@ export class Transport {
 		this.el.where.textContent = where
 		this.el.scrub.setAttribute('aria-valuenow', String(Math.round(t)))
 		this.el.scrub.setAttribute('aria-valuetext', formatTime(t) + (where ? ', ' + where : ''))
+		this._renderSectionButtons(t)
+	}
+
+	/** Jump to the previous (-1) or next (+1) section; see stepSections. */
+	stepSection(n) {
+		const target = stepSections(this.timeline, this.time, n)
+		if (target != null) this._h.onSeek(target)
+	}
+
+	/** ⏮ / ⏭ say where they go: "Next section: Chorus (⌥→)". */
+	_renderSectionButtons(t) {
+		const name = (time) => {
+			const s = this.timeline.sections.find(sec => Math.abs(sec.time - time) < 1e-6)
+			return s ? (s.label || (s.time < 1e-6 ? 'the start' : `bar ${s.bar}`)) : 'the start'
+		}
+		const prev = stepSections(this.timeline, t, -1), next = stepSections(this.timeline, t, 1)
+		const prevLabel = `Back to ${name(prev)} (⌥←)`
+		const nextLabel = next == null ? 'Last section' : `Next section: ${name(next)} (⌥→)`
+		if (this.el.prev.title !== prevLabel) { this.el.prev.title = prevLabel; this.el.prev.setAttribute('aria-label', prevLabel) }
+		if (this.el.next.title !== nextLabel) { this.el.next.title = nextLabel; this.el.next.setAttribute('aria-label', nextLabel) }
+		this.el.next.disabled = next == null
 	}
 
 	/** x (px, relative to the scrub bar) of time t, skipping the gaps between sections. */

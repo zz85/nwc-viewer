@@ -5,7 +5,7 @@ globalThis.window = globalThis.window || { ctx: null, canvas: null }
 
 const { interpret } = await import('../src/interpreter.js')
 const { buildNoteEvents } = await import('../src/audio.js')
-const { buildTimeline, positionAt, stepBars } = await import('../src/transport-timeline.js')
+const { buildTimeline, positionAt, stepBars, stepSections } = await import('../src/transport-timeline.js')
 const { keyName } = await import('../src/commands.js')
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -79,6 +79,19 @@ describe('transport timeline', () => {
 		expect(stepBars(tl, 2.1, -1)).toBe(0)  // just started bar 2 → bar 1
 		expect(stepBars(tl, 0, -5)).toBe(0)
 		expect(stepBars(tl, 4, 5)).toBe(4)
+	})
+
+	test('stepSections moves between sections; back from inside one returns to its start first', () => {
+		// sections at 0 (verse) and 4 s (Chorus), piece ends at 8 s
+		const tl = timelineOf(makeScore([
+			...fourBars(), bar(), ...fourBars(), bar(DOUBLE),
+			text('CHORUS'), ...fourBars(), bar(), ...fourBars(), bar(SECTION_CLOSE),
+		]))
+		expect(stepSections(tl, 1, 1)).toBe(4)       // verse → Chorus
+		expect(stepSections(tl, 5, 1)).toBe(null)    // already in the last section
+		expect(stepSections(tl, 7, -1)).toBe(4)      // 3 s into the Chorus → its start
+		expect(stepSections(tl, 4.5, -1)).toBe(0)    // just started the Chorus → the verse
+		expect(stepSections(tl, 0.5, -1)).toBe(0)    // nothing before the first section
 	})
 
 	test('no score: an empty timeline', () => {

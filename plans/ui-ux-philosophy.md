@@ -138,7 +138,7 @@ Desktop
 │                         ( ↓ Back to the playhead )                         │ only after manual scroll
 │                    ┌──── piano keyboard (P) ────┐                          │ floats above the bar
 │ ═══Verse═══════════●══════════════╪════Chorus══════════════════════════════│ scrub: sections = chapters
-│ (▶) ⏮  0:12 / 0:34 │ Bar 12 of 36 · Verse          ⟲  🔊━━  1×  🎹  ⫶⫶  ⚙  ⛶ │ 64px
+│ 0:12 / 0:34 │ Bar 12 of 36 · Verse      ⏮ (▶) ⏭      ⟲  🔊━━  1×  🎹  ⫶⫶  ⚙  ⛶ │ 64px
 └────────────────────────────────────────────────────────────────────────────┘
 
 Phone (< 720px)
@@ -175,8 +175,12 @@ Phone (< 720px)
   arrow beside it, offers PDF and file formats.
 
 **Bottom bar: playback.**
-- **Left:** play/pause as a filled circle, back to start, time / duration, and
-  "Bar 12 of 36 · Chorus".
+- **Left:** time / duration and "Bar 12 of 36 · Chorus".
+- **Centre:** ⏮ previous section, play/pause as a filled circle, ⏭ next section.
+  These are the scrub bar's sections, and the buttons work like a media
+  player's track buttons: ⏮ from more than 2 s into a section first returns
+  to its start. Each tooltip names where it goes ("Next section: Chorus").
+  There is no back-to-start button, because ⏮, Home and 0 cover it.
 - **Scrub bar:**
   - spans the full width, on the bar's top edge
   - split into chapters at sections: rehearsal marks, text such as "CHORUS", repeats
@@ -277,6 +281,7 @@ font. It is shown as a search icon so it isn't hidden; Dorico's Jump bar is
 | ← / → | Previous / next bar | YouTube's ±5 s, in bars |
 | J / L, Shift+← / → | Back / ahead 5 bars | YouTube's ±10 s, in bars |
 | Home or 0, 1–9 | Start, jump to 10–90% | YouTube |
+| ⌥← / ⌥→ | Previous / next section | YouTube's chapter keys |
 | Shift+< / > | Slower / faster | YouTube, Soundslice |
 | M | Mute | YouTube (↑ / ↓ keep scrolling the score) |
 | F | Fullscreen | YouTube |
@@ -367,7 +372,7 @@ which slots it fills.
 | Open, sample select | ☰ Menu → Open / Samples / Recent; the title shows in the top bar |
 | Save ▾ (nwctxt / nwc / MusicXML / PDF) | ☰ Menu → Save / Save as / Export PDF; also under the Share arrow |
 | Share | Top bar **Share** (link at the bar, loop and view) |
-| Play / Stop text buttons | ▶ / ⏸ in the bottom bar; back to start ⏮ (Stop = pause + start) |
+| Play / Stop text buttons | ▶ / ⏸ in the middle of the bottom bar, between ⏮ / ⏭ sections (Stop = pause, then Home) |
 | Time + 160 px progress | Time + Bar · section, full-width chapter scrub bar |
 | Scroll / Wrap / Page / 3D | Top bar view switch (Scroll is renamed Line) |
 | Zoom slider, W, H | Aa → Zoom (−, %, +, Fit width or height), Ctrl/Cmd +/−, pinch |
@@ -402,7 +407,7 @@ which slots it fills.
 Each step ships on its own and removes nothing.
 
 1. **Transport: done.**
-   - Bottom bar (`src/transport.js`): play/pause, back to start, time and
+   - Bottom bar (`src/transport.js`): play/pause (later centred between ⏮ / ⏭ section buttons), time and
      "Bar 12 of 36 · Chorus", a scrub bar split into sections.
    - Sections are worked out in `src/transport-timeline.js`: double and repeat
      barlines plus each repeat pass, named from bold or all-caps staff text.
@@ -447,6 +452,10 @@ Each step ships on its own and removes nothing.
    - Count-in and metronome.
    - Follow modes.
    - Per-score memory of speed and loop.
+   - **User markers** (TODO): named markers the reader places themselves. They
+     merge into the sections, so they show on the scrub bar, in ⏮ / ⏭ and in
+     the readout, and they are kept with the draft and in share links. See
+     `stepSections` in `src/transport-timeline.js`.
    - Share links that carry the bar and loop.
 5. **Score as interface.** Click-to-seek context bar, then Edit mode with the
    tool rail (Select and its note bar, Text, Erase) and explicit E / Esc.

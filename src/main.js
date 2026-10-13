@@ -437,7 +437,6 @@ let timeline = buildTimeline(null)
 
 const transport = new Transport(document.getElementById('transport'), {
 	onToggle: () => togglePlayPause(),
-	onRestart: () => restart(),
 	onSeek: (t) => seekTo(t),
 	onVolume: (volume, muted) => setVolume(volume, muted),
 	onSpeed: (speed) => setSpeed(speed),
@@ -630,12 +629,6 @@ function stopPlayback() {
 	pianoKeyboard.clear()
 	view3d?.setPlaying(false, 0)
 	transport.setTime(0)
-}
-
-/** Back to the start: keeps playing from the top, or stops when paused. */
-function restart() {
-	if (playback.playing) seekTo(0)
-	else stopPlayback()
 }
 
 // "Back to the playhead": following pauses while the reader scrolls away
@@ -2114,6 +2107,8 @@ updateProportionalityUI()
 	registerCommand({ id: 'bar-next', label: 'Next bar', group: 'Playback', keys: ['ArrowRight'], sheet: false, run: () => seekBars(1) })
 	registerCommand({ id: 'bars-back', label: 'Back / ahead 5 bars', group: 'Playback', keys: ['j', 'Shift+ArrowLeft'], keyLabel: 'J L', run: () => seekBars(-5) })
 	registerCommand({ id: 'bars-ahead', label: 'Ahead 5 bars', group: 'Playback', keys: ['l', 'Shift+ArrowRight'], sheet: false, run: () => seekBars(5) })
+	registerCommand({ id: 'section-prev', label: 'Previous / next section', group: 'Playback', keys: ['Alt+ArrowLeft'], keyLabel: '⌥← ⌥→', run: () => transport.stepSection(-1) })
+	registerCommand({ id: 'section-next', label: 'Next section', group: 'Playback', keys: ['Alt+ArrowRight'], sheet: false, run: () => transport.stepSection(1) })
 	registerCommand({
 		id: 'jump', label: 'Jump to 10% … 90%', group: 'Playback', keys: ['1', '2', '3', '4', '5', '6', '7', '8', '9'], keyLabel: '1 … 9',
 		run: (e) => seekTo(timeline.duration * (+e.key) / 10),

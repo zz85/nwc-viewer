@@ -144,6 +144,27 @@ export function positionAt(timeline, t) {
 }
 
 /**
+ * Start time of the section n sections away from the one playing at t (the
+ * transport's ⏮ / ⏭). Going back from more than `grace` seconds into a
+ * section first returns to its start, like a media player's "previous track".
+ * Past the last section there is nowhere to go: returns null.
+ *
+ * TODO: user markers. Let the reader drop their own named markers (from the
+ * scrub bar, the score or a key; kept with the score's draft and share
+ * links) and merge them into `timeline.sections`, so the scrub bar, ⏮ / ⏭
+ * and the "Bar 12 · Chorus" readout treat them like the score's own sections.
+ */
+export function stepSections(timeline, t, n, grace = 2) {
+	const sections = timeline.sections
+	if (!sections.length) return n < 0 ? 0 : null
+	let i = Math.max(0, indexAt(sections, t))
+	if (n < 0 && t - sections[i].time > grace) n += 1
+	const target = i + n
+	if (target >= sections.length) return null
+	return sections[Math.max(0, target)].time
+}
+
+/**
  * Start time of the bar n bars away from the one playing at t. Going back
  * from well inside a bar (more than `grace` seconds) first returns to its
  * start, like a media player's "previous".
