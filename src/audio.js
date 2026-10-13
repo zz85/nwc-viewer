@@ -326,7 +326,29 @@ export function ticksToSeconds(tick, tempoMap) {
 
 // ── PlaybackController ─────────────────────────────────────────────────────
 
-const SOUNDFONT_PATH = 'soundfonts/Creative(emu10k1)8MBGMSFX.sf2'
+export const SOUNDFONT_PATH = 'soundfonts/Creative(emu10k1)8MBGMSFX.sf2'
+
+/**
+ * Sounds to choose from (Playback settings → Sound). `soundfonts` load in
+ * order; the synth then plays from the last one on every channel.
+ */
+export const SOUNDS = [
+	{ id: 'gm', label: 'General MIDI', detail: 'Creative 8 MB, every instrument', soundfonts: [SOUNDFONT_PATH] },
+	{ id: 'fluid', label: 'FluidR3 General MIDI', detail: 'Richer, 20 MB; a few seconds to load', soundfonts: ['soundfonts/FluidR3.sf3'] },
+	{ id: 'piano', label: 'Concert piano', detail: 'Yamaha Motif ES6; every part on piano', soundfonts: ['soundfonts/Motif_ES6_Concert_Piano.sf2'] },
+]
+
+/**
+ * SF3 (Ogg-compressed) → SF2 bytes, for synths that only read SF2 (the
+ * offline renderer of the video export). The live engine converts by itself.
+ */
+export async function convertSF3(data) {
+	const url = new URL('../vendor/soundfont-engine/vendor/spessasynth/spessasynth_core.bundle.js', import.meta.url).href
+	const { SoundBankLoader, BasicSoundBank } = await import(url)
+	const bank = SoundBankLoader.fromArrayBuffer(data.buffer)
+	await BasicSoundBank.isSF3DecoderReady
+	return new Uint8Array(await bank.writeSF2({ decompress: true }))
+}
 
 /**
  * Manages a SoundFontEngine + MidiScheduler lifecycle and exposes a simple
@@ -358,6 +380,17 @@ export class PlaybackController {
 		this._fileMutedStaves = new Set()
 		this._allNotes = []   // unfiltered notes from last load
 		this._scoreData = null // last loaded score data
+
+		// Where playback resumes: kept across load() (which resets the
+		// scheduler to 0) and before the scheduler exists (seek before Play)
+		this._position = 0
+		// Master volume 0..1, sent as channel volume (CC 7): the synth
+		// renders into its own audio graph, so there is no gain node to use
+		this._volume = 0.8
+		// The chosen sound (setSoundfonts) and its load, shared by init and load()
+		this._soundfonts = SOUNDS[0].soundfonts
+		this._soundLoad = null
+		this._programs = []   // [channel, program] per staff of the last load
 	}
 
 	/** Register a callback for time updates: fn(currentTime, duration) */
@@ -430,15 +463,27 @@ export class PlaybackController {
 		const pos = this.currentTime
 		const filtered = this._filterNotes(this._allNotes)
 		this._scheduler.load({ notes: filtered })
-		if (wasPlaying) {
-			this._scheduler.seek(pos)
-			this._scheduler.play()
-		}
+		this._scheduler.seek(pos)
+		if (wasPlaying) this._scheduler.play()
 	}
 
 	get playing() { return this._scheduler?.playing ?? false }
-	get currentTime() { return this._scheduler?.currentTime ?? 0 }
+	get currentTime() { return this._scheduler ? this._scheduler.currentTime : this._position }
 	get duration() { return this._scheduler?.duration ?? 0 }
+
+	/** Master volume, 0..1. */
+	get volume() { return this._volume }
+
+	setVolume(volume) {
+		this._volume = Math.max(0, Math.min(1, volume))
+		this._applyVolume()
+	}
+
+	_applyVolume() {
+		if (!this._initialized) return
+		const value = Math.round(this._volume * 127)
+		for (let ch = 0; ch < 16; ch++) this._engine.controlChange(ch, 7, value)
+	}
 
 	/** Current playback speed multiplier (1 = normal). */
 	get speed() { return this._speed }
@@ -486,6 +531,7 @@ export class PlaybackController {
 		})
 
 		this._scheduler.on('end', () => {
+			this._position = 0
 			this._onStateChange?.(false)
 			this._onEnd?.()
 		})
@@ -498,20 +544,51 @@ export class PlaybackController {
 		}
 
 		// Load the soundfont in the background — don't block init
-		this._loadSoundfont()
+		this._loadSoundfont().catch(() => {})
 	}
 
-	async _loadSoundfont() {
-		if (this._soundfontLoaded) return
-		try {
-			console.log('[audio] Loading soundfont:', SOUNDFONT_PATH)
-			await this._engine.loadSoundFont(SOUNDFONT_PATH)
-			this._soundfontLoaded = true
-			console.log('[audio] Soundfont loaded successfully')
-		} catch (err) {
-			console.warn('[audio] Failed to load soundfont, falling back to wavetable:', err)
-			this._engine.setBackend('wavetable')
-		}
+	/** Soundfont URLs of the chosen sound (see SOUNDS). */
+	get soundfonts() { return this._soundfonts }
+
+	/**
+	 * Choose the sound: soundfont URLs, loaded in order. Takes effect at
+	 * once, also mid-playback; rejects if a soundfont fails to load.
+	 */
+	async setSoundfonts(paths) {
+		this._soundfonts = paths
+		this._soundLoad = null
+		if (!this._initialized) return
+		await this._loadSoundfont()
+		this._applyPrograms()
+	}
+
+	/** Load the chosen sound (once per choice; load() and init share it). */
+	_loadSoundfont() {
+		this._soundLoad ||= (async () => {
+			const paths = this._soundfonts
+			try {
+				console.log('[audio] Loading soundfont:', paths.join(', '))
+				await this._engine.loadSoundFontStack(paths)
+				this._soundfontLoaded = true
+				console.log('[audio] Soundfont loaded successfully')
+			} catch (err) {
+				if (paths.length === 1 && paths[0] === SOUNDFONT_PATH) {
+					console.warn('[audio] Failed to load soundfont, falling back to wavetable:', err)
+					this._engine.setBackend('wavetable')
+					return
+				}
+				this._soundLoad = null
+				throw err
+			}
+		})()
+		return this._soundLoad
+	}
+
+	/** Each staff's instrument and the master volume (after a load or a sound change). */
+	_applyPrograms() {
+		if (!this._initialized) return
+		for (const [ch, program] of this._programs) this._engine.programChange(ch, program)
+		this._applyVolume()
 	}
 
 	/**
@@ -520,10 +597,8 @@ export class PlaybackController {
 	 */
 	async load(data) {
 		await this._ensureInit()
-		// Wait for soundfont if it hasn't loaded yet
-		if (!this._soundfontLoaded) {
-			await this._loadSoundfont()
-		}
+		// Wait for the soundfont if it hasn't loaded yet
+		await this._loadSoundfont()
 		// Ensure tokens have been interpreted (name, octave, tickValue, etc.)
 		interpret(data)
 		const { notes, channels } = buildNoteEvents(data)
@@ -534,14 +609,18 @@ export class PlaybackController {
 		// This sets the correct instrument sound per channel.
 		const staves = data.score.staves
 		this._fileMutedStaves = new Set()
+		this._programs = []
 		for (let si = 0; si < staves.length; si++) {
 			if (staves[si].muted) this._fileMutedStaves.add(si)
-			const ch = channels[si]
-			const program = staves[si].patchName ?? 0
-			this._engine.programChange(ch, program)
+			this._programs.push([channels[si], staves[si].patchName ?? 0])
 		}
+		this._applyPrograms()
+		// load() rewinds the scheduler; carry on from where playback was left
+		const resumeAt = this.playing ? this.currentTime : this._position
 		const filtered = this._filterNotes(notes)
 		this._scheduler.load({ notes: filtered })
+		if (resumeAt > 0 && resumeAt < this._scheduler.duration) this._scheduler.seek(resumeAt)
+		else this._position = 0
 	}
 
 	async play() {
@@ -553,16 +632,19 @@ export class PlaybackController {
 
 	pause() {
 		this._scheduler?.pause()
+		this._position = this.currentTime
 		this._onStateChange?.(false)
 	}
 
 	stop() {
 		this._scheduler?.stop()
+		this._position = 0
 		this._onStateChange?.(false)
 	}
 
 	seek(time) {
-		this._scheduler?.seek(time)
+		this._position = Math.max(0, time)
+		this._scheduler?.seek(this._position)
 	}
 
 	dispose() {
@@ -572,5 +654,6 @@ export class PlaybackController {
 		this._engine = null
 		this._initialized = false
 		this._soundfontLoaded = false
+		this._soundLoad = null
 	}
 }

@@ -6,6 +6,13 @@
 		<meta name="keywords" content="Music,Notation,Composer,Scorewriter,Editor,NWC,Noteworthy" />
 		<meta name="author" content="Joshua Koo" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<!-- three.js for the 3D view (loaded only when it is opened); its addons import 'three' -->
+		<script type="importmap">
+			{ "imports": {
+				"three": "./vendor/three-0.170.0/build/three.module.min.js",
+				"three/addons/": "./vendor/three-0.170.0/examples/jsm/"
+			} }
+		</script>
 		<style>
 			/* Companion text fonts for each SMuFL music font */
 			/* BravuraText, LelandText and PetalumaText carry no Latin letters, only a
@@ -41,6 +48,25 @@
 				--accent-text: #fff;
 				--radius: 4px;
 				--gap: 8px;
+				--chrome: rgba(24, 24, 27, 0.86);    /* translucent bars over the score */
+				--track: rgba(255, 255, 255, 0.2);   /* unplayed part of the scrub bar */
+			}
+
+			/* Light theme (Appearance → Theme); Studio is the default above */
+			body.theme-light {
+				--bg: #f3f1ec;
+				--surface: #ffffff;
+				--surface-hover: #ebe8e1;
+				--surface-active: #dcd8cf;
+				--text: #1d1d22;
+				--text-dim: #6b6b76;
+				--border: #d6d2c9;
+				--divider: #e0dcd3;
+				--accent: #2f6fb5;
+				--accent-hover: #3d7fc6;
+				--chrome: rgba(250, 249, 246, 0.9);
+				--track: rgba(0, 0, 0, 0.16);
+				color-scheme: light;
 			}
 
 			body {
@@ -124,31 +150,6 @@
 				cursor: pointer;
 			}
 
-			.speed-control {
-				display: flex;
-				align-items: center;
-				gap: 4px;
-				font-size: 11px;
-				color: var(--text-dim);
-			}
-
-			.speed-control input[type="number"] {
-				background: var(--surface);
-				color: var(--text);
-				border: 1px solid var(--border);
-				border-radius: var(--radius);
-				padding: 2px 4px;
-				font-size: 11px;
-				font-family: inherit;
-				outline: none;
-				-moz-appearance: textfield;
-			}
-
-			.speed-control input[type="number"]::-webkit-inner-spin-button,
-			.speed-control input[type="number"]::-webkit-outer-spin-button {
-				-webkit-appearance: none;
-				margin: 0;
-			}
 
 			/* Segmented button group */
 			.btn-group {
@@ -223,11 +224,6 @@
 				padding: 2px 6px;
 			}
 
-			#progress_bar { width: 160px; }
-			/* Page layout adds page navigation; make room so the bar stays one row */
-			@media (max-width: 1360px) {
-				body.page-layout #progress_bar { width: 90px; }
-			}
 			#zoom_slider { width: 80px; }
 
 			#zoom_label {
@@ -252,29 +248,6 @@
 			#page_indicator {
 				font-size: 11px;
 				color: var(--text-dim);
-			}
-
-			/* Settings menu */
-			.settings-group {
-				position: relative;
-				margin-left: auto;
-			}
-
-			.toolbar-group.settings-group {
-				border-left: none;
-			}
-
-			.settings-panel {
-				left: auto;
-				right: 0;
-				width: 320px;
-				max-height: calc(100vh - 80px);
-				overflow-y: auto;
-			}
-
-			.settings-panel section + section {
-				border-top: 1px solid var(--divider);
-				padding-top: 8px;
 			}
 
 			.settings-panel h5 {
@@ -306,17 +279,6 @@
 				color: var(--text-dim);
 			}
 
-			.settings-panel .speed-control {
-				margin-bottom: 6px;
-			}
-
-			.settings-panel .speed-control span:first-child {
-				min-width: 0;
-			}
-
-			#speed_slider { width: 110px; }
-			#speed_input { width: 48px; }
-
 			#ink_paper_color {
 				width: 28px;
 				height: 24px;
@@ -331,24 +293,6 @@
 				color: var(--accent);
 			}
 
-			/* Narrow screens: keep the main bar to one or two rows */
-			/* Sized to the longest sample name otherwise, crowding the toolbar */
-			#samples {
-				max-width: 170px;
-			}
-
-			@media (max-width: 700px) {
-				.toolbar { padding: 4px 6px; gap: 6px; }
-				.toolbar-group + .toolbar-group { padding-left: 6px; }
-				#logo { display: none; }
-				#samples { max-width: 140px; }
-				#progress_bar { width: 90px; }
-				.time-display { min-width: 0; }
-				#zoom_slider { width: 60px; }
-				#fit_width_btn, #fit_height_btn { display: none; }
-				.settings-group { margin-left: 0; }
-				.settings-panel { position: fixed; top: 48px; left: 8px; right: 8px; width: auto; max-height: calc(100vh - 56px); }
-			}
 
 			/* Score area */
 			#score {
@@ -360,6 +304,278 @@
 			canvas {
 				background: #fff;
 				position: fixed;
+			}
+
+			/* 3D view: replaces #score while open */
+			#score3d {
+				flex: 1 0;
+				position: relative;
+				overflow: hidden;
+				min-height: 0;
+				background: #000;
+			}
+			#score3d[hidden] { display: none; }
+			#score3d canvas {
+				position: static;
+				display: block;
+				background: none;
+			}
+			#score3d_status {
+				position: absolute;
+				inset: 0;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: #ccc;
+				font-size: 14px;
+				pointer-events: none;
+			}
+			#score3d_status[hidden] { display: none; }
+			body.view-3d #score,
+			body.view-3d #zoom_group { display: none; }
+
+			/* ── Stage: the score views, with the transport over their bottom edge ── */
+			:root {
+				--now: #f5a524;          /* what is playing now: progress, playhead control */
+				--now-soft: rgba(245, 165, 36, 0.18);
+				--transport-h: 58px;
+			}
+			#stage {
+				flex: 1 0;
+				position: relative;
+				display: flex;
+				flex-direction: column;
+				min-height: 0;
+			}
+			/* room to scroll the last system clear of the transport */
+			#score { padding-bottom: var(--transport-h); }
+
+			#transport {
+				position: absolute;
+				left: 0; right: 0; bottom: 0;
+				height: var(--transport-h);
+				z-index: 5;
+				background: var(--chrome);
+				backdrop-filter: blur(12px) saturate(1.2);
+				-webkit-backdrop-filter: blur(12px) saturate(1.2);
+				border-top: 1px solid rgba(255, 255, 255, 0.08);
+				color: var(--text);
+				transition: opacity 0.35s ease, transform 0.35s ease;
+				user-select: none;
+			}
+			#transport.idle { opacity: 0; transform: translateY(6px); pointer-events: none; }
+			@media (prefers-reduced-motion: reduce) { #transport { transition: none; } }
+
+			/* left: where you are · centre: ⏮ ▶ ⏭ · right: sound, speed, views */
+			.t-row {
+				position: absolute;
+				inset: 9px 10px 0;
+				display: grid;
+				grid-template-columns: 1fr auto 1fr;
+				align-items: center;
+				gap: 8px;
+			}
+			.t-left, .t-center, .t-right { display: flex; align-items: center; gap: 2px; min-width: 0; }
+			.t-left { overflow: hidden; }
+			.t-center { gap: 8px; }
+			.t-right { justify-content: flex-end; }
+			.t-btn:disabled { opacity: 0.3; cursor: default; background: none; }
+			.t-btn, .t-play, .t-chip {
+				background: none;
+				border: 0;
+				color: var(--text);
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				padding: 0;
+			}
+			.t-btn {
+				width: 36px; height: 36px;
+				border-radius: 8px;
+				opacity: 0.85;
+			}
+			.t-btn:hover { background: var(--surface-hover); opacity: 1; }
+			.t-btn.active { color: var(--now); opacity: 1; background: none; }
+			.t-btn.active:hover { background: var(--surface-hover); }
+			.t-play {
+				width: 40px; height: 40px;
+				border-radius: 50%;
+				background: var(--text);
+				color: var(--bg);
+				transition: transform 0.1s;
+			}
+			.t-play:hover { background: var(--text); filter: brightness(1.15); transform: scale(1.05); }
+			.t-play:active { transform: scale(0.96); background: var(--text); }
+			.t-btn:focus-visible, .t-play:focus-visible, .t-chip:focus-visible, #scrub:focus-visible {
+				outline: 2px solid var(--now);
+				outline-offset: 2px;
+			}
+			svg.i {
+				width: 20px; height: 20px;
+				fill: none; stroke: currentColor; stroke-width: 1.8;
+				stroke-linecap: round; stroke-linejoin: round;
+			}
+			svg.i.fill { fill: currentColor; stroke: none; }
+			.t-time {
+				font-size: 13px;
+				font-variant-numeric: tabular-nums;
+				padding: 0 8px;
+				white-space: nowrap;
+			}
+			.t-where {
+				font-size: 12px;
+				color: var(--text-dim);
+				font-variant-numeric: tabular-nums;
+				white-space: nowrap;
+				padding-left: 8px;
+				border-left: 1px solid var(--border);
+			}
+			.t-where:empty { display: none; }
+			.t-volume { display: inline-flex; align-items: center; }
+			#volume {
+				width: 0; opacity: 0; margin: 0;
+				transition: width 0.2s ease, opacity 0.2s ease, margin 0.2s ease;
+				accent-color: var(--now);
+			}
+			.t-volume:hover #volume, .t-volume:focus-within #volume, .t-volume.open #volume {
+				width: 80px; opacity: 1; margin: 0 8px 0 2px;
+			}
+			.t-chip {
+				height: 30px; min-width: 44px;
+				padding: 0 10px;
+				border-radius: 15px;
+				font-size: 13px; font-weight: 600;
+				font-variant-numeric: tabular-nums;
+			}
+			.t-chip:hover { background: var(--surface-hover); }
+			.t-chip.changed { color: var(--now); background: var(--now-soft); }
+
+			/* Scrub bar: one segment per section, on the transport's top edge */
+			#scrub {
+				position: absolute;
+				left: 12px; right: 12px; top: -8px;
+				height: 16px;
+				cursor: pointer;
+				touch-action: none;
+			}
+			#scrub_track {
+				position: absolute; left: 0; right: 0; top: 50%;
+				display: flex; gap: 3px;
+				transform: translateY(-50%);
+			}
+			.t-section {
+				position: relative;
+				height: 4px;
+				border-radius: 2px;
+				background: var(--track);
+				overflow: hidden;
+				transition: height 0.12s;
+				flex-basis: 0;
+			}
+			#scrub:hover .t-section, #scrub.scrubbing .t-section { height: 7px; }
+			.t-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--now); }
+			#scrub_knob {
+				position: absolute; top: 50%;
+				width: 14px; height: 14px; margin: -7px 0 0 -7px;
+				border-radius: 50%;
+				background: var(--now);
+				box-shadow: 0 0 0 4px var(--now-soft);
+				transform: scale(0);
+				transition: transform 0.12s;
+				pointer-events: none;
+			}
+			#scrub:hover #scrub_knob, #scrub.scrubbing #scrub_knob, #scrub:focus-visible #scrub_knob { transform: scale(1); }
+			#scrub_tip {
+				position: absolute; bottom: 20px;
+				transform: translateX(-50%);
+				background: #0d0d10;
+				color: #ececf1;
+				font-size: 12px;
+				padding: 4px 8px;
+				border-radius: 6px;
+				white-space: nowrap;
+				pointer-events: none;
+			}
+			#scrub_tip[hidden] { display: none; }
+
+			/* Speed popover */
+			.t-pop {
+				position: absolute;
+				right: 10px; bottom: calc(var(--transport-h) + 6px);
+				width: 230px;
+				padding: 10px;
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 12px;
+				box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+			}
+			.t-pop[hidden] { display: none; }
+			.t-pop-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); margin-bottom: 8px; }
+			.speed-presets { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+			.speed-presets button { padding: 5px 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+			.speed-presets button.active { background: var(--now); border-color: var(--now); color: #1c1406; }
+			.speed-fine { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+			#speed_slider { flex: 1; accent-color: var(--now); }
+			#speed_input {
+				width: 54px;
+				background: var(--bg); color: var(--text);
+				border: 1px solid var(--border); border-radius: var(--radius);
+				padding: 3px 4px; font: inherit; font-size: 12px;
+			}
+			.t-pop-note { margin-top: 8px; font-size: 12px; color: var(--text-dim); min-height: 1em; }
+
+			/* "Back to the playhead": shown after scrolling away during playback */
+			#follow_pill {
+				position: absolute;
+				left: 50%; bottom: calc(var(--transport-h) + 14px);
+				transform: translateX(-50%);
+				z-index: 6;
+				background: var(--now);
+				border: 0;
+				color: #1c1406;
+				font-weight: 600;
+				border-radius: 999px;
+				padding: 7px 16px;
+				box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+			}
+			#follow_pill:hover { background: #ffb73d; }
+			#follow_pill[hidden] { display: none; }
+
+			/* Keyboard shortcut sheet (src/commands.js) */
+			#shortcut_sheet {
+				position: fixed; inset: 0; z-index: 50;
+				background: rgba(0, 0, 0, 0.55);
+				display: flex; align-items: center; justify-content: center;
+			}
+			#shortcut_sheet[hidden] { display: none; }
+			.sheet-card {
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 18px 22px;
+				width: min(720px, calc(100% - 24px));
+				max-height: calc(100vh - 48px);
+				overflow: auto;
+				box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+			}
+			.sheet-card h3 { margin: 0 0 12px; font-size: 16px; }
+			.sheet-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 28px; }
+			.sheet-grid h4 { display: block; margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); font-weight: 600; }
+			.sheet-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 3px 0; font-size: 13px; }
+			.sheet-keys { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+			kbd {
+				font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+				color: var(--text);
+				background: var(--bg);
+				border: 1px solid var(--border);
+				border-bottom-width: 2px;
+				border-radius: 5px;
+				padding: 1px 6px;
+			}
+
+			@media (max-width: 700px) {
+				.t-where, .t-volume, #fullscreen { display: none; }
+				.t-time { padding: 0 4px; }
 			}
 
 			#invisible_canvas {
@@ -398,41 +614,282 @@
 				display: inline-block;
 			}
 
-			.time-display {
-				font-size: 11px;
-				min-width: 85px;
-				text-align: center;
-				font-variant-numeric: tabular-nums;
+
+			/* ── Top bar ── */
+			.topbar {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				height: 48px;
+				padding: 0 10px 0 6px;
+				border-bottom: 1px solid var(--divider);
+				background: var(--bg);
+			}
+			.topbar-spacer { flex: 1; }
+			#logo { margin: 0 6px 0 2px; }
+			.doc {
+				display: flex;
+				align-items: baseline;
+				gap: 10px;
+				min-width: 0;
+				flex: 0 1 auto;
+				overflow: hidden;
+			}
+			.doc-title {
+				font-size: 14px;
+				font-weight: 600;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				padding: 3px 6px;
+				border-radius: 6px;
+				cursor: text;
+				outline: none;
+			}
+			.doc-title:hover { background: var(--surface); }
+			.doc-title[contenteditable="true"] { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); text-overflow: clip; }
+			.doc-sub {
+				font-size: 12px;
 				color: var(--text-dim);
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
 			}
-			/* Save menu and unsaved-changes status */
-			.save-group {
-				position: relative;
-				display: inline-block;
-			}
-			.save-menu {
-				min-width: 230px;
-				padding: 6px;
-			}
-			.save-menu.open {
-				gap: 2px;
-			}
-			.save-menu button {
-				text-align: left;
-			}
-			.save-menu .hint {
-				margin: 4px 6px;
-			}
-			.unsaved-status {
+			.doc-sub:empty { display: none; }
+			.chips { display: inline-flex; gap: 6px; align-items: center; }
+			.chip {
 				display: inline-flex;
 				align-items: center;
 				gap: 6px;
+				height: 28px;
+				padding: 0 4px 0 10px;
+				border-radius: 14px;
+				background: var(--surface);
 				font-size: 12px;
 				color: var(--text-dim);
 				white-space: nowrap;
 			}
-			.unsaved-status[hidden] {
-				display: none;
+			.chip[hidden] { display: none; }
+			.chip-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--now); }
+			.chip-btn {
+				border: 0;
+				border-radius: 11px;
+				padding: 3px 10px;
+				font-weight: 600;
+				background: var(--now);
+				color: #1c1406;
+			}
+			.chip-btn:hover { background: #ffb73d; }
+			.chip-btn.quiet { background: none; color: var(--text-dim); font-weight: 400; }
+			.chip-btn.quiet:hover { background: var(--surface-hover); color: var(--text); }
+			.chip-btn[hidden] { display: none; }
+			.view-switch button { padding: 5px 12px; }
+			.aa-btn { font-size: 15px; font-weight: 650; letter-spacing: -0.3px; }
+			.aa-btn.active { color: var(--text); background: var(--surface-hover); }
+			#menu_btn.active { background: var(--surface-hover); }
+			.share-btn {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				height: 32px;
+				padding: 0 12px;
+				border-radius: 8px;
+				font-weight: 600;
+			}
+			.share-btn svg.i { width: 17px; height: 17px; }
+
+			/* ── Drawers: the menu (left) and Appearance (right) ── */
+			.drawer {
+				position: fixed;
+				top: 56px;
+				bottom: calc(var(--transport-h) + 8px);
+				width: 320px;
+				z-index: 40;
+				display: flex;
+				flex-direction: column;
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: 12px;
+				box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+				transition: transform 0.22s ease, visibility 0.22s;
+				visibility: hidden;
+			}
+			.drawer-left { left: 8px; transform: translateX(calc(-100% - 16px)); width: 290px; }
+			.drawer-right { right: 8px; transform: translateX(calc(100% + 16px)); }
+			.drawer.open { transform: none; visibility: visible; }
+			@media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
+			.drawer-head {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 8px 6px 4px 14px;
+			}
+			.drawer-title { font-weight: 650; font-size: 14px; }
+			.drawer-body { overflow-y: auto; padding: 0 8px 12px; }
+			.drawer-body h5 {
+				margin: 12px 6px 4px;
+				font-size: 11px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				color: var(--text-dim);
+			}
+			.menu-item {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				width: 100%;
+				padding: 8px;
+				border: 0;
+				border-radius: 8px;
+				background: none;
+				color: var(--text);
+				font-size: 13px;
+				text-align: left;
+				text-decoration: none;
+				box-sizing: border-box;
+			}
+			.menu-item:hover:not(:disabled) { background: var(--surface-hover); color: var(--text); }
+			.menu-item:disabled { opacity: 0.45; cursor: default; }
+			.menu-hint { color: var(--text-dim); font-size: 11px; text-align: right; }
+			.menu-item.has-hint { flex-direction: column; align-items: flex-start; gap: 1px; }
+			.menu-item.has-hint .menu-hint { text-align: left; }
+			body.view-3d #fit_row { display: none; }
+			.menu-sep { height: 1px; background: var(--divider); margin: 8px 6px; }
+			.menu-field { display: flex; align-items: center; gap: 10px; padding: 6px 8px; font-size: 13px; color: var(--text-dim); }
+			.menu-field select { flex: 1; min-width: 0; }
+			.settings-panel .group { border-top: 1px solid var(--divider); padding: 4px 6px 8px; }
+			.settings-panel section.group { border-top: 0; }
+			.settings-panel summary {
+				cursor: pointer;
+				list-style: none;
+				padding: 8px 0 6px;
+				font-size: 11px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				color: var(--text-dim);
+			}
+			.settings-panel summary::-webkit-details-marker { display: none; }
+			.settings-panel summary::after { content: '▾'; float: right; }
+			.settings-panel details[open] > summary::after { content: '▴'; }
+			.settings-panel .row .toolbar-label { min-width: 64px; }
+			.settings-panel label { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+			.settings-panel label span:first-child { min-width: 80px; }
+			.settings-panel input[type="range"] { width: 110px; }
+			.settings-panel .slider-value { min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
+			.view-row { display: none; }
+			/* the 3D options only while the 3D view is open; zoom only while it isn't */
+			#view3d_settings { display: none; }
+			body.view-3d #view3d_settings { display: block; }
+
+			/* Playback popover (transport ⚙) */
+			.pop-switch {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				width: 100%;
+				padding: 7px 4px;
+				border: 0;
+				background: none;
+				color: var(--text);
+				font-size: 13px;
+			}
+			.pop-switch::after {
+				content: '';
+				width: 30px; height: 18px;
+				border-radius: 9px;
+				background: var(--surface-active) radial-gradient(circle at 9px 9px, #fff 6px, transparent 6.5px);
+				transition: background-position 0.15s;
+			}
+			.pop-switch.active, .pop-switch.active:hover { background: none; color: var(--text); border: 0; }
+			.pop-switch.active::after { background: var(--now) radial-gradient(circle at 21px 9px, #fff 6px, transparent 6.5px); }
+			.pop-switch:hover { background: none; }
+			.pop-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 4px; font-size: 13px; }
+			.pop-field select { max-width: 130px; }
+			.pop-link {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				width: 100%;
+				margin-top: 6px;
+				padding: 7px 4px;
+				border: 0;
+				border-top: 1px solid var(--divider);
+				border-radius: 0;
+				background: none;
+				color: var(--text);
+				font-size: 13px;
+			}
+			.pop-link:hover { background: none; color: var(--now); }
+
+			/* About this score */
+			#about_dialog {
+				background: var(--surface);
+				color: var(--text);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 18px 22px;
+				width: min(480px, calc(100% - 32px));
+				box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+			}
+			#about_dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+			#about_dialog h3 { margin: 0 0 12px; font-size: 16px; }
+			#about_list { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+			#about_list dt { color: var(--text-dim); }
+			#about_list dd { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+			.dialog-buttons { display: flex; justify-content: flex-end; margin-top: 16px; }
+			#footer { display: none; }
+
+			/* Video export (src/view3d/export-dialog.js) */
+			.export-dialog {
+				background: var(--surface);
+				color: var(--text);
+				border: 1px solid var(--border);
+				border-radius: 14px;
+				padding: 18px 22px;
+				width: min(520px, calc(100% - 32px));
+				max-height: calc(100vh - 48px);
+				box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+				font-size: 12px;
+			}
+			.export-dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
+			.export-dialog h2 { font-size: 15px; margin: 0 0 12px; }
+			.export-dialog .row { display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center; margin: 7px 0; }
+			.export-dialog .row[hidden] { display: none; }
+			.export-dialog label { color: var(--text-dim); }
+			.export-dialog select, .export-dialog input[type="text"], .export-dialog textarea {
+				width: 100%;
+				box-sizing: border-box;
+				background: var(--bg);
+				color: var(--text);
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				padding: 5px 6px;
+				font: inherit;
+			}
+			.export-dialog textarea { resize: vertical; line-height: 1.4; }
+			.ex-preview-buttons { display: flex; gap: 6px; }
+			.ex-preview-buttons button[hidden] { display: none; }
+			.ex-note { color: var(--text-dim); font-size: 11px; line-height: 1.5; margin: 10px 0 0; }
+			.ex-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 12px; display: none; }
+			.ex-bar > div { height: 100%; width: 0; background: var(--now); }
+			.export-dialog.busy .ex-bar { display: block; }
+			.ex-status { margin-top: 8px; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--now); min-height: 14px; }
+			.ex-buttons { display: flex; gap: 8px; justify-content: flex-end; margin: 14px -22px -18px; padding: 10px 22px 16px; position: sticky; bottom: -18px; background: var(--surface); border-top: 1px solid var(--divider); }
+			.ex-buttons .primary { background: var(--now); border-color: var(--now); color: #1c1406; font-weight: 600; }
+			.export-dialog button:disabled { opacity: 0.5; cursor: default; }
+			#score3d canvas.card-preview { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; cursor: pointer; }
+			.card-preview-hint { position: absolute; right: 12px; top: 10px; z-index: 4; font-size: 11px; color: #bbb; pointer-events: none; }
+
+			@media (max-width: 760px) {
+				.topbar { gap: 2px; padding: 0 4px; }
+				#logo, .doc-sub, .topbar #layout_group, #page_nav, .share-label, #unsaved_text { display: none; }
+				.view-row { display: flex; }
+				.drawer { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 75vh; border-radius: 16px 16px 0 0; }
+				.drawer-left, .drawer-right { transform: translateY(105%); }
+				.drawer.open { transform: none; }
 			}
 
 			/* Click-to-edit title block (src/title-editor.js) */
@@ -469,232 +926,35 @@
 
 		<div id="container">
 			<div id="top">
-				<div class="toolbar" id="main_toolbar">
-					<!-- File -->
-					<div class="toolbar-group">
-						<a href="https://github.com/zz85/nwc-viewer" id="logo">Notably</a>
-						<button id="open">Open</button>
-						<input type="file" id="opener" accept=".nwc,.nwz,.nwctxt,.mid,.midi,.mscx,.mscz,.musicxml,.mxl,.xml" hidden />
-						<select id="samples" title="Sample scores"></select>
-						<div class="save-group">
-							<button id="save_btn" title="Save the score with your changes" aria-haspopup="true" aria-expanded="false">Save &#9662;</button>
-							<div id="save_menu" class="popover save-menu" role="menu" aria-label="Save as">
-								<button data-format="nwctxt" role="menuitem">NoteWorthy text (.nwctxt)</button>
-								<button data-format="nwc" role="menuitem">NoteWorthy Composer (.nwc)</button>
-								<button data-format="musicxml" role="menuitem">MusicXML (.musicxml)</button>
-								<p class="hint" id="save_hint" hidden>Saving is available for NoteWorthy files (.nwc, .nwctxt) so far.</p>
-								<button id="export_pdf" role="menuitem" title="Lay the score out on pages (size and orientation from Settings → Page) and download a PDF">PDF (.pdf)</button>
-							</div>
-						</div>
-						<button id="share_btn" title="Copy a link that opens this score, with your changes">Share</button>
-						<span id="unsaved_status" class="unsaved-status" hidden>
+				<!-- Top bar: what you're looking at, and how -->
+				<header class="topbar" id="main_toolbar">
+					<button id="menu_btn" class="t-btn" title="Menu: open, save, export" aria-label="Menu" aria-haspopup="dialog" aria-expanded="false"><svg class="i"><use href="#i-menu"/></svg></button>
+					<a href="https://github.com/zz85/nwc-viewer" id="logo">Notably</a>
+					<div class="doc">
+						<span id="doc_title" class="doc-title" role="button" tabindex="0" title="Rename">Untitled</span>
+						<span id="doc_sub" class="doc-sub"></span>
+					</div>
+					<!-- Status chips: situational state, shown only while it applies -->
+					<span id="chips" class="chips">
+						<span id="unsaved_status" class="chip unsaved-status" hidden>
+							<span class="chip-dot"></span>
 							<span id="unsaved_text"></span>
-							<button id="discard_changes" class="compact" title="Throw away the unsaved changes and reload the file">Discard</button>
+							<button id="save_now" class="chip-btn" title="Save in the score's own format">Save</button>
+							<button id="discard_changes" class="chip-btn quiet" title="Throw away the unsaved changes and reload the file">Discard</button>
 						</span>
-					</div>
-
-					<!-- Transport -->
-					<div class="toolbar-group">
-						<button id="play" title="Play / Pause">Play</button>
-						<button id="stop" title="Stop">Stop</button>
-						<span id="playback_time" class="time-display">0:00 / 0:00</span>
-						<input type="range" id="progress_bar"
-							min="0" max="1" step="0.001" value="0" />
-					</div>
-
-					<!-- Layout + page navigation -->
-					<div class="toolbar-group">
-						<div class="btn-group" id="layout_group">
-							<button data-mode="scroll" title="One long horizontal line">Scroll</button>
-							<button data-mode="wrap" class="active" title="Wrap systems to the window width">Wrap</button>
-							<button data-mode="page" title="Printed pages">Page</button>
-						</div>
-						<span id="page_nav" style="display: none;">
-							<button id="page_prev" title="Previous page" class="compact">&lt;</button>
-							<input id="page_input" type="number" min="1" value="1" title="Jump to page">
-							<span id="page_indicator"> / 1</span>
-							<button id="page_next" title="Next page" class="compact">&gt;</button>
-						</span>
-					</div>
-
-					<!-- Zoom -->
-					<div class="toolbar-group">
-						<input type="range" id="zoom_slider" title="Zoom"
-							min="0.25" max="4.0" step="0.01" value="1.0"
-							oninput="onZoomSliderInput(parseFloat(this.value))" />
-						<span id="zoom_label">100%</span>
-						<button id="fit_width_btn" title="Fit page width to screen" class="compact">W</button>
-						<button id="fit_height_btn" title="Fit page height to screen" class="compact">H</button>
-					</div>
-
-					<!-- Settings -->
-					<div class="toolbar-group settings-group">
-						<button id="settings_toggle" title="Playback, engraving and display settings" aria-haspopup="true" aria-expanded="false">&#9881; Settings</button>
-						<div id="settings_panel" class="popover settings-panel" role="dialog" aria-label="Settings">
-							<section>
-								<h5>Playback</h5>
-								<label class="speed-control" title="Playback speed">
-									<span>Speed</span>
-									<input type="range" id="speed_slider"
-										min="0.1" max="3" step="0.05" value="1" />
-									<input type="number" id="speed_input"
-										min="0.1" max="4" step="0.05" value="1" />x
-								</label>
-								<div class="row">
-									<select id="solo_staff" title="Solo a single staff">
-										<option value="all">All Staves</option>
-									</select>
-									<select id="highlight_mode" title="Playback highlight mode">
-										<option value="notes">Highlight: Notes</option>
-										<option value="glow">Highlight: Glow</option>
-										<option value="bar">Highlight: Bar</option>
-										<option value="column">Highlight: Column</option>
-										<option value="none">Highlight: Off</option>
-									</select>
-								</div>
-								<div class="row">
-									<button id="autoscroll_toggle" class="active" title="Auto-scroll during playback">Auto-scroll</button>
-									<button id="piano_toggle" class="active" title="Piano keyboard">Piano keyboard</button>
-								</div>
-							</section>
-
-							<section id="page_settings">
-								<h5>Page</h5>
-								<div class="row">
-									<select id="page_size" style="display: none;" title="Page size">
-										<option value="letter">Letter</option>
-										<option value="a4">A4</option>
-									</select>
-									<div class="btn-group" id="orientation_group" style="display: none;">
-										<button data-orient="portrait" class="active">Portrait</button>
-										<button data-orient="landscape">Landscape</button>
-									</div>
-									<select id="page_view_mode" style="display: none;" title="Page view arrangement">
-										<option value="vertical">Vertical</option>
-										<option value="single-page">Single Page</option>
-										<option value="two-up">Two-Up</option>
-										<option value="horizontal">Horizontal</option>
-									</select>
-								</div>
-								<p class="hint" id="page_settings_hint">Switch to Page layout for page options.</p>
-								<div class="row">
-									<label title="When exporting, shrink the staff size until the score fits on one page">
-										<input type="checkbox" id="pdf_fit_one_page" /> Fit PDF on one page
-									</label>
-								</div>
-							</section>
-
-							<section>
-								<h5>Engraving</h5>
-								<div class="row">
-									<select id="music_font" title="Music engraving font">
-										<optgroup label="Modern Engraving">
-											<option value="bravura">Bravura — modern, clean</option>
-											<option value="leland">Leland — contemporary</option>
-											<option value="maestro">Finale Maestro — classic</option>
-											<option value="engraver">Finale Engraver — traditional</option>
-										</optgroup>
-										<optgroup label="Handwritten / Jazz">
-											<option value="petaluma">Petaluma — hand-drawn</option>
-											<option value="jazz">Finale Jazz — lead sheets</option>
-											<option value="ash">Finale Ash — manuscript</option>
-										</optgroup>
-										<optgroup label="Historical / Specialty">
-											<option value="sebastian">Sebastian — elegant</option>
-											<option value="goldenage">Golden Age — vintage</option>
-											<option value="leipzig">Leipzig — scholarly</option>
-											<option value="broadway">Finale Broadway — show music</option>
-											<option value="legacy">Finale Legacy — classic Finale</option>
-										</optgroup>
-									</select>
-								</div>
-								<div class="row">
-									<span class="toolbar-label">Staff size</span>
-									<button id="size_down" title="Decrease staff size" class="compact">&minus;</button>
-									<button id="size_up" title="Increase staff size" class="compact">+</button>
-								</div>
-							</section>
-
-							<section>
-								<h5>Print look</h5>
-								<div class="row">
-									<button id="ink_bleed_toggle" title="Print emulation: ink bleed, paper grain, letterpress effect">Inked</button>
-									<input type="color" id="ink_paper_color" value="#f1ece3" title="Paper color" />
-								</div>
-								<div id="ink_controls_panel" class="slider-list">
-									<label title="Ink spread amount">
-										<span>Bleed</span>
-										<input type="range" id="ink_bleed_slider" min="0" max="100" step="1" value="14" />
-										<span id="ink_bleed_label" class="slider-value">0.14</span>
-									</label>
-									<label title="Edge noise / organic variation">
-										<span>Roughness</span>
-										<input type="range" id="ink_roughness_slider" min="0" max="100" step="1" value="58" />
-										<span id="ink_roughness_label" class="slider-value">0.58</span>
-									</label>
-									<label title="Overall ink darkness">
-										<span>Ink Density</span>
-										<input type="range" id="ink_density_slider" min="0" max="100" step="1" value="100" />
-										<span id="ink_density_label" class="slider-value">1.00</span>
-									</label>
-									<label title="Paper fiber texture strength">
-										<span>Paper Grain</span>
-										<input type="range" id="ink_grain_slider" min="0" max="100" step="1" value="13" />
-										<span id="ink_grain_label" class="slider-value">0.13</span>
-									</label>
-									<label title="Letterpress edge darkening">
-										<span>Edge Pool</span>
-										<input type="range" id="ink_pool_slider" min="0" max="100" step="1" value="2" />
-										<span id="ink_pool_label" class="slider-value">0.02</span>
-									</label>
-								</div>
-							</section>
-
-							<section>
-								<h5>Spacing</h5>
-								<div id="tuning_panel" class="slider-list">
-									<label title="Note spacing density: lower = tighter, higher = looser">
-										<span>Density</span>
-										<input type="range" id="density_slider" min="0.5" max="3.0" step="0.05" value="1.5" />
-										<span id="density_label" class="slider-value">1.50</span>
-									</label>
-									<label title="Rod-spring balance: 0 = all rigid, 1 = default, 2 = all elastic">
-										<span>Rod / Spring</span>
-										<input type="range" id="rod_spring_slider" min="0.0" max="2.0" step="0.05" value="1.0" />
-										<span id="rod_spring_label" class="slider-value">1.00</span>
-									</label>
-									<label title="Duration proportionality: 0 = uniform, 1 = standard, 2 = duration-proportional">
-										<span>Visual / Timing</span>
-										<input type="range" id="proportionality_slider" min="0.0" max="2.0" step="0.05" value="1.0" />
-										<span id="proportionality_label" class="slider-value">1.00</span>
-									</label>
-								</div>
-							</section>
-
-							<section>
-								<h5>Import &amp; tools</h5>
-								<div class="row">
-									<span class="toolbar-label">MuseScore engine</span>
-									<select id="mscore_import_mode" title="MuseScore import engine">
-										<option value="webmscore">WebMscore</option>
-										<option value="jsparser">JS Parser</option>
-									</select>
-								</div>
-								<div class="row">
-									<a href="nwc2xml_converter.html" class="link-button" title="Convert NWC to MusicXML">NWC to MusicXML converter &rarr;</a>
-								</div>
-							</section>
-
-							<section>
-								<h5>Advanced</h5>
-								<div class="row">
-									<span class="toolbar-label">NWC parser</span>
-									<button id="parser_toggle" title="Switch between the new parser and the old one, for comparison. Not remembered: a reload goes back to the new parser, which falls back to the old one by itself if it fails.">New</button>
-								</div>
-							</section>
-						</div>
-					</div>
-				</div>
+					</span>
+					<span class="topbar-spacer"></span>
+					<!-- Views, drawn from the 'view' slot (main.js) -->
+					<div class="btn-group view-switch" id="layout_group" role="group" aria-label="View"></div>
+					<span id="page_nav" style="display: none;">
+						<button id="page_prev" title="Previous page (PgUp)" class="compact">&lt;</button>
+						<input id="page_input" type="number" min="1" value="1" title="Jump to page">
+						<span id="page_indicator"> / 1</span>
+						<button id="page_next" title="Next page (PgDn)" class="compact">&gt;</button>
+					</span>
+					<button id="settings_toggle" class="t-btn aa-btn" title="Appearance: zoom, font, page, print look" aria-label="Appearance" aria-haspopup="dialog" aria-expanded="false">Aa</button>
+					<button id="share_btn" class="share-btn" title="Copy a link that opens this score, with your changes"><svg class="i"><use href="#i-share"/></svg><span class="share-label">Share</span></button>
+				</header>
 
 				<!-- Debug (localhost only) -->
 				<div class="toolbar">
@@ -707,9 +967,369 @@
 				</div>
 			</div>
 
-			<div id="score">
-				<div id="invisible_canvas"></div>
+			<!-- Menu: where scores come in and go out (drawn from the 'source' and 'export' slots) -->
+			<aside id="menu_panel" class="drawer drawer-left" role="dialog" aria-label="Menu" aria-hidden="true">
+				<header class="drawer-head">
+					<span class="drawer-title">Notably</span>
+					<button class="t-btn" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button>
+				</header>
+				<div class="drawer-body">
+					<h5>Open</h5>
+					<div id="source_items"></div>
+					<label class="menu-field"><span>Sample</span><select id="samples" title="Sample scores"></select></label>
+					<input type="file" id="opener" accept=".nwc,.nwz,.nwctxt,.mid,.midi,.mscx,.mscz,.musicxml,.mxl,.xml" hidden />
+
+					<h5>Save &amp; export</h5>
+					<div id="export_items"></div>
+					<button id="menu_copy_link" class="menu-item"><span>Copy share link</span></button>
+
+					<div class="menu-sep"></div>
+					<button id="theme_toggle" class="menu-item"><span>Light theme</span></button>
+					<button id="menu_shortcuts" class="menu-item"><span>Keyboard shortcuts</span><kbd>?</kbd></button>
+					<button id="menu_about" class="menu-item"><span>About this score</span></button>
+					<a href="nwc2xml_converter.html" class="menu-item"><span>NWC to MusicXML converter</span><span class="menu-hint">&nearr;</span></a>
+					<a href="https://github.com/zz85/nwc-viewer" class="menu-item"><span>Notably on GitHub</span><span class="menu-hint">&nearr;</span></a>
+				</div>
+			</aside>
+
+			<!-- Appearance: how the score looks (set once, rarely opened) -->
+			<aside id="settings_panel" class="drawer drawer-right settings-panel" role="dialog" aria-label="Appearance" aria-hidden="true">
+				<header class="drawer-head">
+					<span class="drawer-title">Appearance</span>
+					<button class="t-btn" data-close aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button>
+				</header>
+				<div class="drawer-body">
+					<section class="group" id="view_settings">
+						<div class="row view-row">
+							<span class="toolbar-label">View</span>
+							<div class="btn-group view-switch" id="layout_group_alt" role="group" aria-label="View"></div>
+						</div>
+						<div class="row">
+							<span class="toolbar-label">Theme</span>
+							<div class="btn-group" id="theme_group">
+								<button data-theme="studio">Studio</button>
+								<button data-theme="light">Light</button>
+							</div>
+						</div>
+						<div class="row" id="zoom_group">
+							<span class="toolbar-label">Zoom</span>
+							<input type="range" id="zoom_slider" title="Zoom"
+								min="0.25" max="4.0" step="0.01" value="1.0"
+								oninput="onZoomSliderInput(parseFloat(this.value))" />
+							<span id="zoom_label">100%</span>
+						</div>
+						<div class="row" id="fit_row">
+							<span class="toolbar-label">Fit</span>
+							<div class="btn-group">
+								<button id="fit_width_btn" title="Fit page width to screen">Width</button>
+								<button id="fit_height_btn" title="Fit page height to screen">Height</button>
+							</div>
+						</div>
+					</section>
+
+					<details class="group" id="view3d_settings" open>
+						<summary>3D view</summary>
+						<div class="row">
+							<select data-opt3d="view" title="Camera (clicking the 3D view also cycles through them)">
+								<option value="cinema">Camera: Grazing</option>
+								<option value="bounce">Camera: Note Bounce</option>
+								<option value="tilt">Camera: Tilted</option>
+								<option value="flat">Camera: Flat</option>
+								<option value="table">Camera: Tabletop</option>
+								<option value="low">Camera: Low angle</option>
+								<option value="free">Camera: Free orbit (mouse)</option>
+							</select>
+							<select data-opt3d="theme" title="Look of the table, ink and lights">
+								<option value="cinema">Theme: Cinematic</option>
+								<option value="marble">Theme: Marble</option>
+								<option value="night">Theme: Night ink</option>
+								<option value="paper">Theme: Paper</option>
+							</select>
+						</div>
+						<div class="row">
+							<select data-opt3d="litMode" title="What played notes do after they light up">
+								<option value="fade">Lit notes: Fade back</option>
+								<option value="stay">Lit notes: Stay lit</option>
+								<option value="off">Lit notes: Flash only</option>
+							</select>
+							<select data-opt3d="restMode" title="What a light does across a rest">
+								<option value="glide">Rests: Glide over</option>
+								<option value="leap">Rests: Wait, then leap</option>
+							</select>
+							<select data-opt3d="headFinish" title="Notehead surface">
+								<option value="satin">Noteheads: Satin</option>
+								<option value="matte">Noteheads: Matte</option>
+								<option value="gloss">Noteheads: Glossy</option>
+								<option value="chrome">Noteheads: Chrome</option>
+								<option value="gold">Noteheads: Gold</option>
+							</select>
+							<select data-opt3d="paperFinish" title="Surface of the paper / table">
+								<option value="matte">Paper: Matte</option>
+								<option value="satin">Paper: Satin</option>
+								<option value="glossy">Paper: Glossy</option>
+								<option value="mirror">Paper: Glossy + reflections</option>
+							</select>
+						</div>
+						<div class="row">
+							<button data-opt3d="bloom" class="active" title="Glow around lit notes">Bloom</button>
+							<button data-opt3d="dof" class="active" title="Depth of field">Focus blur</button>
+							<button data-opt3d="trail" class="active" title="Streaks behind the moving lights">Trails</button>
+							<button data-opt3d="shadows" class="active" title="Shadows">Shadows</button>
+							<button data-opt3d="fx" title="Sparkles, dust and ripples">Sparkles</button>
+						</div>
+						<div class="slider-list">
+							<label title="Camera distance">
+								<span>Zoom</span>
+								<input type="range" data-opt3d="zoom" min="0.4" max="3" step="0.05" value="1" />
+								<span class="slider-value" data-opt3d-label="zoom">1.00</span>
+							</label>
+							<label title="How high the lights hop between notes">
+								<span>Hop</span>
+								<input type="range" data-opt3d="bounce" min="0" max="2.5" step="0.05" value="1" />
+								<span class="slider-value" data-opt3d-label="bounce">1.00</span>
+							</label>
+						</div>
+					</details>
+
+					<details class="group" open>
+						<summary>Engraving</summary>
+						<div class="row">
+							<select id="music_font" title="Music engraving font">
+								<optgroup label="Modern Engraving">
+									<option value="bravura">Bravura — modern, clean</option>
+									<option value="leland">Leland — contemporary</option>
+									<option value="maestro">Finale Maestro — classic</option>
+									<option value="engraver">Finale Engraver — traditional</option>
+								</optgroup>
+								<optgroup label="Handwritten / Jazz">
+									<option value="petaluma">Petaluma — hand-drawn</option>
+									<option value="jazz">Finale Jazz — lead sheets</option>
+									<option value="ash">Finale Ash — manuscript</option>
+								</optgroup>
+								<optgroup label="Historical / Specialty">
+									<option value="sebastian">Sebastian — elegant</option>
+									<option value="goldenage">Golden Age — vintage</option>
+									<option value="leipzig">Leipzig — scholarly</option>
+									<option value="broadway">Finale Broadway — show music</option>
+									<option value="legacy">Finale Legacy — classic Finale</option>
+								</optgroup>
+							</select>
+						</div>
+						<div class="row">
+							<span class="toolbar-label">Staff size</span>
+							<button id="size_down" title="Decrease staff size" class="compact">&minus;</button>
+							<button id="size_up" title="Increase staff size" class="compact">+</button>
+						</div>
+					</details>
+
+					<details class="group" id="page_settings">
+						<summary>Page</summary>
+						<div class="row">
+							<select id="page_size" style="display: none;" title="Page size">
+								<option value="letter">Letter</option>
+								<option value="a4">A4</option>
+							</select>
+							<div class="btn-group" id="orientation_group" style="display: none;">
+								<button data-orient="portrait" class="active">Portrait</button>
+								<button data-orient="landscape">Landscape</button>
+							</div>
+							<select id="page_view_mode" style="display: none;" title="Page view arrangement">
+								<option value="vertical">Vertical</option>
+								<option value="single-page">Single Page</option>
+								<option value="two-up">Two-Up</option>
+								<option value="horizontal">Horizontal</option>
+							</select>
+						</div>
+						<p class="hint" id="page_settings_hint">Switch to Page view for page options.</p>
+						<div class="row">
+							<label title="When exporting, shrink the staff size until the score fits on one page">
+								<input type="checkbox" id="pdf_fit_one_page" /> Fit PDF on one page
+							</label>
+						</div>
+					</details>
+
+					<details class="group">
+						<summary>Print look</summary>
+						<div class="row">
+							<button id="ink_bleed_toggle" title="Print emulation: ink bleed, paper grain, letterpress effect">Inked</button>
+							<input type="color" id="ink_paper_color" value="#f1ece3" title="Paper color" />
+						</div>
+						<div id="ink_controls_panel" class="slider-list">
+							<label title="Ink spread amount">
+								<span>Bleed</span>
+								<input type="range" id="ink_bleed_slider" min="0" max="100" step="1" value="14" />
+								<span id="ink_bleed_label" class="slider-value">0.14</span>
+							</label>
+							<label title="Edge noise / organic variation">
+								<span>Roughness</span>
+								<input type="range" id="ink_roughness_slider" min="0" max="100" step="1" value="58" />
+								<span id="ink_roughness_label" class="slider-value">0.58</span>
+							</label>
+							<label title="Overall ink darkness">
+								<span>Ink Density</span>
+								<input type="range" id="ink_density_slider" min="0" max="100" step="1" value="100" />
+								<span id="ink_density_label" class="slider-value">1.00</span>
+							</label>
+							<label title="Paper fiber texture strength">
+								<span>Paper Grain</span>
+								<input type="range" id="ink_grain_slider" min="0" max="100" step="1" value="13" />
+								<span id="ink_grain_label" class="slider-value">0.13</span>
+							</label>
+							<label title="Letterpress edge darkening">
+								<span>Edge Pool</span>
+								<input type="range" id="ink_pool_slider" min="0" max="100" step="1" value="2" />
+								<span id="ink_pool_label" class="slider-value">0.02</span>
+							</label>
+						</div>
+					</details>
+
+					<details class="group">
+						<summary>Spacing</summary>
+						<div id="tuning_panel" class="slider-list">
+							<label title="Note spacing density: lower = tighter, higher = looser">
+								<span>Density</span>
+								<input type="range" id="density_slider" min="0.5" max="3.0" step="0.05" value="1.5" />
+								<span id="density_label" class="slider-value">1.50</span>
+							</label>
+							<label title="Rod-spring balance: 0 = all rigid, 1 = default, 2 = all elastic">
+								<span>Rod / Spring</span>
+								<input type="range" id="rod_spring_slider" min="0.0" max="2.0" step="0.05" value="1.0" />
+								<span id="rod_spring_label" class="slider-value">1.00</span>
+							</label>
+							<label title="Duration proportionality: 0 = uniform, 1 = standard, 2 = duration-proportional">
+								<span>Visual / Timing</span>
+								<input type="range" id="proportionality_slider" min="0.0" max="2.0" step="0.05" value="1.0" />
+								<span id="proportionality_label" class="slider-value">1.00</span>
+							</label>
+						</div>
+					</details>
+
+					<details class="group">
+						<summary>Advanced</summary>
+						<div class="row">
+							<span class="toolbar-label">MuseScore engine</span>
+							<select id="mscore_import_mode" title="MuseScore import engine">
+								<option value="webmscore">WebMscore</option>
+								<option value="jsparser">JS Parser</option>
+							</select>
+						</div>
+						<div class="row">
+							<span class="toolbar-label">NWC parser</span>
+							<button id="parser_toggle" title="Switch between the new parser and the old one, for comparison. Not remembered: a reload goes back to the new parser, which falls back to the old one by itself if it fails.">New</button>
+						</div>
+						<div class="row">
+							<label title="Draw what the score hides — staves left out of the score, marks set to Visibility: Never, filler rests in layered voices — in faint blue. Hidden marks still take no room, so spacing is unchanged. Not remembered.">
+								<input type="checkbox" id="show_hidden_items" /> Show hidden items
+							</label>
+						</div>
+					</details>
+				</div>
+			</aside>
+
+			<!-- About this score -->
+			<dialog id="about_dialog" aria-labelledby="about_title">
+				<h3 id="about_title">About this score</h3>
+				<dl id="about_list"></dl>
+				<div class="dialog-buttons"><button id="about_close">Close</button></div>
+			</dialog>
+			<div id="stage">
+				<div id="score">
+					<div id="invisible_canvas"></div>
+				</div>
+
+				<div id="score3d" hidden>
+					<div id="score3d_status" hidden></div>
+				</div>
+
+				<button id="follow_pill" hidden>&darr; Back to the playhead</button>
+
+				<!-- Transport: playback, laid out like a video player (src/transport.js) -->
+				<div id="transport" role="region" aria-label="Playback">
+					<div id="scrub" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+						<div id="scrub_track"></div>
+						<div id="scrub_knob"></div>
+						<div id="scrub_tip" hidden></div>
+					</div>
+					<div class="t-row">
+						<div class="t-left">
+							<span id="playback_time" class="t-time">0:00 / 0:00</span>
+							<span id="playback_where" class="t-where"></span>
+						</div>
+						<div class="t-center">
+							<button id="prev_section" class="t-btn" title="Previous section (⌥←)" aria-label="Previous section"><svg class="i"><use href="#i-prev"/></svg></button>
+							<button id="play" class="t-play" title="Play (Space)" aria-label="Play (Space)"><svg class="i fill"><use href="#i-play"/></svg></button>
+							<button id="next_section" class="t-btn" title="Next section (⌥→)" aria-label="Next section"><svg class="i"><use href="#i-next"/></svg></button>
+						</div>
+						<div class="t-right">
+						<span class="t-volume">
+							<button id="mute" class="t-btn" title="Mute (M)" aria-label="Mute (M)"><svg class="i"><use href="#i-vol"/></svg></button>
+							<input type="range" id="volume" min="0" max="1" step="0.01" value="0.8" aria-label="Volume" />
+						</span>
+						<button id="speed_chip" class="t-chip" title="Speed (&lt; &gt;)" aria-label="Speed" aria-haspopup="dialog" aria-expanded="false">1×</button>
+						<button id="piano_toggle" class="t-btn active" title="Piano keyboard (P)" aria-label="Piano keyboard"><svg class="i"><use href="#i-piano"/></svg></button>
+						<button id="playback_settings" class="t-btn" title="Playback settings" aria-label="Playback settings" aria-haspopup="dialog" aria-expanded="false"><svg class="i"><use href="#i-gear"/></svg></button>
+						<button id="fullscreen" class="t-btn" title="Full screen (F)" aria-label="Full screen (F)"><svg class="i"><use href="#i-full"/></svg></button>
+						</div>
+					</div>
+					<div id="playback_pop" class="t-pop" role="dialog" aria-label="Playback settings" hidden>
+						<div class="t-pop-title">Playback</div>
+						<button id="autoscroll_toggle" class="pop-switch active" role="switch" title="Keep the playhead in view during playback">Follow the playhead</button>
+						<label class="pop-field"><span>Highlight</span>
+							<select id="highlight_mode" title="Playback highlight mode">
+								<option value="notes">Notes</option>
+								<option value="glow">Glow</option>
+								<option value="bar">Bar</option>
+								<option value="column">Column</option>
+								<option value="none">Off</option>
+							</select>
+						</label>
+						<label class="pop-field"><span>Solo</span>
+							<select id="solo_staff" title="Play a single staff">
+								<option value="all">All staves</option>
+							</select>
+						</label>
+						<label class="pop-field"><span>Sound</span>
+							<select id="sound_select" title="Soundfont the score plays with"></select>
+						</label>
+						<div id="sound_status" class="t-pop-note" hidden></div>
+						<input type="file" id="soundfont_file" accept=".sf2,.sf3" hidden />
+						<button id="shortcuts_btn" class="pop-link" title="Keyboard shortcuts (?)"><span>Keyboard shortcuts</span><kbd>?</kbd></button>
+					</div>
+					<div id="speed_pop" class="t-pop" role="dialog" aria-label="Speed" hidden>
+						<div class="t-pop-title">Speed</div>
+						<div class="speed-presets">
+							<button data-speed="0.5">0.5×</button>
+							<button data-speed="0.75">0.75×</button>
+							<button data-speed="1" class="active">1×</button>
+							<button data-speed="1.25">1.25×</button>
+							<button data-speed="1.5">1.5×</button>
+						</div>
+						<div class="speed-fine">
+							<input type="range" id="speed_slider" min="0.25" max="2" step="0.05" value="1" aria-label="Speed" />
+							<input type="number" id="speed_input" min="0.1" max="4" step="0.05" value="1" aria-label="Exact speed" />×
+						</div>
+						<div id="speed_tempo" class="t-pop-note"></div>
+					</div>
+				</div>
 			</div>
+
+			<!-- Icons (24px grid, stroke) -->
+			<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+				<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></symbol>
+				<symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></symbol>
+				<symbol id="i-prev" viewBox="0 0 24 24"><path d="M19 20 9 12l10-8v16z"/><path d="M5 19V5"/></symbol>
+				<symbol id="i-next" viewBox="0 0 24 24"><path d="m5 4 10 8-10 8V4z"/><path d="M19 5v14"/></symbol>
+				<symbol id="i-vol" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></symbol>
+				<symbol id="i-vol-low" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></symbol>
+				<symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></symbol>
+				<symbol id="i-piano" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M8.8 19v-5M15.2 19v-5"/><path d="M7 5v9h3.5V5M13.5 5v9H17V5"/></symbol>
+				<symbol id="i-full" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></symbol>
+				<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+				<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+				<symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></symbol>
+				<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+				<symbol id="i-exit-full" viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3"/></symbol>
+			</svg>
 
 			<div id="footer">
 				Footer&nbsp;

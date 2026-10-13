@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getMusicFont, MUSIC_FONTS, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
+import { getFontSize, getZoomLevel, getLayoutMode, getShowHiddenItems, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getMusicFont, MUSIC_FONTS, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie, getCode, glyphPathGet } from '../drawing.js'
@@ -108,6 +108,144 @@ function collectMeasureBoundaries(staves) {
 		}
 	}
 	return boundaries
+}
+
+/**
+ * Boundary Style:NewSystem starts a new system at that bar. Like a barline's
+ * "force system break" it only acts on the top staff of the score and is
+ * ignored on other staves (NWC manual: "Force new system (top staff only)"),
+ * which keeps the part-only breaks of combined score+parts files out of the
+ * score. It marks the barline before it on the first staff, whose barlines
+ * drive line breaking (collectMeasureBoundaries). NewPage:Y is treated the
+ * same, as page layout has no forced page breaks yet.
+ */
+function applyBoundaryBreaks(staves) {
+	var top = staves.find(function(st) { return !st.hidden })
+	if (!top) return
+	var firstBarlines = (staves[0]?.tokens || []).filter(function(t) { return t.type === 'Barline' })
+	var bar = 0
+	for (var t of top.tokens) {
+		if (t.type === 'Barline') bar++
+		else if (t.type === 'Boundary' && t.style === 'NewSystem' && bar > 0 && firstBarlines[bar - 1]) {
+			firstBarlines[bar - 1].systemBreak = true
+		}
+	}
+}
+
+/**
+ * Collapsed staves per system (NWC Boundary Style:Collapse / EndCollapse).
+ *
+ * A Collapse, the first item of a bar, hides its staff from the first
+ * system that starts at or after that bar, until an EndCollapse; a system
+ * that contains an EndCollapse shows the staff throughout (NWC manual,
+ * "Collapsing/hiding a printed staff"). Layered staves (same Y) collapse
+ * only together, and a system never loses all its staves.
+ *
+ * Returns null when nothing collapses, else one entry per system:
+ *   hidden[si]  staff si is collapsed in this system
+ *   dy[si]      vertical shift that closes the gaps of collapsed staves
+ *   height      system height (top line of the first staff to the bottom
+ *               line of the last shown one)
+ * With "Show hidden items" collapsed staves stay in place (dy 0) so they
+ * can be drawn as ghosts.
+ */
+function computeCollapse(staves, systemBreaks, systemCount, systemHeight, opts) {
+	// opts (for tests): staffY(si), fontSize, showHidden
+	var staffY = opts?.staffY || getStaffY
+	var fontSize = opts?.fontSize ?? getFontSize()
+	var showHidden = opts?.showHidden ?? getShowHiddenItems()
+	var any = false
+	// Per staff: is a collapse in force at the start of each bar (by barline
+	// count), and which bars contain an EndCollapse
+	var states = staves.map(function(st) {
+		var activeAt = [false], ends = {}, active = false, bar = 0
+		for (var t of st.tokens) {
+			if (t.type === 'Barline') {
+				activeAt[++bar] = active
+			} else if (t.type === 'Boundary' && t.style === 'Collapse') {
+				active = activeAt[bar] = any = true
+			} else if (t.type === 'Boundary' && t.style === 'EndCollapse') {
+				active = activeAt[bar] = false
+				ends[bar] = true
+			}
+		}
+		return { activeAt: activeAt, ends: ends }
+	})
+	if (!any) return null
+
+	// Distinct staff positions, top to bottom, and the staves at each
+	var ys = []
+	staves.forEach(function(st, si) {
+		var y = staffY(si)
+		if (ys.indexOf(y) < 0) ys.push(y)
+	})
+	ys.sort(function(a, b) { return a - b })
+
+	var systems = []
+	for (var k = 0; k < systemCount; k++) {
+		var firstBar = k === 0 ? 0 : systemBreaks[k - 1].boundaryIndex + 1
+		var lastBar = k < systemCount - 1 ? systemBreaks[k].boundaryIndex : Infinity
+		var collapsed = states.map(function(state) {
+			if (!state.activeAt[firstBar]) return false
+			for (var bar in state.ends) if (+bar >= firstBar && +bar <= lastBar) return false
+			return true
+		})
+		// A position is collapsed only if every staff drawn there is
+		var groupHidden = ys.map(function(y) {
+			return staves.every(function(st, si) { return staffY(si) !== y || collapsed[si] })
+		})
+		if (groupHidden.every(Boolean)) groupHidden = groupHidden.map(function() { return false })
+
+		// Close the gaps: each position moves up by the space taken by the
+		// collapsed positions above it
+		var groupDy = [], removed = 0, lastShown = -1
+		for (var g = 0; g < ys.length; g++) {
+			groupDy[g] = showHidden ? 0 : 0 - removed
+			if (!groupHidden[g]) lastShown = g
+			else if (g < ys.length - 1) removed += ys[g + 1] - ys[g]
+		}
+		var height = showHidden ? systemHeight : ys[lastShown] + groupDy[lastShown] - ys[0] + fontSize
+		systems.push({
+			hidden: staves.map(function(st, si) { return groupHidden[ys.indexOf(staffY(si))] }),
+			dy: staves.map(function(st, si) { return groupDy[ys.indexOf(staffY(si))] }),
+			height: height,
+		})
+	}
+	return systems
+}
+
+// Collapse entry of the system being drawn by the per-system loops of the
+// wrap and page layouts (see computeCollapse), or null
+var currentSysCollapse = null
+
+/** Whether staff si is drawn in the current system (not collapsed). */
+function staffShownInSystem(si) {
+	return !currentSysCollapse || !currentSysCollapse.hidden[si]
+}
+
+/** Staff Y within the current system, after collapsed staves above close up. */
+function systemStaffY(si) {
+	return getStaffY(si) + (currentSysCollapse ? currentSysCollapse.dy[si] : 0)
+}
+
+/**
+ * Move an element into its system's collapse layout: hide it if its staff
+ * is collapsed there, re-aim bar line connections past collapsed staves,
+ * and return the extra vertical shift for its staff.
+ */
+function applyCollapse(el, collapse, sysIdx, staves) {
+	if (!collapse || el._staff == null) return 0
+	var c = collapse[sysIdx]
+	var si = el._staff
+	if (c.hidden[si]) el.hidden = true
+	if (el._connectTo != null && el._connectTo >= 0) {
+		// Connect to the next staff shown in this system, through collapsed
+		// ones that connect onwards
+		var t = el._connectTo
+		while (t >= 0 && c.hidden[t]) t = barConnectTarget(staves, t, true)
+		el.extendBelow = t < 0 ? 0 : Math.max(0, getStaffY(t) + c.dy[t] - getFontSize() - (getStaffY(si) + c.dy[si]))
+	}
+	return c.dy[si]
 }
 
 /**
@@ -1037,6 +1175,8 @@ function layoutLyricDashes(drawing, staves) {
 	var lyricFontSize = Math.round(fs * 0.38)
 
 	for (var si = 0; si < staves.length; si++) {
+		drawing.markHidden = !!staves[si].hidden // ghost dashes of a shown hidden staff
+		drawing.currentStaff = si
 		var tokens = staves[si].tokens
 		if (!tokens) continue
 
@@ -1078,6 +1218,8 @@ function layoutLyricDashes(drawing, staves) {
 			}
 		}
 	}
+	drawing.markHidden = false
+	drawing.currentStaff = null
 }
 
 /**
@@ -1095,6 +1237,8 @@ function layoutTripletBrackets(drawing, staves) {
 	var fs = getFontSize()
 
 	for (var si = 0; si < staves.length; si++) {
+		drawing.markHidden = !!staves[si].hidden // ghosts of a shown hidden staff
+		drawing.currentStaff = si
 		var tokens = staves[si].tokens
 		if (!tokens) continue
 
@@ -1210,6 +1354,8 @@ function layoutTripletBrackets(drawing, staves) {
 			i++
 		}
 	}
+	drawing.markHidden = false
+	drawing.currentStaff = null
 }
 
 /**
@@ -1390,6 +1536,8 @@ function layoutNoteHairpins(drawing, staves) {
 		return null
 	}
 	for (var si = 0; si < staves.length; si++) {
+		drawing.markHidden = !!staves[si].hidden // ghosts of a shown hidden staff
+		drawing.currentStaff = si
 		var tokens = staves[si].tokens || []
 		var markPos = -13  // NWC position of the most recent dynamic/variance
 		var run = null
@@ -1422,6 +1570,8 @@ function layoutNoteHairpins(drawing, staves) {
 		}
 		close(null)
 	}
+	drawing.markHidden = false
+	drawing.currentStaff = null
 }
 
 /**
@@ -1657,9 +1807,11 @@ window.everyStaveTokens = () => {
 
 /**
  * The score as laid out: hidden staves (NWC Page Setup > Contents) are left
- * out of the layout but stay in the data for playback.
+ * out of the layout but stay in the data for playback. With "Show hidden
+ * items" they stay in, drawn as ghosts.
  */
 function visibleScore(data) {
+	if (getShowHiddenItems()) return data
 	var staves = data.score.staves
 	var shown = staves.filter(function(s) { return !s.hidden })
 	if (shown.length === staves.length || shown.length === 0) return data
@@ -1688,6 +1840,7 @@ function score(dataOrContext) {
 	var info = data.info || {}
 	var titleBottom = (info.author || info.lyricist) ? getFontSize() * 2.35 : info.title ? getFontSize() * 1.65 : 0
 	buildStaffYMap(staves, data.score.allowLayering, extents, titleBottom)
+	applyBoundaryBreaks(staves)
 	// Scroll mode is one system: indent it so the staff labels fit
 	scrollLabelIndent = getLayoutMode() === 'scroll' ? staffLabelIndent(staves, true, getFontSize() * 0.9) : 0
 	const stavePointers = staves.map(
@@ -1722,16 +1875,22 @@ function score(dataOrContext) {
 		}
 
 		/* position stuff of the same tab value to the furthest */
+		// At equal times, zero-length items (clef changes, barlines, marks)
+		// go first on every staff, so the notes at that time align after
+		// all of them rather than only on the staff that has them
 		var smallestTick = Infinity,
-			smallestIndex = -1
+			smallestIndex = -1,
+			smallestHasDuration = true
 		stavePointers.forEach((cursor) => {
 			const token = cursor.peek()
 			if (!token) return
 			const tick = token.tabValue || 0
+			const hasDuration = !!token.durValue
 
-			if (tick < smallestTick) {
+			if (tick < smallestTick || (tick === smallestTick && smallestHasDuration && !hasDuration)) {
 				smallestTick = tick
 				smallestIndex = cursor.staveIndex
+				smallestHasDuration = hasDuration
 			}
 		})
 
@@ -1751,6 +1910,7 @@ function score(dataOrContext) {
 	console.log('stavePointers', stavePointers)
 
 	/* Layout Beams */
+	drawing.currentStaff = null
 	layoutBeaming(drawing, data)
 	/* Layout Ties */
 	layoutTies(drawing, data)
@@ -1805,21 +1965,28 @@ function hasTrailingBarline(tokens) {
  * text) unless `acrossLyrics` is set, as for the final bar line.
  */
 function barConnectLength(staves, staveIndex, acrossLyrics) {
+	var nextSi = barConnectTarget(staves, staveIndex, acrossLyrics)
+	if (nextSi < 0) return 0
+	// From this staff's bottom line to the top line of the next
+	return Math.max(0, getStaffY(nextSi) - getFontSize() - getStaffY(staveIndex))
+}
+
+/** The staff a bar line on `staveIndex` connects down to, or -1 (see barConnectLength). */
+function barConnectTarget(staves, staveIndex, acrossLyrics) {
 	var stave = staves[staveIndex]
-	if (!stave || !stave.connectBarsWithNext || staveIndex >= staves.length - 1) return 0
+	if (!stave || !stave.connectBarsWithNext || staveIndex >= staves.length - 1) return -1
 	var y = getStaffY(staveIndex)
 	if (!acrossLyrics) {
 		for (var si = staveIndex; si < staves.length - 1; si++) {
 			if (si > staveIndex && getStaffY(si) !== y) break
 			var lyrics = staves[si].lyrics
-			if (lyrics && lyrics.length && lyrics.some(function(l) { return l && l.length > 0 })) return 0
+			if (lyrics && lyrics.length && lyrics.some(function(l) { return l && l.length > 0 })) return -1
 		}
 	}
 	// Skip layered staves drawn at the same Y
 	var nextSi = staveIndex + 1
 	while (nextSi < staves.length - 1 && getStaffY(nextSi) === y) nextSi++
-	// From this staff's bottom line to the top line of the next
-	return Math.max(0, getStaffY(nextSi) - getFontSize() - y)
+	return nextSi
 }
 
 /**
@@ -1843,6 +2010,7 @@ function layoutEndingBarlines(drawing, staves, stavePointers) {
 	stavePointers.forEach((cursor, staveIndex) => {
 		var stave = staves[staveIndex]
 		var ebStyle = endingBarStyles[stave.endingBar] ?? 0
+		drawing.currentStaff = staveIndex
 
 		if (hasTrailingBarline(stave.tokens)) {
 			// Token stream already ends with a barline (MusicXML/MuseScore).
@@ -1855,6 +2023,8 @@ function layoutEndingBarlines(drawing, staves, stavePointers) {
 			cursor.staveX = endX
 			var eb = new Barline(0, 8, ebStyle)
 			eb.extendBelow = barConnectLength(staves, staveIndex, true)
+			eb._connectTo = barConnectTarget(staves, staveIndex, true)
+			eb.hidden = !!stave.hidden
 			cursor.posGlyph(eb)
 			drawing.add(eb)
 			// Nudge past the barline's right edge
@@ -1864,6 +2034,7 @@ function layoutEndingBarlines(drawing, staves, stavePointers) {
 		// Final stave segment extends to the ending/trailing barline
 		addStave(cursor, staveIndex)
 	})
+	drawing.currentStaff = null
 }
 
 /**
@@ -2094,8 +2265,11 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// Per-system vertical placement: each gap sized from its two systems
 	var systemGaps = computeSystemGaps(staves, breakXs)
+	// Collapsed staves (Boundary Collapse) leave some systems shorter
+	var collapse = computeCollapse(staves, systemBreaks, systemCount, systemHeight)
+	var sysHeight = function(k) { return collapse ? collapse[k].height : systemHeight }
 	var systemYs = [0]
-	for (var gk = 1; gk < systemCount; gk++) systemYs.push(systemYs[gk - 1] + systemHeight + systemGaps[gk - 1])
+	for (var gk = 1; gk < systemCount; gk++) systemYs.push(systemYs[gk - 1] + sysHeight(gk - 1) + systemGaps[gk - 1])
 
 	var spanContinuations = []
 	var openRepeats = []
@@ -2166,6 +2340,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			el.width = justEnd - el.x
 			el.endx = justEnd
 			el._endYShift = systemYs[endSysIdx] - systemYs[sysIdx]
+			if (collapse && el._staff != null) el._endYShift += collapse[endSysIdx].dy[el._staff] - collapse[sysIdx].dy[el._staff]
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
 		}
@@ -2187,8 +2362,8 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			el.x = justify(relX) + leftMargin + courtesyW
 		}
 
-		// Shift Y: add the system's vertical offset
-		var yShift = systemYs[sysIdx]
+		// Shift Y: add the system's vertical offset (and close collapsed staves)
+		var yShift = systemYs[sysIdx] + applyCollapse(el, collapse, sysIdx, staves)
 		el.y = el.y + yShift
 
 		// For Tie objects, also shift the absolute end-Y coordinate
@@ -2215,9 +2390,12 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var yOffset = systemYs[sysIdx]
 		var sysLeft = leftMargin + labelIndents[sysIdx]
 
+		currentSysCollapse = collapse ? collapse[sysIdx] : null
 		for (var si = 0; si < staves.length; si++) {
+			if (!staffShownInSystem(si) && !getShowHiddenItems()) continue
 			var staveEl = new Stave(justifiedWidth - labelIndents[sysIdx])
-			staveEl.moveTo(sysLeft, getStaffY(si) + yOffset)
+			staveEl.hidden = !!staves[si].hidden || !staffShownInSystem(si)
+			staveEl.moveTo(sysLeft, systemStaffY(si) + yOffset)
 			drawing.add(staveEl)
 		}
 
@@ -2226,14 +2404,15 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var breakBoundaryIdx = systemBreaks[sysIdx - 1].boundaryIndex
 			for (var si = 0; si < staves.length; si++) {
 				var state = runningState[si][breakBoundaryIdx]
-				if (!state) continue
+				if (!state || (!staffShownInSystem(si) && !getShowHiddenItems())) continue
 				var { elements } = createCourtesyItems(
 					state.clef, state.accidentals, state.clefForKey,
-					getStaffY(si) + yOffset
+					systemStaffY(si) + yOffset
 				)
 				for (var cei = 0; cei < elements.length; cei++) {
 					// Position courtesy items after the left margin
 					elements[cei].x += sysLeft
+					elements[cei].hidden = !!staves[si].hidden || !staffShownInSystem(si)
 					drawing.add(elements[cei])
 				}
 			}
@@ -2249,7 +2428,8 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}
 
 	// Calculate canvas dimensions for wrapped layout
-	var totalHeight = systemYs[systemCount - 1] + systemHeight + systemGaps[systemCount - 1] + firstStaffY
+	currentSysCollapse = null
+	var totalHeight = systemYs[systemCount - 1] + sysHeight(systemCount - 1) + systemGaps[systemCount - 1] + firstStaffY
 	maxCanvasWidth = leftMargin + pageWidth + rightMargin
 	maxCanvasHeight = totalHeight + fs * 2
 
@@ -2269,7 +2449,7 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var sysJustW = isLastSys ? sysNatWidth + sysCourtW : pageWidth
 		_systemGeometry.push({
 			topY: firstStaffY + gYOffset - fs,
-			bottomY: lastStaffY + gYOffset,
+			bottomY: firstStaffY + gYOffset - fs + sysHeight(gi),
 			startX: leftMargin + labelIndents[gi],
 			endX: leftMargin + sysJustW,
 		})
@@ -2562,6 +2742,9 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 
 	// Gap below each system, sized from its own content (see computeSystemGaps)
 	var systemGaps = computeSystemGaps(staves, breakXs)
+	// Collapsed staves (Boundary Collapse) leave some systems shorter
+	var collapse = computeCollapse(staves, systemBreaks, systemCount, systemHeight)
+	var sysHeight = function(k) { return collapse ? collapse[k].height : systemHeight }
 
 	var pages = []        // [{systemStart, systemEnd}]
 	var currentPage = 0
@@ -2569,7 +2752,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	var pageStart = 0
 
 	for (var sysIdx = 0; sysIdx < systemCount; sysIdx++) {
-		var sysH = systemHeight
+		var sysH = sysHeight(sysIdx)
 		// Would this system fit on the current page?
 		if (currentPageY + sysH > contentH && sysIdx > pageStart) {
 			// Finish current page
@@ -2661,7 +2844,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			systemYOffsets[si] = pageContentY + localY + fs
 			// X offset: difference between this page's x and the default horizontalPad
 			systemXOffsets[si] = pos.x - horizontalPad
-			localY += systemHeight + systemGaps[si]
+			localY += sysHeight(si) + systemGaps[si]
 		}
 	}
 
@@ -2722,6 +2905,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			el.width = justEnd - el.x
 			el.endx = justEnd
 			el._endYShift = systemYOffsets[endSysIdx] - systemYOffsets[sysIdx]
+			if (collapse && el._staff != null) el._endYShift += collapse[endSysIdx].dy[el._staff] - collapse[sysIdx].dy[el._staff]
 			// Store system index for cross-system tie/slur detection
 			el._sysIdx = sysIdx
 		} else if (el.spanWidth != null) {
@@ -2740,7 +2924,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		}
 
 		// Y: offset from single-line staff Y to absolute page position
-		var yShift = systemYOffsets[sysIdx] - firstStaffY
+		var yShift = systemYOffsets[sysIdx] - firstStaffY + applyCollapse(el, collapse, sysIdx, staves)
 		el.y = el.y + yShift
 
 		if (el.endy != null) {
@@ -2767,9 +2951,12 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var yOffset = systemYOffsets[sysIdx] - firstStaffY
 		var xBase = leftMargin + horizontalPad + systemXOffsets[sysIdx] + labelIndents[sysIdx]
 
+		currentSysCollapse = collapse ? collapse[sysIdx] : null
 		for (var si = 0; si < staves.length; si++) {
+			if (!staffShownInSystem(si) && !getShowHiddenItems()) continue
 			var staveEl = new Stave(justifiedWidth - labelIndents[sysIdx])
-			staveEl.moveTo(xBase, getStaffY(si) + yOffset)
+			staveEl.hidden = !!staves[si].hidden || !staffShownInSystem(si)
+			staveEl.moveTo(xBase, systemStaffY(si) + yOffset)
 			drawing.add(staveEl)
 		}
 
@@ -2778,13 +2965,14 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 			var breakBoundaryIdx = systemBreaks[sysIdx - 1].boundaryIndex
 			for (var si = 0; si < staves.length; si++) {
 				var state = runningState[si][breakBoundaryIdx]
-				if (!state) continue
+				if (!state || (!staffShownInSystem(si) && !getShowHiddenItems())) continue
 				var { elements } = createCourtesyItems(
 					state.clef, state.accidentals, state.clefForKey,
-					getStaffY(si) + yOffset
+					systemStaffY(si) + yOffset
 				)
 				for (var cei = 0; cei < elements.length; cei++) {
 					elements[cei].x += xBase
+					elements[cei].hidden = !!staves[si].hidden || !staffShownInSystem(si)
 					drawing.add(elements[cei])
 				}
 			}
@@ -2797,6 +2985,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		var firstMeasureP = sysIdx === 0 ? 1 : boundaries[systemBreaks[sysIdx - 1].boundaryIndex].measure
 		drawBarNumbers(drawing, staves, yOffset, xBase, firstMeasureP)
 	}
+	currentSysCollapse = null
 
 	// --- Title and author on page 1 ---
 	var page1Pos = pagePositions[0]
@@ -2862,7 +3051,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 		// After reflow, first staff bottom line is at systemYOffsets[gi]
 		_systemGeometry.push({
 			topY: systemYOffsets[gi] - fs,
-			bottomY: systemYOffsets[gi] + (lastStaffY - firstStaffY),
+			bottomY: systemYOffsets[gi] - fs + sysHeight(gi),
 			startX: sysXBase,
 			endX: sysXBase - labelIndents[gi] + sysJustWP,
 		})
@@ -2883,118 +3072,158 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 }
 
 /**
- * Draw orchestral brackets and per-group braces at a given Y offset.
- * Brackets span from the first to last visible stave in each bracketWithNext
- * chain.  When allowLayering is on, adjacent bracket groups that are layered
- * onto the same Y are merged into one visual bracket spanning all of them.
- * Braces are drawn for chains of staves linked by braceWithNext.
- * Used once per system in wrap mode, once total in scroll mode.
+ * Staff groups drawn at the start of a system, over the staves shown in it:
+ * braces (one instrument on several staves) and brackets (instrument
+ * families), as { type, first, last } staff indexes. Both run from a staff
+ * linked "with next" to the first staff that isn't — as the NWC viewer
+ * draws binary Orchestral staves too (albadagio's strings bracket reaches
+ * the organ below them) — and need two positions.
+ */
+function systemStaffGroups(staves) {
+	var groups = []
+	function chains(type, isMember, linksToNext) {
+		for (var si = 0; si < staves.length; si++) {
+			if (!isMember(si)) continue
+			var end = si
+			while (end < staves.length - 1 && linksToNext(end)) end++
+			var shown = []
+			for (var k = si; k <= end; k++) if (staffShownInSystem(k)) shown.push(k)
+			// layered staves share a position
+			var positions = new Set(shown.map(systemStaffY)).size
+			if (positions >= 2) groups.push({ type: type, first: shown[0], last: shown[shown.length - 1] })
+			si = end
+		}
+	}
+	chains('brace', function(i) { return staves[i].braceWithNext }, function(i) { return staves[i].braceWithNext })
+	chains('bracket', function(i) { return staves[i].bracketWithNext }, function(i) { return staves[i].bracketWithNext })
+	return groups
+}
+
+// Bracket thickness and gaps, in staff spaces (SMuFL engravingDefaults:
+// bracketThickness 0.5)
+var BRACKET_THICKNESS = 0.5
+var BRACKET_GAP = 0.25 // from the system barline or the brace it encloses
+
+/**
+ * Where the braces and brackets of a system go, left of the system barline
+ * at sysBarX: braces sit against it, a bracket just outside it or outside
+ * the braces of staves it encloses.
+ * Returns { braces: [{ topY, tipX, xScale, yScale, bbox, path, left }],
+ *           brackets: [{ left, right, topY, botY }] }.
+ */
+function staffGroupLayout(staves, yOffset, sysBarX) {
+	var fs = getFontSize()
+	var sp = fs / 4
+	var staffTop = function(si) { return systemStaffY(si) + yOffset - fs }
+	var staffBottom = function(si) { return systemStaffY(si) + yOffset }
+	var groups = systemStaffGroups(staves)
+	var braces = [], brackets = []
+
+	// Braces: the SMuFL brace glyph scaled to the group's height
+	var path = glyphPathGet(getCode('brace'), fs * 4)
+	var bbox = path.getBoundingBox()
+	groups.forEach(function(g) {
+		if (g.type !== 'brace' || bbox.y2 <= bbox.y1) return
+		var topY = staffTop(g.first), botY = staffBottom(g.last)
+		var yScale = (botY - topY) / (bbox.y2 - bbox.y1)
+		// keep X proportional but cap it, so tall braces don't get too wide
+		var xScale = Math.min(yScale, 1.5)
+		var tipX = sysBarX - bbox.x2 * xScale - fs * 0.075  // 0.3 staff-spaces
+		braces.push({ first: g.first, last: g.last, topY: topY, tipX: tipX, xScale: xScale, yScale: yScale,
+			bbox: bbox, path: path, left: tipX + bbox.x1 * xScale })
+	})
+
+	// Brackets: a thick bar ending in the font's curved bracket ends
+	groups.forEach(function(g) {
+		if (g.type !== 'bracket') return
+		var right = sysBarX - BRACKET_GAP * sp
+		braces.forEach(function(b) {
+			if (b.last >= g.first && b.first <= g.last) right = Math.min(right, b.left - BRACKET_GAP * sp)
+		})
+		brackets.push({ left: right - BRACKET_THICKNESS * sp, right: right, topY: staffTop(g.first), botY: staffBottom(g.last) })
+	})
+	return { braces: braces, brackets: brackets }
+}
+
+/** How far the braces and brackets reach left of the system barline (px). */
+function staffGroupsWidth(staves) {
+	var layout = staffGroupLayout(staves, 0, 0)
+	return Math.max(0, ...layout.braces.map(function(b) { return -b.left }), ...layout.brackets.map(function(b) { return -b.left }))
+}
+
+/**
+ * Draw the system barline, braces and brackets at the start of a system.
+ * Braces sit against the system barline; a bracket goes just outside it, or
+ * outside the braces of staves it encloses. Brackets are a thick bar with the
+ * font's bracketTop / bracketBottom ends (as Verovio and LilyPond draw them).
+ * Used once per system in wrap/page mode, once in scroll mode.
  */
 function drawBracketsAndBraces(drawing, staves, yOffset, leftMarginOverride) {
 	var fs = getFontSize()
 	var sysBarX = leftMarginOverride !== undefined ? leftMarginOverride : fs * 0.9
-	var bracketX = sysBarX - fs * 0.36
+	var staffBottom = function(si) { return systemStaffY(si) + yOffset }
 
-	function visibleStaffY(si) {
-		return getStaffY(si) + yOffset
-	}
-
-	// Collect unique visible Y positions
-	var visibleYs = []
-	var hasBracket = false
+	// System barline: from the top of the first shown staff to the bottom
+	// of the last, for 2+ positions
+	var shownYs = []
 	for (var vi = 0; vi < staves.length; vi++) {
-		var vy = visibleStaffY(vi)
-		if (visibleYs.length === 0 || visibleYs[visibleYs.length - 1] !== vy) {
-			visibleYs.push(vy)
-		}
-		if (staves[vi].bracketWithNext) hasBracket = true
+		if (!staffShownInSystem(vi)) continue
+		var vy = staffBottom(vi)
+		if (shownYs[shownYs.length - 1] !== vy) shownYs.push(vy)
 	}
-
-	// System barline: a thin vertical line at the left edge connecting the
-	// top of the first staff to the bottom of the last staff.  Drawn for
-	// any score with 2+ distinct visible stave positions.
-	if (visibleYs.length > 1) {
-		let sysTopY = visibleYs[0] - fs                  // top line of first staff
-		let sysBotY = visibleYs[visibleYs.length - 1]    // bottom line of last staff
-		let sysLw = fs / 14
-		var sysBarline = new Claire.Path(function(ctx) {
+	if (shownYs.length > 1) {
+		let sysTopY = shownYs[0] - fs, sysBotY = shownYs[shownYs.length - 1], sysLw = fs / 14
+		drawing.add(new Claire.Path(function(ctx) {
 			ctx.beginPath()
 			ctx.lineWidth = sysLw
 			ctx.moveTo(sysBarX, sysTopY)
 			ctx.lineTo(sysBarX, sysBotY)
 			ctx.stroke()
-		})
-		drawing.add(sysBarline)
+		}))
 	}
 
-	if (hasBracket && visibleYs.length > 1) {
-		let topY = visibleYs[0] - fs
-		let botY = visibleYs[visibleYs.length - 1]
-		let hookLen = fs * 0.25
-		let lw = fs / 12
-		var sysBracket = new Claire.Path(function(ctx) {
-			ctx.beginPath()
-			ctx.lineWidth = lw
-			ctx.moveTo(bracketX + hookLen, topY)
-			ctx.lineTo(bracketX, topY)
-			ctx.lineTo(bracketX, botY)
-			ctx.lineTo(bracketX + hookLen, botY)
-			ctx.stroke()
-		})
-		drawing.add(sysBracket)
-	}
+	var layout = staffGroupLayout(staves, yOffset, sysBarX)
+	layout.braces.forEach(function(b) {
+		drawing.add(new Claire.Path(function(ctx) {
+			ctx.save()
+			ctx.translate(b.tipX, b.topY - b.bbox.y1 * b.yScale)
+			ctx.scale(b.xScale, b.yScale)
+			ctx.fillStyle = '#000'
+			b.path.fill = '#000'
+			b.path.draw(ctx)
+			ctx.restore()
+		}))
+	})
 
-	// Draw per-group braces for braceWithNext chains
-	var braceChar = getCode('brace')
-	for (var si = 0; si < staves.length; si++) {
-		var stave = staves[si]
-		if (stave.braceWithNext) {
-			var endSi = si
-			while (endSi < staves.length - 1 && staves[endSi].braceWithNext) {
-				endSi++
-			}
-			let topY = visibleStaffY(si) - fs     // top line of first staff
-			let botY = visibleStaffY(endSi)        // bottom line of last staff
-			let braceH = botY - topY
-
-			// Render the SMuFL brace glyph, scaled vertically to span the
-			// staff group.  The glyph is measured at a reference size, then a
-			// Y scale is computed to stretch it to the required height.
-			var refSize = fs * 4  // reference rendering size
-			var refPath = glyphPathGet(braceChar, refSize)
-			var bbox = refPath.getBoundingBox()
-			var designH = bbox.y2 - bbox.y1
-			if (designH <= 0) {
-				// Fallback if bounding box is invalid
-				si = endSi
-				continue
-			}
-			var yScale = braceH / designH
-			// Keep X proportional but cap to prevent overly wide braces
-			var xScale = Math.min(yScale, 1.5)
-
-			// Position brace so its right edge (tips) sits just left of the
-			// system barline / stave left edge.  LilyPond uses 0.3 sp padding.
-			var braceRightEdge = bbox.x2 * xScale
-			var bracePadding = fs * 0.075   // 0.3 staff-spaces
-			var braceTipX = sysBarX - braceRightEdge - bracePadding
-
-			var brace = new Claire.Path(function(ctx) {
-				ctx.save()
-				ctx.translate(braceTipX, topY - bbox.y1 * yScale)
-				ctx.scale(xScale, yScale)
-				ctx.fillStyle = '#000'
-				refPath.draw(ctx)
-				ctx.restore()
-			})
-			drawing.add(brace)
-
-			si = endSi  // skip past the chain
-		}
-	}
+	var topPath = glyphPathGet(getCode('bracketTop'), fs)
+	var bottomPath = glyphPathGet(getCode('bracketBottom'), fs)
+	var topBox = topPath.getBoundingBox(), bottomBox = bottomPath.getBoundingBox()
+	layout.brackets.forEach(function(g) {
+		let left = g.left, right = g.right, topY = g.topY, botY = g.botY
+		drawing.add(new Claire.Path(function(ctx) {
+			ctx.save()
+			ctx.fillStyle = '#000'
+			ctx.fillRect(left, topY, right - left, botY - topY)
+			// ends: the glyphs' left edge on the bar's left edge, their
+			// origin at the bar's end
+			ctx.translate(left - topBox.x1, topY)
+			topPath.fill = '#000'
+			topPath.draw(ctx)
+			ctx.translate(topBox.x1 - bottomBox.x1, botY - topY)
+			bottomPath.fill = '#000'
+			bottomPath.draw(ctx)
+			ctx.restore()
+		}))
+	})
 }
 
-var LABEL_GAP_SCALE = 1.0  // label right edge to system barline, clears brackets and braces
+var LABEL_GAP_SCALE = 1.0  // label right edge to system barline, at least
+
+/** Gap from staff labels to the system barline: clear of its braces and brackets. */
+function labelGap(staves) {
+	var fs = getFontSize()
+	return Math.max(fs * LABEL_GAP_SCALE, staffGroupsWidth(staves) + fs * 0.3)
+}
 
 function staffLabelFont() {
 	return Math.round(getFontSize() * 0.5) + 'px ' + getMusicTextFamily()
@@ -3037,7 +3266,7 @@ function staffLabelIndent(staves, isFirstSystem, availableLeft) {
 	var maxW = measureStaffLabels(staffLabelsForSystem(staves, isFirstSystem))
 	if (!maxW) return 0
 	var fs = getFontSize()
-	return Math.max(0, Math.ceil(maxW + fs * (LABEL_GAP_SCALE + 0.2) - availableLeft))
+	return Math.max(0, Math.ceil(maxW + labelGap(staves) + fs * 0.2 - availableLeft))
 }
 
 /**
@@ -3049,12 +3278,13 @@ function staffLabelIndent(staves, isFirstSystem, availableLeft) {
 function drawStaffLabels(drawing, staves, yOffset, systemLeftX, isFirstSystem) {
 	var fs = getFontSize()
 	var sysLeft = systemLeftX !== undefined ? systemLeftX : fs * 0.9
-	var rightX = sysLeft - fs * LABEL_GAP_SCALE
+	var rightX = sysLeft - labelGap(staves)
 	var labels = staffLabelsForSystem(staves, isFirstSystem !== false)
 	var ctx = window.ctx
 	for (var li = 0; li < staves.length; li++) {
 		var label = labels[li]
-		if (!label) continue
+		var collapsedHere = !staffShownInSystem(li)
+		if (!label || (collapsedHere && !getShowHiddenItems())) continue
 		if (ctx && systemLeftX === undefined) {
 			ctx.save()
 			ctx.font = staffLabelFont()
@@ -3064,12 +3294,13 @@ function drawStaffLabels(drawing, staves, yOffset, systemLeftX, isFirstSystem) {
 		}
 		// Staff spans getStaffY - fs (top line) to getStaffY (bottom line);
 		// put the text baseline a little below the middle line.
-		var labelY = getStaffY(li) + yOffset - fs * 0.5 + fs * 0.17
+		var labelY = systemStaffY(li) + yOffset - fs * 0.5 + fs * 0.17
 		var labelDraw = new Claire.Text(label, 0, {
 			font: staffLabelFont(),
 			textAlign: 'right',
 		})
 		labelDraw.moveTo(rightX, labelY)
+		labelDraw.hidden = !!staves[li].hidden || collapsedHere
 		drawing.add(labelDraw)
 	}
 }
@@ -3088,7 +3319,9 @@ function drawStaffLabels(drawing, staves, yOffset, systemLeftX, isFirstSystem) {
  */
 function drawBarNumbers(drawing, staves, yOffset, leftMarginX, firstMeasureNum, mode) {
 	var fs = getFontSize()
-	var numY = getStaffY(0) + yOffset - fs * 1.1  // above the top staff
+	var topSi = 0
+	while (topSi < staves.length - 1 && !staffShownInSystem(topSi)) topSi++
+	var numY = systemStaffY(topSi) + yOffset - fs * 1.1  // above the top staff
 	var numFont = Math.round(fs * 0.36) + 'px ' + getMusicTextFamily()
 
 	// Always draw the first measure number at the system start
@@ -3147,6 +3380,7 @@ function addTitleBlock(drawing, info, left, right, titleY, creditY) {
 		if (!text) return
 		var t = new Claire.Text(text, 0, { font: font, textAlign: align })
 		t.moveTo(x, y)
+		t.isTitleBlock = true  // the 3D view draws its own title
 		drawing.add(t)
 	}
 	add('title', (left + right) / 2, titleY, 'center', textFontCss(3))
@@ -3508,6 +3742,7 @@ function addStave(cursor, staveIndex) {
 	const width = cursor.staveX - cursor.lastBarline
 	const s = new Stave(width)
 	s.moveTo(cursor.lastBarline, getStaffY(staveIndex))
+	s.hidden = !!currentStaves[staveIndex]?.hidden
 	drawing.add(s)
 }
 
@@ -3595,6 +3830,29 @@ function tempoMarkingText(token) {
 }
 
 function handleToken(token, tokenIndex, staveIndex, cursor) {
+	drawing.currentStaff = staveIndex
+	if (!getShowHiddenItems()) return layoutToken(token, tokenIndex, staveIndex, cursor)
+
+	// Show hidden items: everything on a hidden staff, and hidden marks, is
+	// drawn as a ghost. Hidden marks still take no room, so the visible
+	// score keeps its spacing.
+	var hiddenMark = HIDEABLE_ANNOTATIONS.has(token.type) && isTokenHidden(token, staveIndex)
+	var ghost = hiddenMark || !!currentStaves[staveIndex]?.hidden
+	if (!ghost) return layoutToken(token, tokenIndex, staveIndex, cursor)
+	var staveX = cursor.staveX, padRight = cursor.lastPadRight
+	drawing.markHidden = true
+	try {
+		layoutToken(token, tokenIndex, staveIndex, cursor)
+	} finally {
+		drawing.markHidden = false
+		if (hiddenMark) {
+			cursor.staveX = staveX
+			cursor.lastPadRight = padRight
+		}
+	}
+}
+
+function layoutToken(token, tokenIndex, staveIndex, cursor) {
 	// Store staff index on the token for playback highlight lookups
 	token.staffIndex = staveIndex
 
@@ -3617,7 +3875,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 	let clef
 
 	var hidden = isTokenHidden(token, staveIndex)
-	if (hidden && HIDEABLE_ANNOTATIONS.has(type)) return
+	if (hidden && HIDEABLE_ANNOTATIONS.has(type) && !getShowHiddenItems()) return
 
 	switch (type) {
 		default:
@@ -3626,6 +3884,10 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 		case 'StaffProperties':
 		case 'StaffInstrument':
 			// TODO infomational purposes
+			break
+		case 'Boundary':
+			// Staff layout commands (Collapse, NewSystem, ...): nothing to draw;
+			// see computeCollapse() and applyBoundaryBreaks()
 			break
 
 		case 'Clef':
@@ -3725,6 +3987,7 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			// is set, as one continuous line (standard grand staff engraving).
 			// The glyph carries the extension so it survives wrap/page reflow.
 			s.extendBelow = barConnectLength(currentStaves, staveIndex, false)
+			s._connectTo = barConnectTarget(currentStaves, staveIndex, false)
 
 			addStave(cursor, staveIndex)
 			cursor.updateBarline()
@@ -3878,12 +4141,14 @@ function handleToken(token, tokenIndex, staveIndex, cursor) {
 			}
 			// Rest chord: draw the rest voice in the same column, on the side
 			// away from the notes' stems unless the file gives an offset
-			if (token.restVoice && !token.restVoice.hidden && !isTokenHidden(token, staveIndex)) {
+			var rvHidden = token.restVoice && (token.restVoice.hidden || isTokenHidden(token, staveIndex))
+			if (token.restVoice && (!rvHidden || getShowHiddenItems())) {
 				var rv = token.restVoice
 				var rSym = { 1: 'restWhole', 2: 'restHalf', 4: 'restQuarter', 8: 'rest8th', 16: 'rest16th', 32: 'rest32nd', 64: 'rest64th' }[rv.duration]
 				if (rSym) {
 					var rPos = rv.position || (token.stem === 2 ? 4 : -4)
 					var restGlyph = new Glyph(rSym, rPos + 4)
+					if (rvHidden) restGlyph.hidden = true
 					restGlyph.moveTo(token.drawingNoteHead ? token.drawingNoteHead.x : tmp, getStaffY(staveIndex))
 					drawing.add(restGlyph)
 				}
@@ -4363,4 +4628,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score, renderPage, getTitleFields, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }
+export { score, renderPage, getTitleFields, computeCollapse, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }

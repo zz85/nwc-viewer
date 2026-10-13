@@ -14,13 +14,91 @@
   },
   "score": {
     "allowLayering": true,
+    "staffLabels": "None",
+    "textFonts": [
+      {
+        "name": "Times New Roman",
+        "bold": true,
+        "italic": true,
+        "size": 11
+      },
+      {
+        "name": "Times New Roman",
+        "bold": true,
+        "italic": false,
+        "size": 10
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 10
+      },
+      {
+        "name": "Times New Roman",
+        "bold": true,
+        "italic": false,
+        "size": 18
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 12
+      },
+      {
+        "name": "Bookman Old Style",
+        "bold": false,
+        "italic": true,
+        "size": 8
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": true,
+        "size": 9
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 5
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 5
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 5
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 8
+      },
+      {
+        "name": "Times New Roman",
+        "bold": false,
+        "italic": false,
+        "size": 8
+      }
+    ],
+    "staffSize": 17,
     "staves": [
       {
         "staff_name": "s",
         "staff_label": "s",
+        "staff_label_abbr": "",
         "group_name": "Standard",
-        "channel": 2,
+        "channel": 1,
         "muted": false,
+        "hidden": false,
         "patchName": 52,
         "transposition": 0,
         "bracketWithNext": true,
@@ -105,7 +183,7 @@
             "type": "KeySignature",
             "flats": [],
             "sharps": [
-              "A"
+              "F"
             ],
             "key": "G"
           },
@@ -125,6 +203,7 @@
             "placement": 0,
             "duration": 66,
             "note": 3,
+            "text": "",
             "beatDuration": 0.375
           },
           {
@@ -1141,6 +1220,7 @@
             "placement": 0,
             "duration": 44,
             "note": 3,
+            "text": "",
             "beatDuration": 0.375
           },
           {
@@ -1186,6 +1266,7 @@
             "placement": 0,
             "duration": 22,
             "note": 3,
+            "text": "",
             "beatDuration": 0.375
           },
           {
@@ -1235,6 +1316,7 @@
             "placement": 0,
             "duration": 66,
             "note": 3,
+            "text": "",
             "beatDuration": 0.375
           },
           {
@@ -1852,9 +1934,11 @@
       {
         "staff_name": "a",
         "staff_label": "a",
+        "staff_label_abbr": "",
         "group_name": "Standard",
-        "channel": 3,
+        "channel": 2,
         "muted": false,
+        "hidden": false,
         "patchName": 52,
         "transposition": 0,
         "bracketWithNext": true,
@@ -1877,7 +1961,7 @@
             "type": "KeySignature",
             "flats": [],
             "sharps": [
-              "A"
+              "F"
             ],
             "key": "G"
           },
@@ -2610,6 +2694,11 @@
             "systemBreak": false
           },
           {
+            "type": "Boundary",
+            "style": "NewSize",
+            "newPage": false
+          },
+          {
             "type": "DynamicVariance",
             "Visibility": "Never",
             "position": -9,
@@ -3249,9 +3338,11 @@
       {
         "staff_name": "t",
         "staff_label": "t",
+        "staff_label_abbr": "",
         "group_name": "Standard",
-        "channel": 4,
+        "channel": 3,
         "muted": false,
+        "hidden": false,
         "patchName": 52,
         "transposition": 0,
         "bracketWithNext": true,
@@ -3274,7 +3365,7 @@
             "type": "KeySignature",
             "flats": [],
             "sharps": [
-              "A"
+              "F"
             ],
             "key": "G"
           },
@@ -3691,6 +3782,11 @@
             "systemBreak": false
           },
           {
+            "type": "Boundary",
+            "style": "NewSize",
+            "newPage": false
+          },
+          {
             "type": "Note",
             "position": 4,
             "duration": 8,
@@ -4075,6 +4171,11 @@
             "systemBreak": false
           },
           {
+            "type": "Boundary",
+            "style": "NewSize",
+            "newPage": false
+          },
+          {
             "type": "DynamicVariance",
             "Visibility": "Never",
             "position": 8,
@@ -4403,6 +4504,11 @@
             "barline": 0,
             "repeat": 2,
             "systemBreak": false
+          },
+          {
+            "type": "Boundary",
+            "style": "NewSize",
+            "newPage": false
           },
           {
             "type": "Note",
@@ -4736,9 +4842,11 @@
       {
         "staff_name": "b",
         "staff_label": "b",
+        "staff_label_abbr": "",
         "group_name": "Standard",
-        "channel": 5,
+        "channel": 4,
         "muted": false,
+        "hidden": false,
         "patchName": 52,
         "transposition": 0,
         "bracketWithNext": false,
@@ -4761,7 +4869,7 @@
             "type": "KeySignature",
             "flats": [],
             "sharps": [
-              "A"
+              "F"
             ],
             "key": "G"
           },

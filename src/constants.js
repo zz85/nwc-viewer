@@ -29,6 +29,19 @@ function getLayoutMode() {
 	return layoutMode
 }
 
+// Show hidden items: draw what the score hides (staves left out of the
+// score, Visibility:Never marks, filler rests) as faint "ghosts", to see how
+// a file is put together. Lasts for the page only.
+let showHiddenItems = false
+
+function setShowHiddenItems(on) {
+	showHiddenItems = !!on
+}
+
+function getShowHiddenItems() {
+	return showHiddenItems
+}
+
 // Page size for 'page' layout mode (dimensions at 96 DPI).
 const PAGE_SIZES = {
 	letter: { width: 816, height: 1056, label: 'Letter (8.5×11")' },
@@ -249,6 +262,8 @@ Object.assign(!isBrowser() ? global : window, {
 	getZoomFitMode,
 	setLayoutMode,
 	getLayoutMode,
+	setShowHiddenItems,
+	getShowHiddenItems,
 	PAGE_SIZES,
 	setPageSize,
 	getPageSize,
@@ -274,6 +289,7 @@ export {
 	setPageViewMode, getPageViewMode, PAGE_VIEW_MODES,
 	setZoomFitMode, getZoomFitMode,
 	setLayoutMode, getLayoutMode,
+	setShowHiddenItems, getShowHiddenItems,
 	PAGE_SIZES, setPageSize, getPageSize,
 	setPageOrientation, getPageOrientation,
 	getPageDimensions, getPageMargins,

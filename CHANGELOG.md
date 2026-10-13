@@ -1,5 +1,35 @@
 # Changelog
 
+### v2.6 - October 2026
+
+#### Interface
+- New player-style shell: top bar with title (click to rename), composer, save status, Page | Wrap | Line | 3D, Aa and Share
+- Menu drawer for opening files and samples and exporting (nwctxt, nwc, MusicXML, PDF, Video); Aa drawer with the regrouped settings
+- Studio (dark) and Light themes
+- Transport bar: time and "Bar n of N · section", previous / play / next section, a scrub bar split into the score's sections (repeats unrolled), volume, speed, piano keyboard, full screen; fades while playing
+- Keyboard shortcuts (press ? for the list); playback resumes where it was paused
+- Sound picker: General MIDI, FluidR3, concert piano, or any .sf2/.sf3 file
+
+#### 3D View & Video
+- 3D view: the score extruded in three.js, a light per voice hopping from note to note during playback
+- Video export (.mp4) of the 3D view: resolution, aspect, camera tours, title cards, frame rate, range, audio in the chosen sound
+
+#### Engraving & Layout
+- Collapsing staves (NWC Boundary Collapse / EndCollapse): collapsed staves leave the system and the staves below close up
+- Forced system breaks (Boundary NewSystem), from the top staff only as NWC does
+- Brackets engraved per instrument group with the font's curved ends, outside any brace they enclose; staff labels clear them
+- Show hidden items (Aa > Advanced): hidden staves, marks, filler rests and collapsed bars drawn as faint ghosts
+- Staves stay aligned through mid-piece clef, key and time changes (53 of 120 samples had drifting barlines)
+- Secondary beams sit right inside the primary beam
+
+#### MusicXML Import
+- Notes last their real length (tuplets), so staves stay in step with each other and with playback
+- Each measure ends at its longest voice, with tuplet rounding snapped to the time signature
+
+#### Samples & Tools
+- Happy Birthday: Variations for Violin and Piano, and a Concert Paraphrase for Piano; trio voicing fix
+- compose-score skill and scripts/compose tools: build .nwctxt from code, check scores (alignment, ranges, clashes), render to PNG
+
 ### v2.5 - October 2026
 
 #### Save, Share & Export

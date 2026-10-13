@@ -1,6 +1,6 @@
 import './constants.js'
 import { ajax } from './loaders.js'
-import { getFontSize, getZoomLevel, getMusicFontPath, getMusicTextFamily } from './constants.js'
+import { getFontSize, getZoomLevel, getMusicFontPath, getMusicTextFamily, getShowHiddenItems } from './constants.js'
 import {
 	TIE_HEIGHT_K, TIE_HEIGHT_D, TIE_HEIGHT_MIN, TIE_HEIGHT_MAX,
 	TIE_X_GAP, TIE_Y_OFFSET, TIE_THICKNESS,
@@ -8,6 +8,25 @@ import {
 	SLUR_Y_OFFSET, SLUR_THICKNESS,
 	computeArcHeight,
 } from './engraving-rules.js'
+
+// Colour and opacity of hidden items when "Show hidden items" is on
+const GHOST_COLOR = '#2f7fd8'
+const GHOST_ALPHA = 0.45
+
+// Ink for the element being drawn: black, or the ghost colour for hidden
+// items. Element draw() methods use this instead of a literal black.
+let _ink = '#000'
+function inkColor() {
+	return _ink
+}
+
+// Draw an opentype.js glyph path in the current ink. Path.draw() fills with
+// the path's own `fill` (black by default), not ctx.fillStyle; paths are
+// shared between glyphs, so set it on every draw.
+function drawPath(ctx, path) {
+	path.fill = _ink
+	path.draw(ctx)
+}
 
 const fontMap = {
 	// barlines
@@ -128,6 +147,8 @@ const fontMap = {
 
 	// Brackets and braces (U+E000–U+E00F)
 	brace: 'E000',
+	bracketTop: 'E003',
+	bracketBottom: 'E004',
 
 	// Common ornaments (U+E560–U+E56F)
 }
@@ -150,7 +171,8 @@ function resizeToFit() {
 
 	// TODO take min of canvas size vs bb heigh
 	// resize(bb.width, bb.height)
-	resize(score.clientWidth - 20, score.clientHeight - 20)
+	// #score has no size while the 3D view replaces it; resize() then falls back
+	resize(Math.max(0, score.clientWidth - 20), Math.max(0, score.clientHeight - 20))
 }
 
 function resize(width, height) {
@@ -274,7 +296,7 @@ class Stave extends Draw {
 	draw(ctx) {
 		const { width, size } = this
 
-		ctx.strokeStyle = '#000'
+		ctx.strokeStyle = inkColor()
 		ctx.lineWidth = getFontSize() / 32 // 1.3
 
 		// 5 lines
@@ -379,16 +401,16 @@ class Glyph extends Draw {
 	}
 
 	draw(ctx) {
-		ctx.fillStyle = '#000'
+		ctx.fillStyle = inkColor()
 
 		// Grace notes are drawn at reduced scale
 		if (this._graceScale && this._graceScale !== 1) {
 			ctx.save()
 			ctx.scale(this._graceScale, this._graceScale)
-			this.path.draw(ctx)
+			drawPath(ctx, this.path)
 			ctx.restore()
 		} else {
-			this.path.draw(ctx)
+			drawPath(ctx, this.path)
 		}
 
 		if (window._debug_glyph) this.debug(ctx)
@@ -543,7 +565,7 @@ class Ledger extends Draw {
 		var x1 = this.noteheadWidth + this.overhang
 
 		ctx.lineWidth = this.fontSize / 32   // match staff line thickness
-		ctx.strokeStyle = '#000'
+		ctx.strokeStyle = inkColor()
 
 		for (let i = 0; i < this.to; i += 2) {
 			ctx.beginPath()
@@ -780,11 +802,11 @@ class DynamicMarking extends Draw {
 	}
 
 	draw(ctx) {
-		ctx.fillStyle = '#000'
+		ctx.fillStyle = inkColor()
 		for (const g of this._glyphs) {
 			ctx.save()
 			ctx.translate(g.x, 0)
-			g.path.draw(ctx)
+			drawPath(ctx, g.path)
 			ctx.restore()
 		}
 	}
@@ -827,8 +849,8 @@ class ArticulationMark extends Draw {
 
 	draw(ctx) {
 		if (this.path) {
-			ctx.fillStyle = '#000'
-			this.path.draw(ctx)
+			ctx.fillStyle = inkColor()
+			drawPath(ctx, this.path)
 		}
 	}
 }
@@ -863,7 +885,7 @@ class Hairpin extends Draw {
 
 		ctx.beginPath()
 		ctx.lineWidth = lw
-		ctx.strokeStyle = '#000'
+		ctx.strokeStyle = inkColor()
 		ctx.moveTo(0, -a)
 		ctx.lineTo(w, -b)
 		ctx.moveTo(0, a)
@@ -895,7 +917,7 @@ class VoltaBracket extends Draw {
 		var w = this.spanWidth
 		var textSize = Math.round(fs * 0.35)
 
-		ctx.strokeStyle = '#000'
+		ctx.strokeStyle = inkColor()
 		ctx.lineWidth = lw
 
 		// Left vertical hook (downward from top)
@@ -913,7 +935,7 @@ class VoltaBracket extends Draw {
 		ctx.stroke()
 
 		// Ending number text
-		ctx.fillStyle = '#000'
+		ctx.fillStyle = inkColor()
 		ctx.font = textSize + 'px ' + getMusicTextFamily()
 		ctx.textAlign = 'left'
 		ctx.fillText(this.text, lw + this.fontSize * 0.07, textSize * 0.9)
@@ -949,7 +971,7 @@ class TupletBracket extends Draw {
 			var textW = ctx.measureText ? textSize * 0.6 : 6
 			var gapHalf = textW * 0.8
 
-			ctx.strokeStyle = '#000'
+			ctx.strokeStyle = inkColor()
 			ctx.lineWidth = lw
 
 			// Left portion: hook + line up to gap
@@ -968,7 +990,7 @@ class TupletBracket extends Draw {
 		}
 
 		// Centered numeral
-		ctx.fillStyle = '#000'
+		ctx.fillStyle = inkColor()
 		ctx.font = 'italic ' + textSize + 'px ' + getMusicTextFamily()
 		ctx.textAlign = 'center'
 		ctx.fillText(this.numeral, midX, this.below ? -textSize * 0.3 : textSize * 0.35)
@@ -997,7 +1019,7 @@ class Beam extends Draw {
 		const dir = this.stemUp === false ? -1 : 1
 		const baseOffset = (this._beamOffset || 0) * beamSpacing * dir
 
-		ctx.fillStyle = '#000'
+		ctx.fillStyle = inkColor()
 		for (let i = 0; i < this.count; i++) {
 			const offsetY = baseOffset + i * beamSpacing * dir
 			const y1 = this.unitsToY(this.startY) + offsetY
@@ -1072,7 +1094,7 @@ class Tie extends Draw {
 	}
 
 	draw(ctx) {
-		ctx.fillStyle = '#000'
+		ctx.fillStyle = inkColor()
 		ctx.beginPath()
 
 		var w = this.width
@@ -1135,7 +1157,7 @@ class Slur extends Draw {
 	}
 
 	draw(ctx) {
-		ctx.fillStyle = '#000'
+		ctx.fillStyle = inkColor()
 		ctx.beginPath()
 
 		var w = this.width
@@ -1197,7 +1219,7 @@ class PartialTie extends Draw {
 	}
 
 	draw(ctx) {
-		ctx.fillStyle = '#000'
+		ctx.fillStyle = inkColor()
 		var w = this.width
 		var h = this.arcHeight
 		var t = this.thickness
@@ -1222,9 +1244,15 @@ class PartialTie extends Draw {
 	}
 }
 
+
 class Drawing {
 	constructor(ctx) {
 		this.set = new Set()
+		// While set, added elements are marked hidden (see add())
+		this.markHidden = false
+		// Staff index recorded on added elements as _staff (null: none), so
+		// system layout can move or hide a staff's elements (collapsing)
+		this.currentStaff = null
 
 		ctx.font = `${getFontSize()}px ${getMusicTextFamily()}`
 		ctx.textBaseline = 'alphabetic' // alphabetic  bottom top
@@ -1232,6 +1260,8 @@ class Drawing {
 	}
 
 	add(el) {
+		if (this.markHidden) el.hidden = true
+		if (this.currentStaff != null && el._staff == null) el._staff = this.currentStaff
 		this.set.add(el)
 	}
 
@@ -1242,8 +1272,9 @@ class Drawing {
 	static _draw(ctx, el, viewportWidth, viewportOffsetX, viewportHeight, viewportOffsetY) {
 		if (el instanceof Draw) {
 			// Hidden elements (NWC Visibility: Never) keep their layout
-			// position for spacing and anchors but are not painted.
-			if (el.hidden) return
+			// position for spacing and anchors but are not painted, unless
+			// "Show hidden items" is on: then they are drawn as faint ghosts.
+			if (el.hidden && !getShowHiddenItems()) return
 			// Viewport culling — skip elements entirely outside the visible area.
 			// The margin scales with font size so that large zoom levels don't
 			// clip oversized glyphs / staves.  Most elements never set `height`,
@@ -1261,9 +1292,14 @@ class Drawing {
 			if (elY + elH < viewportOffsetY - margin) return
 
 			ctx.save()
+			if (el.hidden) {
+				ctx.globalAlpha = GHOST_ALPHA
+				ctx.fillStyle = ctx.strokeStyle = _ink = GHOST_COLOR
+			}
 			ctx.translate(el.x, el.y)
 			ctx.translate(el.offsetX || 0, el.offsetY || 0)
 			el.draw(ctx)
+			_ink = '#000'
 
 			if (el._text) {
 				ctx.font = '8px ' + getMusicTextFamily()

@@ -374,7 +374,9 @@ function drawBeamGroup(group) {
 		const subBeam = new Beam(segStartY, segEndY, segStartX, segEndX, 1)
 		subBeam.stemUp = stemUp
 		if (isGraceGroup) subBeam._graceScale = graceScale
-		subBeam._beamOffset = seg.level
+		// Beams stack ¾ space apart from the stem tip: beam number `level`
+		// (1 = primary) sits at stack index level - 1
+		subBeam._beamOffset = seg.level - 1
 		subBeam.moveTo(firstStem.x, firstStem.y)
 		drawing.add(subBeam)
 	}
@@ -508,6 +510,10 @@ function layoutBeaming(_drawing, _data) {
 	const staves = data.score.staves
 	
 	staves.forEach((stave) => {
+		// Stems and beams of a hidden staff (shown with "Show hidden items")
+		// are hidden too
+		drawing.markHidden = !!stave.hidden
+		drawing.currentStaff = staves.indexOf(stave)
 		// Group beamable notes
 		const beamGroups = groupBeamableNotes(stave.tokens)
 		
@@ -525,6 +531,8 @@ function layoutBeaming(_drawing, _data) {
 			}
 		})
 	})
+	drawing.markHidden = false
+	drawing.currentStaff = null
 }
 
 export { layoutBeaming, computeBeamLayout, groupBeamableNotes, computeStemLength }

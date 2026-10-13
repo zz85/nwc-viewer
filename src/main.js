@@ -1,5 +1,5 @@
 import './constants.js'
-import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel, setZoomLevel, getPageDimensions, setPageViewMode, getPageViewMode, setZoomFitMode, getZoomFitMode } from './constants.js'
+import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel, setZoomLevel, getPageDimensions, setPageViewMode, getPageViewMode, setZoomFitMode, getZoomFitMode, setShowHiddenItems } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -14,7 +14,12 @@ import { sampleLink, embeddedLink, readLink } from './share.js'
 import { buildPdf, canvasToPdfImage } from './pdf-writer.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
-import { PlaybackController } from './audio.js'
+import { PlaybackController, buildNoteEvents, SOUNDS, convertSF3 } from './audio.js'
+import { Transport, formatTime } from './transport.js'
+import { register, renderMenu, itemsIn, onSlotChange } from './slots.js'
+import { bindDrawer, closeDrawers, setTheme, getTheme, onThemeChange, restoreTheme, docHeader, showAbout } from './shell.js'
+import { buildTimeline, stepBars } from './transport-timeline.js'
+import { registerCommand, bindShortcuts, openShortcutSheet, closeShortcutSheet, shortcutSheetOpen } from './commands.js'
 import { PlaybackHighlighter } from './playback-highlight.js'
 import { InkBleedRenderer } from './ink-bleed.js'
 import { PianoKeyboard } from './piano-keyboard.js'
@@ -69,6 +74,8 @@ window.findFirstToken = (predicate) => {
 
 var samples = [
 	'HappyBirthdayTrio.nwctxt', // nwctxt (oboe, viola, double bass)
+	'HappyBirthdayVirtuoso.nwctxt', // nwctxt (violin and piano variations)
+	'HappyBirthdayPiano.nwctxt', // nwctxt (concert paraphrase for piano)
 	'AChildThisDayIsBorn.nwc', // v2.02
 	'AveMariaArcadelt.nwc', // v2.75
 	'WakenChristianChildren.nwc', // v2.75
@@ -418,26 +425,150 @@ if (_pianoFooter && pianoKeyboard._el) {
 	pianoKeyboard._el.parentElement.insertBefore(pianoKeyboard._el, _pianoFooter)
 }
 
-function formatTime(sec) {
-	if (!isFinite(sec) || sec < 0) sec = 0
-	const m = Math.floor(sec / 60)
-	const s = Math.floor(sec % 60)
-	return m + ':' + String(s).padStart(2, '0')
+// 3D view (src/view3d/view3d.js, loaded on first use); see "3D view" below
+let view3d = null
+let view3dActive = false
+
+// ---- Transport (src/transport.js): the playback bar over the bottom of the score ----
+
+const VOLUME_STORAGE_KEY = 'nwc_volume'
+const MUTED_STORAGE_KEY = 'nwc_muted'
+let timeline = buildTimeline(null)
+
+const transport = new Transport(document.getElementById('transport'), {
+	onToggle: () => togglePlayPause(),
+	onSeek: (t) => seekTo(t),
+	onVolume: (volume, muted) => setVolume(volume, muted),
+	onSpeed: (speed) => setSpeed(speed),
+})
+
+function setVolume(volume, muted) {
+	playback.setVolume(muted ? 0 : volume)
+	transport.setVolume(volume, muted)
+	localStorage.setItem(VOLUME_STORAGE_KEY, String(volume))
+	localStorage.setItem(MUTED_STORAGE_KEY, muted ? '1' : '0')
+}
+{
+	const stored = parseFloat(localStorage.getItem(VOLUME_STORAGE_KEY))
+	setVolume(isFinite(stored) ? stored : 0.8, localStorage.getItem(MUTED_STORAGE_KEY) === '1')
 }
 
-const playBtn = document.getElementById('play')
-const stopBtn = document.getElementById('stop')
-const progressBar = document.getElementById('progress_bar')
-const timeLabel = document.getElementById('playback_time')
+function setSpeed(speed) {
+	if (!isFinite(speed) || speed <= 0) return
+	const clamped = Math.max(0.1, Math.min(4, speed))
+	playback.setSpeed(clamped)
+	transport.setSpeed(clamped)
+}
 
-let _seeking = false
+// Sound (Playback settings ⚙): the soundfonts in SOUNDS, or one picked from
+// disk for this visit. The choice of a listed sound is remembered.
+const SOUND_STORAGE_KEY = 'nwc_sound'
+const soundSelect = document.getElementById('sound_select')
+const soundStatus = document.getElementById('sound_status')
+const soundFileInput = document.getElementById('soundfont_file')
+let currentSoundId = 'gm'
+let currentSoundLabel = SOUNDS[0].label
+let localSoundUrl = null
 
-playback.onTime((t, dur) => {
-	if (!_seeking) {
-		progressBar.value = dur > 0 ? t / dur : 0
+for (const sound of SOUNDS) soundSelect.add(new Option(sound.label, sound.id))
+soundSelect.add(new Option('Load a soundfont file…', 'file'))
+for (const opt of soundSelect.options) {
+	const sound = SOUNDS.find((s) => s.id === opt.value)
+	opt.title = sound ? sound.detail : 'An .sf2 or .sf3 file from your computer (this visit only)'
+}
+
+function setSoundStatus(text) {
+	soundStatus.textContent = text || ''
+	soundStatus.hidden = !text
+}
+
+/** Switch to a sound: id from SOUNDS, or a file's object URL. */
+async function chooseSound(id, { url, label } = {}) {
+	const sound = SOUNDS.find((s) => s.id === id)
+	const paths = url ? [url] : sound?.soundfonts
+	if (!paths) return
+	const previous = currentSoundId
+	setSoundStatus(`Loading ${label || sound.label}…`)
+	try {
+		await playback.setSoundfonts(paths)
+		currentSoundId = id
+		currentSoundLabel = label || sound.label
+		if (sound) localStorage.setItem(SOUND_STORAGE_KEY, id)
+		else localSoundOption().text = label
+		setSoundStatus(sound ? sound.detail : 'From your computer, for this visit')
+	} catch (error) {
+		console.error('Soundfont failed:', error)
+		setSoundStatus(`Could not load ${label || sound.label}: ${error.message}`)
+		if (previous !== id && previous !== 'local') {
+			soundSelect.value = previous
+			playback.setSoundfonts(SOUNDS.find((s) => s.id === previous).soundfonts).catch(() => {})
+		}
+		return
 	}
-	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(dur)
+	soundSelect.value = id
+}
+
+/** The list entry for a soundfont loaded from disk (added on first use). */
+function localSoundOption() {
+	let opt = soundSelect.querySelector('option[value="local"]')
+	if (!opt) {
+		opt = new Option('', 'local')
+		soundSelect.add(opt, soundSelect.querySelector('option[value="file"]'))
+	}
+	return opt
+}
+
+soundSelect.onchange = () => {
+	if (soundSelect.value === 'file') {
+		soundSelect.value = currentSoundId
+		soundFileInput.click()
+		return
+	}
+	if (soundSelect.value === 'local') chooseSound('local', { url: localSoundUrl.url, label: localSoundUrl.label })
+	else chooseSound(soundSelect.value)
+}
+soundFileInput.onchange = () => {
+	const file = soundFileInput.files[0]
+	soundFileInput.value = ''
+	if (!file) return
+	if (localSoundUrl) URL.revokeObjectURL(localSoundUrl.blob)
+	const blob = URL.createObjectURL(file)
+	// the engine tells SF3 from SF2 by the name, so keep it on the URL
+	localSoundUrl = { blob, url: blob + '#' + file.name, label: file.name.replace(/\.sf[23]$/i, '') }
+	chooseSound('local', localSoundUrl)
+}
+{
+	const stored = localStorage.getItem(SOUND_STORAGE_KEY)
+	const sound = SOUNDS.find((s) => s.id === stored) || SOUNDS[0]
+	currentSoundId = sound.id
+	currentSoundLabel = sound.label
+	soundSelect.value = sound.id
+	playback.setSoundfonts(sound.soundfonts)  // loads with the engine, on the first Play
+}
+
+// Speed steps for < and >, like a video player's
+const SPEED_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+function stepSpeed(dir) {
+	const s = playback.speed
+	const next = dir > 0 ? SPEED_STEPS.find(v => v > s + 1e-6) : [...SPEED_STEPS].reverse().find(v => v < s - 1e-6)
+	if (next) setSpeed(next)
+}
+
+/** Bars, sections and length of the score, for the transport (after every layout). */
+function updateTimeline(data) {
+	try {
+		timeline = buildTimeline(data, { duration: buildNoteEvents(data).duration })
+	} catch (error) {
+		console.warn('Transport timeline failed:', error)
+		timeline = buildTimeline(null)
+	}
+	transport.setTimeline(timeline)
+}
+
+playback.onTime((t) => {
+	transport.setTime(t)
 	highlighter.updateTime(t)
+	view3d?.onTime(t)
 })
 
 playback.onNoteOn((ev) => {
@@ -450,41 +581,75 @@ playback.onNoteOff((ev) => {
 })
 
 playback.onStateChange((playing) => {
-	playBtn.textContent = playing ? 'Pause' : 'Play'
-	if (playing) highlighter.start()
-	else highlighter.pause()  // keep highlights frozen on pause
+	transport.setPlaying(playing)
+	// The 2D highlighter repaints the score every frame; not while it is hidden
+	if (playing && !view3dActive) highlighter.start()
+	else if (!playing) highlighter.pause()  // keep highlights frozen on pause
+	view3d?.setPlaying(playing, playback.currentTime)
 })
 
 playback.onEnd(() => {
-	playBtn.textContent = 'Play'
-	progressBar.value = 0
-	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
+	transport.setTime(0)
 	highlighter.stop()
 	pianoKeyboard.clear()
+	view3d?.setPlaying(false)
 })
 
 async function togglePlayPause() {
 	if (playback.playing) {
 		playback.pause()
 	} else {
-		// Load current score data before playing
+		// Load current score data before playing (playback resumes where it was)
 		const data = scoreManager.getData()
+		if (!data) return
 		await playback.load(data)
 		await playback.play()
 	}
 }
 
-playBtn.onclick = togglePlayPause
+/** Jump to t seconds: the audio, the 2D cursor, the 3D view and the transport. */
+function seekTo(t) {
+	t = Math.max(0, Math.min(t, timeline.duration || t))
+	playback.seek(t)
+	highlighter.clearNotes()
+	pianoKeyboard.clear()
+	highlighter.updateTime(t)
+	highlighter.resumeFollow()
+	if (!highlighter.active) {
+		const scoreElm = document.getElementById('score')
+		quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
+	}
+	view3d?.seek(t)
+	transport.setTime(t)
+}
 
-stopBtn.onclick = () => {
+function stopPlayback() {
 	playback.stop()
 	highlighter.stop()
 	pianoKeyboard.clear()
-	progressBar.value = 0
-	timeLabel.textContent = formatTime(0) + ' / ' + formatTime(playback.duration)
+	view3d?.setPlaying(false, 0)
+	transport.setTime(0)
 }
 
-progressBar.addEventListener('pointerdown', () => { _seeking = true })
+// "Back to the playhead": following pauses while the reader scrolls away
+const followPill = document.getElementById('follow_pill')
+highlighter.onFollowChange = (suspended) => { followPill.hidden = !suspended }
+followPill.onclick = () => highlighter.resumeFollow()
+{
+	const scoreElm = document.getElementById('score')
+	const away = () => highlighter.suspendFollow()
+	let downX = 0, downY = 0
+	scoreElm.addEventListener('wheel', away, { passive: true })
+	scoreElm.addEventListener('touchmove', away, { passive: true })
+	scoreElm.addEventListener('pointerdown', (e) => { downX = e.clientX; downY = e.clientY })
+	scoreElm.addEventListener('pointermove', (e) => {
+		// drag-to-scroll (a click moves less than 5px)
+		if (e.buttons & 1 && (e.clientX - downX) ** 2 + (e.clientY - downY) ** 2 > 25) away()
+	})
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') away()
+	})
+}
 
 // Highlight mode selector
 const highlightSelect = document.getElementById('highlight_mode')
@@ -500,15 +665,26 @@ const titleEditor = new TitleEditor({
 	getCanvas: () => window.canvas,
 	getZoom: getZoomLevel,
 	getFields: getTitleFields,
-	onCommit: (field, value) => {
-		const data = scoreManager.getData()
-		if (!data) return
-		data.info = data.info || {}
-		data.info[field] = value
-		recordEdit(field, value)
-		rerender()
-	},
+	onCommit: (field, value) => commitInfoEdit(field, value),
 })
+
+/** Change a title-block field (title, author, lyricist) and keep it as an unsaved edit. */
+function commitInfoEdit(field, value) {
+	const data = scoreManager.getData()
+	if (!data) return
+	data.info = data.info || {}
+	data.info[field] = value
+	recordEdit(field, value)
+	rerender()
+}
+
+// The title and composer in the top bar; click the title to rename the score
+const docTitle = docHeader({
+	title: document.getElementById('doc_title'),
+	sub: document.getElementById('doc_sub'),
+	onRename: (value) => commitInfoEdit('title', value),
+})
+restoreTheme()
 
 // ---- Unsaved changes ----
 // Edits are kept in localStorage (src/drafts.js) until the score is saved,
@@ -531,6 +707,7 @@ function setUnsavedStatus(text, canDiscard) {
 	document.getElementById('unsaved_text').textContent = text || ''
 	status.title = canDiscard ? 'Kept in this browser until you save' : ''
 	document.getElementById('discard_changes').hidden = !canDiscard
+	document.getElementById('save_now').hidden = !canDiscard
 }
 
 /** Called for every newly loaded score: re-apply its draft, if any. */
@@ -616,39 +793,87 @@ if (discardBtn) {
 	}
 }
 
-// ---- Save ----
+// ---- Save & export: the 'export' slot, listed in the ☰ menu ----
 
-const saveBtn = document.getElementById('save_btn')
-const saveMenu = document.getElementById('save_menu')
-if (saveBtn && saveMenu) {
-	const setOpen = (open) => {
-		saveMenu.classList.toggle('open', open)
-		saveBtn.setAttribute('aria-expanded', String(open))
-		if (!open) return
-		const supported = !!window._lastPayload && isNoteWorthy(window._lastPayload)
-		// PDF export works for any score; the file formats need a NoteWorthy source
-		for (const item of saveMenu.querySelectorAll('button[data-format]')) item.disabled = !supported
-		document.getElementById('save_hint').hidden = supported
-	}
-	saveBtn.onclick = (e) => {
-		e.stopPropagation()
-		setOpen(!saveMenu.classList.contains('open'))
-	}
-	document.addEventListener('click', (e) => {
-		if (!saveMenu.contains(e.target) && e.target !== saveBtn) setOpen(false)
+const canSaveNoteWorthy = () =>
+	(!!window._lastPayload && isNoteWorthy(window._lastPayload)) || 'NoteWorthy files only, so far'
+register('export', { id: 'nwctxt', label: 'NoteWorthy text (.nwctxt)', available: canSaveNoteWorthy, run: () => saveAs('nwctxt') })
+register('export', { id: 'nwc', label: 'NoteWorthy Composer (.nwc)', available: canSaveNoteWorthy, run: () => saveAs('nwc') })
+register('export', { id: 'musicxml', label: 'MusicXML (.musicxml)', available: canSaveNoteWorthy, run: () => saveAs('musicxml') })
+register('export', {
+	id: 'pdf', label: 'PDF (.pdf)',
+	title: 'Lay the score out on pages (size and orientation from Appearance → Page) and download a PDF',
+	run: () => exportPdf(),
+})
+
+register('export', {
+	id: 'video', label: 'Video (.mp4)…', hint: 'The 3D view, rendered frame by frame',
+	available: () => typeof VideoEncoder !== 'undefined' || 'Needs Chrome, Edge or Safari 17+',
+	run: () => exportVideoFromMenu(),
+})
+
+/** What the video exporter plays: the audible notes, programs and length. */
+function exportSong() {
+	const data = scoreManager.getData()
+	const { notes, channels } = buildNoteEvents(data)
+	const heard = notes.filter((n) => isStaffAudible(n.staffIndex))
+	const programs = new Map()
+	data.score.staves.forEach((st, si) => {
+		if (channels[si] !== 9) programs.set(channels[si], st.patchName ?? 0)
 	})
-	saveMenu.addEventListener('click', async (e) => {
-		const item = e.target.closest('button[data-format]')
-		if (!item) return
-		setOpen(false)
-		try {
-			await saveAs(item.dataset.format)
-		} catch (error) {
-			console.error('Save failed:', error)
-			alert(`Save failed: ${error.message}`)
-		}
+	return {
+		title: data.info?.title || baseFileName(),
+		subtitle: data.info?.author || '',
+		schedule: { notes: heard.map(({ midi, time, duration, velocity, channel }) => ({ midi, time, duration, velocity, channel })), controlChanges: [] },
+		programs,
+		duration: heard.reduce((end, n) => Math.max(end, n.time + n.duration), 0),
+	}
+}
+
+/** Export video: opens the 3D view if needed, then the export dialog. */
+async function exportVideoFromMenu() {
+	if (!scoreManager.getData()) return
+	if (!view3dActive) {
+		window.__render3DComplete = null
+		await enter3D()
+		const t0 = performance.now()
+		while (!window.__render3DComplete && performance.now() - t0 < 20000) await new Promise((r) => setTimeout(r, 50))
+		if (!window.__render3DComplete) throw new Error('the 3D view did not open')
+	}
+	const { openExportDialog } = await import('./view3d/export-dialog.js')
+	openExportDialog({
+		stage: view3d.stage,
+		view3d,
+		getSong: exportSong,
+		getTime: () => playback.currentTime,
+		pause: () => { if (playback.playing) playback.pause() },
+		play: () => { if (!playback.playing) togglePlayPause() },
+		seek: (t) => seekTo(t),
+		getAudioOpts: () => ({
+			vendorPath: new URL('../vendor/soundfont-engine/vendor', import.meta.url).href,
+			soundfonts: playback.soundfonts,
+			convertSF3,
+			volume: transport.muted ? 0 : playback.volume,
+		}),
+		fileLabel: window.__currentFile,
+		soundLabel: currentSoundLabel,
+		notify: (msg) => flashStatus(msg),
 	})
 }
+
+/** Save in the score's own NoteWorthy format (the Edited · Save chip). */
+function saveInPlace() {
+	if (canSaveNoteWorthy() !== true) {
+		menuDrawer.open()
+		return
+	}
+	const format = /\.nwctxt$/i.test(window.__currentFile || '') ? 'nwctxt' : 'nwc'
+	saveAs(format).catch((error) => {
+		console.error('Save failed:', error)
+		alert(`Save failed: ${error.message}`)
+	})
+}
+document.getElementById('save_now').onclick = saveInPlace
 
 /** Download the open score in `format` with the edits made to it. */
 async function saveAs(format) {
@@ -707,14 +932,7 @@ function downloadFile(data, filename, type) {
 		const time = highlighter.getTimeAtPosition(scoreX, scoreY)
 		if (time == null) return
 
-		// Seek the playback engine and update the visual cursor
-		playback.seek(time)
-		highlighter.updateTime(time)
-
-		// Update progress bar position
-		if (playback.duration > 0) {
-			progressBar.value = time / playback.duration
-		}
+		seekTo(time)
 	})
 }
 
@@ -757,6 +975,7 @@ if (soloSelect) {
 		}
 		// Re-filter and reload if we have notes loaded
 		await playback._reloadFiltered()
+		rebuild3D()  // only audible staves light up
 	}
 }
 
@@ -785,38 +1004,6 @@ if (pianoToggleBtn) {
 			quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 		}
 	}
-}
-
-progressBar.addEventListener('pointerup', () => {
-	_seeking = false
-	const t = parseFloat(progressBar.value) * playback.duration
-	playback.seek(t)
-})
-progressBar.addEventListener('input', () => {
-	const t = parseFloat(progressBar.value) * playback.duration
-	timeLabel.textContent = formatTime(t) + ' / ' + formatTime(playback.duration)
-})
-
-// Speed control
-const speedSlider = document.getElementById('speed_slider')
-const speedInput = document.getElementById('speed_input')
-
-function applySpeed(val) {
-	const n = parseFloat(val)
-	if (!isFinite(n) || n <= 0) return
-	const clamped = Math.max(0.1, Math.min(4, n))
-	playback.setSpeed(clamped)
-	// Keep slider and input in sync (slider max is 3, input max is 4)
-	speedSlider.value = Math.min(clamped, parseFloat(speedSlider.max))
-	speedInput.value = clamped
-}
-
-if (speedSlider) {
-	speedSlider.addEventListener('input', () => applySpeed(speedSlider.value))
-}
-
-if (speedInput) {
-	speedInput.addEventListener('change', () => applySpeed(speedInput.value))
 }
 
 // Ink bleed / print emulation toggle
@@ -921,6 +1108,9 @@ const rerender = () => {
 
 				// Update highlighter with new layout positions
 				highlighter.setScore(data)
+				updateTimeline(data)
+				docTitle.update(data.info, (window.__currentFile || '').replace(/\.[^.]+$/, ''))
+				rebuild3D()
 			},
 			null,
 			(canvas) => {
@@ -950,6 +1140,7 @@ if (typeof document !== 'undefined' && document.fonts) {
 }
 
 function setDataAndRender(_data) {
+	stopPlayback()  // a new score starts at the top
 	titleEditor.finish(false)
 	applyDraft(_data)
 	scoreManager.setData(_data)
@@ -1102,6 +1293,17 @@ if (parserBtn) parserBtn.onclick = toggleParser
 localStorage.removeItem(PARSER_STORAGE_KEY)
 updateParserButton()
 
+// Show hidden items (Settings > Advanced): draw what the score hides as
+// ghosts, for debugging and seeing how a file is set up. Page only.
+const showHiddenBox = document.getElementById('show_hidden_items')
+if (showHiddenBox) {
+	showHiddenBox.checked = false
+	showHiddenBox.onchange = () => {
+		setShowHiddenItems(showHiddenBox.checked)
+		if (scoreManager.getData()) rerender()
+	}
+}
+
 // ---- Layout mode (segmented button group) ----
 
 const LAYOUT_STORAGE_KEY = 'nwc_layout_mode'
@@ -1111,12 +1313,9 @@ const ORIENTATION_STORAGE_KEY = 'nwc_page_orientation'
 function updateLayoutUI() {
 	const mode = getLayoutMode()
 
-	// Update segmented button group active state
-	const group = document.getElementById('layout_group')
-	if (group) {
-		for (const btn of group.querySelectorAll('button')) {
-			btn.classList.toggle('active', btn.dataset.mode === mode)
-		}
+	// Update the view switches (top bar, and Appearance on phones)
+	for (const btn of document.querySelectorAll('.view-switch button')) {
+		btn.classList.toggle('active', btn.dataset.mode === (view3dActive ? '3d' : mode))
 	}
 
 	// Show/hide page-only controls
@@ -1144,17 +1343,199 @@ function updateLayoutUI() {
 	}
 }
 
-// Layout button group click handler
-const layoutGroup = document.getElementById('layout_group')
-if (layoutGroup) {
-	layoutGroup.addEventListener('click', (e) => {
-		const btn = e.target.closest('button')
-		if (!btn || !btn.dataset.mode) return
-		setLayoutMode(btn.dataset.mode)
-		localStorage.setItem(LAYOUT_STORAGE_KEY, btn.dataset.mode)
-		updateLayoutUI()
-		rerender()
+// ---- Views: the 'view' slot ----
+// Drawn as the top bar's switch (and in Appearance on phones). A view that
+// only some scores have, or one used less, registers here too.
+
+function chooseLayout(mode) {
+	if (view3dActive) {
+		exit3D(mode)
+		localStorage.setItem(LAYOUT_STORAGE_KEY, mode)
+		return
+	}
+	setLayoutMode(mode)
+	localStorage.setItem(LAYOUT_STORAGE_KEY, mode)
+	updateLayoutUI()
+	rerender()
+}
+
+register('view', { id: 'page', label: 'Page', title: 'Printed pages', run: () => chooseLayout('page') })
+register('view', { id: 'wrap', label: 'Wrap', title: 'Systems wrapped to the window width', run: () => chooseLayout('wrap') })
+register('view', { id: 'scroll', label: 'Line', title: 'One long line', run: () => chooseLayout('scroll') })
+register('view', { id: '3d', label: '3D', title: '3D score: lights hop from note to note as it plays', run: () => enter3D() })
+
+function renderViews() {
+	for (const group of document.querySelectorAll('.view-switch')) {
+		group.replaceChildren(...itemsIn('view').map((view) => {
+			const b = document.createElement('button')
+			b.dataset.mode = view.id
+			b.textContent = view.label
+			b.title = view.title || ''
+			b.onclick = () => view.run()
+			return b
+		}))
+	}
+}
+onSlotChange('view', () => { renderViews(); updateLayoutUI() })
+renderViews()
+
+// ---- 3D view ----
+// Replaces #score with a three.js scene of the score (src/view3d/). It is
+// built from the scroll layout (one long line), so opening it switches the
+// layout to scroll and closing it restores the previous mode. Its options
+// (Settings > 3D view) are remembered together in one localStorage entry.
+
+const VIEW3D_STORAGE_KEY = 'nwc_view_3d'
+const VIEW3D_OPTS_STORAGE_KEY = 'nwc_3d_opts'
+const score3dEl = document.getElementById('score3d')
+const score3dStatus = document.getElementById('score3d_status')
+const view3dControls = document.querySelectorAll('[data-opt3d]')
+let view3dLoading = null   // Promise of the View3D, once loading started
+let layoutBefore3D = null
+
+function set3DStatus(text) {
+	score3dStatus.textContent = text || ''
+	score3dStatus.hidden = !text
+}
+
+function load3DOptions() {
+	try {
+		return JSON.parse(localStorage.getItem(VIEW3D_OPTS_STORAGE_KEY)) || {}
+	} catch {
+		return {}
+	}
+}
+
+function save3DOption(key, value) {
+	const opts = load3DOptions()
+	opts[key] = value
+	localStorage.setItem(VIEW3D_OPTS_STORAGE_KEY, JSON.stringify(opts))
+}
+
+function read3DControl(el) {
+	if (el.tagName === 'BUTTON') return el.classList.contains('active')
+	if (el.type === 'range') return parseFloat(el.value)
+	return el.value
+}
+
+function write3DControl(el, value) {
+	if (el.tagName === 'BUTTON') el.classList.toggle('active', !!value)
+	else if (el.tagName === 'SELECT' && ![...el.options].some(o => o.value === value)) return
+	else el.value = value
+	const label = document.querySelector(`[data-opt3d-label="${el.dataset.opt3d}"]`)
+	if (label) label.textContent = parseFloat(el.value).toFixed(2)
+}
+
+/** Staves whose notes light up: the ones that are heard (solo / mute). */
+function isStaffAudible(si) {
+	if (playback.soloStaves.size) return playback.soloStaves.has(si)
+	return !playback.muteStaves.has(si) && !scoreManager.getData()?.score?.staves[si]?.muted
+}
+
+function ensureView3D() {
+	view3dLoading ||= import('./view3d/view3d.js').then(({ View3D }) => {
+		const options = {}
+		for (const el of view3dControls) options[el.dataset.opt3d] = read3DControl(el)
+		view3d = new View3D(score3dEl, {
+			options,
+			getSpeed: () => playback.speed,
+			onViewChange: (view) => {
+				for (const el of view3dControls) if (el.dataset.opt3d === 'view') write3DControl(el, view)
+				save3DOption('view', view)
+			},
+		})
+		return view3d
 	})
+	return view3dLoading
+}
+
+/**
+ * Rebuild the 3D scene from the current (scroll) layout, if the view is open.
+ * Coalesced to one rebuild per frame: rerenders come in bursts (text fonts
+ * arriving), and a rebuild costs far more than a 2D layout.
+ */
+let rebuild3DPending = false
+function rebuild3D() {
+	if (!view3dActive || !view3d || rebuild3DPending) return
+	rebuild3DPending = true
+	requestAnimationFrame(() => {
+		rebuild3DPending = false
+		const data = scoreManager.getData()
+		if (!view3dActive || !data) return
+		try {
+			view3d.rebuild(data, isStaffAudible)
+			set3DStatus('')
+		} catch (error) {
+			console.error('3D view failed:', error)
+			set3DStatus('3D view failed: ' + error.message)
+		}
+	})
+}
+
+async function enter3D() {
+	if (view3dActive) return
+	view3dActive = true
+	layoutBefore3D = getLayoutMode()
+	localStorage.setItem(VIEW3D_STORAGE_KEY, '1')
+	document.body.classList.add('view-3d')
+	score3dEl.hidden = false
+	if (highlighter.active) highlighter.pause()
+	setLayoutMode('scroll')
+	updateLayoutUI()
+	if (!view3d) set3DStatus('Loading 3D view…')
+	try {
+		await ensureView3D()
+	} catch (error) {
+		console.error('Could not load the 3D view:', error)
+		view3dLoading = null
+		set3DStatus('Could not load the 3D view: ' + error.message)
+		return
+	}
+	if (!view3dActive) return  // closed while loading
+	set3DStatus('')
+	view3d.setPlaying(playback.playing, playback.currentTime)
+	view3d.show()
+	if (scoreManager.getData()) rerender()  // lays out in scroll mode, then rebuild3D()
+}
+
+function exit3D(mode) {
+	if (!view3dActive) return
+	view3dActive = false
+	localStorage.setItem(VIEW3D_STORAGE_KEY, '0')
+	view3d?.hide()
+	set3DStatus('')
+	score3dEl.hidden = true
+	document.body.classList.remove('view-3d')
+	setLayoutMode(mode || layoutBefore3D || 'wrap')
+	updateLayoutUI()
+	if (scoreManager.getData()) rerender()
+	if (playback.playing) highlighter.start()
+}
+
+{
+	const stored = load3DOptions()
+	for (const el of view3dControls) {
+		const key = el.dataset.opt3d
+		if (key in stored) write3DControl(el, stored[key])
+		const commit = () => {
+			const value = read3DControl(el)
+			save3DOption(key, value)
+			view3d?.setOption(key, value)
+		}
+		if (el.tagName === 'BUTTON') {
+			el.onclick = () => {
+				el.classList.toggle('active')
+				commit()
+			}
+		} else if (el.type === 'range') {
+			el.oninput = () => {
+				write3DControl(el, el.value)
+				commit()
+			}
+		} else {
+			el.onchange = commit
+		}
+	}
 }
 
 // Page size selector
@@ -1446,6 +1827,7 @@ if (storedZoomFit === 'width' || storedZoomFit === 'height') {
 	updateFitButtonsUI()
 }
 updateLayoutUI()
+if (localStorage.getItem(VIEW3D_STORAGE_KEY) === '1') enter3D()
 
 // ---- Music font selector ----
 
@@ -1531,46 +1913,85 @@ async function exportPdf() {
 	return { pageCount: pages.length, fontSize: exportFontSize }
 }
 
-const exportPdfBtn = document.getElementById('export_pdf')
-if (exportPdfBtn) {
-	exportPdfBtn.onclick = async () => {
-		saveMenu?.classList.remove('open')
-		exportPdfBtn.disabled = true
-		try {
-			await exportPdf()
-		} catch (error) {
-			console.error('PDF export failed:', error)
-			alert(`PDF export failed: ${error.message}`)
-		} finally {
-			exportPdfBtn.disabled = false
-		}
-	}
-}
 window.exportPdf = exportPdf
 
-// ---- Settings menu ----
+// ---- The menu (☰) and Appearance (Aa) drawers ----
+// The menu lists the 'source' and 'export' slots: new ways in or out
+// register items there (src/slots.js) instead of adding buttons.
+
+register('source', {
+	id: 'open-file', label: 'Open a file…', hint: 'NWC, MusicXML, MuseScore, MIDI',
+	run: () => document.getElementById('opener').click(),
+})
 
 const settingsToggle = document.getElementById('settings_toggle')
 const settingsPanel = document.getElementById('settings_panel')
-if (settingsToggle && settingsPanel) {
-	const setSettingsOpen = (open) => {
-		settingsPanel.classList.toggle('open', open)
-		settingsToggle.classList.toggle('active', open)
-		settingsToggle.setAttribute('aria-expanded', String(open))
+const appearanceDrawer = bindDrawer(settingsToggle, settingsPanel)
+
+// Appearance groups stay open or closed the way they were left
+{
+	const OPEN_STORAGE_KEY = 'nwc_appearance_open'
+	let open = {}
+	try {
+		open = JSON.parse(localStorage.getItem(OPEN_STORAGE_KEY)) || {}
+	} catch {
+		open = {}
 	}
-	settingsToggle.onclick = (e) => {
-		e.stopPropagation()
-		setSettingsOpen(!settingsPanel.classList.contains('open'))
+	for (const group of settingsPanel.querySelectorAll('details')) {
+		const key = group.id || group.querySelector('summary').textContent.trim()
+		if (key in open) group.open = !!open[key]
+		group.addEventListener('toggle', () => {
+			open[key] = group.open
+			localStorage.setItem(OPEN_STORAGE_KEY, JSON.stringify(open))
+		})
 	}
-	document.addEventListener('click', (e) => {
-		if (!settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) setSettingsOpen(false)
-	})
-	document.addEventListener('keydown', (e) => {
-		if (e.key === 'Escape' && settingsPanel.classList.contains('open')) {
-			setSettingsOpen(false)
-			settingsToggle.focus()
-		}
-	})
+}
+
+const menuPanel = document.getElementById('menu_panel')
+const closeMenu = () => menuDrawer.close()
+renderMenu(document.getElementById('source_items'), 'source', closeMenu)
+const refreshExports = renderMenu(document.getElementById('export_items'), 'export', closeMenu)
+const menuDrawer = bindDrawer(document.getElementById('menu_btn'), menuPanel, { onOpen: () => refreshExports() })
+sample_dom.addEventListener('change', closeMenu)
+
+document.getElementById('menu_copy_link').onclick = () => {
+	closeMenu()
+	copyShareLink().catch((error) => alert(`Could not make a link: ${error.message}`))
+}
+document.getElementById('menu_shortcuts').onclick = () => {
+	closeMenu()
+	openShortcutSheet()
+}
+
+// Theme: Studio (dark surround) or Light
+const themeToggle = document.getElementById('theme_toggle')
+themeToggle.onclick = () => setTheme(getTheme() === 'light' ? 'studio' : 'light')
+for (const b of document.querySelectorAll('#theme_group button')) b.onclick = () => setTheme(b.dataset.theme)
+onThemeChange((theme) => {
+	themeToggle.firstElementChild.textContent = theme === 'light' ? 'Studio theme' : 'Light theme'
+	for (const b of document.querySelectorAll('#theme_group button')) b.classList.toggle('active', b.dataset.theme === theme)
+})
+
+// About this score: what the title block doesn't show (the copyright used to sit in a footer)
+const aboutDialog = document.getElementById('about_dialog')
+document.getElementById('about_close').onclick = () => aboutDialog.close()
+document.getElementById('menu_about').onclick = () => {
+	closeMenu()
+	const data = scoreManager.getData()
+	const info = data?.info || {}
+	const staves = data?.score?.staves || []
+	const clean = (s) => String(s || '').replace(/­/g, '').trim()
+	const name = window.__currentFile || ''
+	showAbout(aboutDialog, [
+		['Title', info.title],
+		['Composer', info.author],
+		['Lyricist', info.lyricist],
+		['Copyright', [info.copyright1, info.copyright2].map(clean).filter(Boolean).join('\n')],
+		['Comment', clean(info.comment)],
+		['File', name],
+		['Staves', staves.length ? `${staves.length}: ` + staves.map((s, i) => s.staff_name || s.staff_label || `Staff ${i + 1}`).join(', ') : ''],
+		['Length', timeline.barCount ? `${timeline.barCount} bars · ${formatTime(timeline.duration)}` : ''],
+	])
 }
 
 // ---- Tuning popover ----
@@ -1669,3 +2090,61 @@ if (propSlider) {
 var storedProp = localStorage.getItem(PROP_STORAGE_KEY)
 if (storedProp !== null) setDurationProportionality(parseFloat(storedProp))
 updateProportionalityUI()
+
+// ---- Keyboard shortcuts (src/commands.js) ----
+// A video player's keys where they fit (Space/K, M, F, 0–9, < >, ?), bars
+// where music needs them: ← → step a bar, J / L and ⇧← / ⇧→ five bars.
+// ↑ ↓ are left to scroll the score.
+
+{
+	const nowTime = () => playback.currentTime
+	const seekBars = (n) => seekTo(stepBars(timeline, nowTime(), n))
+	const toggleLayout = (i) => itemsIn('view')[i]?.run()
+
+	registerCommand({ id: 'play', label: 'Play / pause', group: 'Playback', keys: ['Space', 'k'], run: () => { togglePlayPause() } })
+	registerCommand({ id: 'start', label: 'Back to the start', group: 'Playback', keys: ['Home', '0'], run: () => seekTo(0) })
+	registerCommand({ id: 'bar-prev', label: 'Previous / next bar', group: 'Playback', keys: ['ArrowLeft'], keyLabel: '← →', run: () => seekBars(-1) })
+	registerCommand({ id: 'bar-next', label: 'Next bar', group: 'Playback', keys: ['ArrowRight'], sheet: false, run: () => seekBars(1) })
+	registerCommand({ id: 'bars-back', label: 'Back / ahead 5 bars', group: 'Playback', keys: ['j', 'Shift+ArrowLeft'], keyLabel: 'J L', run: () => seekBars(-5) })
+	registerCommand({ id: 'bars-ahead', label: 'Ahead 5 bars', group: 'Playback', keys: ['l', 'Shift+ArrowRight'], sheet: false, run: () => seekBars(5) })
+	registerCommand({ id: 'section-prev', label: 'Previous / next section', group: 'Playback', keys: ['Alt+ArrowLeft'], keyLabel: '⌥← ⌥→', run: () => transport.stepSection(-1) })
+	registerCommand({ id: 'section-next', label: 'Next section', group: 'Playback', keys: ['Alt+ArrowRight'], sheet: false, run: () => transport.stepSection(1) })
+	registerCommand({
+		id: 'jump', label: 'Jump to 10% … 90%', group: 'Playback', keys: ['1', '2', '3', '4', '5', '6', '7', '8', '9'], keyLabel: '1 … 9',
+		run: (e) => seekTo(timeline.duration * (+e.key) / 10),
+	})
+	registerCommand({ id: 'slower', label: 'Slower / faster', group: 'Playback', keys: ['<'], keyLabel: '< >', run: () => stepSpeed(-1) })
+	registerCommand({ id: 'faster', label: 'Faster', group: 'Playback', keys: ['>'], sheet: false, run: () => stepSpeed(1) })
+	registerCommand({ id: 'mute', label: 'Mute', group: 'Playback', keys: ['m'], run: () => transport.toggleMute() })
+
+	registerCommand({ id: 'fullscreen', label: 'Full screen', group: 'View', keys: ['f'], run: () => transport.toggleFullscreen() })
+	registerCommand({ id: 'piano', label: 'Piano keyboard', group: 'View', keys: ['p'], run: () => pianoToggleBtn?.click() })
+	registerCommand({
+		id: 'layouts', label: 'Page · Wrap · Line · 3D', group: 'View', keys: ['Alt+1', 'Alt+2', 'Alt+3', 'Alt+4'], keyLabel: '⌥1 … ⌥4',
+		run: (e) => toggleLayout(+e.code.slice(5) - 1),
+	})
+	registerCommand({
+		id: 'page-prev', label: 'Previous / next page', group: 'View', keys: ['PageUp'], keyLabel: 'PgUp PgDn',
+		when: () => getLayoutMode() === 'page' && !view3dActive, run: () => pagePrevBtn?.click(),
+	})
+	registerCommand({
+		id: 'page-next', label: 'Next page', group: 'View', keys: ['PageDown'], sheet: false,
+		when: () => getLayoutMode() === 'page' && !view3dActive, run: () => pageNextBtn?.click(),
+	})
+
+	registerCommand({ id: 'help', label: 'Keyboard shortcuts', group: 'Help', keys: ['?'], run: () => (shortcutSheetOpen() ? closeShortcutSheet() : openShortcutSheet()) })
+	registerCommand({
+		id: 'close', label: 'Close', group: 'Help', keys: ['Escape'],
+		when: () => shortcutSheetOpen() || transport.popOpen,
+		run: () => { closeShortcutSheet(); transport.closePops() },
+	})
+	bindShortcuts()
+
+	const shortcutsBtn = document.getElementById('shortcuts_btn')
+	if (shortcutsBtn) shortcutsBtn.onclick = (e) => {
+		e.stopPropagation()
+		closeDrawers()
+		transport.closePops()
+		openShortcutSheet()
+	}
+}

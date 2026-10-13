@@ -24,3 +24,6 @@ references/*.iso
 references/*.bin
 references/*.exe
 vendor/.DS_Store
+
+# Claude Code agent worktrees
+.claude/worktrees/

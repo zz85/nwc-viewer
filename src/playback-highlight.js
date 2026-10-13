@@ -50,6 +50,9 @@ export class PlaybackHighlighter {
 
 		// Auto-scroll: enabled by default
 		this._autoScrollEnabled = true
+		// Suspended while the reader scrolls away by hand (see suspendFollow)
+		this._followSuspended = false
+		this.onFollowChange = null  // fn(suspended)
 
 		// Snap-to-notes: when true, cursor X locks to the active notehead
 		// instead of interpolating smoothly.  Off by default so the cursor
@@ -188,6 +191,11 @@ export class PlaybackHighlighter {
 		}
 	}
 
+	/** Forget sounding notes (after a seek: their note-offs never arrive). */
+	clearNotes() {
+		this._activeTokens.clear()
+	}
+
 	/**
 	 * Update the current playback time (for cursor position).
 	 * @param {number} time - Current time in seconds
@@ -236,6 +244,26 @@ export class PlaybackHighlighter {
 	/** Whether auto-scroll is currently enabled. */
 	get autoScrollEnabled() { return this._autoScrollEnabled }
 
+	/** True while following is paused because the reader scrolled away. */
+	get followSuspended() { return this._followSuspended }
+
+	/**
+	 * The reader scrolled by hand during playback: stop following until
+	 * resumeFollow() (the "Back to the playhead" button, a seek, stop).
+	 */
+	suspendFollow() {
+		if (this._followSuspended || !this._running || !this._autoScrollEnabled) return
+		this._followSuspended = true
+		this.onFollowChange?.(true)
+	}
+
+	resumeFollow() {
+		if (!this._followSuspended) return
+		this._followSuspended = false
+		this.onFollowChange?.(false)
+		if (this._running && this._autoScrollEnabled) this._autoScroll(true)
+	}
+
 	// ── Snap-to-notes ─────────────────────────────────────────────────────
 
 	/** Toggle snap-to-notes on/off. Returns the new state. */
@@ -269,6 +297,10 @@ export class PlaybackHighlighter {
 			this._rafId = null
 		}
 		this._activeTokens.clear()
+		if (this._followSuspended) {
+			this._followSuspended = false
+			this.onFollowChange?.(false)
+		}
 		// Repaint once without highlights to clear them
 		this._repaintScore()
 	}
@@ -288,14 +320,15 @@ export class PlaybackHighlighter {
 	_tick() {
 		if (!this._running) return
 		this._repaintScore()
-		if (this._autoScrollEnabled) this._autoScroll()
+		if (this._autoScrollEnabled && !this._followSuspended) this._autoScroll()
 		this._rafId = requestAnimationFrame(() => this._tick())
 	}
 
 	/** Trigger a quickDraw repaint of the score canvas. */
 	_repaintScore() {
 		const scoreElm = this._container
-		if (typeof window.quickDraw === 'function') {
+		// No canvas yet before the first score is laid out
+		if (typeof window.quickDraw === 'function' && window.ctx) {
 			window.quickDraw(null, -(scoreElm?.scrollLeft || 0), -(scoreElm?.scrollTop || 0))
 		}
 	}
@@ -612,7 +645,8 @@ export class PlaybackHighlighter {
 
 	// ── Auto-scroll ────────────────────────────────────────────────────────
 
-	_autoScroll() {
+	/** @param {boolean} [force] - re-centre even if the cursor is in view */
+	_autoScroll(force = false) {
 		const pos = this._getCursorPosition(this._currentTime)
 		if (!pos) return
 
@@ -626,7 +660,7 @@ export class PlaybackHighlighter {
 			const viewHeight = scoreElm.clientHeight
 			const margin = viewHeight * 0.25
 
-			if (screenY < viewTop + margin || screenY > viewTop + viewHeight - margin) {
+			if (force || screenY < viewTop + margin || screenY > viewTop + viewHeight - margin) {
 				scoreElm.scrollTo({
 					top: screenY - viewHeight * 0.35,
 					behavior: 'smooth',
@@ -641,7 +675,7 @@ export class PlaybackHighlighter {
 			const rightBound = viewWidth * 0.7
 
 			const relX = screenX - viewLeft
-			if (relX < leftBound || relX > rightBound) {
+			if (force || relX < leftBound || relX > rightBound) {
 				scoreElm.scrollTo({
 					left: screenX - viewWidth * 0.35,
 					behavior: 'smooth',
