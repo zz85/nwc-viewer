@@ -1268,6 +1268,93 @@ export async function unzip(buffer) {
 		expect(notes2[0].octave).toBe(3)
 	})
 
+	it('times triplets by their real length, so grand-staff barlines stay in step', async () => {
+		// Treble: quarter rest, quarter, then three triplet quarters (a half
+		// note), the last a chord whose second note follows the tuplet stop;
+		// bass: a whole note. Counting the triplets as plain quarters made
+		// the treble bar a quarter too long (Por una Cabeza, bar 18).
+		await setup()
+		const triplet = (step, extra = '') => `<note><pitch><step>${step}</step><octave>4</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><staff>1</staff>${extra}</note>`
+		const chordNote = step => `<note><chord/><pitch><step>${step}</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><type>quarter</type><time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification><staff>1</staff></note>`
+		const bar = n => `
+    <measure number="${n}">${n === 1 ? `
+      <attributes>
+        <divisions>3</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <staves>2</staves>
+        <clef number="1"><sign>G</sign><line>2</line></clef>
+        <clef number="2"><sign>F</sign><line>4</line></clef>
+      </attributes>` : ''}
+      <note><rest/><duration>3</duration><voice>1</voice><type>quarter</type><staff>1</staff></note>
+      <note><pitch><step>G</step><octave>4</octave></pitch><duration>3</duration><voice>1</voice><type>quarter</type><staff>1</staff></note>
+      ${triplet('G', '<notations><tuplet type="start"/></notations>')}
+      ${triplet('A')}
+      ${triplet('B', '<notations><tuplet type="stop"/></notations>')}
+      ${chordNote('D')}
+      <backup><duration>12</duration></backup>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>12</duration><voice>5</voice><type>whole</type><staff>2</staff></note>
+    </measure>`
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">${bar(1)}${bar(2)}
+  </part>
+</score-partwise>`
+
+		const result = await parseMusicXML(xml, 'test.musicxml')
+		const barTicks = staff => staff.tokens.filter(t => t.type === 'Barline').map(t => t.tickValue)
+		const [treble, bass] = result.score.staves
+		expect(barTicks(treble)).toEqual([1, 2])
+		expect(barTicks(bass)).toEqual([1, 2])
+		const triplets = treble.tokens.filter(t => (t.type === 'Note' || t.type === 'Chord') && t.triplet)
+		expect(triplets.length).toBe(6)
+		for (const t of triplets) expect(t.durValue.value()).toBeCloseTo(1 / 6, 10)
+		// the chord after the tuplet stop is one token, not an extra quarter
+		expect(triplets[2].type).toBe('Chord')
+	})
+
+	it('snaps measures that rounding left a sliver long back onto the time signature', async () => {
+		// 480 divisions per quarter can't hold a septuplet sixteenth (480/7 =
+		// 68.57), so the exporter wrote 69 each: the bar sums to 1923 of 1920
+		await setup()
+		const sept = step => `<note><pitch><step>${step}</step><octave>4</octave></pitch><duration>69</duration><voice>1</voice><type>16th</type><time-modification><actual-notes>7</actual-notes><normal-notes>4</normal-notes></time-modification></note>`
+		const quarter = step => `<note><pitch><step>${step}</step><octave>4</octave></pitch><duration>480</duration><voice>1</voice><type>quarter</type></note>`
+		const bar = n => `
+    <measure number="${n}">${n === 1 ? `
+      <attributes><divisions>480</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>` : ''}
+      ${['C', 'D', 'E', 'F', 'G', 'A', 'B'].map(sept).join('')}
+      ${['C', 'D', 'E'].map(quarter).join('')}
+    </measure>`
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Flute</part-name></score-part></part-list>
+  <part id="P1">${bar(1)}${bar(2)}
+  </part>
+</score-partwise>`
+		const result = await parseMusicXML(xml, 'test.musicxml')
+		expect(result.score.staves[0].tokens.filter(t => t.type === 'Barline').map(t => t.tickValue)).toEqual([1, 2])
+	})
+
+	it('ends a measure where its longest voice ends, not where the last one stops', async () => {
+		await setup()
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time><clef><sign>G</sign><line>2</line></clef></attributes>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>4</duration><type>whole</type><voice>1</voice></note>
+      <backup><duration>4</duration></backup>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>half</type><voice>2</voice></note>
+      <barline location="right"><bar-style>light-heavy</bar-style></barline>
+    </measure>
+  </part>
+</score-partwise>`
+		const result = await parseMusicXML(xml, 'test.musicxml')
+		const barlines = result.score.staves[0].tokens.filter(t => t.type === 'Barline')
+		expect(barlines.map(t => t.tickValue)).toEqual([1])
+	})
+
 	it('handles multi-voice with backup/forward', async () => {
 		await setup()
 		const xml = `<?xml version="1.0" encoding="UTF-8"?>
