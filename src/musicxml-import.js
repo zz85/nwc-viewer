@@ -444,10 +444,17 @@ function convertMeasure(measureEl, state, tokens, measureIndex, totalMeasures) {
 	let hasLeftBarline = false
 	let hasRightBarline = false
 
+	// The measure ends where its longest voice does (MusicXML measures
+	// have no explicit length); <backup> may leave the cursor short of it
+	const start = state.tickCounter.clone()
+	let furthest = start.clone()
+	const rightBarlines = []
+
 	const nodes = measureEl.childNodes
 	for (let i = 0; i < nodes.length; i++) {
 		const el = nodes[i]
 		if (el.nodeType !== 1) continue  // skip text nodes
+		if (el.tagName === 'backup' && state.tickCounter.greaterThan(furthest)) furthest = state.tickCounter.clone()
 
 		switch (el.tagName) {
 			case 'attributes':
@@ -461,9 +468,14 @@ function convertMeasure(measureEl, state, tokens, measureIndex, totalMeasures) {
 				break
 			case 'barline': {
 				const location = el.getAttribute('location') || 'right'
-				if (location === 'left') hasLeftBarline = true
-				else hasRightBarline = true
-				handleBarline(el, state, tokens, location)
+				if (location === 'left') {
+					hasLeftBarline = true
+					handleBarline(el, state, tokens, location)
+				} else {
+					// placed once the measure's end is known (endMeasure)
+					hasRightBarline = true
+					rightBarlines.push([el, location])
+				}
 				break
 			}
 			case 'forward':
@@ -475,6 +487,10 @@ function convertMeasure(measureEl, state, tokens, measureIndex, totalMeasures) {
 		}
 	}
 
+	if (state.tickCounter.greaterThan(furthest)) furthest = state.tickCounter.clone()
+	endMeasure(state, start, furthest, measureEl.getAttribute('implicit') === 'yes')
+	for (const [el, location] of rightBarlines) handleBarline(el, state, tokens, location)
+
 	// Emit implicit barline at measure boundary (if no explicit right barline)
 	if (!hasRightBarline) {
 		if (isLastMeasure) {
@@ -485,6 +501,31 @@ function convertMeasure(measureEl, state, tokens, measureIndex, totalMeasures) {
 			tokens.push(makeBarline(0, state.tickCounter, state.tabCounter))
 		}
 	}
+}
+
+/**
+ * Move the counters to the end of the measure, cleaning up rounding.
+ * Exporters round tuplet durations to whole divisions (a septuplet in
+ * divisions of 480 can't be exact), and those slivers add up bar by bar
+ * until one part's barlines drift from the others'. So a length within a
+ * 32nd note of the time signature is the time signature, and any other
+ * length a hair off the 64th-note grid (irregular bars, cadenzas) is put
+ * on it. Pickup and other implicit measures are only grid-snapped.
+ */
+const MEASURE_ROUNDING = 1 / 32
+const MEASURE_GRID = 64
+const GRID_ROUNDING = 1 / 256
+
+function endMeasure(state, start, end, implicit) {
+	let length = end.clone().subtract(start)
+	const written = new Fraction(state.currentTimeSigN || 4, state.currentTimeSigD || 4)
+	const onGrid = new Fraction(Math.round(length.value() * MEASURE_GRID), MEASURE_GRID)
+	if (!implicit && Math.abs(length.value() - written.value()) < MEASURE_ROUNDING) length = written
+	else if (Math.abs(length.value() - onGrid.value()) < GRID_ROUNDING) length = onGrid
+	const target = start.clone().add(length)
+	const shift = target.clone().subtract(state.tickCounter)
+	state.tickCounter.add(shift)
+	state.tabCounter.add(shift)
 }
 
 // ---------------------------------------------------------------------------
