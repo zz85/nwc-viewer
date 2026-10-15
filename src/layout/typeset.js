@@ -84,6 +84,28 @@ let drawing // placeholder for drawing system
 let info // running debug info
 
 /**
+ * Boundaries for the line breaker, closed at the end of the music.  The final
+ * bar usually has no barline token (its ending barline is drawn by the layout),
+ * so without a terminal entry the breaker never sees its width and the last
+ * system can come out far wider than the page.  When the first staff's last
+ * barline already closes the music (notes and rests all come before it), it is
+ * left as the end: a terminal entry there would only cover the padding after
+ * it, and a forced break on that barline would leave an empty last system.
+ * The terminal entry is only ever the end of the last system, never a break,
+ * so every boundaryIndex the breaker returns still indexes `boundaries`.
+ */
+function withEndBoundary(boundaries, staves, endX) {
+	var last = boundaries[boundaries.length - 1]
+	if (!last || endX <= last.x + 1) return boundaries
+	var tokens = staves[0]?.tokens || []
+	var musicAfter = tokens.slice(last.tokenIndex + 1).some(function(t) {
+		return t.type === 'Note' || t.type === 'Chord' || t.type === 'Rest' || t.type === 'RestChord'
+	})
+	if (!musicAfter) return boundaries
+	return boundaries.concat({ x: endX, tokenIndex: -1, systemBreak: false, measure: last.measure, startsBar: false, terminal: true })
+}
+
+/**
  * Collects barline X positions from the first staff to identify measure boundaries.
  * Returns an array of { x, tokenIndex, systemBreak } for each barline.
  */
@@ -2146,11 +2168,12 @@ function scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	// Compute system breaks using reduced page width that accounts for
 	// courtesy items on systems > 0.
 	var effectivePageWidth = pageWidth - estimatedCourtesyWidth
-	var systemBreaks = computeSystemBreaks(boundaries, effectivePageWidth, leftMargin)
+	var breakBoundaries = withEndBoundary(boundaries, staves, singleLineWidth)
+	var systemBreaks = computeSystemBreaks(breakBoundaries, effectivePageWidth, leftMargin)
 
 	// Two-pass refinement: if systems are poorly filled (large gaps from
 	// spring compression), re-run DP with scaled widths to pack more bars.
-	systemBreaks = reflowIfSparse(boundaries, systemBreaks, effectivePageWidth, leftMargin, singleLineWidth)
+	systemBreaks = reflowIfSparse(breakBoundaries, systemBreaks, effectivePageWidth, leftMargin, singleLineWidth)
 
 	// Build the break X list for the reflow
 	var breakXs = systemBreaks.map(b => b.x)
@@ -2631,10 +2654,11 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	}
 
 	var effectiveContentW = contentW - estimatedCourtesyWidth
-	var systemBreaks = computeSystemBreaks(boundaries, effectiveContentW, leftMargin)
+	var breakBoundaries = withEndBoundary(boundaries, staves, singleLineWidth)
+	var systemBreaks = computeSystemBreaks(breakBoundaries, effectiveContentW, leftMargin)
 
 	// Two-pass refinement: same as wrap mode
-	systemBreaks = reflowIfSparse(boundaries, systemBreaks, effectiveContentW, leftMargin, singleLineWidth)
+	systemBreaks = reflowIfSparse(breakBoundaries, systemBreaks, effectiveContentW, leftMargin, singleLineWidth)
 
 	var breakXs = systemBreaks.map(b => b.x)
 	var systemCount = breakXs.length + 1
@@ -4628,4 +4652,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score, renderPage, getTitleFields, computeCollapse, computeSystemBreaks, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }
+export { score, renderPage, getTitleFields, computeCollapse, computeSystemBreaks, withEndBoundary, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }

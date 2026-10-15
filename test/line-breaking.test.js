@@ -11,6 +11,7 @@ globalThis.XMLHttpRequest = globalThis.XMLHttpRequest || class { open() {} send(
 
 const {
 	computeSystemBreaks,
+	withEndBoundary,
 	dpOptimalBreaks,
 	computeBadness,
 	buildBarlineMap,
@@ -136,6 +137,55 @@ describe('computeSystemBreaks', () => {
 		breaks.forEach(b => {
 			expect(boundaries.some(bd => bd.x === b.x)).toBe(true)
 		})
+	})
+})
+
+// ---------------------------------------------------------------------------
+// withEndBoundary (the final bar, after the last barline token)
+// ---------------------------------------------------------------------------
+describe('withEndBoundary', () => {
+	// One staff: a note then a barline per bar; `closed` adds no final bar
+	function bars(count, { closed = false, breakAt = -1 } = {}) {
+		const tokens = []
+		const boundaries = []
+		for (let i = 0; i < count; i++) {
+			tokens.push({ type: 'Note' })
+			if (i === count - 1 && !closed) break
+			boundaries.push({ x: (i + 1) * 100, tokenIndex: tokens.length, systemBreak: i === breakAt, measure: i + 2 })
+			tokens.push({ type: 'Barline' })
+		}
+		return { staves: [{ tokens }], boundaries }
+	}
+
+	test('the final bar counts towards the last system', () => {
+		// 4 bars of 100px and a 400px final bar without a barline, on a
+		// 450px line (a little overfull is left to justification to squeeze)
+		const { staves, boundaries } = bars(5)
+		expect(computeSystemBreaks(boundaries, 450, 50)).toEqual([]) // one 800px system
+		const withEnd = withEndBoundary(boundaries, staves, 800)
+		expect(withEnd.length).toBe(5)
+		const breaks = computeSystemBreaks(withEnd, 450, 50)
+		expect(breaks.map(b => b.x)).toEqual([400])
+		// breaks index the original boundaries
+		breaks.forEach(b => expect(b.boundaryIndex).toBeLessThan(boundaries.length))
+	})
+
+	test('a forced break before the final bar is kept', () => {
+		const { staves, boundaries } = bars(5, { breakAt: 3 })
+		expect(computeSystemBreaks(boundaries, 1000, 50)).toEqual([])
+		const breaks = computeSystemBreaks(withEndBoundary(boundaries, staves, 500), 1000, 50)
+		expect(breaks.map(b => b.x)).toEqual([400])
+	})
+
+	test('no terminal entry when the last barline closes the music', () => {
+		// Ends with a barline, a forced break on it, and padding after it
+		const { staves, boundaries } = bars(4, { closed: true, breakAt: 3 })
+		expect(withEndBoundary(boundaries, staves, 420)).toBe(boundaries)
+		expect(computeSystemBreaks(withEndBoundary(boundaries, staves, 420), 1000, 50)).toEqual([])
+	})
+
+	test('no terminal entry without boundaries', () => {
+		expect(withEndBoundary([], [{ tokens: [{ type: 'Note' }] }], 300)).toEqual([])
 	})
 })
 
