@@ -12,6 +12,7 @@ import { getDraft, getDraftPayload, saveEdit, clearDraft, getLastDoc, setLastDoc
 import { buildSaveFile, isNoteWorthy } from './save.js'
 import { sampleLink, embeddedLink, readLink } from './share.js'
 import { buildPdf, canvasToPdfImage } from './pdf-writer.js'
+import { scoreToMidi, writeMidiFile } from './midi-export.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
 import { PlaybackController, buildNoteEvents, SOUNDS, convertSF3 } from './audio.js'
@@ -801,6 +802,12 @@ register('export', { id: 'nwctxt', label: 'NoteWorthy text (.nwctxt)', available
 register('export', { id: 'nwc', label: 'NoteWorthy Composer (.nwc)', available: canSaveNoteWorthy, run: () => saveAs('nwc') })
 register('export', { id: 'musicxml', label: 'MusicXML (.musicxml)', available: canSaveNoteWorthy, run: () => saveAs('musicxml') })
 register('export', {
+	id: 'midi', label: 'MIDI (.mid)',
+	title: 'The score as it plays: repeats played out, dynamics, instruments and tempo, one track per staff (muted and unsoloed staves left out)',
+	available: () => !!scoreManager.getData()?.score || 'Open a score first',
+	run: () => exportMidi(),
+})
+register('export', {
 	id: 'pdf', label: 'PDF (.pdf)',
 	title: 'Lay the score out on pages (size and orientation from Appearance → Page) and download a PDF',
 	run: () => exportPdf(),
@@ -811,6 +818,13 @@ register('export', {
 	available: () => typeof VideoEncoder !== 'undefined' || 'Needs Chrome, Edge or Safari 17+',
 	run: () => exportVideoFromMenu(),
 })
+
+/** Download the score as a MIDI file, as it plays now (src/midi-export.js). */
+function exportMidi() {
+	const midi = scoreToMidi(scoreManager.getData(), { audible: isStaffAudible })
+	if (!midi.tracks.length) throw new Error('no staff is playing')
+	downloadFile(writeMidiFile(midi), baseFileName() + '.mid', 'audio/midi')
+}
 
 /** What the video exporter plays: the audible notes, programs and length. */
 function exportSong() {

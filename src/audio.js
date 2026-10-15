@@ -98,6 +98,8 @@ export function buildNoteEvents(data) {
 
 	// Accumulated playback time offset (seconds) from previous segments
 	let playbackOffset = 0
+	// ...and in whole notes, for the played timeline in score time (MIDI export)
+	let playTickOffset = 0
 
 	for (const seg of segments) {
 		const segStartSec = ticksToSeconds(seg.startTick, tempoMap)
@@ -169,6 +171,8 @@ export function buildNoteEvents(data) {
 				const noteEndTick = tickStart + totalDur
 				const endSec = playbackOffset + (ticksToSeconds(Math.min(noteEndTick, seg.endTick), tempoMap) - segStartSec)
 				const durationSec = endSec - startSec
+				const playTick = playTickOffset + (tickStart - seg.startTick)
+				const playLength = Math.min(noteEndTick, seg.endTick) - tickStart
 
 				if (tok.type === 'Note') {
 					if (tok.name == null) continue
@@ -177,6 +181,8 @@ export function buildNoteEvents(data) {
 						midi,
 						time: startSec,
 						duration: durationSec,
+						playTick,
+						playLength,
 						velocity,
 						channel,
 						staffIndex: si,
@@ -196,6 +202,8 @@ export function buildNoteEvents(data) {
 							midi,
 							time: startSec,
 							duration: durationSec,
+							playTick,
+							playLength,
 							velocity,
 							channel,
 							staffIndex: si,
@@ -209,6 +217,7 @@ export function buildNoteEvents(data) {
 		}
 
 		playbackOffset += segDuration
+		playTickOffset += seg.endTick - seg.startTick
 	}
 
 	// Sort by time (required by scheduler)
