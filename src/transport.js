@@ -9,6 +9,7 @@
  * persistence.
  */
 import { positionAt, stepSections } from './transport-timeline.js'
+import { openOnHover } from './hover-open.js'
 
 const IDLE_MS = 2500
 const GAP_PX = 3  // between scrub bar sections
@@ -272,7 +273,7 @@ export class Transport {
 
 	// ── Speed: chip + popover with presets, slider and an exact value ──
 
-	/** A button that opens a popover above the bar; one popover at a time. */
+	/** A button that opens a popover above the bar (click or hover); one popover at a time. */
 	_bindPop(button, pop) {
 		this._pops ||= []
 		const open = show => {
@@ -283,7 +284,8 @@ export class Transport {
 			if (show) this.wake()
 		}
 		this._pops.push(() => open(false))
-		button.onclick = e => { e.stopPropagation(); open(pop.hidden) }
+		const click = openOnHover(button, pop, { open: () => open(true), close: () => open(false), isOpen: () => !pop.hidden })
+		button.onclick = e => { e.stopPropagation(); click() }
 		pop.addEventListener('click', e => e.stopPropagation())
 		document.addEventListener('click', e => { if (!pop.hidden && !pop.contains(e.target)) open(false) })
 	}

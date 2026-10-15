@@ -5,10 +5,13 @@
  * Playback lives in transport.js; what goes in the menu comes from slots.js.
  */
 
+import { openOnHover } from './hover-open.js'
+
 const drawers = []
 
 /**
- * Open `panel` from `button`; one drawer at a time. Outside clicks, Esc and
+ * Open `panel` from `button` (a click, or the mouse resting on it: see
+ * hover-open.js); one drawer at a time. Outside clicks, Esc and
  * [data-close] buttons close it.
  * @returns {{ open: (show?: boolean) => void, close: () => void, isOpen: () => boolean }}
  */
@@ -28,9 +31,10 @@ export function bindDrawer(button, panel, { onOpen } = {}) {
 		isOpen: () => panel.classList.contains('open'),
 	}
 	drawers.push(drawer)
+	const click = openOnHover(button, panel, { open: () => set(true), close: () => set(false), isOpen: drawer.isOpen })
 	button.addEventListener('click', (e) => {
 		e.stopPropagation()
-		set(!drawer.isOpen())
+		click()
 	})
 	for (const b of panel.querySelectorAll('[data-close]')) b.addEventListener('click', () => drawer.close())
 	document.addEventListener('click', (e) => {
