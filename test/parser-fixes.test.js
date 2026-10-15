@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 import { readFileSync } from 'fs'
 import { decodeString } from '../lib/nwc2xml/reader.js'
+import { parseNWC } from '../lib/nwc2xml/parser.js'
 
 globalThis.window = globalThis.window || { ctx: null, canvas: null }
 const { decodeNwcArrayBuffer } = await import('../src/nwc.js')
@@ -34,6 +35,29 @@ describe('rest vertical offsets', () => {
 	test('a rest chord rest keeps its offset', () => {
 		const chord = decode(nwctxt('|RestChord|Dur:Half|Dur2:4th|Pos2:3|Opts:VertOffset=-5')).score.staves[0].tokens.find(t => t.restVoice)
 		expect(chord.restVoice.position).toBe(-5)
+	})
+})
+
+describe('staff size', () => {
+	const parse = (path) => {
+		const log = console.log
+		console.log = () => {}
+		try {
+			return parseNWC(read(path))
+		} finally {
+			console.log = log
+		}
+	}
+
+	test('a 2.0x file with a notation typeface string', () => {
+		expect(parse('../nwcs/abelp.nwc').staffSize).toBe(13)
+	})
+
+	test('a 2.0x file without one, laid out like 1.x', () => {
+		// rosfang.nwc (2.02): the staff size follows the layering flag directly
+		const file = parse('../nwcs/rosfang.nwc')
+		expect(file.staffSize).toBe(11)
+		expect(file.fonts[0].name).toBe('Times New Roman')
 	})
 })
 
