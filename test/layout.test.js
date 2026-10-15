@@ -293,6 +293,38 @@ describe('TickTracker barline alignment', () => {
 		expect(endBar1.staveX).toBe(endBarX)
 	})
 
+	// ------------------------------------------------------------------
+	// Mid-piece changes line up after the barline on every staff
+	// stave 1: | key time tempo a
+	// stave 2: | key time       b
+	// ------------------------------------------------------------------
+	test('mid-piece changes start after the barline, not after other staves', () => {
+		const tt = new TickTracker()
+		const T = 2.0
+		const at = (type) => ({ tabValue: T, tabUntilValue: T, type })
+		// Staff 0: barline, then a key and time change and a tempo mark
+		const c0 = cursor(100)
+		tt.alignBarline(at('Barline'), c0)
+		tt.addBarline(at('Barline'), 100, 110)
+		c0.staveX = 110
+		for (const type of ['KeySignature', 'TimeSignature', 'Tempo']) {
+			tt.alignWithMax(at(type), c0)
+			c0.staveX += 15
+			tt.add(at(type), c0)
+		}
+		// Staff 1: its key change starts where staff 0's did
+		const c1 = cursor(100)
+		tt.alignBarline(at('Barline'), c1)
+		c1.staveX = 110
+		tt.alignWithMax(at('KeySignature'), c1)
+		expect(c1.staveX).toBe(110)
+		c1.staveX += 15
+		tt.add(at('KeySignature'), c1)
+		// ...and its first note waits for every staff's items at that time
+		tt.alignWithMax({ tabValue: T, tabUntilValue: T + 1, type: 'Note', durValue: 1 }, c1)
+		expect(c1.staveX).toBe(155)
+	})
+
 	test('alignWithMax uses Math.max — never snaps cursor backward', () => {
 		const tt = new TickTracker()
 		// Register a position at tabUntilValue=0.5

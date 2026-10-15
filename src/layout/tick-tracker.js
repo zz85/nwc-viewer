@@ -12,6 +12,13 @@
  *   (including post-gap for barlines), so notes on every staff land
  *   past all barline gaps.
  *
+ * Items that take no time (mid-piece clef, key and time signature changes,
+ * dynamics, tempo marks...) share their time with the notes after them.
+ * Their ends are kept apart (zeroEnds): a mid-piece change starts after the
+ * barline and the notes before it, not after other staves' items at its
+ * time, which would set each staff's change further right than the last.
+ * Everything else at that time, notes included, starts after them all.
+ *
  * @param {number} xStretch - multiplier for lastPadRight in add().
  */
 class TickTracker {
@@ -23,6 +30,7 @@ class TickTracker {
 	reset() {
 		this.maxTicks = {}
 		this.barlineTicks = {}
+		this.zeroEnds = {}
 	}
 
 	/**
@@ -33,11 +41,12 @@ class TickTracker {
 		if (token.Visibility === 'hidden') return
 
 		const refValue = token.tabUntilValue
-		const which = this.maxTicks[refValue]
+		const ends = takesNoTime(token) ? this.zeroEnds : this.maxTicks
+		const which = ends[refValue]
 
 		const x = cursor.staveX + cursor.lastPadRight * this._xStretch || 0
 		if (!which || x > which.staveX) {
-			this.maxTicks[refValue] = {
+			ends[refValue] = {
 				cursor,
 				staveX: x,
 				token: token,
@@ -91,6 +100,9 @@ class TickTracker {
 			const which = this.maxTicks[key]
 			moveX = Math.max(moveX, which.staveX)
 		}
+		if (key && key in this.zeroEnds && !isMidPieceChange(token)) {
+			moveX = Math.max(moveX, this.zeroEnds[key].staveX)
+		}
 
 		cursor.staveX = moveX
 		return false
@@ -110,8 +122,23 @@ class TickTracker {
 			// No barline registered yet — position after preceding notes
 			moveX = Math.max(moveX, this.maxTicks[key].staveX)
 		}
+		if (key && !(key in this.barlineTicks) && key in this.zeroEnds) {
+			moveX = Math.max(moveX, this.zeroEnds[key].staveX)
+		}
 		cursor.staveX = moveX
 	}
+}
+
+const CHANGE_TYPES = new Set(['Clef', 'KeySignature', 'TimeSignature'])
+
+/** A barline-free item that takes no time on the timeline (grace notes do). */
+function takesNoTime(token) {
+	return token.tabUntilValue === token.tabValue && !token.durValue
+}
+
+/** A clef, key or time signature change after the header (see the interpreter). */
+function isMidPieceChange(token) {
+	return CHANGE_TYPES.has(token.type) && takesNoTime(token)
 }
 
 export { TickTracker }
