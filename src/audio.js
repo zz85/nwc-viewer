@@ -52,7 +52,7 @@ function toMidi(name, octave, accidentalValue) {
  * @param {Array} staves - Score staves array
  * @returns {number[]} - MIDI channel per staff index
  */
-function assignChannels(staves) {
+export function assignChannels(staves) {
 	const channels = []
 	let nextCh = 0
 	for (let si = 0; si < staves.length; si++) {
@@ -387,6 +387,13 @@ export class PlaybackController {
 		// Staves muted in the file itself (NWC staff property); kept separate so
 		// clearing the user's solo/mute selection doesn't unmute them.
 		this._fileMutedStaves = new Set()
+		// ...and those of them the user turned back on (Parts panel)
+		this._unmutedStaves = new Set()
+		// Per-staff level 0..1 (default 1) and instrument chosen in the Parts
+		// panel, by staff index
+		this._levels = new Map()
+		this._programChoices = new Map()
+		this._channels = []   // channel per staff of the last load
 		this._allNotes = []   // unfiltered notes from last load
 		this._scoreData = null // last loaded score data
 
@@ -425,10 +432,67 @@ export class PlaybackController {
 		else this._soloStaves.delete(staffIndex)
 	}
 
-	/** Mute a staff index — muted staves won't play. */
+	/** Mute a staff index — muted staves won't play. Unmuting also turns on a staff the file mutes. */
 	setMute(staffIndex, enabled) {
-		if (enabled) this._muteStaves.add(staffIndex)
-		else this._muteStaves.delete(staffIndex)
+		if (enabled) {
+			this._muteStaves.add(staffIndex)
+			this._unmutedStaves.delete(staffIndex)
+		} else {
+			this._muteStaves.delete(staffIndex)
+			if (this._fileMutedStaves.has(staffIndex)) this._unmutedStaves.add(staffIndex)
+		}
+	}
+
+	/** Staves the file itself mutes (NWC staff property), from the score's staves. */
+	setFileMuted(staves) {
+		this._fileMutedStaves = new Set()
+		staves.forEach((st, si) => { if (st.muted) this._fileMutedStaves.add(si) })
+	}
+
+	/** Whether a staff's mute is on: the user's, or the file's unless turned back on. */
+	muteOn(staffIndex) {
+		if (this._muteStaves.has(staffIndex)) return true
+		return this._fileMutedStaves.has(staffIndex) && !this._unmutedStaves.has(staffIndex)
+	}
+
+	/**
+	 * Whether a staff is heard: with any staff soloed only the soloed ones,
+	 * else every staff not muted, by the user or (unless turned back on) by
+	 * the file.
+	 */
+	isHeard(staffIndex) {
+		if (this._soloStaves.size) return this._soloStaves.has(staffIndex)
+		return !this.muteOn(staffIndex)
+	}
+
+	/** A staff's level, 0..1, set in the Parts panel (default 1). */
+	staffLevel(staffIndex) { return this._levels.get(staffIndex) ?? 1 }
+
+	setStaffLevel(staffIndex, level) {
+		this._levels.set(staffIndex, Math.max(0, Math.min(1, level)))
+		this._applyVolume()
+	}
+
+	/** The instrument (GM program) a staff plays: the Parts panel's choice, else the file's. */
+	programOf(staffIndex, staves) {
+		return this._programChoices.get(staffIndex) ?? staves?.[staffIndex]?.patchName ?? 0
+	}
+
+	setStaffProgram(staffIndex, program) {
+		this._programChoices.set(staffIndex, program)
+		const entry = this._programs[staffIndex]
+		if (!entry) return
+		entry[1] = program
+		if (this._initialized) this._engine.programChange(entry[0], program)
+	}
+
+	/** Forget the Parts panel's choices (a new score). */
+	resetParts() {
+		this.clearSoloMute()
+		this._unmutedStaves.clear()
+		this._levels.clear()
+		this._programChoices.clear()
+		this._applyVolume()
 	}
 
 	/** Check if a staff is soloed. */
@@ -455,11 +519,7 @@ export class PlaybackController {
 	 * - Otherwise, staves muted by the user or by the file are excluded.
 	 */
 	_filterNotes(notes) {
-		const hasSolo = this._soloStaves.size > 0
-		return notes.filter(n => {
-			if (hasSolo) return this._soloStaves.has(n.staffIndex)
-			return !this._muteStaves.has(n.staffIndex) && !this._fileMutedStaves.has(n.staffIndex)
-		})
+		return notes.filter(n => this.isHeard(n.staffIndex))
 	}
 
 	/**
@@ -490,8 +550,10 @@ export class PlaybackController {
 
 	_applyVolume() {
 		if (!this._initialized) return
-		const value = Math.round(this._volume * 127)
-		for (let ch = 0; ch < 16; ch++) this._engine.controlChange(ch, 7, value)
+		// A channel's level: its staff's (the loudest, where staves share one)
+		const levels = new Array(16).fill(null)
+		this._channels.forEach((ch, si) => { levels[ch] = Math.max(levels[ch] ?? 0, this.staffLevel(si)) })
+		for (let ch = 0; ch < 16; ch++) this._engine.controlChange(ch, 7, Math.round(this._volume * (levels[ch] ?? 1) * 127))
 	}
 
 	/** Current playback speed multiplier (1 = normal). */
@@ -617,11 +679,11 @@ export class PlaybackController {
 		// Send GM program change for each staff's instrument before playback.
 		// This sets the correct instrument sound per channel.
 		const staves = data.score.staves
-		this._fileMutedStaves = new Set()
+		this.setFileMuted(staves)
+		this._channels = channels
 		this._programs = []
 		for (let si = 0; si < staves.length; si++) {
-			if (staves[si].muted) this._fileMutedStaves.add(si)
-			this._programs.push([channels[si], staves[si].patchName ?? 0])
+			this._programs.push([channels[si], this.programOf(si, staves)])
 		}
 		this._applyPrograms()
 		// load() rewinds the scheduler; carry on from where playback was left

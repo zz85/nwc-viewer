@@ -55,9 +55,11 @@ function timeSignatures(staves) {
  * @param {object} [opts]
  * @param {(staffIndex:number) => boolean} [opts.audible] - staves to include
  *   (default: those not muted in the file)
+ * @param {(staffIndex:number) => number} [opts.program] - GM program (default: the staff's)
+ * @param {(staffIndex:number) => number} [opts.level] - channel volume 0..1 (default 1: none written)
  * @returns {{ title, tempos, timeSignatures, tracks }}
  */
-export function scoreToMidi(data, { audible } = {}) {
+export function scoreToMidi(data, { audible, program, level } = {}) {
 	const staves = data.score.staves
 	const heard = audible || ((si) => !staves[si]?.muted)
 	const { notes, channels, segments } = buildNoteEvents(data)
@@ -82,7 +84,8 @@ export function scoreToMidi(data, { audible } = {}) {
 		tracks.push({
 			name: st.staff_name || st.staff_label || `Staff ${si + 1}`,
 			channel: channels[si],
-			program: channels[si] === 9 ? null : st.patchName ?? 0,
+			program: channels[si] === 9 ? null : program ? program(si) : st.patchName ?? 0,
+			volume: level && level(si) !== 1 ? Math.round(level(si) * 127) : null,
 			notes: mine.map(n => ({
 				midi: n.midi,
 				at: toTicks(n.playTick),
@@ -144,6 +147,7 @@ export function writeMidiFile({ title = '', tempos = [], timeSignatures: sigs = 
 		const ch = tr.channel & 0x0f
 		const events = [{ at: 0, order: 0, bytes: meta(0x03, textBytes(tr.name || '')) }]
 		if (tr.program != null) events.push({ at: 0, order: 1, bytes: [0xc0 | ch, tr.program & 0x7f] })
+		if (tr.volume != null) events.push({ at: 0, order: 1, bytes: [0xb0 | ch, 7, tr.volume & 0x7f] })
 		for (const n of tr.notes) {
 			// At equal times a note ends before the next one starts, so a
 			// repeated pitch is struck again rather than cut short

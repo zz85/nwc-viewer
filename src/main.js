@@ -13,6 +13,7 @@ import { buildSaveFile, isNoteWorthy } from './save.js'
 import { sampleLink, embeddedLink, readLink } from './share.js'
 import { buildPdf, canvasToPdfImage } from './pdf-writer.js'
 import { scoreToMidi, writeMidiFile } from './midi-export.js'
+import { createPartsPanel } from './parts-panel.js'
 import { blank } from './editing.js'
 import { MusicContext } from './context.js'
 import { PlaybackController, buildNoteEvents, SOUNDS, convertSF3 } from './audio.js'
@@ -803,7 +804,7 @@ register('export', { id: 'nwc', label: 'NoteWorthy Composer (.nwc)', available: 
 register('export', { id: 'musicxml', label: 'MusicXML (.musicxml)', available: canSaveNoteWorthy, run: () => saveAs('musicxml') })
 register('export', {
 	id: 'midi', label: 'MIDI (.mid)',
-	title: 'The score as it plays: repeats played out, dynamics, instruments and tempo, one track per staff (muted and unsoloed staves left out)',
+	title: 'The score as it plays: repeats played out, dynamics, tempo, one track per staff with its instrument and level from Parts (muted and unsoloed staves left out)',
 	available: () => !!scoreManager.getData()?.score || 'Open a score first',
 	run: () => exportMidi(),
 })
@@ -821,7 +822,12 @@ register('export', {
 
 /** Download the score as a MIDI file, as it plays now (src/midi-export.js). */
 function exportMidi() {
-	const midi = scoreToMidi(scoreManager.getData(), { audible: isStaffAudible })
+	const data = scoreManager.getData()
+	const midi = scoreToMidi(data, {
+		audible: isStaffAudible,
+		program: (si) => playback.programOf(si, data.score.staves),
+		level: (si) => playback.staffLevel(si),
+	})
 	if (!midi.tracks.length) throw new Error('no staff is playing')
 	downloadFile(writeMidiFile(midi), baseFileName() + '.mid', 'audio/midi')
 }
@@ -959,39 +965,16 @@ if (autoScrollBtn) {
 	}
 }
 
-// Solo staff selector
-const soloSelect = document.getElementById('solo_staff')
-
-function updateSoloStaffOptions(data) {
-	if (!soloSelect) return
-	// Clear existing options (keep "All")
-	soloSelect.innerHTML = '<option value="all">All Staves</option>'
-	const staves = data?.score?.staves
-	if (!staves) return
-	for (let i = 0; i < staves.length; i++) {
-		const opt = document.createElement('option')
-		opt.value = String(i)
-		const name = staves[i].staff_name || staves[i].staff_label || `Staff ${i + 1}`
-		opt.textContent = `${i + 1}: ${name}`
-		soloSelect.appendChild(opt)
-	}
-	// Restore selection (clear solo if staves changed)
-	soloSelect.value = 'all'
-	playback.clearSoloMute()
-}
-
-if (soloSelect) {
-	soloSelect.onchange = async () => {
-		const val = soloSelect.value
-		playback.clearSoloMute()
-		if (val !== 'all') {
-			playback.setSolo(parseInt(val, 10), true)
-		}
-		// Re-filter and reload if we have notes loaded
+// Parts panel: mute, solo, volume, instrument and visibility per staff
+const partsPanel = createPartsPanel(document.getElementById('parts_list'), {
+	playback,
+	onHeardChange: async () => {
 		await playback._reloadFiltered()
 		rebuild3D()  // only audible staves light up
-	}
-}
+	},
+	onShownChange: () => rerender(),
+})
+transport.bindPopover(document.getElementById('parts_btn'), document.getElementById('parts_pop'))
 
 // Piano keyboard toggle. The choice is remembered; without one, the keyboard
 // starts hidden on narrow screens where it would take a large share of the
@@ -1158,7 +1141,7 @@ function setDataAndRender(_data) {
 	titleEditor.finish(false)
 	applyDraft(_data)
 	scoreManager.setData(_data)
-	updateSoloStaffOptions(_data)
+	partsPanel.render(_data)
 	rerender()
 }
 
@@ -1442,8 +1425,7 @@ function write3DControl(el, value) {
 
 /** Staves whose notes light up: the ones that are heard (solo / mute). */
 function isStaffAudible(si) {
-	if (playback.soloStaves.size) return playback.soloStaves.has(si)
-	return !playback.muteStaves.has(si) && !scoreManager.getData()?.score?.staves[si]?.muted
+	return playback.isHeard(si)
 }
 
 function ensureView3D() {

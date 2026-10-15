@@ -37,7 +37,7 @@ const BLACK_KEY_W = 9    // px
 const BLACK_KEY_H = 44   // px (≈63% of white key height)
 
 // Staff colors for highlighting (up to 16 staves)
-const STAFF_COLORS = [
+export const STAFF_COLORS = [
 	'#4285f4', // blue
 	'#ea4335', // red
 	'#34a853', // green

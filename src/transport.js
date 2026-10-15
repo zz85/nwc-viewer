@@ -290,6 +290,11 @@ export class Transport {
 		document.addEventListener('click', e => { if (!pop.hidden && !pop.contains(e.target)) open(false) })
 	}
 
+	/** Another popover above the bar, opened from `button` like speed and settings. */
+	bindPopover(button, pop) {
+		this._bindPop(button, pop)
+	}
+
 	closePops() {
 		for (const close of this._pops || []) close()
 	}
