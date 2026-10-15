@@ -3477,7 +3477,7 @@ var currentAllowLayering = true // file-level allowLayering flag
  */
 var EXTENT_MARK_DEFAULTS = { Text: 11, Tempo: 11, PerformanceStyle: 9, Dynamic: -13, DynamicVariance: -13, TempoVariance: 11, Flow: 11 }
 function tokenExtent(tok) {
-	if (tok.Visibility === 'Never') return null
+	if (tok.Visibility === 'Never' || isOffStaffRest(tok)) return null
 	if (tok.type === 'Note' || tok.type === 'Rest' || (tok.type === 'Chord' && tok.notes)) {
 		var positions = tok.notes ? tok.notes.map(function(n) { return (n.position || 0) + 4 }) : [(tok.position || 0) + 4]
 		var lo = Math.min.apply(null, positions) - 1, hi = Math.max.apply(null, positions) + 1
@@ -3560,7 +3560,7 @@ function computeStaffExtents(staves) {
 
 		for (var ti = 0; ti < tokens.length; ti++) {
 			var tok = tokens[ti]
-			if (tok.Visibility === 'Never') continue
+			if (tok.Visibility === 'Never' || isOffStaffRest(tok)) continue
 
 			if (tok.type === 'Note' || tok.type === 'Rest' || (tok.type === 'Chord' && tok.notes)) {
 				var positions = tok.notes ? tok.notes.map(function(n) { return (n.position || 0) + 4 }) : [(tok.position || 0) + 4]
@@ -3815,7 +3815,19 @@ var HIDEABLE_ANNOTATIONS = new Set([
  *   SingleStaff — shown only when the score displays a single staff
  *   MultiStaff  — shown only when the score displays several staves
  */
+/**
+ * A rest moved far off its staff: an old NWC way of hiding a rest (in
+ * layered staves especially) is a vertical offset of hundreds of positions,
+ * which takes it off the printed page. Such rests are hidden, and don't
+ * count towards staff spacing. Real offsets stay within a few staff heights.
+ */
+var OFF_STAFF_REST = 48
+function isOffStaffRest(tok) {
+	return tok.type === 'Rest' && Math.abs(tok.position || 0) > OFF_STAFF_REST
+}
+
 function isTokenHidden(token, staveIndex) {
+	if (isOffStaffRest(token)) return true
 	var vis = token.Visibility
 	// Default visibility is 'Always' for most objects, but 'On Top Staff' for
 	// flow directions (NWC manual, Visibility property)
@@ -3981,7 +3993,8 @@ function layoutToken(token, tokenIndex, staveIndex, cursor) {
 
 			if (!sym) console.log('FAIL REST', token, duration)
 
-			s = new Glyph(sym, token.position + 4) // + 4
+			// An off-staff rest shows (with "Show hidden items") on the middle line
+			s = new Glyph(sym, (isOffStaffRest(token) ? 0 : token.position) + 4) // + 4
 			cursor.posGlyph(s)
 			s._text = info
 			// Hidden rests (filler rests in layered voices) keep their spacing
@@ -4652,4 +4665,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score, renderPage, getTitleFields, computeCollapse, computeSystemBreaks, withEndBoundary, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }
+export { score, renderPage, getTitleFields, computeCollapse, computeSystemBreaks, withEndBoundary, computeStaffExtents, isOffStaffRest, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }
