@@ -1,19 +1,40 @@
 // TODO it's no longer a constant, we should find a better name for this file
-let FONT_SIZE = 28
+// Staff height in px. The size setting (staff size buttons) is the size
+// engraved in scroll and wrap layout; page layout starts from the file's own
+// staff size instead and scales it by the setting (see typeset's score).
+const DEFAULT_FONT_SIZE = 28
+let FONT_SIZE = DEFAULT_FONT_SIZE  // in use by the engraving
+let fontSizeSetting = DEFAULT_FONT_SIZE
 
 // Stave space
 // 1-1.25 key 1-1.5 timesig 2 note p.42
 
-function setFontSize(n) {
+function clampFontSize(n) {
 	// Clamp to a safe range: below ~12 px, glyphs become unreadable and line
 	// widths degenerate; 0 or negative causes division-by-zero / infinite loops.
 	// Above ~240 px, a single staff barely fits a screen — further zoom is
 	// unlikely to be useful.
-	FONT_SIZE = Math.max(12, Math.min(240, n))
+	return Math.max(12, Math.min(240, n))
 }
 
+/** Set the staff size setting (and the size in use, until the next layout). */
+function setFontSize(n) {
+	fontSizeSetting = FONT_SIZE = clampFontSize(n)
+}
+
+/** The staff size the engraving uses now. */
 function getFontSize() {
 	return FONT_SIZE
+}
+
+/** The staff size setting, which getFontSize() differs from in page layout. */
+function getFontSizeSetting() {
+	return fontSizeSetting
+}
+
+/** Engrave at `n` px without changing the setting (used by layout). */
+function setEngravingFontSize(n) {
+	FONT_SIZE = clampFontSize(n)
 }
 
 // Layout mode — 'scroll' renders all measures on one infinite horizontal line;
@@ -241,8 +262,11 @@ Object.assign(!isBrowser() ? global : window, {
 	isNode,
 	isBrowser,
 	FONT_SIZE,
+	DEFAULT_FONT_SIZE,
 	setFontSize,
 	getFontSize,
+	getFontSizeSetting,
+	setEngravingFontSize,
 	setSpacingModel,
 	getSpacingModel,
 	setSpringDensity,
@@ -280,7 +304,7 @@ Object.assign(!isBrowser() ? global : window, {
 
 export {
 	isNode, isBrowser,
-	FONT_SIZE, setFontSize, getFontSize,
+	FONT_SIZE, DEFAULT_FONT_SIZE, setFontSize, getFontSize, getFontSizeSetting, setEngravingFontSize,
 	setSpacingModel, getSpacingModel,
 	setSpringDensity, getSpringDensity,
 	setRodSpringBalance, getRodSpringBalance,

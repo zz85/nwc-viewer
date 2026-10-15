@@ -1,4 +1,4 @@
-import { getFontSize, getZoomLevel, getLayoutMode, getShowHiddenItems, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getMusicFont, MUSIC_FONTS, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
+import { getFontSize, getFontSizeSetting, setEngravingFontSize, DEFAULT_FONT_SIZE, getZoomLevel, getLayoutMode, getShowHiddenItems, getPageDimensions, getPageMargins, getPageViewMode, getMusicTextFamily, getMusicFont, MUSIC_FONTS, getSpacingModel, getSpringDensity, getRodSpringBalance, getDurationProportionality } from '../constants.js'
 import { layoutBeaming } from './beams.js'
 import { layoutTies } from './ties.js'
 import { resizeToFit, DynamicMarking, ArticulationMark, Hairpin, VoltaBracket, TupletBracket, Glyph, PartialTie, getCode, glyphPathGet } from '../drawing.js'
@@ -1840,12 +1840,42 @@ function visibleScore(data) {
 	return Object.assign({}, data, { score: Object.assign({}, data.score, { staves: shown }) })
 }
 
+/** The file's staff size in points (NWC Page Setup), 16 when unknown. */
+function fileStaffSizePt(data) {
+	var pt = data.score.staffSize
+	return pt > 4 && pt <= 72 ? pt : 16
+}
+
+/**
+ * Lay out and draw the score.  Page layout engraves at the file's own staff
+ * size (points at 96 DPI), scaled by the staff size setting, as NWC prints
+ * it.  A system taller than a page would run into the next page's music, so
+ * then the score is laid out again at the size that makes the tallest system
+ * fit (down to the 12 px minimum).  Other layouts engrave at the setting.
+ */
 function score(dataOrContext) {
 	// Support both legacy data object and new MusicContext
 	const data = visibleScore(dataOrContext.getData ? dataOrContext.getData() : dataOrContext)
 	const ctx = dataOrContext.getContext ? dataOrContext.getContext() : window.ctx
 	const canvas = dataOrContext.getCanvas ? dataOrContext.getCanvas() : window.canvas
-	
+
+	if (getLayoutMode() !== 'page') {
+		setEngravingFontSize(getFontSizeSetting())
+		return layoutScore(data, ctx, canvas)
+	}
+	setEngravingFontSize(fileStaffSizePt(data) * 96 / 72 * getFontSizeSetting() / DEFAULT_FONT_SIZE)
+	for (var attempt = 0; ; attempt++) {
+		var fit = layoutScore(data, ctx, canvas)
+		if (!fit || fit.need <= fit.room || attempt === 3) return
+		// Spacing scales with the staff size, so one pass usually suffices
+		var size = Math.max(12, getFontSize() * fit.room / fit.need * 0.99)
+		if (size >= getFontSize()) return
+		setEngravingFontSize(size)
+	}
+}
+
+/** One layout pass at the current staff size; page layout returns its fit. */
+function layoutScore(data, ctx, canvas) {
 	ctx.clearRect(0, 0, canvas.width, canvas.height)
 	window.drawing = drawing = new Drawing(ctx)
 
@@ -1854,7 +1884,7 @@ function score(dataOrContext) {
 	currentAllowLayering = data.score.allowLayering !== false
 	currentStaffLabelMode = data.score.staffLabels || ''
 	currentTextFonts = data.score.textFonts || []
-	currentStaffSizePt = data.score.staffSize > 4 ? data.score.staffSize : 16
+	currentStaffSizePt = fileStaffSizePt(data)
 	var extents = computeStaffExtents(staves)
 	currentExtents = extents
 	// Bottom of the title block (title baseline 1.43 fs, author 2.14 fs; see
@@ -1956,7 +1986,7 @@ function score(dataOrContext) {
 	const isPageMode = getLayoutMode() === 'page'
 
 	if (isPageMode) {
-		scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas)
+		return scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas)
 	} else if (isWrapMode) {
 		scoreWrapLayout(drawing, data, staves, stavePointers, ctx, canvas)
 	} else {
@@ -2791,6 +2821,14 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	pages.push({ systemStart: pageStart, systemEnd: systemCount - 1 })
 	var pageCount = pages.length
 
+	// Height the tallest system needs on a page: the first one under the
+	// title, the others from the top margin (see score: a system that
+	// doesn't fit runs into the next page)
+	var fit = { need: 0, room: contentH }
+	for (var fk = 0; fk < systemCount; fk++) {
+		fit.need = Math.max(fit.need, (fk === 0 ? titleHeight + firstTopClearance : topClearance) + sysHeight(fk))
+	}
+
 	// --- Compute page positions based on page view mode ---
 	var interPageGap = 24
 	var horizontalPad = 40
@@ -3093,6 +3131,7 @@ function scorePageLayout(drawing, data, staves, stavePointers, ctx, canvas) {
 	splitCrossSystemTies(drawing, systemHeight, interSystemGap)
 
 	sizeSpacerAndRender(canvas, maxCanvasWidth, maxCanvasHeight)
+	return fit
 }
 
 /**
@@ -4665,4 +4704,4 @@ function clefFromString(str) {
 	}
 }
 
-export { score, renderPage, getTitleFields, computeCollapse, computeSystemBreaks, withEndBoundary, computeStaffExtents, isOffStaffRest, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }
+export { score, renderPage, getTitleFields, computeCollapse, computeSystemBreaks, withEndBoundary, computeStaffExtents, isOffStaffRest, fileStaffSizePt, dpOptimalBreaks, computeBadness, buildBarlineMap, computeJustifyX, setPlaybackHighlighter, setInkBleedRenderer, reflowIfSparse }

@@ -1,5 +1,5 @@
 import './constants.js'
-import { getFontSize, setFontSize, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel, setZoomLevel, getPageDimensions, setPageViewMode, getPageViewMode, setZoomFitMode, getZoomFitMode, setShowHiddenItems } from './constants.js'
+import { getFontSize, setFontSize, getFontSizeSetting, getLayoutMode, setLayoutMode, setPageSize, getPageSize, setPageOrientation, getPageOrientation, getMusicFont, setMusicFont, getSpringDensity, setSpringDensity, getRodSpringBalance, setRodSpringBalance, getDurationProportionality, setDurationProportionality, getZoomLevel, setZoomLevel, getPageDimensions, setPageViewMode, getPageViewMode, setZoomFitMode, getZoomFitMode, setShowHiddenItems } from './constants.js'
 import { ajax } from './loaders.js'
 import { decodeNwcArrayBuffer, getUseNewParser, setUseNewParser } from './nwc.js'
 import { decodeMidiArrayBuffer, isMidiFile } from './midi-import.js'
@@ -1852,8 +1852,8 @@ if (musicFontSelect) musicFontSelect.value = getMusicFont()
 
 const sizeDownBtn = document.getElementById('size_down')
 const sizeUpBtn = document.getElementById('size_up')
-if (sizeDownBtn) sizeDownBtn.onclick = () => { setFontSize(getFontSize() - 4); rerender() }
-if (sizeUpBtn) sizeUpBtn.onclick = () => { setFontSize(getFontSize() + 4); rerender() }
+if (sizeDownBtn) sizeDownBtn.onclick = () => { setFontSize(getFontSizeSetting() - 4); rerender() }
+if (sizeUpBtn) sizeUpBtn.onclick = () => { setFontSize(getFontSizeSetting() + 4); rerender() }
 
 // ---- PDF export ----
 
@@ -1877,15 +1877,15 @@ if (pdfFitCheckbox) {
  */
 async function exportPdf() {
 	const prevMode = getLayoutMode()
-	const prevFontSize = getFontSize()
+	const prevFontSize = getFontSizeSetting()
 	const fitOnePage = !!pdfFitCheckbox?.checked
 	const pageCount = () => window._pageGeometry?.pageCount || 1
 	let canvases, pg, exportFontSize
 	try {
 		setLayoutMode('page')
 		rerender()
-		while (fitOnePage && pageCount() > 1 && getFontSize() - 4 >= FIT_MIN_FONT_SIZE) {
-			setFontSize(getFontSize() - 4)
+		while (fitOnePage && pageCount() > 1 && getFontSizeSetting() - 4 >= FIT_MIN_FONT_SIZE) {
+			setFontSize(getFontSizeSetting() - 4)
 			rerender()
 		}
 		pg = window._pageGeometry
